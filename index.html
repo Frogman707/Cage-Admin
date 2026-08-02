@@ -1035,8 +1035,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           </div>
           <div class="hint" data-i18n="regWdPwHint"></div>
           <div class="row" style="margin-top:12px;">
-            <div class="field"><label data-i18n="regEngName"></label><input placeholder="LEE JIHOON"></div>
-            <div class="field"><label data-i18n="regNickname"></label><input placeholder="Teddy"></div>
+            <div class="field"><label data-i18n="regEngName"></label><input id="regEngName" placeholder="LEE JIHOON"></div>
+            <div class="field"><label data-i18n="regNickname"></label><input id="regNickname" placeholder="Teddy"></div>
           </div>
           <div class="field"><label data-i18n="regMembershipNo"></label><input id="regMembershipNo" placeholder="52049817"></div>
           <div class="checkbox-row"><input type="checkbox" id="regVip"><label for="regVip" data-i18n="regVipCard"></label></div>
@@ -1045,20 +1045,20 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="card">
           <h3 data-i18n="regContact"></h3>
           <div class="field"><label data-i18n="regPhone"></label>
-            <div class="row"><select style="flex:0 0 90px;"><option>🇵🇭 +63</option><option>🇰🇷 +82</option><option>🇨🇳 +86</option><option>🇭🇰 +852</option></select>
-              <input placeholder="912 345 6789">
+            <div class="row"><select id="regPhoneCountry" style="flex:0 0 90px;"><option>🇵🇭 +63</option><option>🇰🇷 +82</option><option>🇨🇳 +86</option><option>🇭🇰 +852</option></select>
+              <input id="regPhone" placeholder="912 345 6789">
               <button class="btn btn-sm" data-i18n="regSendAuthBtn"></button></div>
           </div>
           <div class="row">
             <div class="field"><label data-i18n="regAuthInput"></label><input placeholder="000000"></div>
             <button class="btn btn-sm" style="align-self:flex-end;height:38px;margin-bottom:12px;" data-i18n="regAuthConfirmBtn"></button>
           </div>
-          <div class="field"><label data-i18n="regTelegramId"></label><input placeholder="@handle"></div>
+          <div class="field"><label data-i18n="regTelegramId"></label><input id="regTelegramId" placeholder="@handle"></div>
           <button class="btn btn-sm" onclick="openTelegramLinkForReg()" data-i18n="btnTelegramAdd"></button>
           <div class="row" style="margin-top:12px;">
-            <div class="field"><label data-i18n="regAgentCode"></label><input placeholder="H-A-000"></div>
+            <div class="field"><label data-i18n="regAgentCode"></label><input id="regAgentCode" placeholder="H-A-000"></div>
             <div class="field"><label data-i18n="regProxy"></label>
-              <select><option>OFF</option><option>ON</option></select></div>
+              <select id="regProxy"><option>OFF</option><option>ON</option></select></div>
           </div>
           <div class="hint" data-i18n="regProxyHint"></div>
         </div>
@@ -1066,8 +1066,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="card">
           <h3 data-i18n="regPassport"></h3>
           <div class="row">
-            <div class="field"><label data-i18n="regPassportNo"></label><input placeholder="EC1234567"></div>
-            <div class="field"><label data-i18n="regPassportExp"></label><input type="date"></div>
+            <div class="field"><label data-i18n="regPassportNo"></label><input id="regPassportNo" placeholder="EC1234567"></div>
+            <div class="field"><label data-i18n="regPassportExp"></label><input id="regPassportExp" type="date"></div>
           </div>
           <div class="row">
             <div class="field"><label data-i18n="regPassportPhoto"></label>
@@ -1665,9 +1665,9 @@ ko:{
  colMrCash:"현금", colMrCashChips:"현금칩", colMrRollingChips:"롤링칩", colMrCasinoCum:"카지노 누적", colMrGuestTotal:"고객 합계",
  print:"인쇄", yes:"예", no:"아니오", process:"처리", staffLabel:"담당자",
  toastProcessed:"처리되었습니다.", toastGameStarted:"게임이 시작되었습니다.", toastSettled:"정산이 완료되었습니다.",
- toastBlocked:"차단이 적용되었습니다.", toastCutoff:"마감 처리되었습니다.", toastRegistered:"신규 어카운트가 등록되었습니다.",
+ toastBlocked:"차단이 적용되었습니다.", toastCutoff:"마감 처리되었습니다.", toastRegistered:"신규 어카운트가 등록되었습니다.", toastPwMismatch:"비밀번호가 일치하지 않습니다.",
  toastNoAcc:"어카운트를 먼저 조회하세요.", toastTransfer:"이체가 완료되었습니다.", toastShift:"교대 처리되었습니다.",
- toastInsufficientBalance:"잔액이 부족합니다.", notifInsufficientBalance:"잔액 부족",
+ toastInsufficientBalance:"잔액이 부족합니다.", notifInsufficientBalance:"잔액 부족", toastInsufficientPoints:"포인트 잔액이 부족합니다.",
 
  navConcierge:"컨시어지", navPoints:"포인트 · 이벤트",
  hotelTab:"호텔 예약", carTab:"차량 예약", aeroTab:"아로 서비스",
@@ -1698,7 +1698,7 @@ ko:{
  ccChipsLabel:"CC 칩", nnChipsLabel:"NN 칩",
  gameEndTitle:"게임 종료", endCcReturn:"CC 칩 반납", endNnReturn:"NN 칩 반납", endFinalCash:"최종 캐시", winLoss:"윈로스", gameEndConfirmBtn:"게임 종료 확정", endedGamesTitle:"종료된 게임",
  toastMidSettled:"중간정산이 기록되었습니다.", toastGameEnded:"게임이 종료되었습니다.",
- memoGameBuyin:"게임 바이인(계좌)", memoMidSettleDeposit:"중간정산 디파짓", memoGameEndDeposit:"게임종료 디파짓", memoRollingSettle:"롤링 커미션 정산금", memoGameCancelRefund:"게임 취소 환불",
+ memoGameBuyin:"게임 바이인(계좌)", memoMidSettleDeposit:"중간정산 디파짓", memoGameEndDeposit:"게임종료 디파짓", memoRollingSettle:"롤링 커미션 정산금", memoGameCancelRefund:"게임 취소 환불", memoEventCommission:"이벤트 롤링 커미션 지급",
  notifGameCancelled:"게임 취소", toastGameCancelled:"게임이 취소되었습니다.",
  notifMidSettle:"중간정산 기록", notifGameEnd:"게임 종료",
  transferAccSearch:"어카운트 검색", transferAccSearchPh:"어카운트 검색", transferNoMatch:"일치하는 어카운트가 없습니다", transferPickAcc:"이체할 어카운트를 선택하세요",
@@ -1786,9 +1786,9 @@ en:{
  colMrCash:"Cash", colMrCashChips:"Cash Chips", colMrRollingChips:"Rolling Chips", colMrCasinoCum:"Casino Cum.", colMrGuestTotal:"Guest Total",
  print:"Print", yes:"Yes", no:"No", process:"Process", staffLabel:"Staff",
  toastProcessed:"Transaction processed.", toastGameStarted:"Game started.", toastSettled:"Settlement confirmed.",
- toastBlocked:"Account blocked.", toastCutoff:"Cutoff completed.", toastRegistered:"New account registered.",
+ toastBlocked:"Account blocked.", toastCutoff:"Cutoff completed.", toastRegistered:"New account registered.", toastPwMismatch:"Passwords do not match.",
  toastNoAcc:"Look up an account first.", toastTransfer:"Transfer completed.", toastShift:"Shift updated.",
- toastInsufficientBalance:"Insufficient balance.", notifInsufficientBalance:"Insufficient Balance",
+ toastInsufficientBalance:"Insufficient balance.", notifInsufficientBalance:"Insufficient Balance", toastInsufficientPoints:"Insufficient points balance.",
 
  navConcierge:"Concierge", navPoints:"Points & Event",
  hotelTab:"Hotel Booking", carTab:"Car Reservation", aeroTab:"Aero Service",
@@ -1819,7 +1819,7 @@ en:{
  ccChipsLabel:"CC Chips", nnChipsLabel:"NN Chips",
  gameEndTitle:"End Game", endCcReturn:"CC Chips Returned", endNnReturn:"NN Chips Returned", endFinalCash:"Final Cash", winLoss:"Win / Loss", gameEndConfirmBtn:"Confirm Game End", endedGamesTitle:"Ended Games",
  toastMidSettled:"Mid-settlement recorded.", toastGameEnded:"Game ended.",
- memoGameBuyin:"Game Buy-in (Account)", memoMidSettleDeposit:"Mid-Settlement Deposit", memoGameEndDeposit:"Game End Deposit", memoRollingSettle:"Rolling Commission Settlement", memoGameCancelRefund:"Game Cancel Refund",
+ memoGameBuyin:"Game Buy-in (Account)", memoMidSettleDeposit:"Mid-Settlement Deposit", memoGameEndDeposit:"Game End Deposit", memoRollingSettle:"Rolling Commission Settlement", memoGameCancelRefund:"Game Cancel Refund", memoEventCommission:"Event Rolling Commission",
  notifGameCancelled:"Game Cancelled", toastGameCancelled:"Game cancelled.",
  notifMidSettle:"Mid-Settlement Recorded", notifGameEnd:"Game Ended",
  transferAccSearch:"Account Search", transferAccSearchPh:"Search account", transferNoMatch:"No matching account", transferPickAcc:"Select an account to transfer to",
@@ -1907,9 +1907,9 @@ en:{
  colMrCash:"現金", colMrCashChips:"現金碼", colMrRollingChips:"轉碼", colMrCasinoCum:"賭場累計", colMrGuestTotal:"貴賓合計",
  print:"列印", yes:"是", no:"否", process:"處理", staffLabel:"經辦人",
  toastProcessed:"交易已處理。", toastGameStarted:"賽局已開始。", toastSettled:"結算已完成。",
- toastBlocked:"已套用封鎖。", toastCutoff:"結帳已完成。", toastRegistered:"新帳戶已登記。",
+ toastBlocked:"已套用封鎖。", toastCutoff:"結帳已完成。", toastRegistered:"新帳戶已登記。", toastPwMismatch:"密碼不一致。",
  toastNoAcc:"請先查詢帳戶。", toastTransfer:"轉帳已完成。", toastShift:"交班已處理。",
- toastInsufficientBalance:"餘額不足。", notifInsufficientBalance:"餘額不足",
+ toastInsufficientBalance:"餘額不足。", notifInsufficientBalance:"餘額不足", toastInsufficientPoints:"點數餘額不足。",
 
  navConcierge:"禮賓服務", navPoints:"積分‧活動",
  hotelTab:"飯店預訂", carTab:"車輛預約", aeroTab:"阿羅服務",
@@ -1940,7 +1940,7 @@ en:{
  ccChipsLabel:"現金碼", nnChipsLabel:"泥碼",
  gameEndTitle:"結束賽局", endCcReturn:"現金碼回收", endNnReturn:"泥碼回收", endFinalCash:"最終現金", winLoss:"輸贏", gameEndConfirmBtn:"確認結束賽局", endedGamesTitle:"已結束賽局",
  toastMidSettled:"中途結算已記錄。", toastGameEnded:"賽局已結束。",
- memoGameBuyin:"遊戲買入（帳戶）", memoMidSettleDeposit:"中途結算存入", memoGameEndDeposit:"結束賽局存入", memoRollingSettle:"轉碼佣金結算金", memoGameCancelRefund:"取消賽局退款",
+ memoGameBuyin:"遊戲買入（帳戶）", memoMidSettleDeposit:"中途結算存入", memoGameEndDeposit:"結束賽局存入", memoRollingSettle:"轉碼佣金結算金", memoGameCancelRefund:"取消賽局退款", memoEventCommission:"活動轉碼佣金發放",
  notifGameCancelled:"賽局已取消", toastGameCancelled:"賽局已取消。",
  notifMidSettle:"中途結算紀錄", notifGameEnd:"賽局結束",
  transferAccSearch:"帳戶搜尋", transferAccSearchPh:"搜尋帳戶", transferNoMatch:"沒有符合的帳戶", transferPickAcc:"請選擇要轉帳的帳戶",
@@ -2028,9 +2028,9 @@ en:{
  colMrCash:"现金", colMrCashChips:"现金码", colMrRollingChips:"转码", colMrCasinoCum:"赌场累计", colMrGuestTotal:"贵宾合计",
  print:"打印", yes:"是", no:"否", process:"处理", staffLabel:"经办人",
  toastProcessed:"交易已处理。", toastGameStarted:"赛局已开始。", toastSettled:"结算已完成。",
- toastBlocked:"已应用封锁。", toastCutoff:"结账已完成。", toastRegistered:"新账户已登记。",
+ toastBlocked:"已应用封锁。", toastCutoff:"结账已完成。", toastRegistered:"新账户已登记。", toastPwMismatch:"密码不一致。",
  toastNoAcc:"请先查询账户。", toastTransfer:"转账已完成。", toastShift:"交班已处理。",
- toastInsufficientBalance:"余额不足。", notifInsufficientBalance:"余额不足",
+ toastInsufficientBalance:"余额不足。", notifInsufficientBalance:"余额不足", toastInsufficientPoints:"点数余额不足。",
 
  navConcierge:"礼宾服务", navPoints:"积分‧活动",
  hotelTab:"酒店预订", carTab:"车辆预约", aeroTab:"阿罗服务",
@@ -2061,7 +2061,7 @@ en:{
  ccChipsLabel:"现金码", nnChipsLabel:"泥码",
  gameEndTitle:"结束赛局", endCcReturn:"现金码回收", endNnReturn:"泥码回收", endFinalCash:"最终现金", winLoss:"输赢", gameEndConfirmBtn:"确认结束赛局", endedGamesTitle:"已结束赛局",
  toastMidSettled:"中途结算已记录。", toastGameEnded:"赛局已结束。",
- memoGameBuyin:"游戏买入（账户）", memoMidSettleDeposit:"中途结算存入", memoGameEndDeposit:"结束赛局存入", memoRollingSettle:"转码佣金结算金", memoGameCancelRefund:"取消赛局退款",
+ memoGameBuyin:"游戏买入（账户）", memoMidSettleDeposit:"中途结算存入", memoGameEndDeposit:"结束赛局存入", memoRollingSettle:"转码佣金结算金", memoGameCancelRefund:"取消赛局退款", memoEventCommission:"活动转码佣金发放",
  notifGameCancelled:"赛局已取消", toastGameCancelled:"赛局已取消。",
  notifMidSettle:"中途结算记录", notifGameEnd:"赛局结束",
  transferAccSearch:"账户搜索", transferAccSearchPh:"搜索账户", transferNoMatch:"没有符合的账户", transferPickAcc:"请选择要转账的账户",
@@ -2922,11 +2922,16 @@ function _doStartGame(account, buyin, workingChip, enteredId){
 function cancelGame(gameId){
  const g = DB.games.find(x=>x.gameId===gameId);
  if(!g) return;
- // 바이인·워킹칩으로 인한 캐시·롤링 영향을 전부 원상복구
+ // 바이인·워킹칩·롤링으로 인한 캐시·롤링 영향을 전부 원상복구
  DB.gameNNAdjust = (DB.gameNNAdjust||0) + ((g.buyin||0) + (g.workingChip||0));
  DB.buyinRollingShift = (DB.buyinRollingShift||0) - (g.buyin||0);
  if(g.workingChip){
   DB.workingChipRollingShift = (DB.workingChipRollingShift||0) - g.workingChip;
+ }
+ if(g.rolling){
+  DB.guestRollingGrandTotal = (DB.guestRollingGrandTotal||0) - g.rolling;
+  DB.rollingDailyTotal = (DB.rollingDailyTotal||0) - g.rolling;
+  DB.rollingCashShift = (DB.rollingCashShift||0) - g.rolling;
  }
  if(g.startType === 'cash'){
   if(g.buyin){
@@ -3709,6 +3714,9 @@ function confirmBalancingCheck(){
   toast(t('toastBalancingNotZero'));
   return;
  }
+ requestPinAuth(_doConfirmBalancingCheck);
+}
+function _doConfirmBalancingCheck(){
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  DB.balancingCheckLog = DB.balancingCheckLog||[];
@@ -3752,7 +3760,7 @@ function renderCutoffs(){
 }
 function generateDailyReportPDF(date){
  document.getElementById('dailyReportDate').textContent = date;
- document.getElementById('dailyReportRolling').textContent = document.getElementById('cageRolling').textContent;
+ document.getElementById('dailyReportRolling').textContent = document.getElementById('combinedRolling').textContent;
  document.getElementById('dailyReportCash').textContent = document.getElementById('combinedCash').textContent;
  document.getElementById('dailyReportDiffRolling').textContent = document.getElementById('diffRolling').textContent;
  document.getElementById('dailyReportDiffCash').textContent = document.getElementById('diffCash').textContent;
@@ -3901,17 +3909,49 @@ function submitReg(){
  if(!id) return;
  const memberNo = document.getElementById('regMembershipNo').value.trim();
  const wdPw = document.getElementById('regWdPw').value;
+ const wdPwConfirm = document.getElementById('regWdPwConfirm').value;
+ if(wdPw && wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
  DB.accounts[id] = DB.accounts[id] || {member:memberNo||"NEW", phone:"—", rate:"1.00%", telegram:"—", balances:{HANN:0,NUSTAR:0,ONLINE:0}, openedCasino:DB.currentCasino||'HANN', openedDt:now, currency:'PHP', remark:''};
- if(memberNo) DB.accounts[id].member = memberNo;
- if(wdPw) DB.accounts[id].withdrawPw = wdPw;
- if(!DB.accounts[id].openedDt) DB.accounts[id].openedDt = now;
- if(!DB.accounts[id].openedCasino) DB.accounts[id].openedCasino = DB.currentCasino||'HANN';
- if(!DB.accounts[id].currency) DB.accounts[id].currency = 'PHP';
+ const acc = DB.accounts[id];
+ if(memberNo) acc.member = memberNo;
+ if(wdPw) acc.withdrawPw = wdPw;
+ acc.engName = document.getElementById('regEngName').value.trim();
+ acc.nickname = document.getElementById('regNickname').value.trim();
+ acc.vip = document.getElementById('regVip').checked;
+ const phoneVal = document.getElementById('regPhone').value.trim();
+ if(phoneVal) acc.phone = `${document.getElementById('regPhoneCountry').value} ${phoneVal}`;
+ const tgVal = document.getElementById('regTelegramId').value.trim();
+ if(tgVal) acc.telegram = tgVal;
+ acc.agentCode = document.getElementById('regAgentCode').value.trim();
+ acc.proxy = document.getElementById('regProxy').value;
+ acc.passportNo = document.getElementById('regPassportNo').value.trim();
+ acc.passportExp = document.getElementById('regPassportExp').value;
+ const passportImg = document.getElementById('pbPassport').querySelector('img');
+ if(passportImg) acc.passportPhoto = passportImg.src;
+ const siteImg = document.getElementById('pbSite').querySelector('img');
+ if(siteImg) acc.sitePhoto = siteImg.src;
+ const sPad = sigPads['sigPad'];
+ if(sPad && sPad.ctx) acc.signaturePhoto = sPad.ctx.canvas.toDataURL();
+ if(!acc.openedDt) acc.openedDt = now;
+ if(!acc.openedCasino) acc.openedCasino = DB.currentCasino||'HANN';
+ if(!acc.currency) acc.currency = 'PHP';
  DB.ledger[id] = DB.ledger[id] || [];
  saveDB();
  pushNotification('notifRegister', id);
  toast(t('toastRegistered'));
+
+ // Reset the form so this customer's photos/signature aren't carried into the next registration.
+ ['regAccId','regMembershipNo','regWdPw','regWdPwConfirm','regEngName','regNickname','regPhone','regTelegramId','regAgentCode','regPassportNo','regPassportExp'].forEach(fid=>{
+  const el = document.getElementById(fid); if(el) el.value='';
+ });
+ document.getElementById('regVip').checked = false;
+ document.getElementById('regProxy').value = 'OFF';
+ ['pbPassport','pbSite'].forEach(boxId=>{
+  const el = document.getElementById(boxId);
+  if(el){ el.setAttribute('data-i18n','regPhotoBtn'); el.textContent = t('regPhotoBtn'); }
+ });
+ clearSig();
 }
 
 /* ============================================================
@@ -3921,7 +3961,8 @@ function applyBlock(){
  const account = document.getElementById('blockAcc').value.trim().toUpperCase();
  const reason = document.getElementById('blockReason').value.trim();
  if(!account) return;
- DB.blocks.unshift({account, type:"Full", reason, staff:"YOU", dt:new Date().toISOString().slice(0,10)});
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ DB.blocks.unshift({account, type:"Full", reason, staff:staffName, dt:new Date().toISOString().slice(0,10)});
  document.getElementById('blockAcc').value=''; document.getElementById('blockReason').value='';
  saveDB(); renderBlocks();
  pushNotification('notifBlock', account);
@@ -4190,7 +4231,7 @@ function usePoints(){
  const amt = unformatNum(document.getElementById('pUseAmt').value);
  const reason = document.getElementById('pUseReason').value.trim();
  if(amt<=0) return;
- if(amt>DB.points.balance){ toast(t('toastNoAcc')); return; }
+ if(amt>DB.points.balance){ toast(t('toastInsufficientPoints')); return; }
  DB.points.balance -= amt;
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
  DB.points.history.unshift({dt:now, reason: reason||'—', change:-amt, balance:DB.points.balance});
@@ -4301,15 +4342,14 @@ function payEventCommission(){
  const rate = Number(document.getElementById('eventRate').value||0);
  const amt = unformatNum(document.getElementById('eventCommAmt').value);
  if(amt<=0) return;
- const acc = DB.accounts[accId];
- acc.balances.HANN = (acc.balances.HANN||0) + amt;
+ applyAccountTransaction(accId, 'IN', amt, t('memoEventCommission'));
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  DB.eventHistory = DB.eventHistory||[];
  DB.eventHistory.unshift({dt:now, account:accId, rolling, rate, amt, staff:staffName});
  document.getElementById('eventRollingDisp').value='';
  document.getElementById('eventCommAmt').value='';
- saveDB(); renderMemberCard(); renderEventHistory();
+ saveDB(); renderMemberCard(); renderLedger(); renderEventHistory();
  pushNotification('notifEvent', `${accId} · +${fmt(amt)}`);
  toast(t('toastEventPaid'));
 }

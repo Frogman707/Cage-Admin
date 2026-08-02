@@ -1640,6 +1640,77 @@ function subscribeStaffCloud(){
  }, ()=>{});
 }
 
+/* ---- Ledger (account deposits/withdrawals/transfers) — append-only, balance is derived ---- */
+async function seedLedgerToCloudIfEmpty(){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('ledger').limit(1).get();
+  if(snap.empty){
+   const batch = fbDb.batch();
+   Object.keys(DB.ledger||{}).forEach(accountId=>{
+    (DB.ledger[accountId]||[]).forEach((r,i)=>{
+     const id = 'ldg_seed_'+accountId+'_'+i;
+     batch.set(fbDb.collection('ledger').doc(id), {id, accountId, casino:r.casino, dt:r.dt, type:r.type, inn:r.inn||0, out:r.out||0, staff:r.staff, memo:r.memo||''});
+    });
+   });
+   await batch.commit();
+  }
+ }catch(e){}
+}
+let fbLedgerUnsub = null;
+function subscribeLedgerCloud(){
+ if(!fbDb) return;
+ if(fbLedgerUnsub) fbLedgerUnsub();
+ fbLedgerUnsub = fbDb.collection('ledger').orderBy('dt').onSnapshot(snap=>{
+  const grouped = {};
+  snap.forEach(doc=>{
+   const r = doc.data();
+   grouped[r.accountId] = grouped[r.accountId]||[];
+   grouped[r.accountId].push(r);
+  });
+  Object.keys(grouped).forEach(accId=>{
+   const balByCasino = {};
+   grouped[accId].forEach(r=>{
+    balByCasino[r.casino] = (balByCasino[r.casino]||0) + (r.inn||0) - (r.out||0);
+    r.bal = Object.values(balByCasino).reduce((a,b)=>a+b,0);
+   });
+   grouped[accId] = grouped[accId].slice().reverse();
+   const acc = DB.accounts[accId];
+   if(acc){
+    acc.balances = acc.balances||{};
+    new Set([...Object.keys(acc.balances), ...Object.keys(balByCasino)]).forEach(c=>{
+     acc.balances[c] = balByCasino[c]||0;
+    });
+   }
+  });
+  DB.ledger = grouped;
+  renderMemberCard(); renderLedger(); renderBalancingSummary();
+  const listModal = document.getElementById('modal-ledger-list');
+  if(listModal && listModal.classList.contains('open')) renderLedgerList();
+  const dailyModal = document.getElementById('modal-daily-io');
+  if(dailyModal && dailyModal.classList.contains('open')) renderDailyIo();
+ }, ()=>{});
+}
+function writeLedgerEntry(opts){
+ const {accountId, casino, type, amount, staff, memo} = opts;
+ const id = 'ldg_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const entry = {id, accountId, casino, dt:now, type, inn: type==='IN'?amount:0, out: type==='OUT'?amount:0, staff, memo};
+ if(fbDb){
+  fbDb.collection('ledger').doc(id).set(entry).catch(()=>{});
+ } else {
+  DB.ledger[accountId] = DB.ledger[accountId]||[];
+  DB.ledger[accountId].unshift(entry);
+  const acc = DB.accounts[accountId];
+  if(acc){
+   acc.balances = acc.balances||{};
+   acc.balances[casino] = (acc.balances[casino]||0) + (type==='IN'?amount:-amount);
+  }
+  saveDB();
+ }
+ return entry;
+}
+
 /* ============================================================
    I18N — ko / en / zh-TW / zh-CN
    ============================================================ */
@@ -2745,39 +2816,20 @@ function applyAccountTransaction(accountId, type, amount, memo){
  const acc = DB.accounts[accountId];
  if(!acc || !amount || amount<=0) return;
  const casino = (acc.balances && acc.balances.HANN!==undefined) ? 'HANN' : Object.keys(acc.balances||{})[0] || 'HANN';
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
-
- acc.balances[casino] = (acc.balances[casino]||0) + (type==='IN'?amount:-amount);
- const total = Object.values(acc.balances).reduce((a,b)=>a+b,0);
- DB.ledger[accountId] = DB.ledger[accountId]||[];
- DB.ledger[accountId].unshift({casino, dt:now, type, inn:type==='IN'?amount:0, out:type==='OUT'?amount:0, bal:total, staff:staffName, memo});
-
+ writeLedgerEntry({accountId, casino, type, amount, staff:staffName, memo});
  // MAIN 어카운트(회사 메인 어카운트)와의 이체로 처리 — 손님 계좌와 반대 방향으로 동일 금액을 기록해
  // 전체 계좌 입출금 합계(케이지 합산금액 캐시)에는 영향이 없고, 게임 나간 금액 등 개별 추적만 반영되게 함
  if(accountId !== 'MAIN' && DB.accounts.MAIN){
-  const mainAcc = DB.accounts.MAIN;
   const mainType = type==='IN' ? 'OUT' : 'IN';
-  mainAcc.balances[casino] = (mainAcc.balances[casino]||0) + (mainType==='IN'?amount:-amount);
-  const mainTotal = Object.values(mainAcc.balances).reduce((a,b)=>a+b,0);
-  DB.ledger.MAIN = DB.ledger.MAIN||[];
-  DB.ledger.MAIN.unshift({casino, dt:now, type:mainType, inn:mainType==='IN'?amount:0, out:mainType==='OUT'?amount:0, bal:mainTotal, staff:staffName, memo:`${memo} — ${accountId}`});
+  writeLedgerEntry({accountId:'MAIN', casino, type:mainType, amount, staff:staffName, memo:`${memo} — ${accountId}`});
  }
 }
 function _doProcessIo(amt){
  const casino = document.getElementById('ioCasino').value;
  const memo = document.getElementById('ioMemo').value;
- const acc = DB.accounts[DB.currentAccount];
- acc.balances[casino] = (acc.balances[casino]||0) + (DB.ioType==='deposit'?amt:-amt);
- const total = Object.values(acc.balances).reduce((a,b)=>a+b,0);
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
- DB.ledger[DB.currentAccount] = DB.ledger[DB.currentAccount]||[];
- DB.ledger[DB.currentAccount].unshift({
-  casino, dt:now, type: DB.ioType==='deposit'?'IN':'OUT',
-  inn: DB.ioType==='deposit'?amt:0, out: DB.ioType==='withdraw'?amt:0,
-  bal: total, staff:staffName, memo
- });
+ writeLedgerEntry({accountId: DB.currentAccount, casino, type: DB.ioType==='deposit'?'IN':'OUT', amount:amt, staff:staffName, memo});
  if(DB.ioType==='withdraw'){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + amt;
  }
@@ -2824,18 +2876,9 @@ function doTransfer(){
 }
 function _doTransfer(amt){
  const casino = document.getElementById('transferCasino').value;
- const fromAcc = DB.accounts[DB.currentAccount];
- const toAcc = DB.accounts[transferTargetAcc];
- fromAcc.balances[casino] = (fromAcc.balances[casino]||0) - amt;
- toAcc.balances[casino] = (toAcc.balances[casino]||0) + amt;
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
- const fromTotal = Object.values(fromAcc.balances).reduce((a,b)=>a+b,0);
- const toTotal = Object.values(toAcc.balances).reduce((a,b)=>a+b,0);
- DB.ledger[DB.currentAccount] = DB.ledger[DB.currentAccount]||[];
- DB.ledger[DB.currentAccount].unshift({casino, dt:now, type:'OUT', inn:0, out:amt, bal:fromTotal, staff:staffName, memo:`→ ${transferTargetAcc}`});
- DB.ledger[transferTargetAcc] = DB.ledger[transferTargetAcc]||[];
- DB.ledger[transferTargetAcc].unshift({casino, dt:now, type:'IN', inn:amt, out:0, bal:toTotal, staff:staffName, memo:`← ${DB.currentAccount}`});
+ writeLedgerEntry({accountId: DB.currentAccount, casino, type:'OUT', amount:amt, staff:staffName, memo:`→ ${transferTargetAcc}`});
+ writeLedgerEntry({accountId: transferTargetAcc, casino, type:'IN', amount:amt, staff:staffName, memo:`← ${DB.currentAccount}`});
  const toAccId = transferTargetAcc;
  document.getElementById('transferAmt').value='';
  document.getElementById('transferAccSearch').value='';
@@ -2883,9 +2926,14 @@ function renderLedgerList(){
    <td><button class="btn btn-sm btn-danger" onclick="deleteLedgerEntry('${r.account}',${r.idx})">${t('deleteBtn')}</button></td></tr>`).join('');
 }
 function deleteLedgerEntry(account, idx){
- if(!DB.ledger[account]) return;
- DB.ledger[account].splice(idx,1);
- saveDB(); renderLedgerList(); renderLedger(); renderDailyIo();
+ const entry = (DB.ledger[account]||[])[idx];
+ if(!entry) return;
+ if(fbDb && entry.id){
+  fbDb.collection('ledger').doc(entry.id).delete().catch(()=>{});
+ } else {
+  DB.ledger[account].splice(idx,1);
+  saveDB(); renderLedgerList(); renderLedger(); renderDailyIo();
+ }
  toast(t('toastEntryDeleted'));
 }
 
@@ -4645,6 +4693,8 @@ document.getElementById('loginOtp').addEventListener('keydown', e=>{
  if(fbDb){
   await seedStaffToCloudIfEmpty();
   subscribeStaffCloud();
+  await seedLedgerToCloudIfEmpty();
+  subscribeLedgerCloud();
  }
 })();
 </script>

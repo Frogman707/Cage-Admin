@@ -1479,15 +1479,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <div class="modal-bg" id="modal-daily-report"><div class="modal" style="width:1160px;max-width:96vw;max-height:92vh;overflow-y:auto;">
   <button class="modal-close" onclick="closeModal('modal-daily-report')">×</button>
   <div id="dailyReportContent">
-    <div class="receipt" style="margin-top:6px;max-width:420px;">
-      <h4 data-i18n="dailyReportTitle"></h4>
-      <div class="rmeta-row"><span data-i18n="colDate"></span><b id="dailyReportDate">—</b></div>
-      <div class="ramt-row" style="margin-top:12px;"><span data-i18n="rollingLabel"></span><span class="val" id="dailyReportRolling">0</span></div>
-      <div class="ramt-row"><span data-i18n="cashLabel"></span><span class="val" id="dailyReportCash">0</span></div>
-      <div class="ramt-row"><span data-i18n="diffLabel"></span> (<span data-i18n="rollingLabel"></span>)<span class="val" id="dailyReportDiffRolling">0</span></div>
-      <div class="ramt-row"><span data-i18n="diffLabel"></span> (<span data-i18n="cashLabel"></span>)<span class="val" id="dailyReportDiffCash">0</span></div>
-    </div>
-    <div class="grid grid-2" style="margin-top:16px;grid-template-columns:7fr 3fr;" id="dailyReportClone"></div>
+    <div class="grid grid-2" style="grid-template-columns:7fr 3fr;" id="dailyReportClone"></div>
   </div>
   <div class="row" style="margin-top:12px;">
     <button class="btn" onclick="window.print()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-3px;margin-right:4px;"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M6 14h12v7H6z"/></svg><span data-i18n="printBtn"></span></button>
@@ -2169,7 +2161,7 @@ function seedDB(){
    {dt:"2026-07-31 09:12", account:"SE7419", table:"NS004", buyin:2000000, avatarId:"AVT-2291"},
    {dt:"2026-07-31 09:20", account:"MK2201", table:"NS007", buyin:1500000, avatarId:"AVT-2292"},
   ],
-  memberCompanyDiffVal:15000,
+  memberCompanyDiffVal:0,
   combinedRollingSnapshot:0,
   combinedCashSnapshot:0,
  };
@@ -3745,7 +3737,7 @@ function renderBalancingCheckList(){
   rows.map(r=>`<tr><td class="num">${r.dt}</td><td>${r.staff}</td></tr>`).join('');
 }
 function renderBreakdowns(){
- renderBreakdownTable('cashBreakBody', CASH_DENOMS, 'cash', {1000:46800});
+ renderBreakdownTable('cashBreakBody', CASH_DENOMS, 'cash', {1000:50000});
  renderBreakdownTable('nnBreakBody', NN_DENOMS, 'nn');
  renderBreakdownTable('ccBreakBody', CC_DENOMS, 'cc');
  recalcBreakdownTotal('cash');
@@ -3765,12 +3757,9 @@ function doCutoff(){
 function renderCutoffs(){
  document.getElementById('cutoffBody').innerHTML = DB.cutoffs.slice(0,2).map(d=>`<tr><td class="num">${d}</td><td><button class="btn btn-sm" onclick="generateDailyReportPDF('${d}')">PDF</button></td></tr>`).join('');
 }
+let dailyReportCurrentDate = null;
 function generateDailyReportPDF(date){
- document.getElementById('dailyReportDate').textContent = date;
- document.getElementById('dailyReportRolling').textContent = document.getElementById('combinedRolling').textContent;
- document.getElementById('dailyReportCash').textContent = document.getElementById('combinedCash').textContent;
- document.getElementById('dailyReportDiffRolling').textContent = document.getElementById('diffRolling').textContent;
- document.getElementById('dailyReportDiffCash').textContent = document.getElementById('diffCash').textContent;
+ dailyReportCurrentDate = date;
  const overview = document.getElementById('reportOverviewCard');
  const cageAssets = document.getElementById('reportCageAssetsCard');
  const cloneHost = document.getElementById('dailyReportClone');
@@ -3780,7 +3769,7 @@ function generateDailyReportPDF(date){
  openModal('modal-daily-report');
 }
 function downloadDailyReport(){
- const date = document.getElementById('dailyReportDate').textContent;
+ const date = dailyReportCurrentDate || new Date().toISOString().slice(0,10);
  const bodyHtml = document.getElementById('dailyReportContent').innerHTML;
  const html = `<!DOCTYPE html><html lang="${LANG}"><head><meta charset="UTF-8">
 <title>${t('dailyReportTitle')} ${date}</title>

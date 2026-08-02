@@ -383,8 +383,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="divider-v dt-only"></div>
   <div class="branch-select dt-only">
     <select id="branchSel">
-      <option value="HANN">HANN</option>
       <option value="NUSTAR">NUSTAR</option>
+      <option value="HANN">HANN</option>
       <option value="ONLINE">ONLINE</option>
     </select>
   </div>
@@ -485,7 +485,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         </div>
         <div class="table-wrap"><table>
           <thead><tr>
-            <th data-i18n="colCasino"></th><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="colType"></th>
+            <th data-i18n="colCasino"></th><th data-i18n="colDate"></th><th data-i18n="colAccount"></th>
             <th data-i18n="colIn"></th><th data-i18n="colOut"></th><th data-i18n="colBalance"></th>
             <th data-i18n="colStaff"></th><th data-i18n="colMemo"></th>
           </tr></thead>
@@ -956,6 +956,11 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
       <div class="grid grid-2">
         <div class="card">
           <h3 data-i18n="pointsBalance"></h3>
+          <div class="field" style="position:relative;">
+            <label data-i18n="account"></label>
+            <input id="pointsAccSearch" autocomplete="off" data-i18n-ph="accSearchPh" oninput="searchPointsAcc(this.value)" onfocus="searchPointsAcc(this.value)">
+            <div class="transfer-acc-results" id="pointsAccResults"></div>
+          </div>
           <div class="ticket"><div class="lbl" data-i18n="pointsBalance"></div><div class="amt num" id="pointsBalanceDisp">0</div></div>
           <div class="row" style="margin-top:16px;">
             <div class="field"><label data-i18n="pointsUseAmt"></label><input id="pUseAmt" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this)"></div>
@@ -970,7 +975,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="card">
           <h3 data-i18n="pointsHistoryTitle"></h3>
           <div class="table-wrap"><table>
-            <thead><tr><th data-i18n="colDate"></th><th data-i18n="colReason"></th><th data-i18n="colPointsChange"></th><th data-i18n="colPointsBalance"></th></tr></thead>
+            <thead><tr><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="colReason"></th><th data-i18n="colPointsChange"></th><th data-i18n="colPointsBalance"></th></tr></thead>
             <tbody id="pointsHistBody"></tbody>
           </table></div>
         </div>
@@ -1026,8 +1031,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           </div>
           <div class="hint" data-i18n="regWdPwHint"></div>
           <div class="row" style="margin-top:12px;">
-            <div class="field"><label data-i18n="regEngName"></label><input id="regEngName" placeholder="LEE JIHOON"></div>
-            <div class="field"><label data-i18n="regNickname"></label><input id="regNickname" placeholder="Teddy"></div>
+            <div class="field"><label data-i18n="regEngName"></label><input id="regEngName"></div>
+            <div class="field"><label data-i18n="regNickname"></label><input id="regNickname"></div>
           </div>
           <div class="field"><label data-i18n="regMembershipNo"></label><input id="regMembershipNo" placeholder="52049817"></div>
           <div class="checkbox-row"><input type="checkbox" id="regVip"><label for="regVip" data-i18n="regVipCard"></label></div>
@@ -1037,12 +1042,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           <h3 data-i18n="regContact"></h3>
           <div class="field"><label data-i18n="regPhone"></label>
             <div class="row"><select id="regPhoneCountry" style="flex:0 0 90px;"><option>🇵🇭 +63</option><option>🇰🇷 +82</option><option>🇨🇳 +86</option><option>🇭🇰 +852</option></select>
-              <input id="regPhone" placeholder="912 345 6789">
-              <button class="btn btn-sm" data-i18n="regSendAuthBtn"></button></div>
-          </div>
-          <div class="row">
-            <div class="field"><label data-i18n="regAuthInput"></label><input placeholder="000000"></div>
-            <button class="btn btn-sm" style="align-self:flex-end;height:38px;margin-bottom:12px;" data-i18n="regAuthConfirmBtn"></button>
+              <input id="regPhone" placeholder="912 345 6789"></div>
           </div>
           <div class="field"><label data-i18n="regTelegramId"></label><input id="regTelegramId" placeholder="@handle"></div>
           <button class="btn btn-sm" onclick="openTelegramLinkForReg()" data-i18n="btnTelegramAdd"></button>
@@ -1285,7 +1285,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <div class="field"><label data-i18n="periodEndLabel"></label><input id="dailyIoEnd" type="date" oninput="renderDailyIo()"></div>
   </div>
   <div class="table-wrap"><table>
-    <thead><tr><th data-i18n="colCasino"></th><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="colInAmt"></th><th data-i18n="colOutAmt"></th><th data-i18n="colBalance"></th><th data-i18n="colStaff"></th></tr></thead>
+    <thead><tr><th data-i18n="colCasino"></th><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="colInAmt"></th><th data-i18n="colOutAmt"></th><th data-i18n="colBalance"></th><th data-i18n="colStaff"></th><th data-i18n="colMemo"></th></tr></thead>
     <tbody id="dailyIoBody"></tbody>
   </table></div>
 </div></div>
@@ -1943,12 +1943,26 @@ function getShiftVal(field){
 /* ---- Shared cage config (rare-write: last-action timestamps, month-settle baselines) ---- */
 const CAGE_CONFIG_FIELDS = ['lastBalancingDt','lastCutoffDt','lastMonthSettleDt','settleGameOutBaseline','settleEndedRollingBaseline','settleLedgerNetBaseline','rollingDailyTotalBaseline','cutoffs','monthRecordLog'];
 let fbCageConfigUnsub = null;
+const BREAKDOWN_PREFIXES = ['cash','nn','cc'];
 function subscribeCageConfigCloud(){
  if(!fbDb) return;
  if(fbCageConfigUnsub) fbCageConfigUnsub();
  fbCageConfigUnsub = fbDb.collection('cageConfig').doc('global').onSnapshot(doc=>{
   if(!doc.exists) return;
-  Object.assign(DB, doc.data());
+  const data = doc.data();
+  Object.assign(DB, data);
+  DB.breakdownCounts = DB.breakdownCounts||{};
+  BREAKDOWN_PREFIXES.forEach(prefix=>{
+   const key = prefix+'BreakdownCounts';
+   if(data[key]) DB.breakdownCounts[prefix] = data[key];
+   const anyFocused = document.querySelector(`.breakdown-input[data-prefix="${prefix}"]:focus`);
+   const denoms = prefix==='cash' ? CASH_DENOMS : prefix==='nn' ? NN_DENOMS : CC_DENOMS;
+   const seedDefault = prefix==='cash' ? {1000:50000} : undefined;
+   if(!anyFocused && document.getElementById(prefix+'BreakBody')){
+    renderBreakdownTable(prefix+'BreakBody', denoms, prefix, seedDefault);
+    collectBreakdownCounts(prefix);
+   }
+  });
   renderBalancingSummary();
   const topBalEl = document.getElementById('lastBalTime');
   if(topBalEl && DB.lastBalancingDt) topBalEl.textContent = DB.lastBalancingDt;
@@ -1968,6 +1982,9 @@ async function seedCageConfigToCloudIfEmpty(){
    const seed = {};
    const arrayFields = ['cutoffs','monthRecordLog'];
    CAGE_CONFIG_FIELDS.forEach(f=>{ seed[f] = DB[f] ?? (arrayFields.includes(f)?[]:0); });
+   BREAKDOWN_PREFIXES.forEach(prefix=>{
+    seed[prefix+'BreakdownCounts'] = (DB.breakdownCounts && DB.breakdownCounts[prefix]) || {};
+   });
    await fbDb.collection('cageConfig').doc('global').set(seed);
   }
  }catch(e){}
@@ -2492,7 +2509,7 @@ let DB = null;
 function seedDB(){
  return {
   accounts:{
-   "MAIN":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,NUSTAR:100000000,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"COMPANY MAIN ACCOUNT", openedCasino:"NUSTAR", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"회사 메인 어카운트"},
+   "MAIN":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,NUSTAR:50000000,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"COMPANY MAIN ACCOUNT", openedCasino:"NUSTAR", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"회사 메인 어카운트"},
    "SE7419":{member:"52049817", phone:"+63 912 345 6789", rate:"1.45%", telegram:"@teddy_lee", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null,
     telegramLinks:[{id:"@Sevip888", dt:"2025-09-17 16:25:29"}], openedCasino:"NUSTAR", openedDt:"2025-09-17 16:20", currency:"PHP", remark:"VIP"},
    "MK2201":{member:"63182047", phone:"+82 10 2233 4455", rate:"1.20%", telegram:"—", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2025-11-02 14:10", currency:"PHP", remark:""},
@@ -2504,6 +2521,7 @@ function seedDB(){
   },
   ledger:{
    "MAIN":[
+    {casino:"NUSTAR",dt:"2026-08-02 18:00",type:"OUT",inn:0,out:50000000,bal:-46800000,staff:"TEDDY",memo:"cash balancing adjustment"},
     {casino:"NUSTAR",dt:"2026-08-01 09:00",type:"IN",inn:3200000,out:0,bal:3200000,staff:"TEDDY",memo:"initial cage float"},
    ],
    "SE7419":[
@@ -2557,12 +2575,13 @@ function seedDB(){
   ],
   aero:[
   ],
-  points:{
-   balance:128500,
-   history:[
-    {dt:"2026-07-01 10:00", reason:"Monthly rolling bonus", change:15000, balance:128500},
-   ]
+  pointsByAccount:{
+   SE7419:128500,
   },
+  pointsHistory:[
+   {dt:"2026-07-01 10:00", account:"SE7419", reason:"Monthly rolling bonus", change:15000, balance:128500},
+  ],
+  breakdownCounts:{cash:{1000:50000}, nn:{}, cc:{}},
   notifications:[],
   nextGameSeq:1,
   currentAccount:null,
@@ -2717,7 +2736,13 @@ document.getElementById('gameTabs').addEventListener('click', e=>{
  if(btn.dataset.gtab==='start') updateGameIdPreview();
 });
 
-function openModal(id){ document.getElementById(id).classList.add('open'); renderAll(); }
+function openModal(id){
+ const modal = document.getElementById(id);
+ modal.classList.add('open');
+ renderAll();
+ const authInput = modal.querySelector('input[type="password"]');
+ if(authInput) setTimeout(()=>authInput.focus(), 0);
+}
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
 /* ============================================================
@@ -3159,14 +3184,14 @@ function renderLedger(){
  const body = document.getElementById('ledgerBody');
  const id = DB.currentAccount;
  const rows = id ? (DB.ledger[id]||[]) : [];
- if(!rows.length){ body.innerHTML = `<tr class="empty-row"><td colspan="9">—</td></tr>`; return; }
+ if(!rows.length){ body.innerHTML = `<tr class="empty-row"><td colspan="8">—</td></tr>`; return; }
  body.innerHTML = rows.map(r=>`
-  <tr><td>${r.casino}</td><td class="num">${r.dt}</td><td>${id}</td><td>${r.type}</td>
+  <tr><td>${r.casino}</td><td class="num">${r.dt}</td><td>${id}</td>
   <td class="num pos">${r.inn?fmt(r.inn):''}</td><td class="num neg">${r.out?fmt(r.out):''}</td>
   <td class="num">${fmt(r.bal)}</td><td>${r.staff}</td><td>${r.memo||''}</td></tr>`).join('');
 }
 function openLedgerList(){
- document.getElementById('ledgerListAccSearch').value = '';
+ document.getElementById('ledgerListAccSearch').value = DB.currentAccount || '';
  document.getElementById('ledgerListStart').value = '';
  document.getElementById('ledgerListEnd').value = '';
  renderLedgerList();
@@ -4065,34 +4090,53 @@ const NN_DENOMS = [1000000,500000,100000,10000,1000];
 const CC_DENOMS = [1000000,500000,100000,10000,1000,100];
 function renderBreakdownTable(bodyId, denoms, prefix, seedCounts){
  const body = document.getElementById(bodyId);
+ const saved = (DB.breakdownCounts && DB.breakdownCounts[prefix]) || {};
  body.innerHTML = denoms.map((d,i)=>{
   if(d==='COIN'){
+   const val = saved.COIN;
    return `<tr><td class="num">COIN</td><td class="num">—</td>
-    <td><input type="text" inputmode="numeric" class="fmt-num breakdown-input" data-prefix="${prefix}" data-idx="${i}" data-coin="1" placeholder="0" oninput="formatNumInput(this);recalcBreakdownTotal('${prefix}')" style="width:100px;text-align:right;"></td></tr>`;
+    <td><input type="text" inputmode="numeric" class="fmt-num breakdown-input" data-prefix="${prefix}" data-idx="${i}" data-coin="1" placeholder="0" value="${val?fmt(val):''}" oninput="formatNumInput(this);recalcBreakdownTotal('${prefix}')" style="width:100px;text-align:right;"></td></tr>`;
   }
-  const seed = seedCounts && seedCounts[d];
+  const val = saved[d]!==undefined ? saved[d] : (seedCounts && seedCounts[d]);
   return `<tr><td class="num">${fmt(d)}</td>
-   <td><input type="text" inputmode="numeric" class="fmt-num breakdown-input" data-prefix="${prefix}" data-idx="${i}" data-denom="${d}" placeholder="0" value="${seed?fmt(seed):''}" oninput="formatNumInput(this);recalcBreakdownTotal('${prefix}')" style="width:70px;text-align:right;"></td>
+   <td><input type="text" inputmode="numeric" class="fmt-num breakdown-input" data-prefix="${prefix}" data-idx="${i}" data-denom="${d}" placeholder="0" value="${val?fmt(val):''}" oninput="formatNumInput(this);recalcBreakdownTotal('${prefix}')" style="width:70px;text-align:right;"></td>
    <td class="num breakdown-amt" id="${prefix}Amt${i}">0</td></tr>`;
  }).join('');
 }
-function recalcBreakdownTotal(prefix){
+function collectBreakdownCounts(prefix){
  let total = 0;
+ const counts = {};
  document.querySelectorAll(`.breakdown-input[data-prefix="${prefix}"]`).forEach(inp=>{
   const val = unformatNum(inp.value);
   if(inp.dataset.coin){
    total += val;
+   if(val) counts.COIN = val;
   } else {
    const denom = Number(inp.dataset.denom);
    const amt = denom*val;
    total += amt;
+   if(val) counts[denom] = val;
    const amtCell = document.getElementById(prefix+'Amt'+inp.dataset.idx);
    if(amtCell) amtCell.textContent = fmt(amt);
   }
  });
  const totalEl = document.getElementById(prefix+'BreakTotal');
  if(totalEl) totalEl.textContent = fmt(total);
+ return counts;
+}
+let breakdownWriteTimer = {};
+function recalcBreakdownTotal(prefix){
+ const counts = collectBreakdownCounts(prefix);
+ DB.breakdownCounts = DB.breakdownCounts||{};
+ DB.breakdownCounts[prefix] = counts;
+ saveDB();
  renderBalancingSummary();
+ if(fbDb){
+  clearTimeout(breakdownWriteTimer[prefix]);
+  breakdownWriteTimer[prefix] = setTimeout(()=>{
+   writeCageConfig({[prefix+'BreakdownCounts']: counts});
+  }, 400);
+ }
 }
 function renderBalancingSummary(){
  const nnBreakTotal = unformatNum(document.getElementById('nnBreakTotal').textContent);
@@ -4465,6 +4509,7 @@ function confirmMonthSettleReset(){
  }
 
  // Clear physical breakdown counts so staff recounts fresh next period.
+ DB.breakdownCounts = {cash:{}, nn:{}, cc:{}};
  renderBreakdownTable('cashBreakBody', CASH_DENOMS, 'cash');
  renderBreakdownTable('nnBreakBody', NN_DENOMS, 'nn');
  renderBreakdownTable('ccBreakBody', CC_DENOMS, 'cc');
@@ -4615,8 +4660,8 @@ function renderDailyIo(){
  if(accQ) all = all.filter(r => r.account.includes(accQ));
  if(start) all = all.filter(r => r.dt.slice(0,10) >= start);
  if(end) all = all.filter(r => r.dt.slice(0,10) <= end);
- document.getElementById('dailyIoBody').innerHTML = !all.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
-  all.map(r=>`<tr><td>${r.casino}</td><td class="num">${r.dt}</td><td>${r.account}</td><td class="num pos">${r.inn?fmt(r.inn):''}</td><td class="num neg">${r.out?fmt(r.out):''}</td><td class="num">${fmt(r.bal)}</td><td>${r.staff}</td></tr>`).join('');
+ document.getElementById('dailyIoBody').innerHTML = !all.length ? `<tr class="empty-row"><td colspan="8">—</td></tr>` :
+  all.map(r=>`<tr><td>${r.casino}</td><td class="num">${r.dt}</td><td>${r.account}</td><td class="num pos">${r.inn?fmt(r.inn):''}</td><td class="num neg">${r.out?fmt(r.out):''}</td><td class="num">${fmt(r.bal)}</td><td>${r.staff}</td><td>${r.memo||''}</td></tr>`).join('');
 }
 const MONTH_MOCK = [
  {dt:"2026-07-08 01:42:17",cash:75006339,cashChips:12480000,rollingChips:95246000,cum:983500000,guest:158230000},
@@ -4850,36 +4895,67 @@ function renderAero(){
 /* ============================================================
    POINTS
    ============================================================ */
+let pointsTargetAcc = null;
+function searchPointsAcc(query){
+ const box = document.getElementById('pointsAccResults');
+ query = (query||'').trim().toUpperCase();
+ if(!query){ box.style.display='none'; box.innerHTML=''; return; }
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ box.innerHTML = !matches.length
+  ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
+  : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickPointsAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
+ box.style.display='block';
+}
+function pickPointsAcc(id){
+ pointsTargetAcc = id;
+ document.getElementById('pointsAccSearch').value = id;
+ document.getElementById('pointsAccResults').style.display='none';
+ renderPoints();
+}
+document.addEventListener('click', e=>{
+ const box = document.getElementById('pointsAccResults');
+ if(box && !e.target.closest('#pointsAccSearch') && !e.target.closest('#pointsAccResults')) box.style.display='none';
+});
 function usePoints(){
+ if(!pointsTargetAcc){ toast(t('transferPickAcc')); return; }
  const amt = unformatNum(document.getElementById('pUseAmt').value);
  const reason = document.getElementById('pUseReason').value.trim();
  if(amt<=0) return;
- if(amt>DB.points.balance){ toast(t('toastInsufficientPoints')); return; }
- DB.points.balance -= amt;
+ DB.pointsByAccount = DB.pointsByAccount||{};
+ const balBefore = DB.pointsByAccount[pointsTargetAcc]||0;
+ if(amt>balBefore){ toast(t('toastInsufficientPoints')); return; }
+ const balAfter = balBefore - amt;
+ DB.pointsByAccount[pointsTargetAcc] = balAfter;
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
- DB.points.history.unshift({dt:now, reason: reason||'—', change:-amt, balance:DB.points.balance});
+ DB.pointsHistory = DB.pointsHistory||[];
+ DB.pointsHistory.unshift({dt:now, account:pointsTargetAcc, reason: reason||'—', change:-amt, balance:balAfter});
  document.getElementById('pUseAmt').value=''; document.getElementById('pUseReason').value='';
  saveDB(); renderPoints();
- pushNotification('notifPoints', `-${fmt(amt)} · ${reason||'—'}`);
+ pushNotification('notifPoints', `${pointsTargetAcc} · -${fmt(amt)} · ${reason||'—'}`);
  toast(t('toastProcessed'));
 }
 function grantPoints(){
+ if(!pointsTargetAcc){ toast(t('transferPickAcc')); return; }
  const amt = unformatNum(document.getElementById('pGrantAmt').value);
  const reason = document.getElementById('pUseReason').value.trim();
  if(amt<=0) return;
- DB.points.balance += amt;
+ DB.pointsByAccount = DB.pointsByAccount||{};
+ const balAfter = (DB.pointsByAccount[pointsTargetAcc]||0) + amt;
+ DB.pointsByAccount[pointsTargetAcc] = balAfter;
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
- DB.points.history.unshift({dt:now, reason: reason||'—', change:amt, balance:DB.points.balance});
+ DB.pointsHistory = DB.pointsHistory||[];
+ DB.pointsHistory.unshift({dt:now, account:pointsTargetAcc, reason: reason||'—', change:amt, balance:balAfter});
  document.getElementById('pGrantAmt').value=''; document.getElementById('pUseReason').value='';
  saveDB(); renderPoints();
- pushNotification('notifPoints', `+${fmt(amt)} · ${reason||'—'}`);
+ pushNotification('notifPoints', `${pointsTargetAcc} · +${fmt(amt)} · ${reason||'—'}`);
  toast(t('toastProcessed'));
 }
 function renderPoints(){
- document.getElementById('pointsBalanceDisp').textContent = fmt(DB.points.balance);
- const rows = DB.points.history||[];
- document.getElementById('pointsHistBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="4">—</td></tr>` :
-  rows.map(h=>`<tr><td class="num">${h.dt}</td><td>${h.reason}</td><td class="num ${h.change>=0?'pos':'neg'}">${h.change>=0?'+':''}${fmt(h.change)}</td><td class="num">${fmt(h.balance)}</td></tr>`).join('');
+ DB.pointsByAccount = DB.pointsByAccount||{};
+ document.getElementById('pointsBalanceDisp').textContent = fmt(pointsTargetAcc ? (DB.pointsByAccount[pointsTargetAcc]||0) : 0);
+ const rows = DB.pointsHistory||[];
+ document.getElementById('pointsHistBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="5">—</td></tr>` :
+  rows.map(h=>`<tr><td class="num">${h.dt}</td><td>${h.account||''}</td><td>${h.reason}</td><td class="num ${h.change>=0?'pos':'neg'}">${h.change>=0?'+':''}${fmt(h.change)}</td><td class="num">${fmt(h.balance)}</td></tr>`).join('');
 }
 
 /* ---- Event Rolling Commission ---- */
@@ -4921,7 +4997,9 @@ function renderEventToggle(){
 function endEventNow(){
  if(!DB.eventStart && !DB.eventEnd){ toast(t('toastEventPeriodMissing')); return; }
  const now = new Date().toISOString().slice(0,16);
- DB.eventEnd = now;
+ // Set the cutoff a minute in the past so the active-window check (nowStr <= eventEnd)
+ // evaluates to inactive immediately, instead of staying "active" for the rest of this minute.
+ DB.eventEnd = new Date(Date.now() - 60000).toISOString().slice(0,16);
  document.getElementById('eventEndDate').value = now;
  saveDB();
  renderEventToggle();

@@ -392,7 +392,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   </div>
   <div class="status-chip dt-only"><span class="status-dot" id="nfcDot"></span><span id="nfcTxt" data-i18n="nfcConnected"></span></div>
   <div class="topbar-meta dt-only">
-    <span data-i18n="lastBalancing"></span><b id="lastBalTime" class="num">2026-07-09 06:03:09</b>
+    <span data-i18n="lastBalancing"></span><b id="lastBalTime" class="num">—</b>
     <span data-i18n="staff"></span><b id="staffCount" class="num">Kyle, Jena</b>
     <span class="pill nn" id="topEventPill" style="display:none;" data-i18n="eventOnTop"></span>
   </div>
@@ -557,9 +557,9 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="card">
           <h3 data-i18n="ongoingGamesTitle"></h3>
           <div style="display:flex;gap:24px;margin-bottom:12px;font-size:13px;">
-            <span data-i18n="dailyLabel"></span><b class="num pos" id="ongoingDaily">5,710,000</b>
-            <span data-i18n="cumulativeLabel"></span><b class="num" id="ongoingCum">984,013,000</b>
-            <span data-i18n="ongoingCountLabel"></span><b class="num" id="ongoingCount">8</b>
+            <span data-i18n="dailyLabel"></span><b class="num pos" id="ongoingDaily">0</b>
+            <span data-i18n="cumulativeLabel"></span><b class="num" id="ongoingCum">0</b>
+            <span data-i18n="ongoingCountLabel"></span><b class="num" id="ongoingCount">0</b>
           </div>
           <div class="table-wrap"><table>
             <thead><tr>
@@ -797,7 +797,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <h3 style="margin:0;flex:1;" data-i18n="dailySettlement"></h3>
             <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openCutoffList()" data-i18n="cutoffListBtn"></button>
           </div>
-          <div class="stat-line"><span data-i18n="lastCageBalCutoffLabel"></span><b class="num" id="lastCutoff">2026-07-09 01:39:41</b></div>
+          <div class="stat-line"><span data-i18n="lastCageBalCutoffLabel"></span><b class="num" id="lastCutoff">—</b></div>
           <button class="btn btn-gold" style="margin-top:8px;" onclick="doCutoff()" data-i18n="cutoffBtn"></button>
           <div class="table-wrap" style="margin-top:12px;"><table>
             <thead><tr><th data-i18n="colDate"></th><th data-i18n="colViewPdf"></th></tr></thead>
@@ -1122,7 +1122,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
       </div>
 
       <div class="grid grid-2" style="margin-top:16px;grid-template-columns:7fr 3fr;">
-        <div class="card">
+        <div class="card" id="reportOverviewCard">
           <h3 data-i18n="dashOverview"></h3>
 
           <div class="dash-section-title"><span class="dash-bar"></span><span data-i18n="dashAccounts"></span></div>
@@ -1158,7 +1158,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           </table>
         </div>
 
-        <div class="card">
+        <div class="card" id="reportCageAssetsCard">
           <div class="dash-section-title" style="margin-top:0;"><span class="dash-bar"></span><span data-i18n="dashCageAssets"></span><span class="dash-hint" data-i18n="dashVsYesterday"></span></div>
           <table class="dash-table">
             <thead><tr><th data-i18n="dashCageCash"></th><th data-i18n="dashUserFunds"></th></tr></thead>
@@ -1476,35 +1476,18 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   </div>
 </div></div>
 
-<div class="modal-bg" id="modal-daily-report"><div class="modal" style="width:480px;max-height:86vh;overflow-y:auto;">
+<div class="modal-bg" id="modal-daily-report"><div class="modal" style="width:1160px;max-width:96vw;max-height:92vh;overflow-y:auto;">
   <button class="modal-close" onclick="closeModal('modal-daily-report')">×</button>
-  <div class="receipt" id="dailyReportContent" style="margin-top:6px;">
-    <h4 data-i18n="dailyReportTitle"></h4>
-    <div class="rmeta-row"><span data-i18n="colDate"></span><b id="dailyReportDate">—</b></div>
-    <div class="ramt-row" style="margin-top:12px;"><span data-i18n="rollingLabel"></span><span class="val" id="dailyReportRolling">0</span></div>
-    <div class="ramt-row"><span data-i18n="cashLabel"></span><span class="val" id="dailyReportCash">0</span></div>
-    <div class="ramt-row"><span data-i18n="diffLabel"></span> (<span data-i18n="rollingLabel"></span>)<span class="val" id="dailyReportDiffRolling">0</span></div>
-    <div class="ramt-row"><span data-i18n="diffLabel"></span> (<span data-i18n="cashLabel"></span>)<span class="val" id="dailyReportDiffCash">0</span></div>
-
-    <h4 style="margin-top:18px;" data-i18n="dashToday"></h4>
-    <div class="ramt-row"><span data-i18n="dashBuyin"></span><span class="val" id="dailyReportBuyin">0</span></div>
-    <div class="ramt-row"><span data-i18n="dashRolling"></span><span class="val" id="dailyReportGameRolling">0</span></div>
-    <div class="ramt-row"><span data-i18n="dashWinLoss"></span><span class="val" id="dailyReportWinLoss">0</span></div>
-    <div class="ramt-row"><span data-i18n="dashRollingComm"></span><span class="val" id="dailyReportRollingComm">0</span></div>
-    <div class="ramt-row"><span data-i18n="dashShareSettle"></span><span class="val" id="dailyReportShareSettle">0</span></div>
-    <div class="ramt-row"><span data-i18n="dashEventComm"></span><span class="val" id="dailyReportEventComm">0</span></div>
-    <div class="ramt-row"><span>WinRate</span><span class="val" id="dailyReportWinRate">0</span></div>
-    <div class="ramt-row"><span data-i18n="dashNetProfit"></span><span class="val" id="dailyReportNetProfit">0</span></div>
-
-    <h4 style="margin-top:18px;" data-i18n="dashCageAssets"></h4>
-    <div class="ramt-row"><span data-i18n="dashCageCash"></span><span class="val" id="dailyReportCageCash">0</span></div>
-    <div class="ramt-row"><span data-i18n="dashUserFunds"></span><span class="val" id="dailyReportUserFunds">0</span></div>
-    <div class="ramt-row"><span data-i18n="dashCashLabel"></span><span class="val" id="dailyReportAssetCash">0</span></div>
-    <div class="ramt-row"><span>NN</span><span class="val" id="dailyReportAssetNN">0</span></div>
-    <div class="ramt-row"><span>CC</span><span class="val" id="dailyReportAssetCC">0</span></div>
-    <div class="ramt-row"><span>NN + CC</span><span class="val" id="dailyReportAssetNNCC">0</span></div>
-    <div class="ramt-row"><span data-i18n="dashCageHeldAssets"></span><span class="val" id="dailyReportCageHeld">0</span></div>
-    <div class="ramt-row"><span data-i18n="dashMarkerLabel"></span><span class="val" id="dailyReportMarker">0</span></div>
+  <div id="dailyReportContent">
+    <div class="receipt" style="margin-top:6px;max-width:420px;">
+      <h4 data-i18n="dailyReportTitle"></h4>
+      <div class="rmeta-row"><span data-i18n="colDate"></span><b id="dailyReportDate">—</b></div>
+      <div class="ramt-row" style="margin-top:12px;"><span data-i18n="rollingLabel"></span><span class="val" id="dailyReportRolling">0</span></div>
+      <div class="ramt-row"><span data-i18n="cashLabel"></span><span class="val" id="dailyReportCash">0</span></div>
+      <div class="ramt-row"><span data-i18n="diffLabel"></span> (<span data-i18n="rollingLabel"></span>)<span class="val" id="dailyReportDiffRolling">0</span></div>
+      <div class="ramt-row"><span data-i18n="diffLabel"></span> (<span data-i18n="cashLabel"></span>)<span class="val" id="dailyReportDiffCash">0</span></div>
+    </div>
+    <div class="grid grid-2" style="margin-top:16px;grid-template-columns:7fr 3fr;" id="dailyReportClone"></div>
   </div>
   <div class="row" style="margin-top:12px;">
     <button class="btn" onclick="window.print()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-3px;margin-right:4px;"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M6 14h12v7H6z"/></svg><span data-i18n="printBtn"></span></button>
@@ -2160,13 +2143,10 @@ function seedDB(){
   ],
   cutoffs:["2026-07-08","2026-07-07","2026-07-06"],
   hotels:[
-   {id:"HTL-1001", account:"SE7419", guest:"Teddy Lee", roomType:"VIP Villa", checkin:"2026-07-10", checkout:"2026-07-13", status:"confirmed"},
   ],
   cars:[
-   {id:"CAR-2001", account:"SE7419", dt:"2026-07-10 14:00", pickup:"NAIA T1", dropoff:"Solaire Resort", carType:"Limousine", status:"confirmed"},
   ],
   aero:[
-   {id:"AER-3001", account:"SE7419", direction:"arrival", flight:"PR1834", airport:"MNL", dt:"2026-07-10 13:20", status:"confirmed"},
   ],
   points:{
    balance:128500,
@@ -3552,15 +3532,16 @@ function renderShiftList(){
 const CASH_DENOMS = [1000,500,100,50,20,'COIN'];
 const NN_DENOMS = [1000000,500000,100000,10000,1000];
 const CC_DENOMS = [1000000,500000,100000,10000,1000,100];
-function renderBreakdownTable(bodyId, denoms, prefix){
+function renderBreakdownTable(bodyId, denoms, prefix, seedCounts){
  const body = document.getElementById(bodyId);
  body.innerHTML = denoms.map((d,i)=>{
   if(d==='COIN'){
    return `<tr><td class="num">COIN</td><td class="num">—</td>
     <td><input type="text" inputmode="numeric" class="fmt-num breakdown-input" data-prefix="${prefix}" data-idx="${i}" data-coin="1" placeholder="0" oninput="formatNumInput(this);recalcBreakdownTotal('${prefix}')" style="width:100px;text-align:right;"></td></tr>`;
   }
+  const seed = seedCounts && seedCounts[d];
   return `<tr><td class="num">${fmt(d)}</td>
-   <td><input type="text" inputmode="numeric" class="fmt-num breakdown-input" data-prefix="${prefix}" data-idx="${i}" data-denom="${d}" placeholder="0" oninput="formatNumInput(this);recalcBreakdownTotal('${prefix}')" style="width:70px;text-align:right;"></td>
+   <td><input type="text" inputmode="numeric" class="fmt-num breakdown-input" data-prefix="${prefix}" data-idx="${i}" data-denom="${d}" placeholder="0" value="${seed?fmt(seed):''}" oninput="formatNumInput(this);recalcBreakdownTotal('${prefix}')" style="width:70px;text-align:right;"></td>
    <td class="num breakdown-amt" id="${prefix}Amt${i}">0</td></tr>`;
  }).join('');
 }
@@ -3647,6 +3628,8 @@ function renderBalancingSummary(){
  if(lastSettleEl) lastSettleEl.textContent = DB.lastMonthSettleDt || '—';
  const topBalEl = document.getElementById('lastBalTime');
  if(topBalEl && DB.lastBalancingDt) topBalEl.textContent = DB.lastBalancingDt;
+ const lastCutoffEl = document.getElementById('lastCutoff');
+ if(lastCutoffEl && DB.lastCutoffDt) lastCutoffEl.textContent = DB.lastCutoffDt;
 }
 function processMainCage(){
  const type = document.getElementById('mainCageType').value;
@@ -3762,7 +3745,7 @@ function renderBalancingCheckList(){
   rows.map(r=>`<tr><td class="num">${r.dt}</td><td>${r.staff}</td></tr>`).join('');
 }
 function renderBreakdowns(){
- renderBreakdownTable('cashBreakBody', CASH_DENOMS, 'cash');
+ renderBreakdownTable('cashBreakBody', CASH_DENOMS, 'cash', {1000:46800});
  renderBreakdownTable('nnBreakBody', NN_DENOMS, 'nn');
  renderBreakdownTable('ccBreakBody', CC_DENOMS, 'cc');
  recalcBreakdownTotal('cash');
@@ -3773,7 +3756,8 @@ function doCutoff(){
  requestPinAuth(()=>{
   const now = new Date().toISOString().slice(0,10);
   if(!DB.cutoffs.includes(now)) DB.cutoffs.unshift(now);
-  document.getElementById('lastCutoff').textContent = new Date().toISOString().slice(0,16).replace('T',' ');
+  DB.lastCutoffDt = new Date().toISOString().slice(0,16).replace('T',' ');
+  document.getElementById('lastCutoff').textContent = DB.lastCutoffDt;
   saveDB(); renderCutoffs();
   toast(t('toastCutoff'));
  });
@@ -3787,26 +3771,12 @@ function generateDailyReportPDF(date){
  document.getElementById('dailyReportCash').textContent = document.getElementById('combinedCash').textContent;
  document.getElementById('dailyReportDiffRolling').textContent = document.getElementById('diffRolling').textContent;
  document.getElementById('dailyReportDiffCash').textContent = document.getElementById('diffCash').textContent;
- const mirror = (srcId, dstId)=>{
-  const src = document.getElementById(srcId), dst = document.getElementById(dstId);
-  if(src && dst) dst.textContent = src.textContent;
- };
- mirror('dashTodayBuyin','dailyReportBuyin');
- mirror('dashTodayRolling','dailyReportGameRolling');
- mirror('dashTodayWinLoss','dailyReportWinLoss');
- mirror('dashTodayRollingComm','dailyReportRollingComm');
- mirror('dashTodayShareSettle','dailyReportShareSettle');
- mirror('dashTodayEventComm','dailyReportEventComm');
- mirror('dashTodayWinRate','dailyReportWinRate');
- mirror('dashTodayNetProfit','dailyReportNetProfit');
- mirror('dashCageCashVal','dailyReportCageCash');
- mirror('dashUserFundsVal','dailyReportUserFunds');
- mirror('dashAssetCashVal','dailyReportAssetCash');
- mirror('dashAssetNNVal','dailyReportAssetNN');
- mirror('dashAssetCCVal','dailyReportAssetCC');
- mirror('dashAssetNNCCVal','dailyReportAssetNNCC');
- mirror('dashCageHeldVal','dailyReportCageHeld');
- mirror('dashMarkerVal','dailyReportMarker');
+ const overview = document.getElementById('reportOverviewCard');
+ const cageAssets = document.getElementById('reportCageAssetsCard');
+ const cloneHost = document.getElementById('dailyReportClone');
+ cloneHost.innerHTML = '';
+ if(overview) cloneHost.appendChild(overview.cloneNode(true));
+ if(cageAssets) cloneHost.appendChild(cageAssets.cloneNode(true));
  openModal('modal-daily-report');
 }
 function downloadDailyReport(){
@@ -3820,6 +3790,24 @@ h4{color:#D9B26A;margin:18px 0 10px;font-size:15px;}
 h4:first-child{margin-top:0;}
 .rmeta-row,.ramt-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1E3555;font-size:13px;}
 .val{font-family:'JetBrains Mono',monospace;}
+.grid{display:grid;gap:16px;}
+.grid-2{grid-template-columns:7fr 3fr;}
+.card{background:#0F2038;border:1px solid #1E3555;border-radius:6px;padding:16px 18px;box-shadow:0 4px 16px -8px rgba(0,0,0,.4);}
+.card h3{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:#6E6858;margin:0 0 14px;font-weight:600;}
+.dash-section-title{display:flex;align-items:center;gap:8px;margin:16px 0 8px;font-size:12px;font-weight:700;color:#EDE8DA;padding-bottom:6px;border-bottom:1px solid #1E3555;}
+.dash-section-title:first-child{margin-top:0;}
+.dash-bar{width:3px;height:14px;background:#D9695A;border-radius:1px;flex:0 0 auto;}
+.dash-hint{margin-left:auto;font-size:11.5px;color:#A79F87;font-weight:400;}
+.dash-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:4px;table-layout:fixed;}
+.dash-table th{background:#1C3D63;color:#A79F87;font-weight:600;padding:9px 4px;text-align:center;border:1px solid #1E3555;white-space:nowrap;font-size:11.5px;}
+.dash-table td{padding:10px 4px;text-align:center;border:1px solid #1E3555;font-family:'JetBrains Mono',monospace;white-space:nowrap;font-size:13px;color:#EDE8DA;}
+.dash-metric td{white-space:normal;word-break:break-word;line-height:1.35;font-size:12.5px;}
+.dash-table .dash-delta td{font-size:11px;color:#A79F87;background:rgba(0,0,0,.2);}
+.dash-table .dash-delta td.pos{color:#2FA98C;}
+.dash-table .dash-delta td.neg{color:#D9695A;}
+.dash-table td.pos{color:#2FA98C;}
+.dash-table td.neg{color:#D9695A;}
+@media (max-width:900px){.grid-2{grid-template-columns:1fr;}}
 </style></head><body>${bodyHtml}</body></html>`;
  const blob = new Blob([html], {type:'text/html'});
  const url = URL.createObjectURL(blob);
@@ -4451,6 +4439,9 @@ document.getElementById('loginOtp').addEventListener('keydown', e=>{
 
 (async function init(){
  DB = await loadDB();
+ const nowStr = new Date().toISOString().slice(0,16).replace('T',' ');
+ if(!DB.lastBalancingDt) DB.lastBalancingDt = nowStr;
+ if(!DB.lastCutoffDt) DB.lastCutoffDt = nowStr;
  initSig();
  renderBreakdowns();
  applyI18n();

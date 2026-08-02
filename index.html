@@ -368,14 +368,12 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 
     <div id="login-step1">
       <div class="field"><label data-i18n="loginStaffLabel"></label>
-        <select id="loginStaff"><option>Kyle</option><option>Teddy</option><option>Jena</option><option>Woni</option><option>Liv</option><option>Minami</option><option>May</option></select></div>
+        <select id="loginStaff"></select></div>
       <div class="field"><label data-i18n="loginPinLabel"></label><input id="loginPin" type="password" maxlength="6" placeholder="••••••" autocomplete="off"></div>
       <div class="field"><label data-i18n="loginOtpLabel"></label><input id="loginOtp" type="text" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off" class="otp-input"></div>
       <p class="login-error" id="loginError" data-i18n="loginErrorMsg" style="display:none;"></p>
       <p class="login-error" id="loginOtpError" data-i18n="loginOtpErrorMsg" style="display:none;"></p>
       <button class="btn btn-gold btn-block" onclick="attemptLogin()" data-i18n="loginBtn"></button>
-      <div class="login-hint" data-i18n="loginHint"></div>
-      <div class="login-hint" data-i18n="loginOtpHint"></div>
     </div>
   </div>
 </div>
@@ -1092,6 +1090,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="card">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
             <h3 style="margin:0;flex:1;" data-i18n="shiftChangeTitle"></h3>
+            <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openStaffMgmt()" data-i18n="staffMgmtBtn"></button>
             <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openShiftList()" data-i18n="shiftListBtn"></button>
           </div>
           <div class="row" style="align-items:flex-end;">
@@ -1100,7 +1099,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
               <div class="stat-line"><span data-i18n="shiftDateTimeLabel"></span><b class="num" id="shiftLastDt">—</b></div>
             </div>
             <div class="field" style="margin:0;"><label data-i18n="checkInStaffLabel"></label>
-              <select id="checkInStaffSelect"><option>Kyle</option><option>Teddy</option><option>Jena</option><option>Woni</option><option>Liv</option><option>Minami</option><option>May</option></select></div>
+              <select id="checkInStaffSelect"></select></div>
           </div>
           <div class="row" style="margin-top:10px;">
             <button class="btn" onclick="shiftAction('out')" data-i18n="checkOutBtn"></button>
@@ -1307,7 +1306,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <p class="login-error" id="cagePinAuthError" data-i18n="wdAuthPinErrorMsg" style="display:none;"></p>
   <button class="btn btn-gold btn-block" style="margin-top:10px;" onclick="confirmCagePinAuth()" data-i18n="confirmBtn"></button>
   <button class="btn btn-block" style="margin-top:8px;" onclick="cancelCagePinAuth()" data-i18n="cancelBtn"></button>
-  <div class="login-hint" data-i18n="wdAuthPinHint"></div>
 </div></div>
 
 <div class="modal-bg" id="modal-avatar-request"><div class="modal" style="width:760px;">
@@ -1467,6 +1465,25 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   </table></div>
 </div></div>
 
+<div class="modal-bg" id="modal-staff-mgmt"><div class="modal" style="width:560px;">
+  <button class="modal-close" onclick="closeModal('modal-staff-mgmt')">×</button>
+  <h3 data-i18n="staffMgmtTitle"></h3>
+  <input type="hidden" id="staffEditId">
+  <div class="row" style="margin-top:10px;align-items:flex-end;">
+    <div class="field"><label data-i18n="staffNameLabel"></label><input id="staffNameInput"></div>
+    <div class="field"><label data-i18n="staffPinLabel"></label><input id="staffPinInput" class="num" inputmode="numeric" maxlength="6"></div>
+    <button class="btn btn-sm" style="flex:0 0 auto;height:38px;" onclick="genStaffPin()" data-i18n="staffGenPinBtn"></button>
+  </div>
+  <div class="row" style="margin-top:10px;">
+    <button class="btn btn-gold" id="staffSubmitBtn" onclick="submitStaffForm()" data-i18n="staffRegisterBtn"></button>
+    <button class="btn" id="staffCancelEditBtn" style="display:none;" onclick="cancelStaffEdit()" data-i18n="staffCancelEditBtn"></button>
+  </div>
+  <div class="table-wrap" style="margin-top:14px;"><table>
+    <thead><tr><th data-i18n="colStaffName"></th><th data-i18n="colStaffPin"></th><th data-i18n="colStaffRegDt"></th><th></th></tr></thead>
+    <tbody id="staffListBody"></tbody>
+  </table></div>
+</div></div>
+
 <div class="modal-bg" id="modal-month-settle-warn"><div class="modal auth-modal" style="width:380px;">
   <h3 data-i18n="monthSettleBtn"></h3>
   <p style="font-size:13px;color:var(--ink-dim);line-height:1.6;margin:14px 0;text-align:left;" data-i18n="monthSettleWarnMsg"></p>
@@ -1560,7 +1577,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <p class="login-error" id="wdAuthPinError" data-i18n="wdAuthPinErrorMsg" style="display:none;"></p>
   <button class="btn btn-gold btn-block" style="margin-top:10px;" onclick="confirmWithdrawPin()" data-i18n="confirmBtn"></button>
   <button class="btn btn-block" style="margin-top:8px;" onclick="cancelWithdrawAuth()" data-i18n="cancelBtn"></button>
-  <div class="login-hint" data-i18n="wdAuthPinHint"></div>
 </div></div>
 
 <div class="modal-bg" id="modal-game-detail"><div class="modal" style="width:840px;">
@@ -1606,6 +1622,10 @@ ko:{
  receiptTotalRolling:"총 롤링", receiptCommAmt:"커미션 금액", receiptTotalAmt:"총 금액", receiptGuestSig:"고객 서명", printBtn:"인쇄", downloadBtn:"다운로드",
   shiftChangeTitle:"근무 교대", currentWorker:"현재 근무자", checkInStaffLabel:"근무자 선택", checkOutBtn:"퇴근 확인", checkInBtn:"출근 확인",
  shiftListBtn:"기록", shiftDateTimeLabel:"일시", shiftListTitle:"근무교대 기록", colAction:"구분", colCheckIn:"출근", colCheckOut:"퇴근",
+ staffMgmtBtn:"직원 관리", staffMgmtTitle:"직원 관리", staffNameLabel:"이름", staffPinLabel:"PIN", staffGenPinBtn:"PIN 생성", staffRegisterBtn:"등록", staffSaveBtn:"저장", staffCancelEditBtn:"취소",
+ colStaffName:"이름", colStaffPin:"PIN", colStaffRegDt:"등록일", editBtn:"수정", regenPinBtn:"PIN 재생성",
+ toastStaffNameRequired:"이름을 입력하세요.", toastStaffDuplicate:"이미 등록된 이름입니다.", toastStaffRegistered:"직원이 등록되었습니다.", toastStaffUpdated:"직원 정보가 수정되었습니다.",
+ toastStaffDeleted:"직원이 삭제되었습니다.", toastPinRegenerated:"PIN이 재발급되었습니다.", toastStaffMinOne:"최소 1명의 직원은 있어야 합니다.", confirmDeleteStaff:"이 직원을 삭제하시겠습니까?",
  loginStaffLabel:"근무자", loginPinLabel:"비밀번호(PIN)", loginErrorMsg:"비밀번호가 일치하지 않습니다.", loginBtn:"로그인", loginHint:"데모 PIN: 1234",
  loginOtpDesc:"Authenticator 앱에 표시된 6자리 인증 코드를 입력하세요.", loginOtpLabel:"인증코드(Authenticator)", loginOtpErrorMsg:"인증 코드가 일치하지 않습니다.",
  loginVerifyBtn:"인증 확인", loginOtpHint:"데모 코드: 123456", loginBackBtn:"뒤로",
@@ -1727,6 +1747,10 @@ en:{
  receiptTotalRolling:"Total Rolling", receiptCommAmt:"Commission Amount", receiptTotalAmt:"Total Amount", receiptGuestSig:"Guest's Signature", printBtn:"Print", downloadBtn:"Download",
   shiftChangeTitle:"Shift Change", currentWorker:"Current Staff", checkInStaffLabel:"Select Staff", checkOutBtn:"Check Out", checkInBtn:"Check In",
  shiftListBtn:"Records", shiftDateTimeLabel:"Date & Time", shiftListTitle:"Shift Change History", colAction:"Action", colCheckIn:"Check-in", colCheckOut:"Check-out",
+ staffMgmtBtn:"Staff Management", staffMgmtTitle:"Staff Management", staffNameLabel:"Name", staffPinLabel:"PIN", staffGenPinBtn:"Generate PIN", staffRegisterBtn:"Register", staffSaveBtn:"Save", staffCancelEditBtn:"Cancel",
+ colStaffName:"Name", colStaffPin:"PIN", colStaffRegDt:"Registered", editBtn:"Edit", regenPinBtn:"Regenerate PIN",
+ toastStaffNameRequired:"Enter a name.", toastStaffDuplicate:"This name is already registered.", toastStaffRegistered:"Staff registered.", toastStaffUpdated:"Staff updated.",
+ toastStaffDeleted:"Staff deleted.", toastPinRegenerated:"PIN regenerated.", toastStaffMinOne:"At least one staff member is required.", confirmDeleteStaff:"Delete this staff member?",
  loginStaffLabel:"Staff", loginPinLabel:"Password (PIN)", loginErrorMsg:"Incorrect password.", loginBtn:"Log In", loginHint:"Demo PIN: 1234",
  loginOtpDesc:"Enter the 6-digit code shown in your Authenticator app.", loginOtpLabel:"Auth Code (Authenticator)", loginOtpErrorMsg:"Incorrect authentication code.",
  loginVerifyBtn:"Verify", loginOtpHint:"Demo code: 123456", loginBackBtn:"Back",
@@ -1848,6 +1872,10 @@ en:{
  receiptTotalRolling:"轉碼總額", receiptCommAmt:"佣金金額", receiptTotalAmt:"合計金額", receiptGuestSig:"貴賓簽名", printBtn:"列印", downloadBtn:"下載",
   shiftChangeTitle:"交班作業", currentWorker:"目前值班人數", checkInStaffLabel:"選擇人員", checkOutBtn:"下班確認", checkInBtn:"上班確認",
  shiftListBtn:"紀錄", shiftDateTimeLabel:"日期時間", shiftListTitle:"交班紀錄", colAction:"動作", colCheckIn:"上班", colCheckOut:"下班",
+ staffMgmtBtn:"員工管理", staffMgmtTitle:"員工管理", staffNameLabel:"姓名", staffPinLabel:"PIN", staffGenPinBtn:"產生PIN", staffRegisterBtn:"新增", staffSaveBtn:"儲存", staffCancelEditBtn:"取消",
+ colStaffName:"姓名", colStaffPin:"PIN", colStaffRegDt:"登記日期", editBtn:"編輯", regenPinBtn:"重新產生PIN",
+ toastStaffNameRequired:"請輸入姓名。", toastStaffDuplicate:"此姓名已被登記。", toastStaffRegistered:"員工已新增。", toastStaffUpdated:"員工資料已更新。",
+ toastStaffDeleted:"員工已刪除。", toastPinRegenerated:"PIN已重新產生。", toastStaffMinOne:"至少需保留一名員工。", confirmDeleteStaff:"確定要刪除此員工嗎？",
  loginStaffLabel:"人員", loginPinLabel:"密碼(PIN)", loginErrorMsg:"密碼不正確。", loginBtn:"登入", loginHint:"示範 PIN：1234",
  loginOtpDesc:"請輸入 Authenticator 應用程式顯示的 6 位數驗證碼。", loginOtpLabel:"驗證碼(Authenticator)", loginOtpErrorMsg:"驗證碼不正確。",
  loginVerifyBtn:"驗證", loginOtpHint:"示範驗證碼：123456", loginBackBtn:"返回",
@@ -1969,6 +1997,10 @@ en:{
  receiptTotalRolling:"转码总额", receiptCommAmt:"佣金金额", receiptTotalAmt:"合计金额", receiptGuestSig:"贵宾签名", printBtn:"打印", downloadBtn:"下载",
   shiftChangeTitle:"交班操作", currentWorker:"当前值班人数", checkInStaffLabel:"选择人员", checkOutBtn:"下班确认", checkInBtn:"上班确认",
  shiftListBtn:"记录", shiftDateTimeLabel:"日期时间", shiftListTitle:"交班记录", colAction:"操作", colCheckIn:"上班", colCheckOut:"下班",
+ staffMgmtBtn:"员工管理", staffMgmtTitle:"员工管理", staffNameLabel:"姓名", staffPinLabel:"PIN", staffGenPinBtn:"生成PIN", staffRegisterBtn:"新增", staffSaveBtn:"保存", staffCancelEditBtn:"取消",
+ colStaffName:"姓名", colStaffPin:"PIN", colStaffRegDt:"登记日期", editBtn:"编辑", regenPinBtn:"重新生成PIN",
+ toastStaffNameRequired:"请输入姓名。", toastStaffDuplicate:"此姓名已被登记。", toastStaffRegistered:"员工已新增。", toastStaffUpdated:"员工资料已更新。",
+ toastStaffDeleted:"员工已删除。", toastPinRegenerated:"PIN已重新生成。", toastStaffMinOne:"至少需保留一名员工。", confirmDeleteStaff:"确定要删除此员工吗？",
  loginStaffLabel:"人员", loginPinLabel:"密码(PIN)", loginErrorMsg:"密码不正确。", loginBtn:"登录", loginHint:"演示 PIN：1234",
  loginOtpDesc:"请输入 Authenticator 应用中显示的 6 位验证码。", loginOtpLabel:"验证码(Authenticator)", loginOtpErrorMsg:"验证码不正确。",
  loginVerifyBtn:"验证", loginOtpHint:"演示验证码：123456", loginBackBtn:"返回",
@@ -2153,6 +2185,15 @@ function seedDB(){
   nextGameSeq:1,
   currentAccount:null,
   ioType:"deposit",
+  staff:[
+   {id:"STF-KYLE", name:"Kyle", pin:"1234", dt:"2025-01-01 00:00"},
+   {id:"STF-TEDDY", name:"Teddy", pin:"1234", dt:"2025-01-01 00:00"},
+   {id:"STF-JENA", name:"Jena", pin:"1234", dt:"2025-01-01 00:00"},
+   {id:"STF-WONI", name:"Woni", pin:"1234", dt:"2025-01-01 00:00"},
+   {id:"STF-LIV", name:"Liv", pin:"1234", dt:"2025-01-01 00:00"},
+   {id:"STF-MINAMI", name:"Minami", pin:"1234", dt:"2025-01-01 00:00"},
+   {id:"STF-MAY", name:"May", pin:"1234", dt:"2025-01-01 00:00"},
+  ],
   onDutyStaff:["Kyle","Jena"],
   shiftLog:[
    {dt:"2026-07-29 09:00", staff:"Kyle", action:"in"},
@@ -2188,6 +2229,7 @@ function migrateDB(saved){
  const fresh = seedDB();
  saved.accounts = saved.accounts || {};
  saved.ledger = saved.ledger || {};
+ saved.staff = saved.staff || fresh.staff;
  Object.keys(fresh.accounts).forEach(id=>{
   if(!saved.accounts[id]) saved.accounts[id] = fresh.accounts[id];
  });
@@ -2586,9 +2628,12 @@ function confirmWithdrawPw(){
  document.getElementById('wdAuthPinError').style.display='none';
  openModal('modal-withdraw-pin');
 }
+function isValidStaffPin(pin){
+ return (DB.staff||[]).some(s=>s.pin===pin);
+}
 function confirmWithdrawPin(){
  const entered = document.getElementById('wdAuthPin').value;
- if(entered !== '1234'){
+ if(!isValidStaffPin(entered)){
   document.getElementById('wdAuthPinError').style.display='block';
   return;
  }
@@ -2614,7 +2659,7 @@ function requestPinAuth(callback){
 }
 function confirmCagePinAuth(){
  const entered = document.getElementById('cagePinAuth').value;
- if(entered !== '1234'){
+ if(!isValidStaffPin(entered)){
   document.getElementById('cagePinAuthError').style.display = 'block';
   return;
  }
@@ -3524,6 +3569,101 @@ function renderShiftList(){
    return `<tr><td class="num">${d}</td><td class="num">${tm}</td><td>${r.staff}</td><td>${isIn?pill:''}</td><td>${isIn?'':pill}</td></tr>`;
   }).join('');
 }
+
+/* ---- Staff Management ---- */
+function renderStaffDropdowns(){
+ const rows = DB.staff||[];
+ const opts = rows.map(s=>`<option>${s.name}</option>`).join('');
+ const loginSel = document.getElementById('loginStaff');
+ const shiftSel = document.getElementById('checkInStaffSelect');
+ if(loginSel){ const cur = loginSel.value; loginSel.innerHTML = opts; if(rows.some(s=>s.name===cur)) loginSel.value = cur; }
+ if(shiftSel){ const cur = shiftSel.value; shiftSel.innerHTML = opts; if(rows.some(s=>s.name===cur)) shiftSel.value = cur; }
+}
+function genStaffPin(){
+ document.getElementById('staffPinInput').value = String(Math.floor(1000+Math.random()*9000));
+}
+function openStaffMgmt(){
+ cancelStaffEdit();
+ renderStaffMgmtList();
+ openModal('modal-staff-mgmt');
+}
+function renderStaffMgmtList(){
+ const rows = DB.staff||[];
+ const body = document.getElementById('staffListBody');
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="4">—</td></tr>` :
+  rows.map(s=>`<tr><td>${s.name}</td><td class="num">${s.pin}</td><td class="num">${s.dt||'—'}</td>
+   <td style="white-space:nowrap;">
+    <button class="btn btn-sm" onclick="editStaffRow('${s.id}')">${t('editBtn')}</button>
+    <button class="btn btn-sm" onclick="regenStaffPinRow('${s.id}')">${t('regenPinBtn')}</button>
+    <button class="btn btn-sm btn-danger" onclick="deleteStaffRow('${s.id}')">${t('deleteBtn')}</button>
+   </td></tr>`).join('');
+}
+function editStaffRow(id){
+ const s = (DB.staff||[]).find(x=>x.id===id);
+ if(!s) return;
+ document.getElementById('staffEditId').value = s.id;
+ document.getElementById('staffNameInput').value = s.name;
+ document.getElementById('staffPinInput').value = s.pin;
+ document.getElementById('staffSubmitBtn').textContent = t('staffSaveBtn');
+ document.getElementById('staffCancelEditBtn').style.display = '';
+}
+function cancelStaffEdit(){
+ document.getElementById('staffEditId').value = '';
+ document.getElementById('staffNameInput').value = '';
+ document.getElementById('staffPinInput').value = '';
+ document.getElementById('staffSubmitBtn').textContent = t('staffRegisterBtn');
+ document.getElementById('staffCancelEditBtn').style.display = 'none';
+}
+function submitStaffForm(){
+ const editId = document.getElementById('staffEditId').value;
+ const name = document.getElementById('staffNameInput').value.trim();
+ const pin = document.getElementById('staffPinInput').value.trim();
+ if(!name){ toast(t('toastStaffNameRequired')); return; }
+ DB.staff = DB.staff||[];
+ const dup = DB.staff.find(s=>s.name.toLowerCase()===name.toLowerCase() && s.id!==editId);
+ if(dup){ toast(t('toastStaffDuplicate')); return; }
+ if(editId){
+  const s = DB.staff.find(x=>x.id===editId);
+  if(!s) return;
+  const oldName = s.name;
+  s.name = name;
+  s.pin = pin || s.pin;
+  if(oldName!==name){
+   DB.onDutyStaff = (DB.onDutyStaff||[]).map(n=>n===oldName?name:n);
+   (DB.shiftLog||[]).forEach(r=>{ if(r.staff===oldName) r.staff=name; });
+  }
+  saveDB(); renderStaffMgmtList(); renderStaffDropdowns(); renderShiftStaff();
+  toast(t('toastStaffUpdated'));
+ } else {
+  const id = 'STF-'+Date.now();
+  const now = new Date().toISOString().slice(0,16).replace('T',' ');
+  DB.staff.push({id, name, pin: pin || String(Math.floor(1000+Math.random()*9000)), dt: now});
+  saveDB(); renderStaffMgmtList(); renderStaffDropdowns();
+  toast(t('toastStaffRegistered'));
+ }
+ cancelStaffEdit();
+}
+function regenStaffPinRow(id){
+ requestPinAuth(()=>{
+  const s = (DB.staff||[]).find(x=>x.id===id);
+  if(!s) return;
+  s.pin = String(Math.floor(1000+Math.random()*9000));
+  saveDB(); renderStaffMgmtList();
+  toast(t('toastPinRegenerated'));
+ });
+}
+function deleteStaffRow(id){
+ if((DB.staff||[]).length<=1){ toast(t('toastStaffMinOne')); return; }
+ if(!confirm(t('confirmDeleteStaff'))) return;
+ requestPinAuth(()=>{
+  const s = (DB.staff||[]).find(x=>x.id===id);
+  if(!s) return;
+  DB.staff = DB.staff.filter(x=>x.id!==id);
+  DB.onDutyStaff = (DB.onDutyStaff||[]).filter(n=>n!==s.name);
+  saveDB(); renderStaffMgmtList(); renderStaffDropdowns(); renderShiftStaff();
+  toast(t('toastStaffDeleted'));
+ });
+}
 const CASH_DENOMS = [1000,500,100,50,20,'COIN'];
 const NN_DENOMS = [1000000,500000,100000,10000,1000];
 const CC_DENOMS = [1000000,500000,100000,10000,1000,100];
@@ -4400,8 +4540,9 @@ function attemptLogin(){
  const staff = document.getElementById('loginStaff').value;
  const pin = document.getElementById('loginPin').value;
  const otp = document.getElementById('loginOtp').value;
+ const staffRec = ((DB && DB.staff) || []).find(s=>s.name===staff);
  let hasError = false;
- if(pin !== '1234'){
+ if(!staffRec || pin !== staffRec.pin){
   document.getElementById('loginError').style.display = 'block';
   hasError = true;
  } else {
@@ -4436,6 +4577,7 @@ document.getElementById('loginOtp').addEventListener('keydown', e=>{
  if(!DB.lastCutoffDt) DB.lastCutoffDt = nowStr;
  initSig();
  renderBreakdowns();
+ renderStaffDropdowns();
  applyI18n();
  updateGameIdPreview();
  updateHotelBedType();

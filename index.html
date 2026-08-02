@@ -1711,6 +1711,128 @@ function writeLedgerEntry(opts){
  return entry;
 }
 
+/* ---- Games (buy-in/rolling/settlement) — game metadata synced as a doc; rolling always derived from rollingEvents ---- */
+async function seedGamesToCloudIfEmpty(){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('games').limit(1).get();
+  if(snap.empty){
+   const batch = fbDb.batch();
+   (DB.games||[]).forEach(g=>{
+    const {rolling, rollingLog, lastGrandTotal, lastAdded, ...meta} = g;
+    batch.set(fbDb.collection('games').doc(g.gameId), {...meta, status:'ongoing'});
+   });
+   (DB.endedGames||[]).forEach(g=>{
+    const {rolling, rollingLog, lastGrandTotal, lastAdded, ...meta} = g;
+    batch.set(fbDb.collection('games').doc(g.gameId), {...meta, status:'ended'});
+   });
+   await batch.commit();
+  }
+ }catch(e){}
+}
+async function seedRollingEventsToCloudIfEmpty(){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('rollingEvents').limit(1).get();
+  if(snap.empty){
+   const batch = fbDb.batch();
+   [...(DB.games||[]), ...(DB.endedGames||[])].forEach(g=>{
+    (g.rollingLog||[]).slice().reverse().forEach((r,i)=>{
+     const id = 'rev_seed_'+g.gameId+'_'+i;
+     const dt = `${r.date||''} ${(r.time||'00:00:00').slice(0,5)}`;
+     batch.set(fbDb.collection('rollingEvents').doc(id), {id, gameId:g.gameId, amount:r.amount, dt, staff:r.staff||'', memo:r.memo||''});
+    });
+   });
+   await batch.commit();
+  }
+ }catch(e){}
+}
+let fbGamesUnsub = null;
+let fbGamesCache = {};
+function subscribeGamesCloud(){
+ if(!fbDb) return;
+ if(fbGamesUnsub) fbGamesUnsub();
+ fbGamesUnsub = fbDb.collection('games').orderBy('dt').onSnapshot(snap=>{
+  fbGamesCache = {};
+  snap.forEach(doc=>{ fbGamesCache[doc.id] = doc.data(); });
+  renderAllGameViews();
+ }, ()=>{});
+}
+let fbRollingEventsUnsub = null;
+let fbRollingEventsByGame = {};
+function subscribeRollingEventsCloud(){
+ if(!fbDb) return;
+ if(fbRollingEventsUnsub) fbRollingEventsUnsub();
+ fbRollingEventsUnsub = fbDb.collection('rollingEvents').orderBy('dt').onSnapshot(snap=>{
+  fbRollingEventsByGame = {};
+  snap.forEach(doc=>{
+   const r = doc.data();
+   fbRollingEventsByGame[r.gameId] = fbRollingEventsByGame[r.gameId]||[];
+   fbRollingEventsByGame[r.gameId].push(r);
+  });
+  renderAllGameViews();
+ }, ()=>{});
+}
+function buildGameFromCache(gameId, meta){
+ const events = fbRollingEventsByGame[gameId]||[];
+ let running = 0;
+ const rollingLog = events.map(e=>{
+  running += e.amount;
+  const [date, time] = (e.dt||'').split(' ');
+  return {date:date||'', time:time||'', type: e.amount<0?'W':'R', amount:e.amount, cum:running, total:running, staff:e.staff||'', memo:e.memo||''};
+ }).reverse();
+ return {...meta, gameId, rolling:running, lastAdded: events.length ? events[events.length-1].amount : 0, lastGrandTotal:running, rollingLog};
+}
+function renderAllGameViews(){
+ if(!fbDb) return;
+ const ongoing = [];
+ const ended = [];
+ Object.keys(fbGamesCache).forEach(gameId=>{
+  const meta = fbGamesCache[gameId];
+  const g = buildGameFromCache(gameId, meta);
+  if(meta.status === 'ended') ended.push(g); else ongoing.push(g);
+ });
+ ongoing.sort((a,b)=> (b.dt||'').localeCompare(a.dt||''));
+ ended.sort((a,b)=> (b.endDt||b.dt||'').localeCompare(a.endDt||a.dt||''));
+ DB.games = ongoing;
+ DB.endedGames = ended;
+ renderInGame(); renderOngoing(); renderEndedGames(); renderBalancingSummary();
+ const settleTab = document.getElementById('gtab-settle');
+ if(settleTab && settleTab.style.display==='block') populateSettleSelect();
+ const midTab = document.getElementById('gtab-midsettle');
+ if(midTab && midTab.style.display==='block') populateMidSelect();
+ const endTab = document.getElementById('gtab-gameend');
+ if(endTab && endTab.style.display==='block') populateEndSelect();
+ const midListModal = document.getElementById('modal-mid-list');
+ if(midListModal && midListModal.classList.contains('open')) renderMidList();
+ const settleListModal = document.getElementById('modal-settle-list');
+ if(settleListModal && settleListModal.classList.contains('open')) renderSettleList();
+}
+function writeGameDoc(g, statusOverride){
+ if(!fbDb) return;
+ const {rolling, rollingLog, lastGrandTotal, lastAdded, ...meta} = g;
+ meta.status = statusOverride || meta.status || 'ongoing';
+ fbDb.collection('games').doc(g.gameId).set(meta, {merge:true}).catch(()=>{});
+}
+function deleteGameDoc(gameId){
+ if(!fbDb) return;
+ fbDb.collection('games').doc(gameId).delete().catch(()=>{});
+ fbDb.collection('rollingEvents').where('gameId','==',gameId).get().then(snap=>{
+  const batch = fbDb.batch();
+  snap.forEach(d=>batch.delete(d.ref));
+  return batch.commit();
+ }).catch(()=>{});
+}
+function writeRollingEvent(opts){
+ const {gameId, amount, staff, memo} = opts;
+ if(!fbDb || !amount) return null;
+ const id = 'rev_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const entry = {id, gameId, amount, dt:now, staff, memo:memo||''};
+ fbDb.collection('rollingEvents').doc(id).set(entry).catch(()=>{});
+ return entry;
+}
+
 /* ============================================================
    I18N — ko / en / zh-TW / zh-CN
    ============================================================ */
@@ -3015,6 +3137,7 @@ function _doAddBuyin(existing, buyin, workingChip){
   applyAccountTransaction(existing.account, 'OUT', buyin, `${t('memoGameBuyin')} (${existing.gameId})`);
   renderMemberCard(); renderLedger();
  }
+ if(fbDb) writeGameDoc(existing);
  document.getElementById('gBuyin').value = '';
  document.getElementById('gWorkingChip').value = '';
  saveDB(); renderInGame(); renderOngoing(); renderBalancingSummary();
@@ -3032,7 +3155,8 @@ function _doStartGame(account, buyin, workingChip, enteredId){
  const autoId = now.toISOString().slice(2,10).replace(/-/g,'') + String(DB.nextGameSeq).padStart(3,'0');
  const gameId = enteredId || autoId;
  DB.nextGameSeq++;
- DB.games.unshift({dt:now.toISOString().slice(0,16).replace('T',' '), gameId, account, table, cur, type, startType, startKind, rolling:0, buyin, workingChip, staff:staffName, checkpoints:[], lastAdded:0, rollingLog:[]});
+ const newGame = {dt:now.toISOString().slice(0,16).replace('T',' '), gameId, account, table, cur, type, startType, startKind, rolling:0, buyin, workingChip, staff:staffName, checkpoints:[], lastAdded:0, rollingLog:[]};
+ DB.games.unshift(newGame);
  if(startKind === 'avatar' && DB.avatarRequests && DB.avatarRequests.length){
   DB.avatarRequests = DB.avatarRequests.filter(r=>r.account!==account);
   renderAvatarReqBtn();
@@ -3047,6 +3171,7 @@ function _doStartGame(account, buyin, workingChip, enteredId){
   applyAccountTransaction(account, 'OUT', buyin, `${t('memoGameBuyin')} (${gameId})`);
   renderMemberCard(); renderLedger();
  }
+ if(fbDb) writeGameDoc(newGame);
  saveDB(); renderInGame(); renderOngoing(); updateGameIdPreview(); renderBalancingSummary();
  document.getElementById('gWorkingChip').value = '';
  pushNotification('notifGameStart', `${account} · ${gameId} · ${table}`);
@@ -3075,6 +3200,7 @@ function cancelGame(gameId){
   applyAccountTransaction(g.account, 'IN', g.buyin, `${t('memoGameCancelRefund')} (${g.gameId})`);
   renderMemberCard(); renderLedger();
  }
+ if(fbDb) deleteGameDoc(gameId);
  DB.games = DB.games.filter(x=>x.gameId!==gameId);
  saveDB(); renderInGame(); renderOngoing(); renderBalancingSummary();
  pushNotification('notifGameCancelled', `${g.account} · ${g.gameId}`);
@@ -3132,20 +3258,24 @@ function confirmRollingInput(){
  const {gameId, amount} = pendingRolling;
  const g = DB.games.find(x=>x.gameId===gameId);
  if(g){
-  const now = new Date();
-  const dateStr = now.toISOString().slice(0,10);
-  const timeStr = now.toTimeString().slice(0,8);
-  g.rolling = (g.rolling||0) + amount;
-  g.lastAdded = amount;
-  g.rollingLog = g.rollingLog||[];
+  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
   DB.guestRollingGrandTotal = (DB.guestRollingGrandTotal||0) + amount;
   DB.rollingDailyTotal = (DB.rollingDailyTotal||0) + amount;
-  g.lastGrandTotal = DB.guestRollingGrandTotal;
-  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
-  g.rollingLog.unshift({date:dateStr, time:timeStr, type: amount<0?'W':'R', amount, cum:g.rolling, total:DB.guestRollingGrandTotal, staff:staffName, memo:''});
   DB.gameCCAdjust = (DB.gameCCAdjust||0) + amount;
   DB.gameNNAdjust = (DB.gameNNAdjust||0) - amount;
   DB.rollingCashShift = (DB.rollingCashShift||0) + amount;
+  if(fbDb){
+   writeRollingEvent({gameId, amount, staff:staffName, memo:''});
+  } else {
+   const now = new Date();
+   const dateStr = now.toISOString().slice(0,10);
+   const timeStr = now.toTimeString().slice(0,8);
+   g.rolling = (g.rolling||0) + amount;
+   g.lastAdded = amount;
+   g.rollingLog = g.rollingLog||[];
+   g.lastGrandTotal = DB.guestRollingGrandTotal;
+   g.rollingLog.unshift({date:dateStr, time:timeStr, type: amount<0?'W':'R', amount, cum:g.rolling, total:DB.guestRollingGrandTotal, staff:staffName, memo:''});
+  }
   saveDB(); renderOngoing(); renderBalancingSummary();
   pushNotification('notifRollingInput', `${g.account} · ${g.gameId} · ${amount>=0?'+':''}${fmt(amount)}`);
   toast(t('toastRollingConfirmed'));
@@ -3262,7 +3392,10 @@ function _doSettleGame(){
  const dt = isEnded ? g.endDt : new Date().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  renderReceipt(g, commission, fb, result, cashout, winLoss, dt, staffName);
- if(isEnded) g.settled = true;
+ if(isEnded){
+  g.settled = true;
+  if(fbDb) writeGameDoc(g, 'ended');
+ }
  DB.settled = DB.settled||[];
  DB.settled.push({gameId:g.gameId, account:g.account, dt, buyin:g.buyin, cashout, winLoss, rolling:g.rolling, commission, fb, result, staff:staffName});
  if(result > 0){
@@ -3371,7 +3504,12 @@ function _doConfirmMidSettle(){
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
  g.checkpoints = g.checkpoints||[];
  g.checkpoints.unshift({dt:now, added, cc, nn, staff:floorStaff});
- g.rolling = (g.rolling||0) + added;
+ if(fbDb){
+  if(added) writeRollingEvent({gameId:g.gameId, amount:added, staff:floorStaff, memo:'mid-settle'});
+  writeGameDoc(g);
+ } else {
+  g.rolling = (g.rolling||0) + added;
+ }
  const ccSum = cc.deposit + cc.cashout + cc.marker + cc.dealerTips + cc.houseTips;
  const nnSum = nn.deposit + nn.cashout + nn.marker + nn.working;
  DB.gameCCAdjust = (DB.gameCCAdjust||0) + ccSum;
@@ -3556,9 +3694,14 @@ function _doConfirmGameEnd(){
  const winLoss = (historicalSum + ccSum + nnSum) - (g.buyin||0);
  const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
- DB.endedGames = DB.endedGames||[];
- DB.endedGames.unshift({...g, cc, nn, rolling:totalRolling, winLoss, endDt:now, endStaff:floorStaff});
- DB.games = DB.games.filter(x=>x.gameId!==id);
+ if(fbDb){
+  if(netNN) writeRollingEvent({gameId:g.gameId, amount:netNN, staff:floorStaff, memo:'game-end'});
+  writeGameDoc({...g, cc, nn, winLoss, endDt:now, endStaff:floorStaff}, 'ended');
+ } else {
+  DB.endedGames = DB.endedGames||[];
+  DB.endedGames.unshift({...g, cc, nn, rolling:totalRolling, winLoss, endDt:now, endStaff:floorStaff});
+  DB.games = DB.games.filter(x=>x.gameId!==id);
+ }
  DB.gameCCAdjust = (DB.gameCCAdjust||0) + ccSum;
  DB.gameNNAdjust = (DB.gameNNAdjust||0) + nnSum;
  if(nn.deposit > 0){
@@ -4695,6 +4838,10 @@ document.getElementById('loginOtp').addEventListener('keydown', e=>{
   subscribeStaffCloud();
   await seedLedgerToCloudIfEmpty();
   subscribeLedgerCloud();
+  await seedGamesToCloudIfEmpty();
+  subscribeGamesCloud();
+  await seedRollingEventsToCloudIfEmpty();
+  subscribeRollingEventsCloud();
  }
 })();
 </script>

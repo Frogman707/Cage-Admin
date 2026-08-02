@@ -394,7 +394,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="topbar-meta dt-only">
     <span data-i18n="lastBalancing"></span><b id="lastBalTime" class="num">2026-07-09 06:03:09</b>
     <span data-i18n="staff"></span><b id="staffCount" class="num">Kyle, Jena</b>
-    <span class="pill nn" id="topEventPill" style="display:none;" data-i18n="eventOn"></span>
+    <span class="pill nn" id="topEventPill" style="display:none;" data-i18n="eventOnTop"></span>
   </div>
   <div class="lang-switch dt-only">
     <button data-lang="ko">한국어</button>
@@ -1133,27 +1133,27 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 
           <div class="dash-section-title"><span class="dash-bar"></span><span data-i18n="dashToday"></span><span class="dash-hint" data-i18n="dashVsYesterday"></span></div>
           <table class="dash-table dash-metric">
-            <thead><tr><th data-i18n="dashBuyin"></th><th data-i18n="dashRolling"></th><th data-i18n="dashWinLoss"></th><th data-i18n="dashRollingComm"></th><th data-i18n="dashShareSettle"></th><th>WinRate</th><th data-i18n="dashNetProfit"></th></tr></thead>
+            <thead><tr><th data-i18n="dashBuyin"></th><th data-i18n="dashRolling"></th><th data-i18n="dashWinLoss"></th><th data-i18n="dashRollingComm"></th><th data-i18n="dashShareSettle"></th><th data-i18n="dashEventComm"></th><th>WinRate</th><th data-i18n="dashNetProfit"></th></tr></thead>
             <tbody>
-              <tr><td class="num">₱29,570,000</td><td class="num">₱119,086,000</td><td class="num">₱9,474,700</td><td class="num neg">-₱1,726,747</td><td class="num">₱0</td><td class="num">7.96%</td><td class="num">₱7,688,410</td></tr>
-              <tr class="dash-delta"><td class="num neg">₱-1,960,886 (▼6.22%)</td><td class="num neg">₱-15,219,000 (▼12.78%)</td><td class="num pos">₱1,758,800 (▲22.79%)</td><td class="num pos">₱77,227 (▲4.28%)</td><td class="num">₱0 (0%)</td><td class="num pos">5.75% (▲2.21%)</td><td class="num pos">₱1,838,690 (▲31.43%)</td></tr>
+              <tr><td class="num" id="dashTodayBuyin">₱29,570,000</td><td class="num" id="dashTodayRolling">₱119,086,000</td><td class="num" id="dashTodayWinLoss">₱9,474,700</td><td class="num neg" id="dashTodayRollingComm">-₱1,726,747</td><td class="num" id="dashTodayShareSettle">₱0</td><td class="num" id="dashTodayEventComm">₱185,000</td><td class="num" id="dashTodayWinRate">7.96%</td><td class="num" id="dashTodayNetProfit">₱7,688,410</td></tr>
+              <tr class="dash-delta"><td class="num neg">₱-1,960,886 (▼6.22%)</td><td class="num neg">₱-15,219,000 (▼12.78%)</td><td class="num pos">₱1,758,800 (▲22.79%)</td><td class="num pos">₱77,227 (▲4.28%)</td><td class="num">₱0 (0%)</td><td class="num pos">₱185,000 (▲100%)</td><td class="num pos">5.75% (▲2.21%)</td><td class="num pos">₱1,838,690 (▲31.43%)</td></tr>
             </tbody>
           </table>
 
           <div class="dash-section-title"><span class="dash-bar"></span><span data-i18n="dashMonthly"></span><span class="dash-hint" data-i18n="dashVsLastMonth"></span></div>
           <table class="dash-table dash-metric">
-            <thead><tr><th data-i18n="dashBuyin"></th><th data-i18n="dashRolling"></th><th data-i18n="dashWinLoss"></th><th data-i18n="dashRollingComm"></th><th data-i18n="dashShareSettle"></th><th>WinRate</th><th data-i18n="dashNetProfit"></th></tr></thead>
+            <thead><tr><th data-i18n="dashBuyin"></th><th data-i18n="dashRolling"></th><th data-i18n="dashWinLoss"></th><th data-i18n="dashRollingComm"></th><th data-i18n="dashShareSettle"></th><th data-i18n="dashEventComm"></th><th>WinRate</th><th data-i18n="dashNetProfit"></th></tr></thead>
             <tbody>
-              <tr><td class="num">₱419,772,748</td><td class="num">₱1,352,480,000</td><td class="num">₱37,971,350</td><td class="num neg">-₱16,856,932</td><td class="num">₱0</td><td class="num">2.81%</td><td class="num">₱20,533,145</td></tr>
-              <tr class="dash-delta"><td class="num neg">₱-805,821 (▼4.05%)</td><td class="num pos">₱16,296,114 (▲36.07%)</td><td class="num neg">₱-96,629 (▼5.30%)</td><td class="num neg">-₱232,063 (▼43.44%)</td><td class="num">₱2,411 (0%)</td><td class="num pos">0.14% (▲2.66%)</td><td class="num neg">₱-334,283 (▼26.37%)</td></tr>
+              <tr><td class="num">₱419,772,748</td><td class="num">₱1,352,480,000</td><td class="num">₱37,971,350</td><td class="num neg">-₱16,856,932</td><td class="num">₱0</td><td class="num">₱2,430,000</td><td class="num">2.81%</td><td class="num">₱20,533,145</td></tr>
+              <tr class="dash-delta"><td class="num neg">₱-805,821 (▼4.05%)</td><td class="num pos">₱16,296,114 (▲36.07%)</td><td class="num neg">₱-96,629 (▼5.30%)</td><td class="num neg">-₱232,063 (▼43.44%)</td><td class="num">₱2,411 (0%)</td><td class="num pos">₱2,430,000 (▲100%)</td><td class="num pos">0.14% (▲2.66%)</td><td class="num neg">₱-334,283 (▼26.37%)</td></tr>
             </tbody>
           </table>
 
           <div class="dash-section-title"><span class="dash-bar"></span><span data-i18n="dashCumulative"></span><span class="dash-hint">(2025-03-30 ~)</span></div>
           <table class="dash-table dash-metric">
-            <thead><tr><th data-i18n="dashBuyin"></th><th data-i18n="dashRolling"></th><th data-i18n="dashWinLoss"></th><th data-i18n="dashRollingComm"></th><th data-i18n="dashShareSettle"></th><th>WinRate</th><th data-i18n="dashNetProfit"></th></tr></thead>
+            <thead><tr><th data-i18n="dashBuyin"></th><th data-i18n="dashRolling"></th><th data-i18n="dashWinLoss"></th><th data-i18n="dashRollingComm"></th><th data-i18n="dashShareSettle"></th><th data-i18n="dashEventComm"></th><th>WinRate</th><th data-i18n="dashNetProfit"></th></tr></thead>
             <tbody>
-              <tr><td class="num">₱4,349,097,961</td><td class="num">₱14,946,626,000</td><td class="num">₱301,594,625</td><td class="num neg">-₱171,181,178</td><td class="num neg">-₱67,500</td><td class="num">2.02%</td><td class="num">₱128,936,498</td></tr>
+              <tr><td class="num">₱4,349,097,961</td><td class="num">₱14,946,626,000</td><td class="num">₱301,594,625</td><td class="num neg">-₱171,181,178</td><td class="num neg">-₱67,500</td><td class="num">₱18,650,000</td><td class="num">2.02%</td><td class="num">₱128,936,498</td></tr>
             </tbody>
           </table>
         </div>
@@ -1163,35 +1163,35 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           <table class="dash-table">
             <thead><tr><th data-i18n="dashCageCash"></th><th data-i18n="dashUserFunds"></th></tr></thead>
             <tbody>
-              <tr><td class="num">₱145,944,831</td><td class="num">₱39,676,231</td></tr>
+              <tr><td class="num" id="dashCageCashVal">₱145,944,831</td><td class="num" id="dashUserFundsVal">₱39,676,231</td></tr>
               <tr class="dash-delta"><td class="num neg">₱-8,141,265 (▼5.28%)</td><td class="num neg">₱-10,945,494 (▼21.62%)</td></tr>
             </tbody>
           </table>
           <table class="dash-table" style="margin-top:8px;">
             <thead><tr><th data-i18n="dashCashLabel"></th></tr></thead>
             <tbody>
-              <tr><td class="num">₱106,268,599</td></tr>
+              <tr><td class="num" id="dashAssetCashVal">₱106,268,599</td></tr>
               <tr class="dash-delta"><td class="num pos">₱2,804,229 (▲2.71%)</td></tr>
             </tbody>
           </table>
           <table class="dash-table" style="margin-top:8px;">
             <thead><tr><th>NN</th><th>CC</th></tr></thead>
             <tbody>
-              <tr><td class="num">₱91,520,000</td><td class="num">₱20,508,650</td></tr>
+              <tr><td class="num" id="dashAssetNNVal">₱91,520,000</td><td class="num" id="dashAssetCCVal">₱20,508,650</td></tr>
               <tr class="dash-delta"><td class="num pos">₱4,914,000 (▲5.67%)</td><td class="num neg">₱-14,388,700 (▼41.23%)</td></tr>
             </tbody>
           </table>
           <table class="dash-table" style="margin-top:8px;">
             <thead><tr><th>NN + CC</th></tr></thead>
             <tbody>
-              <tr><td class="num">₱112,028,650</td></tr>
+              <tr><td class="num" id="dashAssetNNCCVal">₱112,028,650</td></tr>
               <tr class="dash-delta"><td class="num neg">₱-9,474,700 (▼7.80%)</td></tr>
             </tbody>
           </table>
           <table class="dash-table" style="margin-top:8px;">
             <thead><tr><th data-i18n="dashCageHeldAssets"></th><th data-i18n="dashMarkerLabel"></th></tr></thead>
             <tbody>
-              <tr><td class="num">₱218,297,249</td><td class="num">₱50,000,000</td></tr>
+              <tr><td class="num" id="dashCageHeldVal">₱218,297,249</td><td class="num" id="dashMarkerVal">₱50,000,000</td></tr>
             </tbody>
           </table>
         </div>
@@ -1476,17 +1476,40 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   </div>
 </div></div>
 
-<div class="modal-bg" id="modal-daily-report"><div class="modal" style="width:420px;">
+<div class="modal-bg" id="modal-daily-report"><div class="modal" style="width:480px;max-height:86vh;overflow-y:auto;">
   <button class="modal-close" onclick="closeModal('modal-daily-report')">×</button>
-  <div class="receipt" style="margin-top:6px;">
+  <div class="receipt" id="dailyReportContent" style="margin-top:6px;">
     <h4 data-i18n="dailyReportTitle"></h4>
     <div class="rmeta-row"><span data-i18n="colDate"></span><b id="dailyReportDate">—</b></div>
     <div class="ramt-row" style="margin-top:12px;"><span data-i18n="rollingLabel"></span><span class="val" id="dailyReportRolling">0</span></div>
     <div class="ramt-row"><span data-i18n="cashLabel"></span><span class="val" id="dailyReportCash">0</span></div>
     <div class="ramt-row"><span data-i18n="diffLabel"></span> (<span data-i18n="rollingLabel"></span>)<span class="val" id="dailyReportDiffRolling">0</span></div>
     <div class="ramt-row"><span data-i18n="diffLabel"></span> (<span data-i18n="cashLabel"></span>)<span class="val" id="dailyReportDiffCash">0</span></div>
+
+    <h4 style="margin-top:18px;" data-i18n="dashToday"></h4>
+    <div class="ramt-row"><span data-i18n="dashBuyin"></span><span class="val" id="dailyReportBuyin">0</span></div>
+    <div class="ramt-row"><span data-i18n="dashRolling"></span><span class="val" id="dailyReportGameRolling">0</span></div>
+    <div class="ramt-row"><span data-i18n="dashWinLoss"></span><span class="val" id="dailyReportWinLoss">0</span></div>
+    <div class="ramt-row"><span data-i18n="dashRollingComm"></span><span class="val" id="dailyReportRollingComm">0</span></div>
+    <div class="ramt-row"><span data-i18n="dashShareSettle"></span><span class="val" id="dailyReportShareSettle">0</span></div>
+    <div class="ramt-row"><span data-i18n="dashEventComm"></span><span class="val" id="dailyReportEventComm">0</span></div>
+    <div class="ramt-row"><span>WinRate</span><span class="val" id="dailyReportWinRate">0</span></div>
+    <div class="ramt-row"><span data-i18n="dashNetProfit"></span><span class="val" id="dailyReportNetProfit">0</span></div>
+
+    <h4 style="margin-top:18px;" data-i18n="dashCageAssets"></h4>
+    <div class="ramt-row"><span data-i18n="dashCageCash"></span><span class="val" id="dailyReportCageCash">0</span></div>
+    <div class="ramt-row"><span data-i18n="dashUserFunds"></span><span class="val" id="dailyReportUserFunds">0</span></div>
+    <div class="ramt-row"><span data-i18n="dashCashLabel"></span><span class="val" id="dailyReportAssetCash">0</span></div>
+    <div class="ramt-row"><span>NN</span><span class="val" id="dailyReportAssetNN">0</span></div>
+    <div class="ramt-row"><span>CC</span><span class="val" id="dailyReportAssetCC">0</span></div>
+    <div class="ramt-row"><span>NN + CC</span><span class="val" id="dailyReportAssetNNCC">0</span></div>
+    <div class="ramt-row"><span data-i18n="dashCageHeldAssets"></span><span class="val" id="dailyReportCageHeld">0</span></div>
+    <div class="ramt-row"><span data-i18n="dashMarkerLabel"></span><span class="val" id="dailyReportMarker">0</span></div>
   </div>
-  <button class="btn btn-block" style="margin-top:12px;" onclick="window.print()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-3px;margin-right:4px;"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M6 14h12v7H6z"/></svg><span data-i18n="printBtn"></span></button>
+  <div class="row" style="margin-top:12px;">
+    <button class="btn" onclick="window.print()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-3px;margin-right:4px;"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M6 14h12v7H6z"/></svg><span data-i18n="printBtn"></span></button>
+    <button class="btn btn-gold" onclick="downloadDailyReport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-3px;margin-right:4px;"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span data-i18n="downloadBtn"></span></button>
+  </div>
 </div></div>
 
 <div class="modal-bg" id="modal-settled-receipt"><div class="modal" style="width:420px;">
@@ -1605,7 +1628,7 @@ ko:{
  colTime:"시간", colReqMember:"요청 회원", colKind:"구분", colPrevRolling:"이전 롤링", colRollingSub:"롤링누계", colRollingTotal:"롤링 합계",
  settlePageTitle:"롤링 커미션 정산", gameTypeFld:"게임 타입", rollingComm:"롤링 커미션", fbDiscount:"F&B 할인", resultLabel:"정산금", settleBtn:"정산 확정",
  receiptTitle:"정산 영수증", receiptGameNo:"게임 번호", receiptAccNo:"어카운트 번호", receiptDate:"일자",
- receiptTotalRolling:"총 롤링", receiptCommAmt:"커미션 금액", receiptTotalAmt:"총 금액", receiptGuestSig:"고객 서명", printBtn:"인쇄",
+ receiptTotalRolling:"총 롤링", receiptCommAmt:"커미션 금액", receiptTotalAmt:"총 금액", receiptGuestSig:"고객 서명", printBtn:"인쇄", downloadBtn:"다운로드",
   shiftChangeTitle:"근무 교대", currentWorker:"현재 근무자", checkInStaffLabel:"근무자 선택", checkOutBtn:"퇴근 확인", checkInBtn:"출근 확인",
  shiftListBtn:"기록", shiftDateTimeLabel:"일시", shiftListTitle:"근무교대 기록", colAction:"구분", colCheckIn:"출근", colCheckOut:"퇴근",
  loginStaffLabel:"근무자", loginPinLabel:"비밀번호(PIN)", loginErrorMsg:"비밀번호가 일치하지 않습니다.", loginBtn:"로그인", loginHint:"데모 PIN: 1234",
@@ -1643,7 +1666,7 @@ ko:{
  dashOverview:"리포트", dashAccounts:"어카운트", dashTotalAcc:"총 어카운트", dashNewToday:"당일 신규 어카운트", dashNewWeek:"주간 신규 어카운트", dashNewMonth:"월간 신규 어카운트",
  dashToday:"당일 통합 지표", dashVsYesterday:"(전일 대비 비교)", dashWeekly:"주간 누적 지표", dashVsLastWeek:"(금주 일 평균과 전주 일 평균 비교)",
  dashMonthly:"월간 누적 지표", dashVsLastMonth:"(당일 일 평균과 전일 일 평균 비교)", dashCumulative:"누적 통합 지표",
- dashBuyin:"바이인", dashRolling:"롤링", dashWinLoss:"윈로스", dashRollingComm:"롤링커미션", dashShareSettle:"쉐어정산금", dashNetProfit:"순수익",
+ dashBuyin:"바이인", dashRolling:"롤링", dashWinLoss:"윈로스", dashRollingComm:"롤링커미션", dashShareSettle:"쉐어정산금", dashEventComm:"이벤트 커미션", dashNetProfit:"순수익",
  dashCageAssets:"케이지 자산", dashCageCash:"케이지 보유 현금", dashUserFunds:"유저 보유금", dashCashLabel:"현금", dashChips:"칩스", dashCageHeldAssets:"케이지 보유 자산", dashMarkerLabel:"마커",
  dailyIoTitle:"전체 입출금 내역", monthRecordTitle:"월간 기록",
  colMrCash:"현금", colMrCashChips:"현금칩", colMrRollingChips:"롤링칩", colMrCasinoCum:"카지노 누적", colMrGuestTotal:"고객 합계",
@@ -1667,7 +1690,7 @@ ko:{
  directionArrival:"도착 픽업", directionDeparture:"출발 샌드오프", colFlightNo:"항공편", colAirport:"공항", colDirection:"구분", colDateTime:"일시",
  pointsTitle:"포인트",
  pointsBalance:"보유 포인트", pointsUseAmt:"사용 포인트", pointsUseReason:"비고", pointsUseBtn:"포인트 사용", pointsHistoryTitle:"포인트 내역", pointsGrantAmt:"지급 포인트", pointsGrantBtn:"포인트 지급",
- eventTitle:"이벤트", eventOn:"활성화됨", eventOff:"비활성화", eventRateLabel:"이벤트 커미션율(%)", eventCommAmtLabel:"이벤트 커미션 지급액",
+ eventTitle:"이벤트", eventOn:"활성화됨", eventOnTop:"이벤트 활성화됨", eventOff:"비활성화", eventRateLabel:"이벤트 커미션율(%)", eventCommAmtLabel:"이벤트 커미션 지급액",
  eventStartLabel:"시작일", eventEndLabel:"종료일", eventSetBtn:"기간 설정", eventEndBtn:"종료", eventLogBtn:"기록", toastEventEnded:"이벤트가 종료되었습니다.",
  toastEventPeriodMissing:"시작일과 종료일을 모두 입력하세요.", toastEventPeriodInvalid:"종료일은 시작일보다 빠를 수 없습니다.", toastEventPeriodSet:"이벤트 기간이 설정되었습니다.",
  eventPayBtn:"이벤트 커미션 지급", eventHistoryTitle:"이벤트 커미션 지급 내역", eventInactiveHint:"이벤트를 활성화하면 롤링 커미션을 추가로 지급할 수 있습니다.", eventAutoHint:"이벤트 기간 중 롤링 커미션을 정산하면 이벤트 커미션이 자동으로 계좌에 입금됩니다.",
@@ -1726,7 +1749,7 @@ en:{
  colTime:"Time", colReqMember:"Requested By", colKind:"Kind", colPrevRolling:"Prev. Rolling", colRollingSub:"Rolling Cumulative", colRollingTotal:"Rolling Total",
  settlePageTitle:"Rolling Commission Settlement", gameTypeFld:"Game Type", rollingComm:"Rolling Commission", fbDiscount:"F&B Discount", resultLabel:"Settlement Amount", settleBtn:"Confirm Settlement",
  receiptTitle:"Settlement Receipt", receiptGameNo:"Game No.", receiptAccNo:"Account No.", receiptDate:"Date",
- receiptTotalRolling:"Total Rolling", receiptCommAmt:"Commission Amount", receiptTotalAmt:"Total Amount", receiptGuestSig:"Guest's Signature", printBtn:"Print",
+ receiptTotalRolling:"Total Rolling", receiptCommAmt:"Commission Amount", receiptTotalAmt:"Total Amount", receiptGuestSig:"Guest's Signature", printBtn:"Print", downloadBtn:"Download",
   shiftChangeTitle:"Shift Change", currentWorker:"Current Staff", checkInStaffLabel:"Select Staff", checkOutBtn:"Check Out", checkInBtn:"Check In",
  shiftListBtn:"Records", shiftDateTimeLabel:"Date & Time", shiftListTitle:"Shift Change History", colAction:"Action", colCheckIn:"Check-in", colCheckOut:"Check-out",
  loginStaffLabel:"Staff", loginPinLabel:"Password (PIN)", loginErrorMsg:"Incorrect password.", loginBtn:"Log In", loginHint:"Demo PIN: 1234",
@@ -1764,7 +1787,7 @@ en:{
  dashOverview:"Report", dashAccounts:"Accounts", dashTotalAcc:"Total Accounts", dashNewToday:"New Today", dashNewWeek:"New This Week", dashNewMonth:"New This Month",
  dashToday:"Today's Combined Metrics", dashVsYesterday:"(vs. Yesterday)", dashWeekly:"Weekly Cumulative Metrics", dashVsLastWeek:"(This Week's Daily Avg vs Last Week)",
  dashMonthly:"Monthly Cumulative Metrics", dashVsLastMonth:"(This Month's Daily Avg vs Last Month)", dashCumulative:"Cumulative Total Metrics",
- dashBuyin:"Buy-in", dashRolling:"Rolling", dashWinLoss:"Win/Loss", dashRollingComm:"Rolling Commission", dashShareSettle:"Share Settlement", dashNetProfit:"Net Profit",
+ dashBuyin:"Buy-in", dashRolling:"Rolling", dashWinLoss:"Win/Loss", dashRollingComm:"Rolling Commission", dashShareSettle:"Share Settlement", dashEventComm:"Event Commission", dashNetProfit:"Net Profit",
  dashCageAssets:"Cage Assets", dashCageCash:"Cage Held Cash", dashUserFunds:"User Held Funds", dashCashLabel:"Cash", dashChips:"Chips", dashCageHeldAssets:"Cage Held Assets", dashMarkerLabel:"Marker",
  dailyIoTitle:"All Transaction History", monthRecordTitle:"Monthly Record",
  colMrCash:"Cash", colMrCashChips:"Cash Chips", colMrRollingChips:"Rolling Chips", colMrCasinoCum:"Casino Cum.", colMrGuestTotal:"Guest Total",
@@ -1788,7 +1811,7 @@ en:{
  directionArrival:"Arrival Pickup", directionDeparture:"Departure Send-off", colFlightNo:"Flight", colAirport:"Airport", colDirection:"Direction", colDateTime:"Date/Time",
  pointsTitle:"Points",
  pointsBalance:"Points Balance", pointsUseAmt:"Points to Use", pointsUseReason:"Remarks", pointsUseBtn:"Use Points", pointsHistoryTitle:"Points History", pointsGrantAmt:"Points to Grant", pointsGrantBtn:"Grant Points",
- eventTitle:"Event", eventOn:"Active", eventOff:"Inactive", eventRateLabel:"Event Commission Rate (%)", eventCommAmtLabel:"Event Commission Amount",
+ eventTitle:"Event", eventOn:"Active", eventOnTop:"Event Active", eventOff:"Inactive", eventRateLabel:"Event Commission Rate (%)", eventCommAmtLabel:"Event Commission Amount",
  eventStartLabel:"Start Date", eventEndLabel:"End Date", eventSetBtn:"Set Period", eventEndBtn:"End", eventLogBtn:"Records", toastEventEnded:"Event ended.",
  toastEventPeriodMissing:"Enter both a start and end date.", toastEventPeriodInvalid:"End date cannot be before the start date.", toastEventPeriodSet:"Event period set.",
  eventPayBtn:"Pay Event Commission", eventHistoryTitle:"Event Commission History", eventInactiveHint:"Activate the event to pay additional rolling commission.", eventAutoHint:"While the event is active, event commission is paid automatically to the account whenever a rolling commission is settled.",
@@ -1847,7 +1870,7 @@ en:{
  colTime:"時間", colReqMember:"申請會員", colKind:"類別", colPrevRolling:"先前轉碼", colRollingSub:"轉碼累計", colRollingTotal:"轉碼合計",
  settlePageTitle:"轉碼佣金結算", gameTypeFld:"局別", rollingComm:"轉碼佣金", fbDiscount:"F&B 折讓", resultLabel:"結算金額", settleBtn:"確認結算",
  receiptTitle:"結算收據", receiptGameNo:"局號", receiptAccNo:"帳號", receiptDate:"日期",
- receiptTotalRolling:"轉碼總額", receiptCommAmt:"佣金金額", receiptTotalAmt:"合計金額", receiptGuestSig:"貴賓簽名", printBtn:"列印",
+ receiptTotalRolling:"轉碼總額", receiptCommAmt:"佣金金額", receiptTotalAmt:"合計金額", receiptGuestSig:"貴賓簽名", printBtn:"列印", downloadBtn:"下載",
   shiftChangeTitle:"交班作業", currentWorker:"目前值班人數", checkInStaffLabel:"選擇人員", checkOutBtn:"下班確認", checkInBtn:"上班確認",
  shiftListBtn:"紀錄", shiftDateTimeLabel:"日期時間", shiftListTitle:"交班紀錄", colAction:"動作", colCheckIn:"上班", colCheckOut:"下班",
  loginStaffLabel:"人員", loginPinLabel:"密碼(PIN)", loginErrorMsg:"密碼不正確。", loginBtn:"登入", loginHint:"示範 PIN：1234",
@@ -1885,7 +1908,7 @@ en:{
  dashOverview:"報表", dashAccounts:"帳戶", dashTotalAcc:"總帳戶數", dashNewToday:"當日新增帳戶", dashNewWeek:"本週新增帳戶", dashNewMonth:"本月新增帳戶",
  dashToday:"當日綜合指標", dashVsYesterday:"（與前一日比較）", dashWeekly:"週累計指標", dashVsLastWeek:"（本週日均與上週日均比較）",
  dashMonthly:"月累計指標", dashVsLastMonth:"（本月日均與上月日均比較）", dashCumulative:"累計綜合指標",
- dashBuyin:"買入", dashRolling:"轉碼", dashWinLoss:"輸贏", dashRollingComm:"轉碼佣金", dashShareSettle:"份額結算金", dashNetProfit:"淨收益",
+ dashBuyin:"買入", dashRolling:"轉碼", dashWinLoss:"輸贏", dashRollingComm:"轉碼佣金", dashShareSettle:"份額結算金", dashEventComm:"活動佣金", dashNetProfit:"淨收益",
  dashCageAssets:"碼房資產", dashCageCash:"碼房持有現金", dashUserFunds:"用戶持有金額", dashCashLabel:"現金", dashChips:"籌碼", dashCageHeldAssets:"碼房持有資產", dashMarkerLabel:"馬克",
  dailyIoTitle:"全部收付紀錄", monthRecordTitle:"月度紀錄",
  colMrCash:"現金", colMrCashChips:"現金碼", colMrRollingChips:"轉碼", colMrCasinoCum:"賭場累計", colMrGuestTotal:"貴賓合計",
@@ -1909,7 +1932,7 @@ en:{
  directionArrival:"接機", directionDeparture:"送機", colFlightNo:"航班", colAirport:"機場", colDirection:"類型", colDateTime:"日期時間",
  pointsTitle:"積分",
  pointsBalance:"積分餘額", pointsUseAmt:"使用積分", pointsUseReason:"備註", pointsUseBtn:"使用積分", pointsHistoryTitle:"積分紀錄", pointsGrantAmt:"發放積分", pointsGrantBtn:"積分發放",
- eventTitle:"活動", eventOn:"已啟用", eventOff:"未啟用", eventRateLabel:"活動佣金率(%)", eventCommAmtLabel:"活動佣金發放金額",
+ eventTitle:"活動", eventOn:"已啟用", eventOnTop:"活動進行中", eventOff:"未啟用", eventRateLabel:"活動佣金率(%)", eventCommAmtLabel:"活動佣金發放金額",
  eventStartLabel:"開始日期", eventEndLabel:"結束日期", eventSetBtn:"設定期間", eventEndBtn:"結束", eventLogBtn:"紀錄", toastEventEnded:"活動已結束。",
  toastEventPeriodMissing:"請輸入開始與結束日期。", toastEventPeriodInvalid:"結束日期不能早於開始日期。", toastEventPeriodSet:"活動期間已設定。",
  eventPayBtn:"發放活動佣金", eventHistoryTitle:"活動佣金發放紀錄", eventInactiveHint:"啟用活動後即可額外發放轉碼佣金。", eventAutoHint:"活動期間內結算轉碼佣金時，活動佣金將自動存入帳戶。",
@@ -1968,7 +1991,7 @@ en:{
  colTime:"时间", colReqMember:"申请会员", colKind:"类别", colPrevRolling:"先前转码", colRollingSub:"转码累计", colRollingTotal:"转码合计",
  settlePageTitle:"转码佣金结算", gameTypeFld:"局别", rollingComm:"转码佣金", fbDiscount:"F&B 折让", resultLabel:"结算金额", settleBtn:"确认结算",
  receiptTitle:"结算收据", receiptGameNo:"局号", receiptAccNo:"账号", receiptDate:"日期",
- receiptTotalRolling:"转码总额", receiptCommAmt:"佣金金额", receiptTotalAmt:"合计金额", receiptGuestSig:"贵宾签名", printBtn:"打印",
+ receiptTotalRolling:"转码总额", receiptCommAmt:"佣金金额", receiptTotalAmt:"合计金额", receiptGuestSig:"贵宾签名", printBtn:"打印", downloadBtn:"下载",
   shiftChangeTitle:"交班操作", currentWorker:"当前值班人数", checkInStaffLabel:"选择人员", checkOutBtn:"下班确认", checkInBtn:"上班确认",
  shiftListBtn:"记录", shiftDateTimeLabel:"日期时间", shiftListTitle:"交班记录", colAction:"操作", colCheckIn:"上班", colCheckOut:"下班",
  loginStaffLabel:"人员", loginPinLabel:"密码(PIN)", loginErrorMsg:"密码不正确。", loginBtn:"登录", loginHint:"演示 PIN：1234",
@@ -2006,7 +2029,7 @@ en:{
  dashOverview:"报表", dashAccounts:"账户", dashTotalAcc:"总账户数", dashNewToday:"当日新增账户", dashNewWeek:"本周新增账户", dashNewMonth:"本月新增账户",
  dashToday:"当日综合指标", dashVsYesterday:"（与前一日比较）", dashWeekly:"周累计指标", dashVsLastWeek:"（本周日均与上周日均比较）",
  dashMonthly:"月累计指标", dashVsLastMonth:"（本月日均与上月日均比较）", dashCumulative:"累计综合指标",
- dashBuyin:"买入", dashRolling:"转码", dashWinLoss:"输赢", dashRollingComm:"转码佣金", dashShareSettle:"份额结算金", dashNetProfit:"净收益",
+ dashBuyin:"买入", dashRolling:"转码", dashWinLoss:"输赢", dashRollingComm:"转码佣金", dashShareSettle:"份额结算金", dashEventComm:"活动佣金", dashNetProfit:"净收益",
  dashCageAssets:"码房资产", dashCageCash:"码房持有现金", dashUserFunds:"用户持有金额", dashCashLabel:"现金", dashChips:"筹码", dashCageHeldAssets:"码房持有资产", dashMarkerLabel:"马克",
  dailyIoTitle:"全部收付记录", monthRecordTitle:"月度记录",
  colMrCash:"现金", colMrCashChips:"现金码", colMrRollingChips:"转码", colMrCasinoCum:"赌场累计", colMrGuestTotal:"贵宾合计",
@@ -2030,7 +2053,7 @@ en:{
  directionArrival:"接机", directionDeparture:"送机", colFlightNo:"航班", colAirport:"机场", colDirection:"类型", colDateTime:"日期时间",
  pointsTitle:"积分",
  pointsBalance:"积分余额", pointsUseAmt:"使用积分", pointsUseReason:"备注", pointsUseBtn:"使用积分", pointsHistoryTitle:"积分记录", pointsGrantAmt:"发放积分", pointsGrantBtn:"积分发放",
- eventTitle:"活动", eventOn:"已启用", eventOff:"未启用", eventRateLabel:"活动佣金率(%)", eventCommAmtLabel:"活动佣金发放金额",
+ eventTitle:"活动", eventOn:"已启用", eventOnTop:"活动进行中", eventOff:"未启用", eventRateLabel:"活动佣金率(%)", eventCommAmtLabel:"活动佣金发放金额",
  eventStartLabel:"开始日期", eventEndLabel:"结束日期", eventSetBtn:"设置期间", eventEndBtn:"结束", eventLogBtn:"记录", toastEventEnded:"活动已结束。",
  toastEventPeriodMissing:"请输入开始和结束日期。", toastEventPeriodInvalid:"结束日期不能早于开始日期。", toastEventPeriodSet:"活动期间已设置。",
  eventPayBtn:"发放活动佣金", eventHistoryTitle:"活动佣金发放记录", eventInactiveHint:"启用活动后即可额外发放转码佣金。", eventAutoHint:"活动期间内结算转码佣金时，活动佣金将自动存入账户。",
@@ -3764,7 +3787,49 @@ function generateDailyReportPDF(date){
  document.getElementById('dailyReportCash').textContent = document.getElementById('combinedCash').textContent;
  document.getElementById('dailyReportDiffRolling').textContent = document.getElementById('diffRolling').textContent;
  document.getElementById('dailyReportDiffCash').textContent = document.getElementById('diffCash').textContent;
+ const mirror = (srcId, dstId)=>{
+  const src = document.getElementById(srcId), dst = document.getElementById(dstId);
+  if(src && dst) dst.textContent = src.textContent;
+ };
+ mirror('dashTodayBuyin','dailyReportBuyin');
+ mirror('dashTodayRolling','dailyReportGameRolling');
+ mirror('dashTodayWinLoss','dailyReportWinLoss');
+ mirror('dashTodayRollingComm','dailyReportRollingComm');
+ mirror('dashTodayShareSettle','dailyReportShareSettle');
+ mirror('dashTodayEventComm','dailyReportEventComm');
+ mirror('dashTodayWinRate','dailyReportWinRate');
+ mirror('dashTodayNetProfit','dailyReportNetProfit');
+ mirror('dashCageCashVal','dailyReportCageCash');
+ mirror('dashUserFundsVal','dailyReportUserFunds');
+ mirror('dashAssetCashVal','dailyReportAssetCash');
+ mirror('dashAssetNNVal','dailyReportAssetNN');
+ mirror('dashAssetCCVal','dailyReportAssetCC');
+ mirror('dashAssetNNCCVal','dailyReportAssetNNCC');
+ mirror('dashCageHeldVal','dailyReportCageHeld');
+ mirror('dashMarkerVal','dailyReportMarker');
  openModal('modal-daily-report');
+}
+function downloadDailyReport(){
+ const date = document.getElementById('dailyReportDate').textContent;
+ const bodyHtml = document.getElementById('dailyReportContent').innerHTML;
+ const html = `<!DOCTYPE html><html lang="${LANG}"><head><meta charset="UTF-8">
+<title>${t('dailyReportTitle')} ${date}</title>
+<style>
+body{font-family:'Noto Sans','Noto Sans KR',sans-serif;background:#0A1626;color:#EDE8DA;padding:28px;}
+h4{color:#D9B26A;margin:18px 0 10px;font-size:15px;}
+h4:first-child{margin-top:0;}
+.rmeta-row,.ramt-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1E3555;font-size:13px;}
+.val{font-family:'JetBrains Mono',monospace;}
+</style></head><body>${bodyHtml}</body></html>`;
+ const blob = new Blob([html], {type:'text/html'});
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement('a');
+ a.href = url;
+ a.download = `daily-report-${date}.html`;
+ document.body.appendChild(a);
+ a.click();
+ document.body.removeChild(a);
+ URL.revokeObjectURL(url);
 }
 function renderMemberCompanyDiff(){
  const diffEl = document.getElementById('curDiffVal');

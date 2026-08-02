@@ -3592,6 +3592,7 @@ function renderBalancingSummary(){
  // 케이지 합산금액 - 캐시
  // = 모든 어카운트 입출금 합(입금+ 출금-) + 게임시작 현금바이인(어카운트바이인은 무변동)
  //   + CC칩 디파짓(입고, 0이면 무변동) + 롤링진행 이동분(CC칩 증가) + 중간정산/게임종료 CC 마커리딤(캐시+)
+ //   − 중간정산/게임종료 NN 캐쉬아웃(캐시-, 실제 현금 지급분)
  //   (CC 캐쉬아웃·딜러팁·하우스팁은 CC칩 증가·현금 감소가 서로 상쇄되어 캐시 무변동이므로 반영하지 않음)
  let ledgerNetRaw = 0;
  Object.keys(DB.ledger||{}).forEach(acc=>{
@@ -3601,7 +3602,7 @@ function renderBalancingSummary(){
  const cashBuyinShift = DB.cashBuyinShift||0; // 게임 시작(현금 바이인) 누계
  const ccChipInShift = DB.ccChipInShift||0; // 중간정산·게임종료 CC칩 디파짓(입고) 누계
  const ccMarkerShift = DB.ccMarkerShift||0; // 중간정산·게임종료 CC 마커리딤 누계 → 캐시+
- const combinedCash = ledgerNet + cashBuyinShift + ccChipInShift + rollingCashShift + ccMarkerShift;
+ const combinedCash = ledgerNet + cashBuyinShift + ccChipInShift + rollingCashShift + ccMarkerShift - nnCashoutShift;
  document.getElementById('combinedRolling').textContent = fmt(combinedRolling);
  document.getElementById('combinedCash').textContent = fmt(combinedCash);
 

@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cage Admin</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 :root{
   --void:#0A1626;
   --panel:#0F2038;
@@ -22,8 +24,8 @@
   --danger-dim:#8C392C;
   --radius:6px;
   --serif:var(--sans);
-  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic','Apple SD Gothic Neo','Microsoft JhengHei','PingFang SC','Noto Sans',sans-serif;
-  --mono:ui-monospace,'SF Mono',Consolas,'Liberation Mono','JetBrains Mono',monospace;
+  --sans:'Noto Sans','Noto Sans KR','Noto Sans TC','Noto Sans SC',-apple-system,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
   --grad-gold:linear-gradient(135deg,#F0DBA8 0%,#D9B26A 38%,#B8863A 78%,#9C7530 100%);
 }
 *{box-sizing:border-box;}
@@ -986,15 +988,13 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           <div class="row" style="margin-top:14px;">
             <div class="field"><label data-i18n="eventStartLabel"></label><input id="eventStartDate" type="datetime-local"></div>
             <div class="field"><label data-i18n="eventEndLabel"></label><input id="eventEndDate" type="datetime-local"></div>
+            <div class="field"><label data-i18n="eventRateLabel"></label><input id="eventRate"></div>
           </div>
           <div class="row">
             <button class="btn" onclick="setEventPeriod()" data-i18n="eventSetBtn"></button>
             <button class="btn btn-danger" onclick="endEventNow()" data-i18n="eventEndBtn"></button>
           </div>
-          <div id="eventApplyBox" style="margin-top:14px;display:none;">
-            <div class="field"><label data-i18n="eventRateLabel"></label><input id="eventRate" value="1.00"></div>
-            <p class="hint" data-i18n="eventAutoHint"></p>
-          </div>
+          <p class="hint" id="eventApplyBox" style="display:none;" data-i18n="eventAutoHint"></p>
           <p class="hint" id="eventInactiveHint" data-i18n="eventInactiveHint"></p>
         </div>
         <div class="card">
@@ -1149,6 +1149,13 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             </tbody>
           </table>
 
+          <div class="dash-section-title"><span class="dash-bar"></span><span data-i18n="dashCumulative"></span><span class="dash-hint">(2025-03-30 ~)</span></div>
+          <table class="dash-table dash-metric">
+            <thead><tr><th data-i18n="dashBuyin"></th><th data-i18n="dashRolling"></th><th data-i18n="dashWinLoss"></th><th data-i18n="dashRollingComm"></th><th data-i18n="dashShareSettle"></th><th>WinRate</th><th data-i18n="dashNetProfit"></th></tr></thead>
+            <tbody>
+              <tr><td class="num">₱4,349,097,961</td><td class="num">₱14,946,626,000</td><td class="num">₱301,594,625</td><td class="num neg">-₱171,181,178</td><td class="num neg">-₱67,500</td><td class="num">2.02%</td><td class="num">₱128,936,498</td></tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="card">
@@ -1307,7 +1314,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="modal-close" onclick="closeModal('modal-avatar-request')">×</button>
   <h3 data-i18n="avatarReqTitle"></h3>
   <div class="table-wrap" style="margin-top:10px;"><table>
-    <thead><tr><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="tableLabel"></th><th data-i18n="buyinTotal"></th><th data-i18n="avatarIdLabel"></th></tr></thead>
+    <thead><tr><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="tableLabel"></th><th data-i18n="buyinTotal"></th><th data-i18n="avatarIdLabel"></th><th></th></tr></thead>
     <tbody id="avatarReqListBody"></tbody>
   </table></div>
 </div></div>
@@ -1455,7 +1462,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="modal-close" onclick="closeModal('modal-shift-list')">×</button>
   <h3 data-i18n="shiftListTitle"></h3>
   <div class="table-wrap" style="margin-top:10px;"><table>
-    <thead><tr><th data-i18n="colDate"></th><th data-i18n="colTime"></th><th data-i18n="colStaff"></th><th data-i18n="colAction"></th></tr></thead>
+    <thead><tr><th data-i18n="colDate"></th><th data-i18n="colTime"></th><th data-i18n="colStaff"></th><th data-i18n="colCheckIn"></th><th data-i18n="colCheckOut"></th></tr></thead>
     <tbody id="shiftListBody"></tbody>
   </table></div>
 </div></div>
@@ -1600,7 +1607,7 @@ ko:{
  receiptTitle:"정산 영수증", receiptGameNo:"게임 번호", receiptAccNo:"어카운트 번호", receiptDate:"일자",
  receiptTotalRolling:"총 롤링", receiptCommAmt:"커미션 금액", receiptTotalAmt:"총 금액", receiptGuestSig:"고객 서명", printBtn:"인쇄",
   shiftChangeTitle:"근무 교대", currentWorker:"현재 근무자", checkInStaffLabel:"근무자 선택", checkOutBtn:"퇴근 확인", checkInBtn:"출근 확인",
- shiftListBtn:"기록", shiftDateTimeLabel:"일시", shiftListTitle:"근무교대 기록", colAction:"구분",
+ shiftListBtn:"기록", shiftDateTimeLabel:"일시", shiftListTitle:"근무교대 기록", colAction:"구분", colCheckIn:"출근", colCheckOut:"퇴근",
  loginStaffLabel:"근무자", loginPinLabel:"비밀번호(PIN)", loginErrorMsg:"비밀번호가 일치하지 않습니다.", loginBtn:"로그인", loginHint:"데모 PIN: 1234",
  loginOtpDesc:"Authenticator 앱에 표시된 6자리 인증 코드를 입력하세요.", loginOtpLabel:"인증코드(Authenticator)", loginOtpErrorMsg:"인증 코드가 일치하지 않습니다.",
  loginVerifyBtn:"인증 확인", loginOtpHint:"데모 코드: 123456", loginBackBtn:"뒤로",
@@ -1667,7 +1674,7 @@ ko:{
  toastEventInactive:"먼저 이벤트를 활성화하세요.", toastEventPaid:"이벤트 커미션이 지급되었습니다.", notifEvent:"이벤트 커미션 지급",
  colReason:"사유", colPointsChange:"증감", colPointsBalance:"잔여 포인트", pointsEarn:"적립", pointsUse:"사용",
  notifTitle:"알림", notifMarkAll:"모두 읽음", notifEmpty:"새 알림이 없습니다.",
- avatarReqTitle:"아바타 요청 확인", toastNoAvatarReq:"대기중인 아바타 요청이 없습니다.", toastAvatarReqChecked:"아바타 요청을 확인했습니다.", avatarIdLabel:"아바타 ID",
+ avatarReqTitle:"아바타 요청 확인", toastNoAvatarReq:"대기중인 아바타 요청이 없습니다.", toastAvatarReqChecked:"아바타 요청을 확인했습니다.", avatarIdLabel:"아바타 ID", toastAvatarReqCancelled:"아바타 요청이 취소되었습니다.",
  notifDeposit:"입금 처리", notifWithdraw:"출금 처리", notifTransferT:"이체 완료", notifGameStart:"게임 시작", notifGameSettle:"정산 완료",
  notifBlock:"어카운트 차단", notifRegister:"신규 어카운트 등록", notifHotel:"호텔 예약", notifCar:"차량 예약", notifAero:"아로 서비스 요청", notifPoints:"포인트 사용",
  branch:"지점", close:"닫기", moreLabel:"더보기",
@@ -1721,7 +1728,7 @@ en:{
  receiptTitle:"Settlement Receipt", receiptGameNo:"Game No.", receiptAccNo:"Account No.", receiptDate:"Date",
  receiptTotalRolling:"Total Rolling", receiptCommAmt:"Commission Amount", receiptTotalAmt:"Total Amount", receiptGuestSig:"Guest's Signature", printBtn:"Print",
   shiftChangeTitle:"Shift Change", currentWorker:"Current Staff", checkInStaffLabel:"Select Staff", checkOutBtn:"Check Out", checkInBtn:"Check In",
- shiftListBtn:"Records", shiftDateTimeLabel:"Date & Time", shiftListTitle:"Shift Change History", colAction:"Action",
+ shiftListBtn:"Records", shiftDateTimeLabel:"Date & Time", shiftListTitle:"Shift Change History", colAction:"Action", colCheckIn:"Check-in", colCheckOut:"Check-out",
  loginStaffLabel:"Staff", loginPinLabel:"Password (PIN)", loginErrorMsg:"Incorrect password.", loginBtn:"Log In", loginHint:"Demo PIN: 1234",
  loginOtpDesc:"Enter the 6-digit code shown in your Authenticator app.", loginOtpLabel:"Auth Code (Authenticator)", loginOtpErrorMsg:"Incorrect authentication code.",
  loginVerifyBtn:"Verify", loginOtpHint:"Demo code: 123456", loginBackBtn:"Back",
@@ -1788,7 +1795,7 @@ en:{
  toastEventInactive:"Activate the event first.", toastEventPaid:"Event commission paid.", notifEvent:"Event Commission Paid",
  colReason:"Reason", colPointsChange:"Change", colPointsBalance:"Balance", pointsEarn:"Earned", pointsUse:"Used",
  notifTitle:"Notifications", notifMarkAll:"Mark all read", notifEmpty:"No new notifications.",
- avatarReqTitle:"Check Avatar Request", toastNoAvatarReq:"No pending avatar requests.", toastAvatarReqChecked:"Avatar request checked.", avatarIdLabel:"Avatar ID",
+ avatarReqTitle:"Check Avatar Request", toastNoAvatarReq:"No pending avatar requests.", toastAvatarReqChecked:"Avatar request checked.", avatarIdLabel:"Avatar ID", toastAvatarReqCancelled:"Avatar request cancelled.",
  notifDeposit:"Deposit Processed", notifWithdraw:"Withdrawal Processed", notifTransferT:"Transfer Completed", notifGameStart:"Game Started", notifGameSettle:"Settlement Completed",
  notifBlock:"Account Blocked", notifRegister:"New Account Registered", notifHotel:"Hotel Booked", notifCar:"Car Reserved", notifAero:"Aero Service Requested", notifPoints:"Points Used",
  branch:"Branch", close:"Close", moreLabel:"More",
@@ -1842,7 +1849,7 @@ en:{
  receiptTitle:"結算收據", receiptGameNo:"局號", receiptAccNo:"帳號", receiptDate:"日期",
  receiptTotalRolling:"轉碼總額", receiptCommAmt:"佣金金額", receiptTotalAmt:"合計金額", receiptGuestSig:"貴賓簽名", printBtn:"列印",
   shiftChangeTitle:"交班作業", currentWorker:"目前值班人數", checkInStaffLabel:"選擇人員", checkOutBtn:"下班確認", checkInBtn:"上班確認",
- shiftListBtn:"紀錄", shiftDateTimeLabel:"日期時間", shiftListTitle:"交班紀錄", colAction:"動作",
+ shiftListBtn:"紀錄", shiftDateTimeLabel:"日期時間", shiftListTitle:"交班紀錄", colAction:"動作", colCheckIn:"上班", colCheckOut:"下班",
  loginStaffLabel:"人員", loginPinLabel:"密碼(PIN)", loginErrorMsg:"密碼不正確。", loginBtn:"登入", loginHint:"示範 PIN：1234",
  loginOtpDesc:"請輸入 Authenticator 應用程式顯示的 6 位數驗證碼。", loginOtpLabel:"驗證碼(Authenticator)", loginOtpErrorMsg:"驗證碼不正確。",
  loginVerifyBtn:"驗證", loginOtpHint:"示範驗證碼：123456", loginBackBtn:"返回",
@@ -1909,7 +1916,7 @@ en:{
  toastEventInactive:"請先啟用活動。", toastEventPaid:"活動佣金已發放。", notifEvent:"活動佣金發放",
  colReason:"原因", colPointsChange:"變動", colPointsBalance:"餘額", pointsEarn:"累積", pointsUse:"使用",
  notifTitle:"通知", notifMarkAll:"全部已讀", notifEmpty:"目前沒有新通知。",
- avatarReqTitle:"確認阿凡達請求", toastNoAvatarReq:"目前沒有待處理的阿凡達請求。", toastAvatarReqChecked:"已確認阿凡達請求。", avatarIdLabel:"阿凡達 ID",
+ avatarReqTitle:"確認阿凡達請求", toastNoAvatarReq:"目前沒有待處理的阿凡達請求。", toastAvatarReqChecked:"已確認阿凡達請求。", avatarIdLabel:"阿凡達 ID", toastAvatarReqCancelled:"阿凡達請求已取消。",
  notifDeposit:"存款已處理", notifWithdraw:"提款已處理", notifTransferT:"轉帳已完成", notifGameStart:"賽局已開始", notifGameSettle:"結算已完成",
  notifBlock:"帳戶已封鎖", notifRegister:"新帳戶已登記", notifHotel:"飯店已預訂", notifCar:"車輛已預約", notifAero:"阿羅服務已申請", notifPoints:"積分已使用",
  branch:"分店", close:"關閉", moreLabel:"更多",
@@ -1963,7 +1970,7 @@ en:{
  receiptTitle:"结算收据", receiptGameNo:"局号", receiptAccNo:"账号", receiptDate:"日期",
  receiptTotalRolling:"转码总额", receiptCommAmt:"佣金金额", receiptTotalAmt:"合计金额", receiptGuestSig:"贵宾签名", printBtn:"打印",
   shiftChangeTitle:"交班操作", currentWorker:"当前值班人数", checkInStaffLabel:"选择人员", checkOutBtn:"下班确认", checkInBtn:"上班确认",
- shiftListBtn:"记录", shiftDateTimeLabel:"日期时间", shiftListTitle:"交班记录", colAction:"操作",
+ shiftListBtn:"记录", shiftDateTimeLabel:"日期时间", shiftListTitle:"交班记录", colAction:"操作", colCheckIn:"上班", colCheckOut:"下班",
  loginStaffLabel:"人员", loginPinLabel:"密码(PIN)", loginErrorMsg:"密码不正确。", loginBtn:"登录", loginHint:"演示 PIN：1234",
  loginOtpDesc:"请输入 Authenticator 应用中显示的 6 位验证码。", loginOtpLabel:"验证码(Authenticator)", loginOtpErrorMsg:"验证码不正确。",
  loginVerifyBtn:"验证", loginOtpHint:"演示验证码：123456", loginBackBtn:"返回",
@@ -2030,7 +2037,7 @@ en:{
  toastEventInactive:"请先启用活动。", toastEventPaid:"活动佣金已发放。", notifEvent:"活动佣金发放",
  colReason:"原因", colPointsChange:"变动", colPointsBalance:"余额", pointsEarn:"累积", pointsUse:"使用",
  notifTitle:"通知", notifMarkAll:"全部已读", notifEmpty:"暂无新通知。",
- avatarReqTitle:"确认阿凡达请求", toastNoAvatarReq:"目前没有待处理的阿凡达请求。", toastAvatarReqChecked:"已确认阿凡达请求。", avatarIdLabel:"阿凡达 ID",
+ avatarReqTitle:"确认阿凡达请求", toastNoAvatarReq:"目前没有待处理的阿凡达请求。", toastAvatarReqChecked:"已确认阿凡达请求。", avatarIdLabel:"阿凡达 ID", toastAvatarReqCancelled:"阿凡达请求已取消。",
  notifDeposit:"存款已处理", notifWithdraw:"取款已处理", notifTransferT:"转账已完成", notifGameStart:"赛局已开始", notifGameSettle:"结算已完成",
  notifBlock:"账户已封锁", notifRegister:"新账户已登记", notifHotel:"酒店已预订", notifCar:"车辆已预约", notifAero:"阿罗服务已申请", notifPoints:"积分已使用",
  branch:"分店", close:"关闭", moreLabel:"更多",
@@ -2216,9 +2223,22 @@ function t(key){ return (I18N[LANG] && I18N[LANG][key]) || I18N.ko[key] || key; 
 function checkAvatarRequest(){
  const reqs = DB.avatarRequests||[];
  if(!reqs.length){ toast(t('toastNoAvatarReq')); return; }
- const body = document.getElementById('avatarReqListBody');
- body.innerHTML = reqs.map(req=>`<tr><td class="num">${req.dt||'—'}</td><td>${req.account||'—'}</td><td>${req.table||'—'}</td><td class="num">${req.buyin?fmt(req.buyin):'—'}</td><td>${req.avatarId||'—'}</td></tr>`).join('');
+ renderAvatarReqList();
  openModal('modal-avatar-request');
+}
+function renderAvatarReqList(){
+ const reqs = DB.avatarRequests||[];
+ const body = document.getElementById('avatarReqListBody');
+ body.innerHTML = !reqs.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
+  reqs.map((req,i)=>`<tr><td class="num">${req.dt||'—'}</td><td>${req.account||'—'}</td><td>${req.table||'—'}</td><td class="num">${req.buyin?fmt(req.buyin):'—'}</td><td>${req.avatarId||'—'}</td>
+   <td><button class="btn btn-sm btn-danger" onclick="cancelAvatarRequest(${i})">${t('cancelBtn')}</button></td></tr>`).join('');
+}
+function cancelAvatarRequest(idx){
+ const reqs = DB.avatarRequests||[];
+ if(!reqs[idx]) return;
+ reqs.splice(idx,1);
+ saveDB(); renderAvatarReqList(); renderAvatarReqBtn();
+ toast(t('toastAvatarReqCancelled'));
 }
 function renderAvatarReqBtn(){
  const btn = document.getElementById('avatarReqBtn');
@@ -3498,11 +3518,12 @@ function openShiftList(){
 function renderShiftList(){
  const rows = DB.shiftLog||[];
  const body = document.getElementById('shiftListBody');
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="4">—</td></tr>` :
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="5">—</td></tr>` :
   rows.map(r=>{
    const [d,tm] = r.dt.split(' ');
    const isIn = r.action==='in';
-   return `<tr><td class="num">${d}</td><td class="num">${tm}</td><td>${r.staff}</td><td><span class="pill ${isIn?'nn':'out'}">${isIn?t('checkInBtn'):t('checkOutBtn')}</span></td></tr>`;
+   const pill = `<span class="pill ${isIn?'nn':'out'}">${isIn?t('checkInBtn'):t('checkOutBtn')}</span>`;
+   return `<tr><td class="num">${d}</td><td class="num">${tm}</td><td>${r.staff}</td><td>${isIn?pill:''}</td><td>${isIn?'':pill}</td></tr>`;
   }).join('');
 }
 const CASH_DENOMS = [1000,500,100,50,20,'COIN'];
@@ -4246,6 +4267,7 @@ function setEventPeriod(){
  if(end < start){ toast(t('toastEventPeriodInvalid')); return; }
  DB.eventStart = start;
  DB.eventEnd = end;
+ DB.eventRate = document.getElementById('eventRate').value.trim() || '1.00';
  saveDB();
  renderEventToggle();
  toast(t('toastEventPeriodSet'));
@@ -4268,8 +4290,10 @@ function renderEventToggle(){
  if(topPill) topPill.style.display = active ? '' : 'none';
  const s = document.getElementById('eventStartDate');
  const e = document.getElementById('eventEndDate');
+ const r = document.getElementById('eventRate');
  if(s && DB.eventStart && !s.value) s.value = DB.eventStart;
  if(e && DB.eventEnd && !e.value) e.value = DB.eventEnd;
+ if(r && !r.value) r.value = DB.eventRate || '1.00';
 }
 function endEventNow(){
  if(!DB.eventStart && !DB.eventEnd){ toast(t('toastEventPeriodMissing')); return; }

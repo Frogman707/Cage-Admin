@@ -1832,6 +1832,150 @@ function writeRollingEvent(opts){
  fbDb.collection('rollingEvents').doc(id).set(entry).catch(()=>{});
  return entry;
 }
+function getGuestRollingGrandTotal(){
+ if(!fbDb) return DB.guestRollingGrandTotal||0;
+ let total = 0;
+ Object.values(fbRollingEventsByGame).forEach(events=>{
+  events.forEach(e=>{ if(!e.memo) total += e.amount; });
+ });
+ return total;
+}
+function getRollingDailyTotal(){
+ if(!fbDb) return DB.rollingDailyTotal||0;
+ return getGuestRollingGrandTotal() - (DB.rollingDailyTotalBaseline||0);
+}
+
+/* ---- Main Cage Ledger (바인/롤링CC/마커/리딤) — append-only, rollingGrandTotal is derived ---- */
+function mainCageSignedEffect(type, amt){
+ return type==='redeem' ? -amt : amt;
+}
+async function seedMainCageLedgerToCloudIfEmpty(){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('mainCageLedger').limit(1).get();
+  if(snap.empty){
+   const batch = fbDb.batch();
+   (DB.mainCageLog||[]).slice().reverse().forEach((r,i)=>{
+    const id = 'mcl_seed_'+i;
+    batch.set(fbDb.collection('mainCageLedger').doc(id), {id, type:r.type, amt:r.amt, dt:r.dt, staff:r.staff||''});
+   });
+   await batch.commit();
+  }
+ }catch(e){}
+}
+let fbMainCageUnsub = null;
+function subscribeMainCageLedgerCloud(){
+ if(!fbDb) return;
+ if(fbMainCageUnsub) fbMainCageUnsub();
+ fbMainCageUnsub = fbDb.collection('mainCageLedger').orderBy('dt').onSnapshot(snap=>{
+  const rows = [];
+  let total = 0;
+  snap.forEach(doc=>{
+   const r = doc.data();
+   rows.push(r);
+   total += mainCageSignedEffect(r.type, r.amt);
+  });
+  DB.mainCageLog = rows.slice().reverse();
+  DB.rollingGrandTotal = total;
+  renderBalancingSummary();
+  const listModal = document.getElementById('modal-maincage-list');
+  if(listModal && listModal.classList.contains('open')) renderMainCageList();
+ }, ()=>{});
+}
+function writeMainCageEntry(type, amt, staff){
+ if(!fbDb) return null;
+ const id = 'mcl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const entry = {id, type, amt, dt:now, staff};
+ fbDb.collection('mainCageLedger').doc(id).set(entry).catch(()=>{});
+ return entry;
+}
+function deleteMainCageEntry(id){
+ if(!fbDb) return;
+ fbDb.collection('mainCageLedger').doc(id).delete().catch(()=>{});
+}
+
+/* ---- Balancing shift counters (rollingCashShift, buyinRollingShift, etc.) — append-only per field ---- */
+const SHIFT_FIELDS = ['rollingCashShift','nnChipInShift','buyinRollingShift','workingChipRollingShift','nnCashoutShift','nnMarkerShift','cashBuyinShift','ccChipInShift','ccMarkerShift'];
+async function seedShiftEventsToCloudIfEmpty(){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('shiftEvents').limit(1).get();
+  if(snap.empty){
+   const batch = fbDb.batch();
+   const now = new Date().toISOString().slice(0,16).replace('T',' ');
+   SHIFT_FIELDS.forEach(field=>{
+    const val = DB[field]||0;
+    if(val) batch.set(fbDb.collection('shiftEvents').doc('shf_seed_'+field), {id:'shf_seed_'+field, field, delta:val, dt:now, staff:''});
+   });
+   await batch.commit();
+  }
+ }catch(e){}
+}
+let fbShiftUnsub = null;
+let fbShiftTotals = {};
+function subscribeShiftEventsCloud(){
+ if(!fbDb) return;
+ if(fbShiftUnsub) fbShiftUnsub();
+ fbShiftUnsub = fbDb.collection('shiftEvents').orderBy('dt').onSnapshot(snap=>{
+  const totals = {};
+  snap.forEach(doc=>{
+   const r = doc.data();
+   totals[r.field] = (totals[r.field]||0) + r.delta;
+  });
+  fbShiftTotals = totals;
+  renderBalancingSummary();
+ }, ()=>{});
+}
+function writeShiftEvent(field, delta, staff){
+ if(!fbDb || !delta) return;
+ const id = 'shf_'+Date.now()+'_'+Math.random().toString(36).slice(2,9)+'_'+field;
+ const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ fbDb.collection('shiftEvents').doc(id).set({id, field, delta, dt:now, staff:staff||''}).catch(()=>{});
+}
+function applyShift(field, delta, staff){
+ if(fbDb){ writeShiftEvent(field, delta, staff); } else { DB[field] = (DB[field]||0) + delta; }
+}
+function getShiftVal(field){
+ return fbDb ? (fbShiftTotals[field]||0) : (DB[field]||0);
+}
+
+/* ---- Shared cage config (rare-write: last-action timestamps, month-settle baselines) ---- */
+const CAGE_CONFIG_FIELDS = ['lastBalancingDt','lastCutoffDt','lastMonthSettleDt','settleGameOutBaseline','settleEndedRollingBaseline','settleLedgerNetBaseline','rollingDailyTotalBaseline','cutoffs','monthRecordLog'];
+let fbCageConfigUnsub = null;
+function subscribeCageConfigCloud(){
+ if(!fbDb) return;
+ if(fbCageConfigUnsub) fbCageConfigUnsub();
+ fbCageConfigUnsub = fbDb.collection('cageConfig').doc('global').onSnapshot(doc=>{
+  if(!doc.exists) return;
+  Object.assign(DB, doc.data());
+  renderBalancingSummary();
+  const topBalEl = document.getElementById('lastBalTime');
+  if(topBalEl && DB.lastBalancingDt) topBalEl.textContent = DB.lastBalancingDt;
+  const lastCutoffEl = document.getElementById('lastCutoff');
+  if(lastCutoffEl && DB.lastCutoffDt) lastCutoffEl.textContent = DB.lastCutoffDt;
+  renderCutoffs();
+  const cutoffListModal = document.getElementById('modal-cutoff-list');
+  if(cutoffListModal && cutoffListModal.classList.contains('open')) renderCutoffList();
+  if(typeof renderMonthRecords === 'function') renderMonthRecords();
+ }, ()=>{});
+}
+async function seedCageConfigToCloudIfEmpty(){
+ if(!fbDb) return;
+ try{
+  const doc = await fbDb.collection('cageConfig').doc('global').get();
+  if(!doc.exists){
+   const seed = {};
+   const arrayFields = ['cutoffs','monthRecordLog'];
+   CAGE_CONFIG_FIELDS.forEach(f=>{ seed[f] = DB[f] ?? (arrayFields.includes(f)?[]:0); });
+   await fbDb.collection('cageConfig').doc('global').set(seed);
+  }
+ }catch(e){}
+}
+function writeCageConfig(partial){
+ if(!fbDb) return;
+ fbDb.collection('cageConfig').doc('global').set(partial, {merge:true}).catch(()=>{});
+}
 
 /* ============================================================
    I18N — ko / en / zh-TW / zh-CN
@@ -3128,11 +3272,11 @@ function _doAddBuyin(existing, buyin, workingChip){
   renderAvatarReqBtn();
  }
  DB.gameNNAdjust = (DB.gameNNAdjust||0) - (buyin + workingChip);
- DB.buyinRollingShift = (DB.buyinRollingShift||0) + buyin;
- if(workingChip) DB.workingChipRollingShift = (DB.workingChipRollingShift||0) + workingChip;
+ applyShift('buyinRollingShift', buyin, staffName);
+ if(workingChip) applyShift('workingChipRollingShift', workingChip, staffName);
  if(existing.startType === 'cash'){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + buyin;
-  DB.cashBuyinShift = (DB.cashBuyinShift||0) + buyin;
+  applyShift('cashBuyinShift', buyin, staffName);
  } else if(existing.startType === 'account'){
   applyAccountTransaction(existing.account, 'OUT', buyin, `${t('memoGameBuyin')} (${existing.gameId})`);
   renderMemberCard(); renderLedger();
@@ -3162,11 +3306,11 @@ function _doStartGame(account, buyin, workingChip, enteredId){
   renderAvatarReqBtn();
  }
  DB.gameNNAdjust = (DB.gameNNAdjust||0) - (buyin + workingChip);
- DB.buyinRollingShift = (DB.buyinRollingShift||0) + buyin;
- if(workingChip) DB.workingChipRollingShift = (DB.workingChipRollingShift||0) + workingChip;
+ applyShift('buyinRollingShift', buyin, staffName);
+ if(workingChip) applyShift('workingChipRollingShift', workingChip, staffName);
  if(startType === 'cash'){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + buyin;
-  DB.cashBuyinShift = (DB.cashBuyinShift||0) + buyin;
+  applyShift('cashBuyinShift', buyin, staffName);
  } else if(startType === 'account'){
   applyAccountTransaction(account, 'OUT', buyin, `${t('memoGameBuyin')} (${gameId})`);
   renderMemberCard(); renderLedger();
@@ -3180,21 +3324,22 @@ function _doStartGame(account, buyin, workingChip, enteredId){
 function cancelGame(gameId){
  const g = DB.games.find(x=>x.gameId===gameId);
  if(!g) return;
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  // 바이인·워킹칩·롤링으로 인한 캐시·롤링 영향을 전부 원상복구
  DB.gameNNAdjust = (DB.gameNNAdjust||0) + ((g.buyin||0) + (g.workingChip||0));
- DB.buyinRollingShift = (DB.buyinRollingShift||0) - (g.buyin||0);
+ applyShift('buyinRollingShift', -(g.buyin||0), staffName);
  if(g.workingChip){
-  DB.workingChipRollingShift = (DB.workingChipRollingShift||0) - g.workingChip;
+  applyShift('workingChipRollingShift', -g.workingChip, staffName);
  }
  if(g.rolling){
   DB.guestRollingGrandTotal = (DB.guestRollingGrandTotal||0) - g.rolling;
   DB.rollingDailyTotal = (DB.rollingDailyTotal||0) - g.rolling;
-  DB.rollingCashShift = (DB.rollingCashShift||0) - g.rolling;
+  applyShift('rollingCashShift', -g.rolling, staffName);
  }
  if(g.startType === 'cash'){
   if(g.buyin){
    DB.gameCashAdjust = (DB.gameCashAdjust||0) - g.buyin;
-   DB.cashBuyinShift = (DB.cashBuyinShift||0) - g.buyin;
+   applyShift('cashBuyinShift', -g.buyin, staffName);
   }
  } else if(g.startType === 'account' && g.buyin){
   applyAccountTransaction(g.account, 'IN', g.buyin, `${t('memoGameCancelRefund')} (${g.gameId})`);
@@ -3236,8 +3381,8 @@ function renderOngoing(){
   </tr>`;
  }).join('');
  document.getElementById('ongoingCount').textContent = DB.games.length;
- document.getElementById('ongoingDaily').textContent = fmt(DB.rollingDailyTotal||0);
- document.getElementById('ongoingCum').textContent = fmt(DB.guestRollingGrandTotal||0);
+ document.getElementById('ongoingDaily').textContent = fmt(getRollingDailyTotal());
+ document.getElementById('ongoingCum').textContent = fmt(getGuestRollingGrandTotal());
 }
 
 /* ---- Rolling quick-input + ID card auth ---- */
@@ -3263,7 +3408,7 @@ function confirmRollingInput(){
   DB.rollingDailyTotal = (DB.rollingDailyTotal||0) + amount;
   DB.gameCCAdjust = (DB.gameCCAdjust||0) + amount;
   DB.gameNNAdjust = (DB.gameNNAdjust||0) - amount;
-  DB.rollingCashShift = (DB.rollingCashShift||0) + amount;
+  applyShift('rollingCashShift', amount, staffName);
   if(fbDb){
    writeRollingEvent({gameId, amount, staff:staffName, memo:''});
   } else {
@@ -3515,13 +3660,13 @@ function _doConfirmMidSettle(){
  DB.gameCCAdjust = (DB.gameCCAdjust||0) + ccSum;
  DB.gameNNAdjust = (DB.gameNNAdjust||0) + nnSum;
  if(nn.deposit > 0){
-  DB.nnChipInShift = (DB.nnChipInShift||0) + nn.deposit;
+  applyShift('nnChipInShift', nn.deposit, floorStaff);
  }
  if(nn.working > 0){
-  DB.workingChipRollingShift = (DB.workingChipRollingShift||0) - nn.working;
+  applyShift('workingChipRollingShift', -nn.working, floorStaff);
  }
  if(cc.deposit > 0){
-  DB.ccChipInShift = (DB.ccChipInShift||0) + cc.deposit;
+  applyShift('ccChipInShift', cc.deposit, floorStaff);
  }
  const cashOutSum = cc.cashout + nn.cashout + cc.dealerTips + cc.houseTips;
  if(cashOutSum > 0){
@@ -3529,14 +3674,14 @@ function _doConfirmMidSettle(){
  }
  // NN 캐쉬아웃: 롤링 증가, 캐시 감소 / CC 캐쉬아웃·딜러팁·하우스팁: CC칩 증가 & 현금 감소가 상쇄되어 캐시 무변동(추적 불필요)
  if(nn.cashout > 0){
-  DB.nnCashoutShift = (DB.nnCashoutShift||0) + nn.cashout;
+  applyShift('nnCashoutShift', nn.cashout, floorStaff);
  }
  // NN 마커리딤: 롤링 증가 / CC 마커리딤: 캐시 증가
  if(nn.marker > 0){
-  DB.nnMarkerShift = (DB.nnMarkerShift||0) + nn.marker;
+  applyShift('nnMarkerShift', nn.marker, floorStaff);
  }
  if(cc.marker > 0){
-  DB.ccMarkerShift = (DB.ccMarkerShift||0) + cc.marker;
+  applyShift('ccMarkerShift', cc.marker, floorStaff);
  }
  const depositSum = cc.deposit + nn.deposit;
  if(depositSum > 0){
@@ -3705,26 +3850,26 @@ function _doConfirmGameEnd(){
  DB.gameCCAdjust = (DB.gameCCAdjust||0) + ccSum;
  DB.gameNNAdjust = (DB.gameNNAdjust||0) + nnSum;
  if(nn.deposit > 0){
-  DB.nnChipInShift = (DB.nnChipInShift||0) + nn.deposit;
+  applyShift('nnChipInShift', nn.deposit, floorStaff);
  }
  if(nn.working > 0){
-  DB.workingChipRollingShift = (DB.workingChipRollingShift||0) - nn.working;
+  applyShift('workingChipRollingShift', -nn.working, floorStaff);
  }
  if(cc.deposit > 0){
-  DB.ccChipInShift = (DB.ccChipInShift||0) + cc.deposit;
+  applyShift('ccChipInShift', cc.deposit, floorStaff);
  }
  const cashOutSum = cc.cashout + nn.cashout + cc.dealerTips + cc.houseTips;
  if(cashOutSum > 0){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + cashOutSum;
  }
  if(nn.cashout > 0){
-  DB.nnCashoutShift = (DB.nnCashoutShift||0) + nn.cashout;
+  applyShift('nnCashoutShift', nn.cashout, floorStaff);
  }
  if(nn.marker > 0){
-  DB.nnMarkerShift = (DB.nnMarkerShift||0) + nn.marker;
+  applyShift('nnMarkerShift', nn.marker, floorStaff);
  }
  if(cc.marker > 0){
-  DB.ccMarkerShift = (DB.ccMarkerShift||0) + cc.marker;
+  applyShift('ccMarkerShift', cc.marker, floorStaff);
  }
  const depositSum = cc.deposit + nn.deposit;
  if(depositSum > 0){
@@ -3976,12 +4121,12 @@ function renderBalancingSummary(){
  // = 카지노누계롤링(메인케이지 바인+·롤링+·마커+·리딤-) − 롤링진행 이동분(NN감소) − 게임시작 바인금액
  //   − 게임시작 워킹칩(롤링-) + 중간정산/게임종료 워킹칩(롤링+) + NN칩 디파짓(입고, 0이면 무변동)
  //   + 중간정산/게임종료 NN 캐쉬아웃(롤링+) + 중간정산/게임종료 NN 마커리딤(롤링+)
- const rollingCashShift = DB.rollingCashShift||0; // 롤링 진행: NN칩 감소 → 케이지합산롤링 감소분
- const nnChipInShift = DB.nnChipInShift||0; // 중간정산·게임종료 NN칩 디파짓(입고) 누계
- const buyinRollingShift = DB.buyinRollingShift||0; // 게임 시작(바이인) 누계
- const workingChipRollingShift = DB.workingChipRollingShift||0; // 게임시작 워킹칩(+누계) − 중간정산·게임종료 워킹칩(-누계) — 공식에서는 부호 반전하여 반영
- const nnCashoutShift = DB.nnCashoutShift||0; // 중간정산·게임종료 NN 캐쉬아웃 누계 → 롤링+
- const nnMarkerShift = DB.nnMarkerShift||0; // 중간정산·게임종료 NN 마커리딤 누계 → 롤링+
+ const rollingCashShift = getShiftVal('rollingCashShift'); // 롤링 진행: NN칩 감소 → 케이지합산롤링 감소분
+ const nnChipInShift = getShiftVal('nnChipInShift'); // 중간정산·게임종료 NN칩 디파짓(입고) 누계
+ const buyinRollingShift = getShiftVal('buyinRollingShift'); // 게임 시작(바이인) 누계
+ const workingChipRollingShift = getShiftVal('workingChipRollingShift'); // 게임시작 워킹칩(+누계) − 중간정산·게임종료 워킹칩(-누계) — 공식에서는 부호 반전하여 반영
+ const nnCashoutShift = getShiftVal('nnCashoutShift'); // 중간정산·게임종료 NN 캐쉬아웃 누계 → 롤링+
+ const nnMarkerShift = getShiftVal('nnMarkerShift'); // 중간정산·게임종료 NN 마커리딤 누계 → 롤링+
  const combinedRolling = casinoCumRolling - rollingCashShift - buyinRollingShift - workingChipRollingShift + nnChipInShift + nnCashoutShift + nnMarkerShift;
 
  // 케이지 합산금액 - 캐시
@@ -3994,9 +4139,9 @@ function renderBalancingSummary(){
   (DB.ledger[acc]||[]).forEach(e=>{ ledgerNetRaw += (e.inn||0) - (e.out||0); });
  });
  const ledgerNet = ledgerNetRaw - (DB.settleLedgerNetBaseline||0);
- const cashBuyinShift = DB.cashBuyinShift||0; // 게임 시작(현금 바이인) 누계
- const ccChipInShift = DB.ccChipInShift||0; // 중간정산·게임종료 CC칩 디파짓(입고) 누계
- const ccMarkerShift = DB.ccMarkerShift||0; // 중간정산·게임종료 CC 마커리딤 누계 → 캐시+
+ const cashBuyinShift = getShiftVal('cashBuyinShift'); // 게임 시작(현금 바이인) 누계
+ const ccChipInShift = getShiftVal('ccChipInShift'); // 중간정산·게임종료 CC칩 디파짓(입고) 누계
+ const ccMarkerShift = getShiftVal('ccMarkerShift'); // 중간정산·게임종료 CC 마커리딤 누계 → 캐시+
  const combinedCash = ledgerNet + cashBuyinShift + ccChipInShift + rollingCashShift + ccMarkerShift - nnCashoutShift;
  document.getElementById('combinedRolling').textContent = fmt(combinedRolling);
  document.getElementById('combinedCash').textContent = fmt(combinedCash);
@@ -4028,22 +4173,23 @@ function _doProcessMainCage(type, amt){
  DB.mainCageCCAdjust = DB.mainCageCCAdjust||0;
  if(type==='buyin'){
   DB.mainCageNNAdjust -= amt;
-  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) + amt;
  } else if(type==='rollingCC'){
   DB.mainCageCCAdjust -= amt;
   DB.mainCageNNAdjust += amt;
-  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) + amt;
  } else if(type==='marker'){
   DB.mainCageNNAdjust -= amt;
-  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) + amt;
  } else if(type==='redeem'){
   DB.mainCageNNAdjust += amt;
-  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) - amt;
  }
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
- DB.mainCageLog = DB.mainCageLog||[];
- DB.mainCageLog.unshift({dt:now, type, amt, staff:staffName});
+ if(fbDb){
+  writeMainCageEntry(type, amt, staffName);
+ } else {
+  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) + mainCageSignedEffect(type, amt);
+  DB.mainCageLog = DB.mainCageLog||[];
+  DB.mainCageLog.unshift({dt:now, type, amt, staff:staffName});
+ }
  document.getElementById('mainCageAmt').value = '';
  saveDB(); renderBalancingSummary();
  pushNotification('notifMainCage', `${t('mainCage'+type.charAt(0).toUpperCase()+type.slice(1))} · ${fmt(amt)}`);
@@ -4068,19 +4214,20 @@ function cancelMainCageEntry(idx){
  DB.mainCageCCAdjust = DB.mainCageCCAdjust||0;
  if(entry.type==='buyin'){
   DB.mainCageNNAdjust += entry.amt;
-  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) - entry.amt;
  } else if(entry.type==='rollingCC'){
   DB.mainCageCCAdjust += entry.amt;
   DB.mainCageNNAdjust -= entry.amt;
-  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) - entry.amt;
  } else if(entry.type==='marker'){
   DB.mainCageNNAdjust += entry.amt;
-  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) - entry.amt;
  } else if(entry.type==='redeem'){
   DB.mainCageNNAdjust -= entry.amt;
-  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) + entry.amt;
  }
- DB.mainCageLog.splice(idx,1);
+ if(fbDb && entry.id){
+  deleteMainCageEntry(entry.id);
+ } else {
+  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) - mainCageSignedEffect(entry.type, entry.amt);
+  DB.mainCageLog.splice(idx,1);
+ }
  saveDB(); renderBalancingSummary(); renderMainCageList();
  toast(t('toastEntryDeleted'));
 }
@@ -4095,8 +4242,13 @@ function renderCutoffList(){
   rows.map((d,i)=>`<tr><td class="num">${d}</td><td><button class="btn btn-sm" onclick="generateDailyReportPDF('${d}')">PDF</button></td><td><button class="btn btn-sm btn-danger" onclick="deleteCutoff(${i})">${t('deleteBtn')}</button></td></tr>`).join('');
 }
 function deleteCutoff(idx){
- DB.cutoffs.splice(idx,1);
- saveDB(); renderCutoffs(); renderCutoffList();
+ const d = DB.cutoffs[idx];
+ if(fbDb){
+  writeCageConfig({cutoffs: firebase.firestore.FieldValue.arrayRemove(d)});
+ } else {
+  DB.cutoffs.splice(idx,1);
+  saveDB(); renderCutoffs(); renderCutoffList();
+ }
  toast(t('toastEntryDeleted'));
 }
 function confirmBalancingCheck(){
@@ -4116,6 +4268,7 @@ function _doConfirmBalancingCheck(){
  DB.lastBalancingDt = now;
  const topEl = document.getElementById('lastBalTime');
  if(topEl) topEl.textContent = now;
+ if(fbDb) writeCageConfig({lastBalancingDt: now});
  saveDB();
  toast(t('toastBalancingChecked'));
 }
@@ -4141,10 +4294,16 @@ function renderBreakdowns(){
 function doCutoff(){
  requestPinAuth(()=>{
   const now = new Date().toISOString().slice(0,10);
-  if(!DB.cutoffs.includes(now)) DB.cutoffs.unshift(now);
-  DB.lastCutoffDt = new Date().toISOString().slice(0,16).replace('T',' ');
-  document.getElementById('lastCutoff').textContent = DB.lastCutoffDt;
-  saveDB(); renderCutoffs();
+  const nowDt = new Date().toISOString().slice(0,16).replace('T',' ');
+  if(fbDb){
+   if(!DB.cutoffs.includes(now)) writeCageConfig({cutoffs: firebase.firestore.FieldValue.arrayUnion(now)});
+   writeCageConfig({lastCutoffDt: nowDt});
+  } else {
+   if(!DB.cutoffs.includes(now)) DB.cutoffs.unshift(now);
+   DB.lastCutoffDt = nowDt;
+   saveDB(); renderCutoffs();
+  }
+  document.getElementById('lastCutoff').textContent = nowDt;
   toast(t('toastCutoff'));
  });
 }
@@ -4243,37 +4402,67 @@ function confirmMonthSettleReset(){
  const ccNow = unformatNum(document.getElementById('ccBreakTotal').textContent);
  const nnNow = unformatNum(document.getElementById('nnBreakTotal').textContent);
  const guestNow = (DB.games||[]).reduce((s,g)=>s+(g.rolling||0),0) + (DB.endedGames||[]).reduce((s,g)=>s+(g.rolling||0),0);
- DB.monthRecordLog = DB.monthRecordLog||[];
- DB.monthRecordLog.unshift({
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const monthRecord = {
   dt: new Date().toISOString().slice(0,16).replace('T',' '),
   cash: cashNow, cashChips: ccNow, rollingChips: nnNow, cum: DB.rollingGrandTotal||0, guest: guestNow,
- });
+ };
+ DB.monthRecordLog = DB.monthRecordLog||[];
+ DB.monthRecordLog.unshift(monthRecord);
 
- DB.rollingGrandTotal = 0;
- DB.rollingDailyTotal = 0;
- DB.rollingCashShift = 0;
- DB.chipInShift = 0;
- DB.cashOutShift = 0;
- DB.buyinRollingShift = 0;
- DB.nnChipInShift = 0;
- DB.ccChipInShift = 0;
- DB.ccCashoutShift = 0;
- DB.cashBuyinShift = 0;
- DB.workingChipRollingShift = 0;
- DB.nnCashoutShift = 0;
- DB.nnMarkerShift = 0;
- DB.ccMarkerShift = 0;
- (DB.games||[]).forEach(g=>{ g.rolling = 0; g.lastAdded = 0; });
+ if(fbDb){
+  // Cloud totals are derived from event collections — zero them going forward with
+  // compensating entries instead of mutating the (non-existent, always-recomputed) local totals.
+  const curRollingGrandTotal = DB.rollingGrandTotal||0;
+  if(curRollingGrandTotal) writeMainCageEntry('reset', -curRollingGrandTotal, staffName);
+  SHIFT_FIELDS.forEach(field=>{
+   const val = getShiftVal(field);
+   if(val) writeShiftEvent(field, -val, staffName);
+  });
+  (DB.games||[]).forEach(g=>{
+   if(g.rolling) writeRollingEvent({gameId:g.gameId, amount:-g.rolling, staff:staffName, memo:'month-settle-reset'});
+  });
+ } else {
+  DB.rollingGrandTotal = 0;
+  DB.rollingDailyTotal = 0;
+  DB.rollingCashShift = 0;
+  DB.chipInShift = 0;
+  DB.cashOutShift = 0;
+  DB.buyinRollingShift = 0;
+  DB.nnChipInShift = 0;
+  DB.ccChipInShift = 0;
+  DB.ccCashoutShift = 0;
+  DB.cashBuyinShift = 0;
+  DB.workingChipRollingShift = 0;
+  DB.nnCashoutShift = 0;
+  DB.nnMarkerShift = 0;
+  DB.ccMarkerShift = 0;
+  (DB.games||[]).forEach(g=>{ g.rolling = 0; g.lastAdded = 0; });
+ }
 
  // Snapshot current historical contributions as baselines so 케이지총계·케이지합산금액이 정산 직후 0이 되고,
  // 이후에는 새로 발생하는 활동만 반영됨 (과거 게임·입출금 기록 자체는 보존)
- DB.settleGameOutBaseline = (DB.games||[]).reduce((s,g)=>s+(g.buyin||0)+(g.workingChip||0),0);
- DB.settleEndedRollingBaseline = (DB.endedGames||[]).reduce((s,g)=>s+(g.rolling||0),0);
+ const settleGameOutBaseline = (DB.games||[]).reduce((s,g)=>s+(g.buyin||0)+(g.workingChip||0),0);
+ const settleEndedRollingBaseline = (DB.endedGames||[]).reduce((s,g)=>s+(g.rolling||0),0);
  let ledgerNetNow = 0;
  Object.keys(DB.ledger||{}).forEach(acc=>{
   (DB.ledger[acc]||[]).forEach(e=>{ ledgerNetNow += (e.inn||0) - (e.out||0); });
  });
- DB.settleLedgerNetBaseline = ledgerNetNow;
+ const rollingDailyTotalBaseline = getGuestRollingGrandTotal();
+ const now = new Date().toISOString().slice(0,16).replace('T',' ');
+
+ if(fbDb){
+  writeCageConfig({
+   settleGameOutBaseline, settleEndedRollingBaseline, settleLedgerNetBaseline: ledgerNetNow,
+   rollingDailyTotalBaseline, lastMonthSettleDt: now,
+   monthRecordLog: firebase.firestore.FieldValue.arrayUnion(monthRecord),
+  });
+ } else {
+  DB.settleGameOutBaseline = settleGameOutBaseline;
+  DB.settleEndedRollingBaseline = settleEndedRollingBaseline;
+  DB.settleLedgerNetBaseline = ledgerNetNow;
+  DB.lastMonthSettleDt = now;
+ }
 
  // Clear physical breakdown counts so staff recounts fresh next period.
  renderBreakdownTable('cashBreakBody', CASH_DENOMS, 'cash');
@@ -4281,8 +4470,6 @@ function confirmMonthSettleReset(){
  renderBreakdownTable('ccBreakBody', CC_DENOMS, 'cc');
  recalcBreakdownTotal('cash'); recalcBreakdownTotal('nn'); recalcBreakdownTotal('cc');
 
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
- DB.lastMonthSettleDt = now;
  const dtEl = document.getElementById('lastMonthSettleDt');
  if(dtEl) dtEl.textContent = now;
 
@@ -4842,6 +5029,12 @@ document.getElementById('loginOtp').addEventListener('keydown', e=>{
   subscribeGamesCloud();
   await seedRollingEventsToCloudIfEmpty();
   subscribeRollingEventsCloud();
+  await seedMainCageLedgerToCloudIfEmpty();
+  subscribeMainCageLedgerCloud();
+  await seedShiftEventsToCloudIfEmpty();
+  subscribeShiftEventsCloud();
+  await seedCageConfigToCloudIfEmpty();
+  subscribeCageConfigCloud();
  }
 })();
 </script>

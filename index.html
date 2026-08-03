@@ -512,7 +512,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="grid grid-3">
           <div class="card">
             <h3 data-i18n="gameStartTitle"></h3>
-            <div class="field"><label data-i18n="account"></label><input id="gAccount" oninput="updateGameAccBalance()" onblur="updateGameAccBalance()"></div>
+            <div class="field"><label data-i18n="account"></label><input id="gAccount" oninput="uppercaseInput(this);updateGameAccBalance()" onblur="updateGameAccBalance()"></div>
             <div class="field"><label data-i18n="balance"></label><input id="gAccBalance" class="num" disabled></div>
             <div class="row">
               <div class="field"><label data-i18n="startType"></label>
@@ -1122,7 +1122,11 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         </div>
         <div class="card eq-card">
           <h3 data-i18n="totalDepositTitle"></h3>
-          <div class="stat-line"><span data-i18n="allCasino"></span><b class="num" id="totalDepositSum">150,012,678</b></div>
+          <div class="stat-line"><span data-i18n="allCasino"></span> <span data-i18n="colIn"></span><b class="num pos" id="totalDepositAllIn">0</b> <span data-i18n="colOut"></span><b class="num neg" id="totalDepositAllOut">0</b></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th data-i18n="colCasino"></th><th data-i18n="colIn"></th><th data-i18n="colOut"></th></tr></thead>
+            <tbody id="totalDepositByBranchBody"></tbody>
+          </table></div>
           <button class="btn btn-sm" style="margin-top:auto;" onclick="window.print()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-3px;margin-right:4px;"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M6 14h12v7H6z"/></svg><span data-i18n="print"></span></button>
         </div>
         <div class="card">
@@ -1290,7 +1294,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   </table></div>
 </div></div>
 
-<div class="modal-bg" id="modal-daily-io"><div class="modal" style="width:760px;">
+<div class="modal-bg" id="modal-daily-io"><div class="modal" style="width:940px;">
   <button class="modal-close" onclick="closeModal('modal-daily-io')">×</button>
   <h3 data-i18n="dailyIoTitle"></h3>
   <div class="row" style="margin-top:10px;">
@@ -1486,7 +1490,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="row" style="margin-top:10px;align-items:flex-end;">
     <div class="field"><label data-i18n="staffNameLabel"></label><input id="staffNameInput"></div>
     <div class="field"><label data-i18n="staffPinLabel"></label><input id="staffPinInput" class="num" inputmode="numeric" maxlength="6"></div>
-    <button class="btn btn-sm" style="flex:0 0 auto;height:38px;" onclick="genStaffPin()" data-i18n="staffGenPinBtn"></button>
+    <button class="btn btn-sm" style="flex:0 0 auto;height:38px;margin-bottom:12px;" onclick="genStaffPin()" data-i18n="staffGenPinBtn"></button>
   </div>
   <div class="row" style="margin-top:10px;">
     <button class="btn btn-gold" id="staffSubmitBtn" onclick="submitStaffForm()" data-i18n="staffRegisterBtn"></button>
@@ -1701,6 +1705,7 @@ function subscribeLedgerCloud(){
   });
   DB.ledger = grouped;
   renderMemberCard(); renderLedger(); renderBalancingSummary();
+  if(typeof renderTotalDeposit === 'function') renderTotalDeposit();
   const listModal = document.getElementById('modal-ledger-list');
   if(listModal && listModal.classList.contains('open')) renderLedgerList();
   const dailyModal = document.getElementById('modal-daily-io');
@@ -2027,13 +2032,16 @@ function subscribeCageConfigCloud(){
   Object.assign(bd(), data);
   bd().breakdownCounts = bd().breakdownCounts||{};
   BREAKDOWN_PREFIXES.forEach(prefix=>{
+   // Skip prefixes with a not-yet-flushed local edit (recalcBreakdownTotal's debounced write) -
+   // otherwise a snapshot triggered by an unrelated write (e.g. lastBalancingDt) can arrive before
+   // our own edit round-trips and clobber it back to the last-synced (or seeded) value.
+   if(typeof breakdownWritePending !== 'undefined' && breakdownWritePending[prefix]) return;
    const key = prefix+'BreakdownCounts';
    if(data[key]) bd().breakdownCounts[prefix] = data[key];
    const anyFocused = document.querySelector(`.breakdown-input[data-prefix="${prefix}"]:focus`);
    const denoms = prefix==='cash' ? CASH_DENOMS : prefix==='nn' ? NN_DENOMS : CC_DENOMS;
-   const seedDefault = prefix==='cash' ? {1000:50000} : undefined;
    if(!anyFocused && document.getElementById(prefix+'BreakBody')){
-    renderBreakdownTable(prefix+'BreakBody', denoms, prefix, seedDefault);
+    renderBreakdownTable(prefix+'BreakBody', denoms, prefix);
     collectBreakdownCounts(prefix);
    }
   });
@@ -2132,7 +2140,7 @@ ko:{
  regRedirectHint:"신규 어카운트 개설은 회원가입 화면에서 진행합니다.",
  blockTitle:"어카운트 차단", blockReason:"차단 사유", blockApplyBtn:"차단 적용",
  blockListTitle:"차단 목록", colBlockType:"차단 유형", colReason:"사유", unblock:"해제", deleteBtn:"삭제", toastEntryDeleted:"내역이 삭제되었습니다.",
- memoListTitle:"메모 목록", totalDepositTitle:"총 입금 현황", allCasino:"전체 카지노",
+ memoListTitle:"메모 목록", totalDepositTitle:"총 입출금 현황", allCasino:"전체 카지노",
  dashOverview:"리포트", dashAccounts:"어카운트", dashTotalAcc:"총 어카운트", dashNewToday:"당일 신규 어카운트", dashNewWeek:"주간 신규 어카운트", dashNewMonth:"월간 신규 어카운트",
  dashToday:"당일 통합 지표", dashVsYesterday:"(전일 대비 비교)", dashWeekly:"주간 누적 지표", dashVsLastWeek:"(금주 일 평균과 전주 일 평균 비교)",
  dashMonthly:"월간 누적 지표", dashVsLastMonth:"(당일 일 평균과 전일 일 평균 비교)", dashCumulative:"누적 통합 지표",
@@ -2160,7 +2168,7 @@ ko:{
  directionArrival:"도착 픽업", directionDeparture:"출발 샌드오프", colFlightNo:"항공편", colAirport:"공항", colDirection:"구분", colDateTime:"일시",
  pointsTitle:"포인트",
  pointsBalance:"보유 포인트", pointsUseAmt:"사용 포인트", pointsUseReason:"비고", pointsUseBtn:"포인트 사용", pointsHistoryTitle:"포인트 내역", pointsGrantAmt:"지급 포인트", pointsGrantBtn:"포인트 지급",
- eventTitle:"이벤트", eventOn:"활성화됨", eventOnTop:"이벤트 활성화됨", eventOff:"비활성화", eventRateLabel:"이벤트 커미션율(%)", eventCommAmtLabel:"이벤트 커미션 지급액",
+ eventTitle:"이벤트", eventOn:"활성화됨", eventOnTop:"이벤트 활성화", eventOff:"비활성화", eventRateLabel:"이벤트 커미션율(%)", eventCommAmtLabel:"이벤트 커미션 지급액",
  eventStartLabel:"시작일", eventEndLabel:"종료일", eventSetBtn:"이벤트 활성화", eventEndBtn:"종료", eventLogBtn:"기록", toastEventEnded:"이벤트가 종료되었습니다.",
  toastEventPeriodMissing:"시작일과 종료일을 모두 입력하세요.", toastEventPeriodInvalid:"종료일은 시작일보다 빠를 수 없습니다.", toastEventPeriodSet:"이벤트 기간이 설정되었습니다.",
  eventPayBtn:"이벤트 커미션 지급", eventHistoryTitle:"이벤트 커미션 지급 내역", eventInactiveHint:"이벤트를 활성화하면 롤링 커미션을 추가로 지급할 수 있습니다.", eventAutoHint:"이벤트 기간 중 롤링 커미션을 정산하면 이벤트 커미션이 자동으로 계좌에 입금됩니다.",
@@ -2257,7 +2265,7 @@ en:{
  regRedirectHint:"New accounts are opened from the Registration screen.",
  blockTitle:"Block Account", blockReason:"Reason for block", blockApplyBtn:"Apply Block",
  blockListTitle:"Block List", colBlockType:"Block Type", colReason:"Reason", unblock:"Unblock", deleteBtn:"Delete", toastEntryDeleted:"Entry deleted.",
- memoListTitle:"Memo List", totalDepositTitle:"Total Deposits", allCasino:"All Casinos",
+ memoListTitle:"Memo List", totalDepositTitle:"Total Deposits/Withdrawals", allCasino:"All Casinos",
  dashOverview:"Report", dashAccounts:"Accounts", dashTotalAcc:"Total Accounts", dashNewToday:"New Today", dashNewWeek:"New This Week", dashNewMonth:"New This Month",
  dashToday:"Today's Combined Metrics", dashVsYesterday:"(vs. Yesterday)", dashWeekly:"Weekly Cumulative Metrics", dashVsLastWeek:"(This Week's Daily Avg vs Last Week)",
  dashMonthly:"Monthly Cumulative Metrics", dashVsLastMonth:"(This Month's Daily Avg vs Last Month)", dashCumulative:"Cumulative Total Metrics",
@@ -2382,7 +2390,7 @@ en:{
  regRedirectHint:"請至會員開戶頁面辦理新開戶。",
  blockTitle:"帳戶封鎖", blockReason:"封鎖原因", blockApplyBtn:"套用封鎖",
  blockListTitle:"封鎖名單", colBlockType:"封鎖類型", colReason:"原因", unblock:"解除封鎖", deleteBtn:"刪除", toastEntryDeleted:"紀錄已刪除。",
- memoListTitle:"備註紀錄", totalDepositTitle:"總存款狀況", allCasino:"全部賭場",
+ memoListTitle:"備註紀錄", totalDepositTitle:"總收付狀況", allCasino:"全部賭場",
  dashOverview:"報表", dashAccounts:"帳戶", dashTotalAcc:"總帳戶數", dashNewToday:"當日新增帳戶", dashNewWeek:"本週新增帳戶", dashNewMonth:"本月新增帳戶",
  dashToday:"當日綜合指標", dashVsYesterday:"（與前一日比較）", dashWeekly:"週累計指標", dashVsLastWeek:"（本週日均與上週日均比較）",
  dashMonthly:"月累計指標", dashVsLastMonth:"（本月日均與上月日均比較）", dashCumulative:"累計綜合指標",
@@ -2507,7 +2515,7 @@ en:{
  regRedirectHint:"请前往会员开户页面办理新开户。",
  blockTitle:"账户封锁", blockReason:"封锁原因", blockApplyBtn:"应用封锁",
  blockListTitle:"封锁名单", colBlockType:"封锁类型", colReason:"原因", unblock:"解除封锁", deleteBtn:"删除", toastEntryDeleted:"记录已删除。",
- memoListTitle:"备注记录", totalDepositTitle:"总存款情况", allCasino:"全部赌场",
+ memoListTitle:"备注记录", totalDepositTitle:"总收付情况", allCasino:"全部赌场",
  dashOverview:"报表", dashAccounts:"账户", dashTotalAcc:"总账户数", dashNewToday:"当日新增账户", dashNewWeek:"本周新增账户", dashNewMonth:"本月新增账户",
  dashToday:"当日综合指标", dashVsYesterday:"（与前一日比较）", dashWeekly:"周累计指标", dashVsLastWeek:"（本周日均与上周日均比较）",
  dashMonthly:"月累计指标", dashVsLastMonth:"（本月日均与上月日均比较）", dashCumulative:"累计综合指标",
@@ -3211,6 +3219,13 @@ function _doProcessIo(amt){
  const casino = document.getElementById('ioCasino').value;
  const memo = document.getElementById('ioMemo').value;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ // Re-check with the freshest known balance right before writing (narrows, though cannot fully
+ // close, the race window between the initial check and PIN confirmation on another terminal).
+ if(DB.ioType==='withdraw' && !hasSufficientBalance(DB.currentAccount, casino, amt)){
+  toast(t('toastInsufficientBalance'));
+  pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
+  return;
+ }
  writeLedgerEntry({accountId: DB.currentAccount, casino, type: DB.ioType==='deposit'?'IN':'OUT', amount:amt, staff:staffName, memo});
  if(DB.ioType==='withdraw'){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + amt;
@@ -3259,6 +3274,11 @@ function doTransfer(){
 function _doTransfer(amt){
  const casino = document.getElementById('transferCasino').value;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ if(!hasSufficientBalance(DB.currentAccount, casino, amt)){
+  toast(t('toastInsufficientBalance'));
+  pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
+  return;
+ }
  writeLedgerEntry({accountId: DB.currentAccount, casino, type:'OUT', amount:amt, staff:staffName, memo:`→ ${transferTargetAcc}`});
  writeLedgerEntry({accountId: transferTargetAcc, casino, type:'IN', amount:amt, staff:staffName, memo:`← ${DB.currentAccount}`});
  const toAccId = transferTargetAcc;
@@ -3583,7 +3603,9 @@ function populateSettleSelect(){
   document.getElementById('settleTotalRolling').value='';
   document.getElementById('settleRolling').value='';
   document.getElementById('settleResult').textContent='0';
-  document.getElementById('receiptBox').innerHTML='';
+  // Note: intentionally NOT clearing #receiptBox here. This list refreshes on every
+  // games-collection update (including the real-time echo of a settle we just performed),
+  // and clearing the receipt here would wipe the one the staff/guest is currently looking at.
  }
 }
 function findSettleGame(id){
@@ -3696,7 +3718,11 @@ function renderSettleList(){
 function showSettledReceipt(gameId){
  const s = (DB.settled||[]).find(x=>x.gameId===gameId);
  if(!s) return;
- const gLike = {account:s.account, gameId:s.gameId, cur:s.cur, buyin:s.buyin, rolling:s.rolling};
+ // Older settled records (saved before currency was captured) won't have s.cur — fall back to
+ // looking it up from the actual game record, which still carries its original currency.
+ const matchingGame = [...(DB.endedGames||[]), ...(DB.games||[])].find(g=>g.gameId===gameId);
+ const cur = s.cur || (matchingGame && matchingGame.cur) || '';
+ const gLike = {account:s.account, gameId:s.gameId, cur, buyin:s.buyin, rolling:s.rolling};
  renderReceipt(gLike, s.commission, s.fb, s.result, s.cashout, s.winLoss, s.dt, s.staff, 'settledReceiptBox');
  openModal('modal-settled-receipt');
 }
@@ -4227,6 +4253,7 @@ function collectBreakdownCounts(prefix){
  return counts;
 }
 let breakdownWriteTimer = {};
+let breakdownWritePending = {};
 function recalcBreakdownTotal(prefix){
  const counts = collectBreakdownCounts(prefix);
  bd().breakdownCounts = bd().breakdownCounts||{};
@@ -4235,8 +4262,10 @@ function recalcBreakdownTotal(prefix){
  renderBalancingSummary();
  if(fbDb){
   clearTimeout(breakdownWriteTimer[prefix]);
+  breakdownWritePending[prefix] = true;
   breakdownWriteTimer[prefix] = setTimeout(()=>{
    writeCageConfig({[prefix+'BreakdownCounts']: counts});
+   breakdownWritePending[prefix] = false;
   }, 400);
  }
 }
@@ -4430,7 +4459,7 @@ function renderBalancingCheckList(){
   rows.map(r=>`<tr><td class="num">${r.dt}</td><td>${r.staff}</td></tr>`).join('');
 }
 function renderBreakdowns(){
- renderBreakdownTable('cashBreakBody', CASH_DENOMS, 'cash', {1000:50000});
+ renderBreakdownTable('cashBreakBody', CASH_DENOMS, 'cash');
  renderBreakdownTable('nnBreakBody', NN_DENOMS, 'nn');
  renderBreakdownTable('ccBreakBody', CC_DENOMS, 'cc');
  recalcBreakdownTotal('cash');
@@ -5201,6 +5230,32 @@ function renderAll(){
  renderHotels(); renderCars(); renderAero(); renderPoints(); renderNotifications();
  renderEndedGames(); renderShiftStaff(); renderMemberCompanyDiff(); renderBalancingSummary();
  renderDashboard(); updateAccSearchBtn(); renderEventToggle(); renderEventHistory(); renderAvatarReqBtn();
+ renderTotalDeposit();
+}
+function renderTotalDeposit(){
+ const allInEl = document.getElementById('totalDepositAllIn');
+ const allOutEl = document.getElementById('totalDepositAllOut');
+ const body = document.getElementById('totalDepositByBranchBody');
+ if(!allInEl && !body) return;
+ let allIn = 0, allOut = 0;
+ const byBranch = {};
+ Object.keys(DB.ledger||{}).forEach(accId=>{
+  if(accId === 'MAIN') return; // internal mirror bookkeeping, not real guest deposit/withdraw activity
+  (DB.ledger[accId]||[]).forEach(e=>{
+   allIn += e.inn||0; allOut += e.out||0;
+   byBranch[e.casino] = byBranch[e.casino] || {inn:0, out:0};
+   byBranch[e.casino].inn += e.inn||0;
+   byBranch[e.casino].out += e.out||0;
+  });
+ });
+ if(allInEl) allInEl.textContent = fmt(allIn);
+ if(allOutEl) allOutEl.textContent = fmt(allOut);
+ if(body){
+  body.innerHTML = ['NUSTAR','HANN','ONLINE'].map(c=>{
+   const v = byBranch[c]||{inn:0,out:0};
+   return `<tr><td>${c}</td><td class="num pos">${fmt(v.inn)}</td><td class="num neg">${fmt(v.out)}</td></tr>`;
+  }).join('');
+ }
 }
 function renderDashboard(){
  const el = document.getElementById('dashTotalAccVal');

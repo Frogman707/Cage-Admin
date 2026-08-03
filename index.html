@@ -1390,7 +1390,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="table-wrap"><table>
     <thead><tr>
       <th data-i18n="colCasino"></th><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="colType"></th>
-      <th data-i18n="colIn"></th><th data-i18n="colOut"></th><th data-i18n="colBalance"></th><th data-i18n="colStaff"></th><th data-i18n="colMemo"></th><th></th>
+      <th data-i18n="colIn"></th><th data-i18n="colOut"></th><th data-i18n="colBalance"></th><th data-i18n="colStaff"></th><th data-i18n="colMemo"></th>
     </tr></thead>
     <tbody id="ledgerListBody"></tbody>
   </table></div>
@@ -3503,29 +3503,17 @@ function renderLedgerList(){
  const accQ = document.getElementById('ledgerListAccSearch').value.trim().toUpperCase();
  let all = [];
  Object.keys(DB.ledger||{}).forEach(acc=>{
-  (DB.ledger[acc]||[]).forEach((r,idx)=>all.push({...r, account:acc, idx}));
+  (DB.ledger[acc]||[]).forEach(r=>all.push({...r, account:acc}));
  });
  if(accQ) all = all.filter(r => r.account.includes(accQ));
  if(start) all = all.filter(r => (r.dt||'').slice(0,10) >= start);
  if(end) all = all.filter(r => (r.dt||'').slice(0,10) <= end);
  all.sort((a,b)=> (b.dt||'').localeCompare(a.dt||''));
  const body = document.getElementById('ledgerListBody');
- body.innerHTML = !all.length ? `<tr class="empty-row"><td colspan="10">—</td></tr>` :
+ body.innerHTML = !all.length ? `<tr class="empty-row"><td colspan="9">—</td></tr>` :
   all.map(r=>`<tr><td>${r.casino}</td><td class="num">${r.dt}</td><td>${r.account}</td><td>${r.type}</td>
    <td class="num pos">${r.inn?fmt(r.inn):''}</td><td class="num neg">${r.out?fmt(r.out):''}</td>
-   <td class="num">${fmt(r.bal)}</td><td>${r.staff}</td><td>${r.memo||''}</td>
-   <td><button class="btn btn-sm btn-danger" onclick="deleteLedgerEntry('${r.account}',${r.idx})">${t('deleteBtn')}</button></td></tr>`).join('');
-}
-function deleteLedgerEntry(account, idx){
- const entry = (DB.ledger[account]||[])[idx];
- if(!entry) return;
- if(fbDb && entry.id){
-  fbDb.collection('ledger').doc(entry.id).delete().catch(()=>{});
- } else {
-  DB.ledger[account].splice(idx,1);
-  saveDB(); renderLedgerList(); renderLedger(); renderDailyIo();
- }
- toast(t('toastEntryDeleted'));
+   <td class="num">${fmt(r.bal)}</td><td>${r.staff}</td><td>${r.memo||''}</td></tr>`).join('');
 }
 
 /* ============================================================

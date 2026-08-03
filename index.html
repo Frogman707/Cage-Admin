@@ -3021,8 +3021,11 @@ document.addEventListener('click', e=>{
 function renderMemberCard(){
  const box = document.getElementById('memberCard');
  const id = DB.currentAccount;
- if(!id){ box.innerHTML = `<p class="hint">${t('toastNoAcc')}</p>`; renderIdVerify(); return; }
- const acc = DB.accounts[id];
+ const acc = id ? DB.accounts[id] : null;
+ // DB.currentAccount can end up pointing at an id that no longer exists (e.g. a cloud-mode
+ // re-render arriving mid-withdrawal, or any other async gap right after deletion) - treat that
+ // exactly like no account being selected instead of crashing on acc.balances below.
+ if(!id || !acc){ box.innerHTML = `<p class="hint">${t('toastNoAcc')}</p>`; renderIdVerify(); return; }
  const total = Object.values(acc.balances).reduce((a,b)=>a+b,0);
  box.innerHTML = `
   <div class="member-card">
@@ -3047,8 +3050,8 @@ function renderIdVerify(){
  const box = document.getElementById('idVerifyBox');
  if(!box) return;
  const id = DB.currentAccount;
- if(!id){ box.innerHTML = `<h3>${t('idVerifyTitle')}</h3><p class="hint">${t('toastNoAcc')}</p>`; return; }
- const acc = DB.accounts[id];
+ const acc = id ? DB.accounts[id] : null;
+ if(!id || !acc){ box.innerHTML = `<h3>${t('idVerifyTitle')}</h3><p class="hint">${t('toastNoAcc')}</p>`; return; }
  const photoCell = (src)=> src ? `<img src="${src}">` : t('noPhoto');
  box.innerHTML = `
   <div style="display:flex;align-items:center;gap:10px;">
@@ -3065,7 +3068,7 @@ function renderIdVerify(){
 /* ---- Edit Account Info ---- */
 function openEditAccount(){
  const id = DB.currentAccount;
- if(!id){ toast(t('toastNoAcc')); return; }
+ if(!id || !DB.accounts[id]){ toast(t('toastNoAcc')); return; }
  const acc = DB.accounts[id];
  document.getElementById('editAccId').value = id;
  document.getElementById('editEngName').value = acc.engName||'';
@@ -3097,7 +3100,7 @@ function openEditAccount(){
 }
 function saveAccountEdit(){
  const id = DB.currentAccount;
- if(!id) return;
+ if(!id || !DB.accounts[id]) return;
  const acc = DB.accounts[id];
  acc.engName = document.getElementById('editEngName').value.trim();
  acc.nickname = document.getElementById('editNickname').value.trim();
@@ -3126,6 +3129,26 @@ function withdrawAccount(){
  requestPinAuth(()=>_doWithdrawAccount(id));
 }
 async function _doWithdrawAccount(id){
+ // Clear every reference to this account (including DB.currentAccount) BEFORE the account record
+ // itself is deleted and before the async Firestore round-trip below: in cloud mode, an in-flight
+ // ledger onSnapshot listener can fire again mid-deletion (once the batch commit resolves) and
+ // trigger a re-render - if DB.currentAccount still pointed at this id while DB.accounts[id] was
+ // already gone, that re-render would crash on `acc.balances` with acc undefined.
+ DB.currentAccount = null;
+ [
+  {get:()=>transferTargetAcc, set:v=>transferTargetAcc=v, input:'transferAccSearch', results:'transferAccResults'},
+  {get:()=>settleTargetAcc, set:v=>settleTargetAcc=v, input:'settleAccSearch', results:'settleAccResults'},
+  {get:()=>midTargetAcc, set:v=>midTargetAcc=v, input:'midAccSearch', results:'midAccResults'},
+  {get:()=>endTargetAcc, set:v=>endTargetAcc=v, input:'endAccSearch', results:'endAccResults'},
+  {get:()=>pointsTargetAcc, set:v=>pointsTargetAcc=v, input:'pointsAccSearch', results:'pointsAccResults'},
+ ].forEach(({get,set,input,results})=>{
+  if(get()===id){
+   set(null);
+   const inputEl = document.getElementById(input); if(inputEl) inputEl.value = '';
+   const resultsEl = document.getElementById(results); if(resultsEl) resultsEl.style.display = 'none';
+  }
+ });
+ closeModal('modal-edit-account');
  delete DB.accounts[id];
  if(fbDb){
   try{
@@ -3144,24 +3167,7 @@ async function _doWithdrawAccount(id){
  DB.hotels = (DB.hotels||[]).filter(b=>b.account!==id);
  DB.cars = (DB.cars||[]).filter(c=>c.account!==id);
  DB.aero = (DB.aero||[]).filter(a=>a.account!==id);
- DB.currentAccount = null;
- // A picked target account for an in-flight transfer/settle/mid-settle/game-end/points action
- // can no longer point at an account that just stopped existing.
- [
-  {get:()=>transferTargetAcc, set:v=>transferTargetAcc=v, input:'transferAccSearch', results:'transferAccResults'},
-  {get:()=>settleTargetAcc, set:v=>settleTargetAcc=v, input:'settleAccSearch', results:'settleAccResults'},
-  {get:()=>midTargetAcc, set:v=>midTargetAcc=v, input:'midAccSearch', results:'midAccResults'},
-  {get:()=>endTargetAcc, set:v=>endTargetAcc=v, input:'endAccSearch', results:'endAccResults'},
-  {get:()=>pointsTargetAcc, set:v=>pointsTargetAcc=v, input:'pointsAccSearch', results:'pointsAccResults'},
- ].forEach(({get,set,input,results})=>{
-  if(get()===id){
-   set(null);
-   const inputEl = document.getElementById(input); if(inputEl) inputEl.value = '';
-   const resultsEl = document.getElementById(results); if(resultsEl) resultsEl.style.display = 'none';
-  }
- });
  saveDB();
- closeModal('modal-edit-account');
  renderMemberCard(); renderAccountList(); renderLedger(); renderPoints(); renderEventHistory(); renderTotalDeposit();
  if(typeof renderHotels==='function') renderHotels();
  if(typeof renderCars==='function') renderCars();
@@ -4903,8 +4909,12 @@ function doCutoff(){
   bd().dailyReportLog.unshift(snapshot);
   bd().dailyReportLog = bd().dailyReportLog.slice(0,370);
   if(fbDb){
-   if(!bd().cutoffs.includes(now)) writeCageConfig({cutoffs: firebase.firestore.FieldValue.arrayUnion(now)});
-   writeCageConfig({lastCutoffDt: nowDt, dailyReportLog: bd().dailyReportLog});
+   // Combine into a single write: two sequential writeCageConfig() calls give the live
+   // cageConfig onSnapshot listener a window to echo back the (still-stale, pre-second-write)
+   // doc in between them - Object.assign(bd(), data) would then stomp the dailyReportLog we
+   // just built in memory back to its last-persisted value before the second call ever sends it.
+   const cutoffsUpdate = !bd().cutoffs.includes(now) ? {cutoffs: firebase.firestore.FieldValue.arrayUnion(now)} : {};
+   writeCageConfig({...cutoffsUpdate, lastCutoffDt: nowDt, dailyReportLog: bd().dailyReportLog});
   } else {
    if(!bd().cutoffs.includes(now)) bd().cutoffs.unshift(now);
    bd().lastCutoffDt = nowDt;

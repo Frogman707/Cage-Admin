@@ -1618,7 +1618,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="btn btn-block" style="margin-top:8px;" onclick="closeModal('modal-reset-confirm')" data-i18n="cancelBtn"></button>
 </div></div>
 
-<button id="resetBtn" onclick="openResetConfirm()" data-i18n="resetBtnLabel" style="position:fixed;left:10px;bottom:10px;z-index:60;font-size:10px;padding:3px 8px;opacity:.35;background:transparent;border:1px solid var(--line);color:var(--ink-faint);border-radius:4px;cursor:pointer;transition:opacity .15s ease;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35"></button>
+<button id="resetBtn" onclick="openResetConfirm()" style="position:fixed;right:10px;bottom:10px;z-index:60;font-size:10px;padding:3px 8px;opacity:.35;background:transparent;border:1px solid var(--line);color:var(--ink-faint);border-radius:4px;cursor:pointer;transition:opacity .15s ease;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35">Reset</button>
 
 <div class="toast" id="toast"></div>
 
@@ -1865,20 +1865,29 @@ function writeRollingEvent(opts){
  return entry;
 }
 function getGuestRollingGrandTotal(){
- if(!fbDb) return DB.guestRollingGrandTotal||0;
+ if(!fbDb) return bd().guestRollingGrandTotal||0;
  let total = 0;
- Object.values(fbRollingEventsByGame).forEach(events=>{
-  events.forEach(e=>{ if(!e.memo) total += e.amount; });
+ Object.keys(fbRollingEventsByGame).forEach(gameId=>{
+  const meta = fbGamesCache[gameId];
+  if(meta && (meta.branch||'HANN') !== currentBranch()) return;
+  (fbRollingEventsByGame[gameId]||[]).forEach(e=>{ if(!e.memo) total += e.amount; });
  });
  return total;
 }
 function getRollingDailyTotal(){
- if(!fbDb) return DB.rollingDailyTotal||0;
+ if(!fbDb) return bd().rollingDailyTotal||0;
  return getGuestRollingGrandTotal() - (bd().rollingDailyTotalBaseline||0);
 }
 
 /* ---- Branch-scoped balancing data (HANN/NUSTAR/ONLINE each have independent cage/balancing state) ---- */
 function currentBranch(){ return DB.currentCasino || 'HANN'; }
+function accountVisibleInBranch(id){
+ if(id === 'MAIN') return true;
+ const acc = DB.accounts[id];
+ return !!acc && (acc.openedCasino||'HANN') === currentBranch();
+}
+function visibleGames(){ return (DB.games||[]).filter(g=>(g.branch||'HANN')===currentBranch()); }
+function visibleEndedGames(){ return (DB.endedGames||[]).filter(g=>(g.branch||'HANN')===currentBranch()); }
 function branchData(branch){
  DB.branchData = DB.branchData||{};
  if(!DB.branchData[branch]){
@@ -1890,6 +1899,7 @@ function branchData(branch){
    cutoffs:[], monthRecordLog:[], balancingCheckLog:[],
    lastBalancingDt:null, lastCutoffDt:null, lastMonthSettleDt:null,
    settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
+   guestRollingGrandTotal:0, rollingDailyTotal:0,
   };
  }
  return DB.branchData[branch];
@@ -1917,6 +1927,24 @@ function switchBranch(branch){
  const cutoffListModal = document.getElementById('modal-cutoff-list');
  if(cutoffListModal && cutoffListModal.classList.contains('open')) renderCutoffList();
  if(typeof renderMonthRecords === 'function') renderMonthRecords();
+ // Accounts/games are global collections filtered to the current branch at render time -
+ // switching branch must re-run every such view or it keeps showing the old branch's rows.
+ if(DB.currentAccount && !accountVisibleInBranch(DB.currentAccount)) DB.currentAccount = null;
+ renderInGame(); renderOngoing(); renderEndedGames();
+ if(typeof renderMemberCard==='function') renderMemberCard();
+ if(typeof renderAccountList==='function') renderAccountList();
+ const settleTab = document.getElementById('gtab-settle');
+ if(settleTab && settleTab.style.display==='block') populateSettleSelect();
+ const midTab = document.getElementById('gtab-midsettle');
+ if(midTab && midTab.style.display==='block') populateMidSelect();
+ const endTab = document.getElementById('gtab-gameend');
+ if(endTab && endTab.style.display==='block') populateEndSelect();
+ const midListModal = document.getElementById('modal-mid-list');
+ if(midListModal && midListModal.classList.contains('open')) renderMidList();
+ const settleListModal = document.getElementById('modal-settle-list');
+ if(settleListModal && settleListModal.classList.contains('open')) renderSettleList();
+ const gameEndListModal = document.getElementById('modal-gameend-list');
+ if(gameEndListModal && gameEndListModal.classList.contains('open')) renderGameEndList();
 }
 
 /* ---- Main Cage Ledger (바인/롤링CC/마커/리딤) — append-only per branch, rollingGrandTotal is derived ---- */
@@ -2200,7 +2228,7 @@ ko:{
  transferAccSearch:"어카운트 검색", transferAccSearchPh:"어카운트 검색", transferNoMatch:"일치하는 어카운트가 없습니다", transferPickAcc:"이체할 어카운트를 선택하세요",
  rollingInputCol:"입력", rollingWord:"롤링", idCardAuth:"ID 카드 인증", authWaiting:"인증 대기중", authWaiting2:"대기중", authDone:"인증완료",
  wdAuthPwTitle:"출금 비밀번호 인증", wdAuthPwSub:"출금 비밀번호를 입력하세요", wdAuthPwErrorMsg:"비밀번호가 일치하지 않습니다.", wdAuthPwHint:"데모 비밀번호: 0000 (미등록 계좌 기준)",
- resetBtnLabel:"리셋", resetConfirmTitle:"전체 초기화", resetConfirmSub:"마스터 비밀번호를 입력하세요. 이 브라우저의 데이터가 모두 초기화됩니다.", resetPasswordErrorMsg:"비밀번호가 일치하지 않습니다.", resetConfirmBtn:"초기화",
+ resetBtnLabel:"Reset", resetConfirmTitle:"지점 초기화", resetConfirmSub:"마스터 비밀번호를 입력하세요. [{branch}] 지점의 계정(MAIN 제외)·게임·정산·포인트/이벤트·근무기록·컨시어지 기록이 모두 초기화됩니다. 다른 지점 기록은 영향받지 않습니다.", resetPasswordErrorMsg:"비밀번호가 일치하지 않습니다.", resetConfirmBtn:"초기화",
  wdAuthLinkBtn:"링크 생성", wdAuthTelegramBtn:"텔레그램 전송", toastNoTelegram:"연동된 텔레그램이 없습니다.", toastTelegramSent:"텔레그램으로 인증 링크를 전송했습니다.",
  wdAuthPinTitle:"핀코드 인증", wdAuthPinSub:"근무자 핀코드를 입력하세요", wdAuthPinErrorMsg:"핀코드가 일치하지 않습니다.", wdAuthPinHint:"데모 핀코드: 1234",
  cagePinAuthTitle:"핀코드 인증", cagePinAuthSub:"처리를 위해 근무자 핀코드를 입력하세요",
@@ -2326,7 +2354,7 @@ en:{
  transferAccSearch:"Account Search", transferAccSearchPh:"Search account", transferNoMatch:"No matching account", transferPickAcc:"Select an account to transfer to",
  rollingInputCol:"Input", rollingWord:"ROLLING", idCardAuth:"ID Card Authentication", authWaiting:"Awaiting Auth", authWaiting2:"Waiting", authDone:"Authenticated",
  wdAuthPwTitle:"Withdrawal Password", wdAuthPwSub:"Enter the withdrawal password", wdAuthPwErrorMsg:"Incorrect password.", wdAuthPwHint:"Demo password: 0000 (default for unregistered accounts)",
- resetBtnLabel:"Reset", resetConfirmTitle:"Reset All Data", resetConfirmSub:"Enter the master password. All local data in this browser will be reset.", resetPasswordErrorMsg:"Incorrect password.", resetConfirmBtn:"Reset",
+ resetBtnLabel:"Reset", resetConfirmTitle:"Reset Branch", resetConfirmSub:"Enter the master password. All [{branch}] branch records — accounts (except MAIN), games, balancing, points/event, shift log, and concierge — will be reset. Other branches are not affected.", resetPasswordErrorMsg:"Incorrect password.", resetConfirmBtn:"Reset",
  wdAuthLinkBtn:"Generate Link", wdAuthTelegramBtn:"Send via Telegram", toastNoTelegram:"No linked Telegram account.", toastTelegramSent:"Verification link sent via Telegram.",
  wdAuthPinTitle:"PIN Authentication", wdAuthPinSub:"Enter the staff PIN code", wdAuthPinErrorMsg:"Incorrect PIN.", wdAuthPinHint:"Demo PIN: 1234",
  cagePinAuthTitle:"PIN Authentication", cagePinAuthSub:"Enter the staff PIN code to proceed",
@@ -2452,7 +2480,7 @@ en:{
  transferAccSearch:"帳戶搜尋", transferAccSearchPh:"搜尋帳戶", transferNoMatch:"沒有符合的帳戶", transferPickAcc:"請選擇要轉帳的帳戶",
  rollingInputCol:"輸入", rollingWord:"轉碼", idCardAuth:"ID 卡驗證", authWaiting:"驗證中", authWaiting2:"等待中", authDone:"驗證完成",
  wdAuthPwTitle:"出款密碼驗證", wdAuthPwSub:"請輸入出款密碼", wdAuthPwErrorMsg:"密碼不正確。", wdAuthPwHint:"示範密碼：0000（未設定帳戶適用）",
- resetBtnLabel:"重置", resetConfirmTitle:"全部重置", resetConfirmSub:"請輸入主管密碼。此瀏覽器的資料將全部重置。", resetPasswordErrorMsg:"密碼不正確。", resetConfirmBtn:"重置",
+ resetBtnLabel:"Reset", resetConfirmTitle:"分店初始化", resetConfirmSub:"請輸入主管密碼。[{branch}] 分店的帳戶(MAIN除外)、遊戲、結算、點數/活動、交班紀錄、禮賓服務紀錄將全部重置。不影響其他分店的紀錄。", resetPasswordErrorMsg:"密碼不正確。", resetConfirmBtn:"重置",
  wdAuthLinkBtn:"產生連結", wdAuthTelegramBtn:"透過 Telegram 傳送", toastNoTelegram:"尚未綁定 Telegram。", toastTelegramSent:"已透過 Telegram 傳送驗證連結。",
  wdAuthPinTitle:"PIN 驗證", wdAuthPinSub:"請輸入值班人員 PIN 碼", wdAuthPinErrorMsg:"PIN 碼不正確。", wdAuthPinHint:"示範 PIN：1234",
  cagePinAuthTitle:"PIN 驗證", cagePinAuthSub:"請輸入值班人員 PIN 碼以繼續",
@@ -2578,7 +2606,7 @@ en:{
  transferAccSearch:"账户搜索", transferAccSearchPh:"搜索账户", transferNoMatch:"没有符合的账户", transferPickAcc:"请选择要转账的账户",
  rollingInputCol:"输入", rollingWord:"转码", idCardAuth:"ID 卡验证", authWaiting:"验证中", authWaiting2:"等待中", authDone:"验证完成",
  wdAuthPwTitle:"出款密码验证", wdAuthPwSub:"请输入出款密码", wdAuthPwErrorMsg:"密码不正确。", wdAuthPwHint:"演示密码：0000（未设置账户适用）",
- resetBtnLabel:"重置", resetConfirmTitle:"全部重置", resetConfirmSub:"请输入主管密码。此浏览器的数据将全部重置。", resetPasswordErrorMsg:"密码不正确。", resetConfirmBtn:"重置",
+ resetBtnLabel:"Reset", resetConfirmTitle:"分店初始化", resetConfirmSub:"请输入主管密码。[{branch}] 分店的账户(MAIN除外)、游戏、结算、积分/活动、交班记录、礼宾服务记录将全部重置。不影响其他分店的记录。", resetPasswordErrorMsg:"密码不正确。", resetConfirmBtn:"重置",
  wdAuthLinkBtn:"生成链接", wdAuthTelegramBtn:"通过 Telegram 发送", toastNoTelegram:"尚未绑定 Telegram。", toastTelegramSent:"已通过 Telegram 发送验证链接。",
  wdAuthPinTitle:"PIN 验证", wdAuthPinSub:"请输入值班人员 PIN 码", wdAuthPinErrorMsg:"PIN 码不正确。", wdAuthPinHint:"演示 PIN：1234",
  cagePinAuthTitle:"PIN 验证", cagePinAuthSub:"请输入值班人员 PIN 码以继续",
@@ -2887,7 +2915,7 @@ function searchMainAcc(query){
  const box = document.getElementById('mainAccResults');
  query = (query||'').trim().toUpperCase();
  if(!query){ box.style.display='none'; box.innerHTML=''; return; }
- const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query) && accountVisibleInBranch(id)).slice(0,6);
  box.innerHTML = !matches.length
   ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
   : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickMainAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
@@ -3170,11 +3198,13 @@ function cancelWithdrawAuth(){
 document.getElementById('wdAuthPw').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmWithdrawPw(); });
 document.getElementById('wdAuthPin').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmWithdrawPin(); });
 
-/* ---- Master reset (local data only — never touches Firestore) ---- */
+/* ---- Master reset — wipes all records of the currently selected branch only ---- */
 const MASTER_RESET_PASSWORD = 'kyle';
 function openResetConfirm(){
  document.getElementById('resetPassword').value = '';
  document.getElementById('resetPasswordError').style.display = 'none';
+ const sub = document.querySelector('#modal-reset-confirm .auth-sub');
+ if(sub) sub.textContent = t('resetConfirmSub').replace('{branch}', currentBranch());
  openModal('modal-reset-confirm');
 }
 function confirmReset(){
@@ -3184,19 +3214,86 @@ function confirmReset(){
   return;
  }
  closeModal('modal-reset-confirm');
- performLocalReset();
+ performBranchReset();
 }
 document.getElementById('resetPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmReset(); });
-async function performLocalReset(){
- const fresh = seedDB();
- try{
-  if(window.storage && window.storage.set){
-   await window.storage.set('cage-admin-db', JSON.stringify(fresh));
-  } else {
-   localStorage.setItem('cage-admin-db', JSON.stringify(fresh));
-  }
- }catch(e){}
+async function performBranchReset(){
+ await performBranchResetData();
  location.reload();
+}
+async function performBranchResetData(){
+ const branch = currentBranch();
+
+ // Accounts (never synced to Firestore — always local): drop every non-MAIN account opened in
+ // this branch. Track their IDs first so points/event/concierge history tied to them can be
+ // cleaned up too.
+ const deletedAccIds = new Set();
+ Object.keys(DB.accounts||{}).forEach(id=>{
+  if(id==='MAIN') return;
+  if((DB.accounts[id].openedCasino||'HANN')===branch){ deletedAccIds.add(id); delete DB.accounts[id]; }
+ });
+ if(DB.currentAccount && deletedAccIds.has(DB.currentAccount)) DB.currentAccount = null;
+
+ // Ledger: drop this branch's entries from every account (accounts opened in other branches can
+ // still carry a transaction tagged to this casino via the free casino selector on deposit/transfer).
+ Object.keys(DB.ledger||{}).forEach(acc=>{
+  DB.ledger[acc] = (DB.ledger[acc]||[]).filter(e=>(e.casino||'HANN')!==branch);
+  if(!DB.ledger[acc].length) delete DB.ledger[acc];
+ });
+ Object.values(DB.accounts||{}).forEach(acc=>{ if(acc.balances) acc.balances[branch] = 0; });
+ if(fbDb){
+  try{
+   const snap = await fbDb.collection('ledger').where('casino','==',branch).get();
+   const batch = fbDb.batch();
+   snap.forEach(d=>batch.delete(d.ref));
+   await batch.commit();
+  }catch(e){}
+ }
+
+ // Games / rolling / settled receipts for this branch.
+ if(fbDb){
+  const gameIds = Object.keys(fbGamesCache).filter(id=>(fbGamesCache[id].branch||'HANN')===branch);
+  gameIds.forEach(id=>deleteGameDoc(id));
+ }
+ DB.games = (DB.games||[]).filter(g=>(g.branch||'HANN')!==branch);
+ DB.endedGames = (DB.endedGames||[]).filter(g=>(g.branch||'HANN')!==branch);
+ DB.settled = (DB.settled||[]).filter(s=>(s.branch||'HANN')!==branch);
+
+ // Balancing (cage totals, shift counters, breakdowns, cutoffs, month records) for this branch.
+ if(fbDb){
+  try{
+   const [mcSnap, shSnap] = await Promise.all([
+    fbDb.collection('mainCageLedger').where('branch','==',branch).get(),
+    fbDb.collection('shiftEvents').where('branch','==',branch).get(),
+   ]);
+   const batch = fbDb.batch();
+   mcSnap.forEach(d=>batch.delete(d.ref));
+   shSnap.forEach(d=>batch.delete(d.ref));
+   await batch.commit();
+   await fbDb.collection('cageConfig').doc(branch).delete();
+  }catch(e){}
+ }
+ if(DB.branchData) delete DB.branchData[branch];
+ branchData(branch);
+ if(fbDb) await seedCageConfigToCloudIfEmpty();
+
+ // Points & Event: clear balances/history tied to the accounts just deleted (MAIN's own
+ // points/event history is shared across branches and is left untouched).
+ DB.pointsByAccount = DB.pointsByAccount||{};
+ deletedAccIds.forEach(id=>{ delete DB.pointsByAccount[id]; });
+ DB.pointsHistory = (DB.pointsHistory||[]).filter(h=>!deletedAccIds.has(h.account));
+ DB.eventHistory = (DB.eventHistory||[]).filter(h=>!deletedAccIds.has(h.account));
+
+ // Shift & Report: clear the shift check-in/out log for this reset action (on-duty roster is
+ // shared, live staff state and is intentionally left alone so nobody gets bumped off shift).
+ DB.shiftLog = [];
+
+ // Concierge: hotel/car/aero bookings tied to the accounts just deleted.
+ DB.hotels = (DB.hotels||[]).filter(b=>!deletedAccIds.has(b.account));
+ DB.cars = (DB.cars||[]).filter(c=>!deletedAccIds.has(c.account));
+ DB.aero = (DB.aero||[]).filter(a=>!deletedAccIds.has(a.account));
+
+ saveDB();
 }
 
 /* ---- Cage-level PIN-only auth (balancing confirm, main cage, cutoff, month settle, diff correction) ---- */
@@ -3286,7 +3383,7 @@ function searchTransferAcc(query){
  query = (query||'').trim().toUpperCase();
  if(query !== transferTargetAcc) transferTargetAcc = null;
  if(!query){ box.style.display='none'; box.innerHTML=''; return; }
- const matches = Object.keys(DB.accounts).filter(id => id.includes(query) && id !== DB.currentAccount).slice(0,6);
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query) && id !== DB.currentAccount && accountVisibleInBranch(id)).slice(0,6);
  box.innerHTML = !matches.length
   ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
   : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickTransferAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
@@ -3412,7 +3509,7 @@ function startGame(){
  const startType = document.getElementById('gStartType').value;
 
  // If the entered Game ID matches an ongoing game, treat this as an additional buy-in instead of a new game.
- const existing = enteredId ? DB.games.find(g=>g.gameId===enteredId) : null;
+ const existing = enteredId ? visibleGames().find(g=>g.gameId===enteredId) : null;
  if(existing){
   if(buyin<=0 && workingChip<=0) return;
   if(startType==='account' && account && buyin>0){
@@ -3479,7 +3576,7 @@ function _doStartGame(account, buyin, workingChip, enteredId){
  const autoId = now.toISOString().slice(2,10).replace(/-/g,'') + String(DB.nextGameSeq).padStart(3,'0');
  const gameId = enteredId || autoId;
  DB.nextGameSeq++;
- const newGame = {dt:now.toISOString().slice(0,16).replace('T',' '), gameId, account, table, cur, type, startType, startKind, rolling:0, buyin, workingChip, staff:staffName, checkpoints:[], lastAdded:0, rollingLog:[]};
+ const newGame = {dt:now.toISOString().slice(0,16).replace('T',' '), gameId, branch:currentBranch(), account, table, cur, type, startType, startKind, rolling:0, buyin, workingChip, staff:staffName, checkpoints:[], lastAdded:0, rollingLog:[]};
  DB.games.unshift(newGame);
  if(startKind === 'avatar' && DB.avatarRequests && DB.avatarRequests.length){
   DB.avatarRequests = DB.avatarRequests.filter(r=>r.account!==account);
@@ -3512,8 +3609,8 @@ function cancelGame(gameId){
   applyShift('workingChipRollingShift', -g.workingChip, staffName);
  }
  if(g.rolling){
-  DB.guestRollingGrandTotal = (DB.guestRollingGrandTotal||0) - g.rolling;
-  DB.rollingDailyTotal = (DB.rollingDailyTotal||0) - g.rolling;
+  bd().guestRollingGrandTotal = (bd().guestRollingGrandTotal||0) - g.rolling;
+  bd().rollingDailyTotal = (bd().rollingDailyTotal||0) - g.rolling;
   applyShift('rollingCashShift', -g.rolling, staffName);
  }
  if(g.startType === 'cash'){
@@ -3532,21 +3629,23 @@ function cancelGame(gameId){
  toast(t('toastGameCancelled'));
 }
 function renderInGame(){
+ const games = visibleGames();
  const dl = document.getElementById('ongoingGameIdList');
- if(dl) dl.innerHTML = DB.games.map(g=>`<option value="${g.gameId}">${g.account} · ${g.table}</option>`).join('');
+ if(dl) dl.innerHTML = games.map(g=>`<option value="${g.gameId}">${g.account} · ${g.table}</option>`).join('');
  const body = document.getElementById('inGameBody');
- if(!DB.games.length){ body.innerHTML = `<tr class="empty-row"><td colspan="9">—</td></tr>`; return; }
+ if(!games.length){ body.innerHTML = `<tr class="empty-row"><td colspan="9">—</td></tr>`; return; }
  const cancelLabel = {ko:'취소',en:'Cancel','zh-TW':'取消','zh-CN':'取消'}[LANG] || 'Cancel';
- body.innerHTML = DB.games.map(g=>`
+ body.innerHTML = games.map(g=>`
   <tr><td class="num">${g.dt}</td><td class="num">${g.gameId}</td><td>${g.account}</td><td>${g.table}</td><td>${g.cur}</td><td class="num">${fmt(g.buyin||0)}</td><td class="num">${fmt(g.workingChip||0)}</td><td>${g.type}</td>
   <td><button class="btn btn-sm btn-danger" onclick="cancelGame('${g.gameId}')">${cancelLabel}</button></td></tr>`).join('');
 }
 function renderOngoing(){
+ const games = visibleGames();
  const body = document.getElementById('ongoingBody');
- if(!DB.games.length){ body.innerHTML = `<tr class="empty-row"><td colspan="15">—</td></tr>`; return; }
+ if(!games.length){ body.innerHTML = `<tr class="empty-row"><td colspan="15">—</td></tr>`; return; }
  const kindLabel = {live:t('startKindLive'), avatar:t('startKindAvatar'), speed:t('startKindSpeed')};
  const typeLabel = {cash:t('typeCash'), account:t('typeAccount'), marker:t('typeMarker')};
- body.innerHTML = DB.games.map(g=>{
+ body.innerHTML = games.map(g=>{
   const added = g.lastAdded||0;
   const prev = (g.rolling||0) - added;
   const grand = g.lastGrandTotal||g.rolling||0;
@@ -3560,7 +3659,7 @@ function renderOngoing(){
    <td><input class="roll-input fmt-num" type="text" inputmode="numeric" placeholder="0" oninput="formatNumInput(this)" onclick="event.stopPropagation();" onkeydown="if(event.key==='Enter'){event.preventDefault(); submitRollingInput('${g.gameId}', this);}"></td>
   </tr>`;
  }).join('');
- document.getElementById('ongoingCount').textContent = DB.games.length;
+ document.getElementById('ongoingCount').textContent = games.length;
  document.getElementById('ongoingDaily').textContent = fmt(getRollingDailyTotal());
  document.getElementById('ongoingCum').textContent = fmt(getGuestRollingGrandTotal());
 }
@@ -3584,8 +3683,8 @@ function confirmRollingInput(){
  const g = DB.games.find(x=>x.gameId===gameId);
  if(g){
   const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
-  DB.guestRollingGrandTotal = (DB.guestRollingGrandTotal||0) + amount;
-  DB.rollingDailyTotal = (DB.rollingDailyTotal||0) + amount;
+  bd().guestRollingGrandTotal = (bd().guestRollingGrandTotal||0) + amount;
+  bd().rollingDailyTotal = (bd().rollingDailyTotal||0) + amount;
   DB.gameCCAdjust = (DB.gameCCAdjust||0) + amount;
   DB.gameNNAdjust = (DB.gameNNAdjust||0) - amount;
   applyShift('rollingCashShift', amount, staffName);
@@ -3598,8 +3697,8 @@ function confirmRollingInput(){
    g.rolling = (g.rolling||0) + amount;
    g.lastAdded = amount;
    g.rollingLog = g.rollingLog||[];
-   g.lastGrandTotal = DB.guestRollingGrandTotal;
-   g.rollingLog.unshift({date:dateStr, time:timeStr, type: amount<0?'W':'R', amount, cum:g.rolling, total:DB.guestRollingGrandTotal, staff:staffName, memo:''});
+   g.lastGrandTotal = bd().guestRollingGrandTotal;
+   g.rollingLog.unshift({date:dateStr, time:timeStr, type: amount<0?'W':'R', amount, cum:g.rolling, total:bd().guestRollingGrandTotal, staff:staffName, memo:''});
   }
   saveDB(); renderOngoing(); renderBalancingSummary();
   pushNotification('notifRollingInput', `${g.account} · ${g.gameId} · ${amount>=0?'+':''}${fmt(amount)}`);
@@ -3621,7 +3720,7 @@ function searchSettleAcc(query){
  const box = document.getElementById('settleAccResults');
  query = (query||'').trim().toUpperCase();
  if(!query){ box.style.display='none'; box.innerHTML=''; return; }
- const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query) && accountVisibleInBranch(id)).slice(0,6);
  box.innerHTML = !matches.length
   ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
   : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickSettleAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
@@ -3639,7 +3738,7 @@ document.addEventListener('click', e=>{
 });
 function populateSettleSelect(){
  const sel = document.getElementById('settleGameId');
- const ended = (DB.endedGames||[]).filter(g => !g.settled && (!settleTargetAcc || g.account===settleTargetAcc));
+ const ended = visibleEndedGames().filter(g => !g.settled && (!settleTargetAcc || g.account===settleTargetAcc));
  sel.innerHTML = ended.map(g=>`<option value="${g.gameId}">${g.gameId}</option>`).join('');
  if(ended.length) loadSettleGame();
  else {
@@ -3725,7 +3824,7 @@ function _doSettleGame(){
   if(fbDb) writeGameDoc(g, 'ended');
  }
  DB.settled = DB.settled||[];
- DB.settled.push({gameId:g.gameId, account:g.account, cur:g.cur, dt, buyin:g.buyin, cashout, winLoss, rolling:g.rolling, commission, fb, result, staff:staffName});
+ DB.settled.push({gameId:g.gameId, account:g.account, cur:g.cur, branch:g.branch||currentBranch(), dt, buyin:g.buyin, cashout, winLoss, rolling:g.rolling, commission, fb, result, staff:staffName});
  if(result > 0){
   applyAccountTransaction(g.account, 'IN', result, `${t('memoRollingSettle')} (${g.gameId})`);
   renderMemberCard(); renderLedger();
@@ -3746,7 +3845,7 @@ function openSettleList(){
 }
 function renderSettleList(){
  const q = (document.getElementById('settleListSearch').value||'').trim().toUpperCase();
- const rows = (DB.settled||[]).filter(s => !q || s.account.includes(q) || s.gameId.includes(q));
+ const rows = (DB.settled||[]).filter(s => (s.branch||'HANN')===currentBranch() && (!q || s.account.includes(q) || s.gameId.includes(q)));
  const body = document.getElementById('settleListBody');
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="11">—</td></tr>` :
   rows.map(s=>{
@@ -3777,7 +3876,7 @@ function searchMidAcc(query){
  const box = document.getElementById('midAccResults');
  query = (query||'').trim().toUpperCase();
  if(!query){ box.style.display='none'; box.innerHTML=''; return; }
- const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query) && accountVisibleInBranch(id)).slice(0,6);
  box.innerHTML = !matches.length
   ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
   : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickMidAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
@@ -3795,7 +3894,7 @@ document.addEventListener('click', e=>{
 });
 function populateMidSelect(){
  const sel = document.getElementById('midGameId');
- const list = DB.games.filter(g => !midTargetAcc || g.account===midTargetAcc);
+ const list = visibleGames().filter(g => !midTargetAcc || g.account===midTargetAcc);
  sel.innerHTML = list.map(g=>`<option value="${g.gameId}">${g.gameId}</option>`).join('');
  if(list.length) loadMidSettleGame();
  else { document.getElementById('midCurrentRolling').value=''; renderMidHistory(null); }
@@ -3906,8 +4005,8 @@ function renderMidHistory(g){
 }
 function getAllMidCheckpoints(){
  let all = [];
- (DB.games||[]).forEach(g=>{ (g.checkpoints||[]).forEach(c=>all.push({...c, gameId:g.gameId, account:g.account})); });
- (DB.endedGames||[]).forEach(g=>{ (g.checkpoints||[]).forEach(c=>all.push({...c, gameId:g.gameId, account:g.account})); });
+ visibleGames().forEach(g=>{ (g.checkpoints||[]).forEach(c=>all.push({...c, gameId:g.gameId, account:g.account})); });
+ visibleEndedGames().forEach(g=>{ (g.checkpoints||[]).forEach(c=>all.push({...c, gameId:g.gameId, account:g.account})); });
  all.sort((a,b)=> (b.dt||'').localeCompare(a.dt||''));
  return all;
 }
@@ -3936,7 +4035,7 @@ function searchEndAcc(query){
  const box = document.getElementById('endAccResults');
  query = (query||'').trim().toUpperCase();
  if(!query){ box.style.display='none'; box.innerHTML=''; return; }
- const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query) && accountVisibleInBranch(id)).slice(0,6);
  box.innerHTML = !matches.length
   ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
   : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickEndAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
@@ -3954,7 +4053,7 @@ document.addEventListener('click', e=>{
 });
 function populateEndSelect(){
  const sel = document.getElementById('endGameId');
- const list = DB.games.filter(g => !endTargetAcc || g.account===endTargetAcc);
+ const list = visibleGames().filter(g => !endTargetAcc || g.account===endTargetAcc);
  sel.innerHTML = list.map(g=>`<option value="${g.gameId}">${g.gameId}</option>`).join('');
  if(list.length) loadEndGame();
  else { document.getElementById('endBuyin').value=''; recalcEnd(); }
@@ -4079,7 +4178,7 @@ function _doConfirmGameEnd(){
 }
 function renderEndedGames(){
  const body = document.getElementById('endedGamesBody');
- const rows = DB.endedGames||[];
+ const rows = visibleEndedGames();
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   rows.map(g=>`<tr><td class="num">${g.endDt}</td><td class="num">${g.gameId}</td><td>${g.account}</td><td class="num">${fmt(g.buyin||0)}</td><td class="num">${fmt(g.rolling||0)}</td><td class="num ${g.winLoss>0?'pos':g.winLoss<0?'neg':''}">${fmt(g.winLoss)}</td></tr>`).join('');
 }
@@ -4090,7 +4189,7 @@ function openGameEndList(){
 }
 function renderGameEndList(){
  const q = (document.getElementById('gameEndListSearch').value||'').trim().toUpperCase();
- const rows = (DB.endedGames||[]).filter(g => !q || g.account.includes(q) || g.gameId.includes(q));
+ const rows = visibleEndedGames().filter(g => !q || g.account.includes(q) || g.gameId.includes(q));
  const body = document.getElementById('gameEndListBody');
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="16">—</td></tr>` :
   rows.map(g=>{
@@ -4329,8 +4428,8 @@ function renderBalancingSummary(){
  // 케이지 총계
  const casinoCumRolling = bd().rollingGrandTotal||0; // 메인케이지 바이인(+)·롤링(+)·마커(+)·리딤(-) 누계
  // 손님들 총 롤링 = 종료한 모든 게임의 총 롤링
- const guestsTotalRolling = (DB.endedGames||[]).reduce((s,g)=>s+(g.rolling||0),0) - (bd().settleEndedRollingBaseline||0);
- const gameOutAmountRaw = (DB.games||[]).reduce((s,g)=>s+(g.buyin||0)+(g.workingChip||0),0); // 게임 나간 금액 = 바이인 + 워킹칩
+ const guestsTotalRolling = visibleEndedGames().reduce((s,g)=>s+(g.rolling||0),0) - (bd().settleEndedRollingBaseline||0);
+ const gameOutAmountRaw = visibleGames().reduce((s,g)=>s+(g.buyin||0)+(g.workingChip||0),0); // 게임 나간 금액 = 바이인 + 워킹칩
  const gameOutAmount = gameOutAmountRaw - (bd().settleGameOutBaseline||0);
  document.getElementById('cageRolling').textContent = fmt(casinoCumRolling);
  document.getElementById('cageGuestRolling').textContent = fmt(guestsTotalRolling);
@@ -4355,7 +4454,7 @@ function renderBalancingSummary(){
  //   (CC 캐쉬아웃·딜러팁·하우스팁은 CC칩 증가·현금 감소가 서로 상쇄되어 캐시 무변동이므로 반영하지 않음)
  let ledgerNetRaw = 0;
  Object.keys(DB.ledger||{}).forEach(acc=>{
-  (DB.ledger[acc]||[]).forEach(e=>{ ledgerNetRaw += (e.inn||0) - (e.out||0); });
+  (DB.ledger[acc]||[]).forEach(e=>{ if((e.casino||'HANN')===currentBranch()) ledgerNetRaw += (e.inn||0) - (e.out||0); });
  });
  const ledgerNet = ledgerNetRaw - (bd().settleLedgerNetBaseline||0);
  const cashBuyinShift = getShiftVal('cashBuyinShift'); // 게임 시작(현금 바이인) 누계
@@ -4620,7 +4719,7 @@ function confirmMonthSettleReset(){
  const cashNow = unformatNum(document.getElementById('cashBreakTotal').textContent);
  const ccNow = unformatNum(document.getElementById('ccBreakTotal').textContent);
  const nnNow = unformatNum(document.getElementById('nnBreakTotal').textContent);
- const guestNow = (DB.games||[]).reduce((s,g)=>s+(g.rolling||0),0) + (DB.endedGames||[]).reduce((s,g)=>s+(g.rolling||0),0);
+ const guestNow = visibleGames().reduce((s,g)=>s+(g.rolling||0),0) + visibleEndedGames().reduce((s,g)=>s+(g.rolling||0),0);
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  const monthRecord = {
   dt: phNow().toISOString().slice(0,16).replace('T',' '),
@@ -4638,12 +4737,12 @@ function confirmMonthSettleReset(){
    const val = getShiftVal(field);
    if(val) writeShiftEvent(field, -val, staffName);
   });
-  (DB.games||[]).forEach(g=>{
+  visibleGames().forEach(g=>{
    if(g.rolling) writeRollingEvent({gameId:g.gameId, amount:-g.rolling, staff:staffName, memo:'month-settle-reset'});
   });
  } else {
   bd().rollingGrandTotal = 0;
-  DB.rollingDailyTotal = 0;
+  bd().rollingDailyTotal = 0;
   bd().rollingCashShift = 0;
   bd().buyinRollingShift = 0;
   bd().nnChipInShift = 0;
@@ -4653,16 +4752,16 @@ function confirmMonthSettleReset(){
   bd().nnCashoutShift = 0;
   bd().nnMarkerShift = 0;
   bd().ccMarkerShift = 0;
-  (DB.games||[]).forEach(g=>{ g.rolling = 0; g.lastAdded = 0; });
+  visibleGames().forEach(g=>{ g.rolling = 0; g.lastAdded = 0; });
  }
 
  // Snapshot current historical contributions as baselines so 케이지총계·케이지합산금액이 정산 직후 0이 되고,
  // 이후에는 새로 발생하는 활동만 반영됨 (과거 게임·입출금 기록 자체는 보존)
- const settleGameOutBaseline = (DB.games||[]).reduce((s,g)=>s+(g.buyin||0)+(g.workingChip||0),0);
- const settleEndedRollingBaseline = (DB.endedGames||[]).reduce((s,g)=>s+(g.rolling||0),0);
+ const settleGameOutBaseline = visibleGames().reduce((s,g)=>s+(g.buyin||0)+(g.workingChip||0),0);
+ const settleEndedRollingBaseline = visibleEndedGames().reduce((s,g)=>s+(g.rolling||0),0);
  let ledgerNetNow = 0;
  Object.keys(DB.ledger||{}).forEach(acc=>{
-  (DB.ledger[acc]||[]).forEach(e=>{ ledgerNetNow += (e.inn||0) - (e.out||0); });
+  (DB.ledger[acc]||[]).forEach(e=>{ if((e.casino||'HANN')===currentBranch()) ledgerNetNow += (e.inn||0) - (e.out||0); });
  });
  const rollingDailyTotalBaseline = getGuestRollingGrandTotal();
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
@@ -4736,7 +4835,7 @@ function openAccountList(){
 function renderAccountList(){
  const body = document.getElementById('accountListBody');
  if(!body) return;
- const ids = Object.keys(DB.accounts||{});
+ const ids = Object.keys(DB.accounts||{}).filter(accountVisibleInBranch);
  body.innerHTML = !ids.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   ids.map(id=>{
    const acc = DB.accounts[id];
@@ -4908,7 +5007,7 @@ function searchHotelAcc(query){
  const box = document.getElementById('hAccountResults');
  query = (query||'').trim().toUpperCase();
  if(!query){ box.style.display='none'; box.innerHTML=''; return; }
- const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query) && accountVisibleInBranch(id)).slice(0,6);
  box.innerHTML = !matches.length
   ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
   : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickHotelAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
@@ -4926,7 +5025,7 @@ function searchCarAcc(query){
  const box = document.getElementById('cAccount2Results');
  query = (query||'').trim().toUpperCase();
  if(!query){ box.style.display='none'; box.innerHTML=''; return; }
- const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query) && accountVisibleInBranch(id)).slice(0,6);
  box.innerHTML = !matches.length
   ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
   : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickCarAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
@@ -4944,7 +5043,7 @@ function searchAeroAcc(query){
  const box = document.getElementById('aAccountResults');
  query = (query||'').trim().toUpperCase();
  if(!query){ box.style.display='none'; box.innerHTML=''; return; }
- const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query) && accountVisibleInBranch(id)).slice(0,6);
  box.innerHTML = !matches.length
   ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
   : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickAeroAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
@@ -5127,7 +5226,7 @@ function searchPointsAcc(query){
  const box = document.getElementById('pointsAccResults');
  query = (query||'').trim().toUpperCase();
  if(!query){ box.style.display='none'; box.innerHTML=''; return; }
- const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query) && accountVisibleInBranch(id)).slice(0,6);
  box.innerHTML = !matches.length
   ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
   : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickPointsAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');

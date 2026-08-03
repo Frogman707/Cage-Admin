@@ -1138,7 +1138,10 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           <button class="btn btn-sm" style="margin-top:auto;" onclick="window.print()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-3px;margin-right:4px;"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M6 14h12v7H6z"/></svg><span data-i18n="print"></span></button>
         </div>
         <div class="card">
-          <h3 data-i18n="monthRecordTitle"></h3>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <h3 style="margin:0;flex:1;" data-i18n="monthRecordTitle"></h3>
+            <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openMonthRecordList()" data-i18n="monthRecordListBtn"></button>
+          </div>
           <div class="table-wrap" id="monthRecTableWrap"><table>
             <thead><tr><th data-i18n="colDate"></th><th data-i18n="colMrCash"></th><th data-i18n="colMrCashChips"></th><th data-i18n="colMrRollingChips"></th><th data-i18n="colMrCasinoCum"></th></tr></thead>
             <tbody id="monthRecBody"></tbody>
@@ -1888,10 +1891,13 @@ function getRollingDailyTotal(){
 /* ---- Branch-scoped balancing data (HANN/NUSTAR/ONLINE each have independent cage/balancing state) ---- */
 function currentBranch(){ return DB.currentCasino || 'HANN'; }
 function accountVisibleInBranch(id){
- if(id === 'MAIN') return true;
  const acc = DB.accounts[id];
  return !!acc && (acc.openedCasino||'HANN') === currentBranch();
 }
+// Each branch has its own internal "house" account used as the double-entry mirror for every
+// guest deposit/withdraw in that casino - MAIN-HANN, MAIN-NUSTAR, MAIN-ONLINE.
+function mainAccountIdForCasino(casino){ return 'MAIN-'+casino; }
+function isMainAccount(id){ return !!(DB.accounts[id] && DB.accounts[id].isMain); }
 function visibleGames(){ return (DB.games||[]).filter(g=>(g.branch||'HANN')===currentBranch()); }
 function visibleEndedGames(){ return (DB.endedGames||[]).filter(g=>(g.branch||'HANN')===currentBranch()); }
 function branchData(branch){
@@ -1906,6 +1912,7 @@ function branchData(branch){
    lastBalancingDt:null, lastCutoffDt:null, lastMonthSettleDt:null,
    settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
    guestRollingGrandTotal:0, rollingDailyTotal:0,
+   cashCarryBaseline:0, rollingCarryBaseline:0,
   };
  }
  return DB.branchData[branch];
@@ -2065,7 +2072,7 @@ function getShiftVal(field){
 }
 
 /* ---- Shared cage config, per branch (rare-write: last-action timestamps, month-settle baselines) ---- */
-const CAGE_CONFIG_FIELDS = ['lastBalancingDt','lastCutoffDt','lastMonthSettleDt','settleGameOutBaseline','settleEndedRollingBaseline','settleLedgerNetBaseline','rollingDailyTotalBaseline','cutoffs','monthRecordLog'];
+const CAGE_CONFIG_FIELDS = ['lastBalancingDt','lastCutoffDt','lastMonthSettleDt','settleGameOutBaseline','settleEndedRollingBaseline','settleLedgerNetBaseline','rollingDailyTotalBaseline','cashCarryBaseline','rollingCarryBaseline','cutoffs','monthRecordLog'];
 let fbCageConfigUnsub = null;
 const BREAKDOWN_PREFIXES = ['cash','nn','cc'];
 function subscribeCageConfigCloud(){
@@ -2192,7 +2199,7 @@ ko:{
  dashMonthly:"월간 누적 지표", dashVsLastMonth:"(당일 일 평균과 전일 일 평균 비교)", dashCumulative:"누적 통합 지표",
  dashBuyin:"바이인", dashRolling:"롤링", dashWinLoss:"윈로스", dashRollingComm:"롤링커미션", dashShareSettle:"쉐어정산금", dashEventComm:"이벤트 커미션", dashNetProfit:"순수익",
  dashCageAssets:"케이지 자산", dashCageCash:"케이지 보유 현금", dashUserFunds:"유저 보유금", dashCashLabel:"현금", dashChips:"칩스", dashCageHeldAssets:"케이지 보유 자산", dashMarkerLabel:"마커",
- dailyIoTitle:"전체 입출금 내역", monthRecordTitle:"월간 기록",
+ dailyIoTitle:"전체 입출금 내역", monthRecordTitle:"월간 기록", monthRecordListBtn:"기록",
  colMrCash:"현금", colMrCashChips:"현금칩", colMrRollingChips:"롤링칩", colMrCasinoCum:"카지노 누적", colMrGuestTotal:"고객 합계",
  print:"인쇄", yes:"예", no:"아니오", process:"처리", staffLabel:"담당자",
  toastProcessed:"처리되었습니다.", toastGameStarted:"게임이 시작되었습니다.", toastSettled:"정산이 완료되었습니다.",
@@ -2319,7 +2326,7 @@ en:{
  dashMonthly:"Monthly Cumulative Metrics", dashVsLastMonth:"(This Month's Daily Avg vs Last Month)", dashCumulative:"Cumulative Total Metrics",
  dashBuyin:"Buy-in", dashRolling:"Rolling", dashWinLoss:"Win/Loss", dashRollingComm:"Rolling Commission", dashShareSettle:"Share Settlement", dashEventComm:"Event Commission", dashNetProfit:"Net Profit",
  dashCageAssets:"Cage Assets", dashCageCash:"Cage Held Cash", dashUserFunds:"User Held Funds", dashCashLabel:"Cash", dashChips:"Chips", dashCageHeldAssets:"Cage Held Assets", dashMarkerLabel:"Marker",
- dailyIoTitle:"All Transaction History", monthRecordTitle:"Monthly Record",
+ dailyIoTitle:"All Transaction History", monthRecordTitle:"Monthly Record", monthRecordListBtn:"Records",
  colMrCash:"Cash", colMrCashChips:"Cash Chips", colMrRollingChips:"Rolling Chips", colMrCasinoCum:"Casino Cum.", colMrGuestTotal:"Guest Total",
  print:"Print", yes:"Yes", no:"No", process:"Process", staffLabel:"Staff",
  toastProcessed:"Transaction processed.", toastGameStarted:"Game started.", toastSettled:"Settlement confirmed.",
@@ -2446,7 +2453,7 @@ en:{
  dashMonthly:"月累計指標", dashVsLastMonth:"（本月日均與上月日均比較）", dashCumulative:"累計綜合指標",
  dashBuyin:"買入", dashRolling:"轉碼", dashWinLoss:"輸贏", dashRollingComm:"轉碼佣金", dashShareSettle:"份額結算金", dashEventComm:"活動佣金", dashNetProfit:"淨收益",
  dashCageAssets:"碼房資產", dashCageCash:"碼房持有現金", dashUserFunds:"用戶持有金額", dashCashLabel:"現金", dashChips:"籌碼", dashCageHeldAssets:"碼房持有資產", dashMarkerLabel:"馬克",
- dailyIoTitle:"全部收付紀錄", monthRecordTitle:"月度紀錄",
+ dailyIoTitle:"全部收付紀錄", monthRecordTitle:"月度紀錄", monthRecordListBtn:"紀錄",
  colMrCash:"現金", colMrCashChips:"現金碼", colMrRollingChips:"轉碼", colMrCasinoCum:"賭場累計", colMrGuestTotal:"貴賓合計",
  print:"列印", yes:"是", no:"否", process:"處理", staffLabel:"經辦人",
  toastProcessed:"交易已處理。", toastGameStarted:"賽局已開始。", toastSettled:"結算已完成。",
@@ -2573,7 +2580,7 @@ en:{
  dashMonthly:"月累计指标", dashVsLastMonth:"（本月日均与上月日均比较）", dashCumulative:"累计综合指标",
  dashBuyin:"买入", dashRolling:"转码", dashWinLoss:"输赢", dashRollingComm:"转码佣金", dashShareSettle:"份额结算金", dashEventComm:"活动佣金", dashNetProfit:"净收益",
  dashCageAssets:"码房资产", dashCageCash:"码房持有现金", dashUserFunds:"用户持有金额", dashCashLabel:"现金", dashChips:"筹码", dashCageHeldAssets:"码房持有资产", dashMarkerLabel:"马克",
- dailyIoTitle:"全部收付记录", monthRecordTitle:"月度记录",
+ dailyIoTitle:"全部收付记录", monthRecordTitle:"月度记录", monthRecordListBtn:"记录",
  colMrCash:"现金", colMrCashChips:"现金码", colMrRollingChips:"转码", colMrCasinoCum:"赌场累计", colMrGuestTotal:"贵宾合计",
  print:"打印", yes:"是", no:"否", process:"处理", staffLabel:"经办人",
  toastProcessed:"交易已处理。", toastGameStarted:"赛局已开始。", toastSettled:"结算已完成。",
@@ -2646,7 +2653,9 @@ let DB = null;
 function seedDB(){
  return {
   accounts:{
-   "MAIN":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,NUSTAR:50000000,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"COMPANY MAIN ACCOUNT", openedCasino:"NUSTAR", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"회사 메인 어카운트"},
+   "MAIN-HANN":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"HANN MAIN ACCOUNT", isMain:true, openedCasino:"HANN", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"HANN 지점 메인 어카운트"},
+   "MAIN-NUSTAR":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,NUSTAR:50000000,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"NUSTAR MAIN ACCOUNT", isMain:true, openedCasino:"NUSTAR", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"NUSTAR 지점 메인 어카운트"},
+   "MAIN-ONLINE":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"ONLINE MAIN ACCOUNT", isMain:true, openedCasino:"ONLINE", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"ONLINE 지점 메인 어카운트"},
    "SE7419":{member:"52049817", phone:"+63 912 345 6789", rate:"1.45%", telegram:"@teddy_lee", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null,
     telegramLinks:[{id:"@Sevip888", dt:"2025-09-17 16:25:29"}], openedCasino:"NUSTAR", openedDt:"2025-09-17 16:20", currency:"PHP", remark:"VIP"},
    "MK2201":{member:"63182047", phone:"+82 10 2233 4455", rate:"1.20%", telegram:"—", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2025-11-02 14:10", currency:"PHP", remark:""},
@@ -2693,6 +2702,7 @@ function seedDB(){
     monthRecordLog:[], balancingCheckLog:[],
     lastBalancingDt:null, lastCutoffDt:null, lastMonthSettleDt:null,
     settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
+    cashCarryBaseline:0, rollingCarryBaseline:0,
    },
   },
   notifications:[],
@@ -2744,10 +2754,18 @@ function migrateDB(saved){
  saved.accounts = saved.accounts || {};
  saved.ledger = saved.ledger || {};
  saved.staff = saved.staff || fresh.staff;
- // Only MAIN is backfilled if somehow missing - it's a required internal bookkeeping account.
- // Demo guest accounts are intentionally NOT backfilled here: doing so used to silently
- // resurrect accounts the master Reset button had just deleted on every page load.
- if(!saved.accounts.MAIN) saved.accounts.MAIN = fresh.accounts.MAIN;
+ // Older saves had one shared MAIN account - fold it into MAIN-NUSTAR (where its balance lived).
+ if(saved.accounts.MAIN && !saved.accounts['MAIN-NUSTAR']){
+  saved.accounts['MAIN-NUSTAR'] = {...saved.accounts.MAIN, isMain:true, openedCasino:'NUSTAR'};
+  delete saved.accounts.MAIN;
+ }
+ // Each branch needs its own MAIN-<branch> account (required internal bookkeeping account,
+ // never guest-deletable) - backfill only if missing. Demo guest accounts are intentionally NOT
+ // backfilled here: doing so used to silently resurrect accounts the master Reset button had
+ // just deleted on every page load.
+ ['MAIN-HANN','MAIN-NUSTAR','MAIN-ONLINE'].forEach(id=>{
+  if(!saved.accounts[id]) saved.accounts[id] = fresh.accounts[id];
+ });
  return saved;
 }
 async function saveDB(){
@@ -3243,13 +3261,19 @@ async function performBranchReset(){
 }
 async function performBranchResetData(){
  const branch = currentBranch();
+ // Snapshot the current combined cash/rolling totals BEFORE wiping anything - the physical cash
+ // and chips sitting in the cage don't disappear just because the records are reset, so these
+ // carry forward as the new baseline (otherwise the very next breakdown count would show a false
+ // discrepancy equal to whatever was reset away).
+ const combinedCashNow = unformatNum((document.getElementById('combinedCash')||{}).textContent||'0');
+ const combinedRollingNow = unformatNum((document.getElementById('combinedRolling')||{}).textContent||'0');
 
  // Accounts (never synced to Firestore — always local): drop every non-MAIN account opened in
  // this branch. Track their IDs first so points/event/concierge history tied to them can be
  // cleaned up too.
  const deletedAccIds = new Set();
  Object.keys(DB.accounts||{}).forEach(id=>{
-  if(id==='MAIN') return;
+  if(isMainAccount(id)) return;
   if((DB.accounts[id].openedCasino||'HANN')===branch){ deletedAccIds.add(id); delete DB.accounts[id]; }
  });
  if(DB.currentAccount && deletedAccIds.has(DB.currentAccount)) DB.currentAccount = null;
@@ -3295,6 +3319,8 @@ async function performBranchResetData(){
  }
  if(DB.branchData) delete DB.branchData[branch];
  branchData(branch);
+ bd().cashCarryBaseline = combinedCashNow;
+ bd().rollingCarryBaseline = combinedRollingNow;
  if(fbDb) await seedCageConfigToCloudIfEmpty();
 
  // Points & Event: clear balances/history tied to the accounts just deleted (MAIN's own
@@ -3369,11 +3395,13 @@ function applyAccountTransaction(accountId, type, amount, memo){
  const casino = (acc.balances && acc.balances.HANN!==undefined) ? 'HANN' : Object.keys(acc.balances||{})[0] || 'HANN';
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  writeLedgerEntry({accountId, casino, type, amount, staff:staffName, memo});
- // MAIN 어카운트(회사 메인 어카운트)와의 이체로 처리 — 손님 계좌와 반대 방향으로 동일 금액을 기록해
- // 전체 계좌 입출금 합계(케이지 합산금액 캐시)에는 영향이 없고, 게임 나간 금액 등 개별 추적만 반영되게 함
- if(accountId !== 'MAIN' && DB.accounts.MAIN){
+ // 해당 카지노의 MAIN 어카운트(지점 메인 어카운트)와의 이체로 처리 — 손님 계좌와 반대 방향으로 동일
+ // 금액을 기록해 전체 계좌 입출금 합계(케이지 합산금액 캐시)에는 영향이 없고, 게임 나간 금액 등 개별
+ // 추적만 반영되게 함
+ const mainId = mainAccountIdForCasino(casino);
+ if(!isMainAccount(accountId) && DB.accounts[mainId]){
   const mainType = type==='IN' ? 'OUT' : 'IN';
-  writeLedgerEntry({accountId:'MAIN', casino, type:mainType, amount, staff:staffName, memo:`${memo} — ${accountId}`});
+  writeLedgerEntry({accountId:mainId, casino, type:mainType, amount, staff:staffName, memo:`${memo} — ${accountId}`});
  }
 }
 function _doProcessIo(amt){
@@ -4465,7 +4493,9 @@ function renderBalancingSummary(){
  const workingChipRollingShift = getShiftVal('workingChipRollingShift'); // 게임시작 워킹칩(+누계) − 중간정산·게임종료 워킹칩(-누계) — 공식에서는 부호 반전하여 반영
  const nnCashoutShift = getShiftVal('nnCashoutShift'); // 중간정산·게임종료 NN 캐쉬아웃 누계 → 롤링+
  const nnMarkerShift = getShiftVal('nnMarkerShift'); // 중간정산·게임종료 NN 마커리딤 누계 → 롤링+
- const combinedRolling = casinoCumRolling - rollingCashShift - buyinRollingShift - workingChipRollingShift + nnChipInShift + nnCashoutShift + nnMarkerShift;
+ // + 캐리 베이스라인: 리셋/월정산 시점에 남아있던 실물 자산을 이월시켜, 활동 카운터가 0으로
+ // 되돌아가더라도 케이지 합산금액(실사 대조용 절대값)은 끊기지 않고 계속 이어지게 한다.
+ const combinedRolling = casinoCumRolling - rollingCashShift - buyinRollingShift - workingChipRollingShift + nnChipInShift + nnCashoutShift + nnMarkerShift + (bd().rollingCarryBaseline||0);
 
  // 케이지 합산금액 - 캐시
  // = 모든 어카운트 입출금 합(입금+ 출금-) + 게임시작 현금바이인(어카운트바이인은 무변동)
@@ -4480,7 +4510,7 @@ function renderBalancingSummary(){
  const cashBuyinShift = getShiftVal('cashBuyinShift'); // 게임 시작(현금 바이인) 누계
  const ccChipInShift = getShiftVal('ccChipInShift'); // 중간정산·게임종료 CC칩 디파짓(입고) 누계
  const ccMarkerShift = getShiftVal('ccMarkerShift'); // 중간정산·게임종료 CC 마커리딤 누계 → 캐시+
- const combinedCash = ledgerNet + cashBuyinShift + ccChipInShift + rollingCashShift + ccMarkerShift - nnCashoutShift;
+ const combinedCash = ledgerNet + cashBuyinShift + ccChipInShift + rollingCashShift + ccMarkerShift - nnCashoutShift + (bd().cashCarryBaseline||0);
  document.getElementById('combinedRolling').textContent = fmt(combinedRolling);
  document.getElementById('combinedCash').textContent = fmt(combinedCash);
 
@@ -4739,6 +4769,11 @@ function confirmMonthSettleReset(){
  const cashNow = unformatNum(document.getElementById('cashBreakTotal').textContent);
  const ccNow = unformatNum(document.getElementById('ccBreakTotal').textContent);
  const nnNow = unformatNum(document.getElementById('nnBreakTotal').textContent);
+ // 케이지 합산금액(캐시/롤링)은 실물 자산이 그대로 남아있는 이월 잔액이므로, 활동 카운터를 0으로
+ // 되돌리더라도 합산금액 자체는 끊기지 않게 지금 값을 캐리 베이스라인으로 저장해둔다.
+ // (그대로 안 하면 정산 직후 보유현황을 입력만 해도 차액이 발생함)
+ const combinedCashNow = unformatNum(document.getElementById('combinedCash').textContent);
+ const combinedRollingNow = unformatNum(document.getElementById('combinedRolling').textContent);
  const guestNow = visibleGames().reduce((s,g)=>s+(g.rolling||0),0) + visibleEndedGames().reduce((s,g)=>s+(g.rolling||0),0);
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  const monthRecord = {
@@ -4790,6 +4825,7 @@ function confirmMonthSettleReset(){
   writeCageConfig({
    settleGameOutBaseline, settleEndedRollingBaseline, settleLedgerNetBaseline: ledgerNetNow,
    rollingDailyTotalBaseline, lastMonthSettleDt: now,
+   cashCarryBaseline: combinedCashNow, rollingCarryBaseline: combinedRollingNow,
    monthRecordLog: firebase.firestore.FieldValue.arrayUnion(monthRecord),
   });
  } else {
@@ -4798,6 +4834,8 @@ function confirmMonthSettleReset(){
   bd().settleLedgerNetBaseline = ledgerNetNow;
   bd().lastMonthSettleDt = now;
  }
+ bd().cashCarryBaseline = combinedCashNow;
+ bd().rollingCarryBaseline = combinedRollingNow;
 
  // Clear physical breakdown counts so staff recounts fresh next period.
  bd().breakdownCounts = {cash:{}, nn:{}, cc:{}};
@@ -4954,10 +4992,10 @@ function renderDailyIo(){
  document.getElementById('dailyIoBody').innerHTML = !all.length ? `<tr class="empty-row"><td colspan="8">—</td></tr>` :
   all.map(r=>`<tr><td>${r.casino}</td><td class="num">${r.dt}</td><td>${r.account}</td><td class="num pos">${r.inn?fmt(r.inn):''}</td><td class="num neg">${r.out?fmt(r.out):''}</td><td class="num">${fmt(r.bal)}</td><td>${r.staff}</td><td>${r.memo||''}</td></tr>`).join('');
 }
-const MONTH_MOCK = [
- {dt:"2026-07-08 01:42:17",cash:75006339,cashChips:12480000,rollingChips:95246000,cum:983500000,guest:158230000},
- {dt:"2026-07-07 01:38:52",cash:71200000,cashChips:11980000,rollingChips:91200000,cum:975120000,guest:151020000},
-];
+function openMonthRecordList(){
+ renderMonthRecords();
+ openModal('modal-month-record');
+}
 function openBranchRecord(){
  renderBranchRecord();
  openModal('modal-branch-record');
@@ -4976,10 +5014,13 @@ function renderBranchRecord(){
    <td class="num">${fmt(r.bal)}</td><td>${r.staff}</td></tr>`).join('');
 }
 function renderMonthRecords(){
- const combined = [...(bd().monthRecordLog||[]), ...MONTH_MOCK];
- const html = combined.map(r=>`<tr><td class="num">${r.dt}</td><td class="num">${fmt(r.cash)}</td><td class="num">${fmt(r.cashChips)}</td><td class="num">${fmt(r.rollingChips)}</td><td class="num">${fmt(r.cum)}</td></tr>`).join('');
- document.getElementById('monthRecBody').innerHTML = html.replace(/<\/td><\/tr>/g,'</td></tr>');
- document.getElementById('monthRecBodyModal').innerHTML = combined.map(r=>`<tr><td class="num">${r.dt}</td><td class="num">${fmt(r.cash)}</td><td class="num">${fmt(r.cashChips)}</td><td class="num">${fmt(r.rollingChips)}</td><td class="num">${fmt(r.guest)}</td></tr>`).join('');
+ const combined = bd().monthRecordLog||[];
+ const body = document.getElementById('monthRecBody');
+ body.innerHTML = !combined.length ? `<tr class="empty-row"><td colspan="5">—</td></tr>` :
+  combined.map(r=>`<tr><td class="num">${r.dt}</td><td class="num">${fmt(r.cash)}</td><td class="num">${fmt(r.cashChips)}</td><td class="num">${fmt(r.rollingChips)}</td><td class="num">${fmt(r.cum)}</td></tr>`).join('');
+ const bodyModal = document.getElementById('monthRecBodyModal');
+ bodyModal.innerHTML = !combined.length ? `<tr class="empty-row"><td colspan="5">—</td></tr>` :
+  combined.map(r=>`<tr><td class="num">${r.dt}</td><td class="num">${fmt(r.cash)}</td><td class="num">${fmt(r.cashChips)}</td><td class="num">${fmt(r.rollingChips)}</td><td class="num">${fmt(r.guest)}</td></tr>`).join('');
 }
 
 /* ============================================================
@@ -5403,7 +5444,7 @@ function renderTotalDeposit(){
  let allIn = 0, allOut = 0;
  const byBranch = {};
  Object.keys(DB.ledger||{}).forEach(accId=>{
-  if(accId === 'MAIN') return; // internal mirror bookkeeping, not real guest deposit/withdraw activity
+  if(isMainAccount(accId)) return; // internal mirror bookkeeping, not real guest deposit/withdraw activity
   (DB.ledger[accId]||[]).forEach(e=>{
    allIn += e.inn||0; allOut += e.out||0;
    byBranch[e.casino] = byBranch[e.casino] || {inn:0, out:0};

@@ -4253,7 +4253,9 @@ function renderStaffDropdowns(){
  const opts = rows.map(s=>`<option>${s.name}</option>`).join('');
  const loginSel = document.getElementById('loginStaff');
  const shiftSel = document.getElementById('checkInStaffSelect');
- if(loginSel){ const cur = loginSel.value; loginSel.innerHTML = opts; if(rows.some(s=>s.name===cur)) loginSel.value = cur; }
+ // MASTER is a login-only override account (not a real staff member) - it's never added to
+ // DB.staff, never shows up in staff management or the on-duty check-in dropdown.
+ if(loginSel){ const cur = loginSel.value; loginSel.innerHTML = `<option value="MASTER">MASTER</option>${opts}`; if(cur==='MASTER'||rows.some(s=>s.name===cur)) loginSel.value = cur; }
  if(shiftSel){ const cur = shiftSel.value; shiftSel.innerHTML = opts; if(rows.some(s=>s.name===cur)) shiftSel.value = cur; }
 }
 function genStaffPin(){
@@ -5409,9 +5411,10 @@ function attemptLogin(){
  const staff = document.getElementById('loginStaff').value;
  const pin = document.getElementById('loginPin').value;
  const otp = document.getElementById('loginOtp').value;
- const staffRec = ((DB && DB.staff) || []).find(s=>s.name===staff);
+ const isMaster = staff === 'MASTER';
+ const staffRec = isMaster ? null : ((DB && DB.staff) || []).find(s=>s.name===staff);
  let hasError = false;
- if(!staffRec || pin !== staffRec.pin){
+ if(isMaster ? pin !== MASTER_RESET_PASSWORD : (!staffRec || pin !== staffRec.pin)){
   document.getElementById('loginError').style.display = 'block';
   hasError = true;
  } else {
@@ -5425,7 +5428,8 @@ function attemptLogin(){
  }
  if(hasError) return;
  document.getElementById('login-gate').style.display = 'none';
- if(typeof DB !== 'undefined' && DB){
+ // MASTER is an admin override login, not a floor worker - never add it to the on-duty roster.
+ if(!isMaster && typeof DB !== 'undefined' && DB){
   DB.onDutyStaff = DB.onDutyStaff || ['Teddy','Jena'];
   if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff);
   if(typeof renderShiftStaff === 'function') renderShiftStaff();

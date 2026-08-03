@@ -1894,6 +1894,15 @@ function accountVisibleInBranch(id){
  const acc = DB.accounts[id];
  return !!acc && (acc.openedCasino||'HANN') === currentBranch();
 }
+// Looser check for records (concierge bookings, etc.) that reference an account by free-typed
+// name rather than a picked/validated one: hide it only when the account is known AND
+// definitely belongs to another branch, since an unrecognized name can't be attributed to any
+// branch and hiding it everywhere would make it look lost.
+function recordVisibleInBranch(accountId){
+ const acc = DB.accounts[accountId];
+ if(!acc) return true;
+ return (acc.openedCasino||'HANN') === currentBranch();
+}
 // Each branch has its own internal "house" account used as the double-entry mirror for every
 // guest deposit/withdraw in that casino - MAIN-HANN, MAIN-NUSTAR, MAIN-ONLINE.
 function mainAccountIdForCasino(casino){ return 'MAIN-'+casino; }
@@ -1943,9 +1952,33 @@ function switchBranch(branch){
  // Accounts/games are global collections filtered to the current branch at render time -
  // switching branch must re-run every such view or it keeps showing the old branch's rows.
  if(DB.currentAccount && !accountVisibleInBranch(DB.currentAccount)) DB.currentAccount = null;
+ // A picked target account from another branch (transfer/settle/mid-settle/game-end/points) is
+ // no longer valid either - clear the variable and its search box so a stale off-branch pick
+ // can't silently drive an action after switching.
+ [
+  {get:()=>transferTargetAcc, set:v=>transferTargetAcc=v, input:'transferAccSearch', results:'transferAccResults'},
+  {get:()=>settleTargetAcc, set:v=>settleTargetAcc=v, input:'settleAccSearch', results:'settleAccResults'},
+  {get:()=>midTargetAcc, set:v=>midTargetAcc=v, input:'midAccSearch', results:'midAccResults'},
+  {get:()=>endTargetAcc, set:v=>endTargetAcc=v, input:'endAccSearch', results:'endAccResults'},
+  {get:()=>pointsTargetAcc, set:v=>pointsTargetAcc=v, input:'pointsAccSearch', results:'pointsAccResults'},
+ ].forEach(({get,set,input,results})=>{
+  const cur = get();
+  if(cur && !accountVisibleInBranch(cur)){
+   set(null);
+   const inputEl = document.getElementById(input); if(inputEl) inputEl.value = '';
+   const resultsEl = document.getElementById(results); if(resultsEl) resultsEl.style.display = 'none';
+  }
+ });
  renderInGame(); renderOngoing(); renderEndedGames();
  if(typeof renderMemberCard==='function') renderMemberCard();
  if(typeof renderAccountList==='function') renderAccountList();
+ if(typeof renderPoints==='function') renderPoints();
+ if(typeof renderEventHistory==='function') renderEventHistory();
+ const eventHistModal = document.getElementById('modal-event-hist');
+ if(eventHistModal && eventHistModal.classList.contains('open') && typeof renderEventHistList==='function') renderEventHistList();
+ if(typeof renderHotels==='function') renderHotels();
+ if(typeof renderCars==='function') renderCars();
+ if(typeof renderAero==='function') renderAero();
  const settleTab = document.getElementById('gtab-settle');
  if(settleTab && settleTab.style.display==='block') populateSettleSelect();
  const midTab = document.getElementById('gtab-midsettle');
@@ -1958,6 +1991,7 @@ function switchBranch(branch){
  if(settleListModal && settleListModal.classList.contains('open')) renderSettleList();
  const gameEndListModal = document.getElementById('modal-gameend-list');
  if(gameEndListModal && gameEndListModal.classList.contains('open')) renderGameEndList();
+ if(typeof renderDashboard==='function') renderDashboard();
 }
 
 /* ---- Main Cage Ledger (바인/롤링CC/마커/리딤) — append-only per branch, rollingGrandTotal is derived ---- */
@@ -2203,7 +2237,7 @@ ko:{
  colMrCash:"현금", colMrCashChips:"현금칩", colMrRollingChips:"롤링칩", colMrCasinoCum:"카지노 누적", colMrGuestTotal:"고객 합계",
  print:"인쇄", yes:"예", no:"아니오", process:"처리", staffLabel:"담당자",
  toastProcessed:"처리되었습니다.", toastGameStarted:"게임이 시작되었습니다.", toastSettled:"정산이 완료되었습니다.",
- toastBlocked:"차단이 적용되었습니다.", toastCutoff:"마감 처리되었습니다.", toastRegistered:"신규 어카운트가 등록되었습니다.", toastPwMismatch:"비밀번호가 일치하지 않습니다.",
+ toastBlocked:"차단이 적용되었습니다.", toastCutoff:"마감 처리되었습니다.", toastRegistered:"신규 어카운트가 등록되었습니다.", toastPwMismatch:"비밀번호가 일치하지 않습니다.", toastAccIdExists:"이미 존재하는 어카운트 ID입니다.",
  toastNoAcc:"어카운트를 먼저 조회하세요.", toastTransfer:"이체가 완료되었습니다.", toastShift:"교대 처리되었습니다.",
  toastInsufficientBalance:"잔액이 부족합니다.", notifInsufficientBalance:"잔액 부족", toastInsufficientPoints:"포인트 잔액이 부족합니다.",
 
@@ -2330,7 +2364,7 @@ en:{
  colMrCash:"Cash", colMrCashChips:"Cash Chips", colMrRollingChips:"Rolling Chips", colMrCasinoCum:"Casino Cum.", colMrGuestTotal:"Guest Total",
  print:"Print", yes:"Yes", no:"No", process:"Process", staffLabel:"Staff",
  toastProcessed:"Transaction processed.", toastGameStarted:"Game started.", toastSettled:"Settlement confirmed.",
- toastBlocked:"Account blocked.", toastCutoff:"Cutoff completed.", toastRegistered:"New account registered.", toastPwMismatch:"Passwords do not match.",
+ toastBlocked:"Account blocked.", toastCutoff:"Cutoff completed.", toastRegistered:"New account registered.", toastPwMismatch:"Passwords do not match.", toastAccIdExists:"That account ID already exists.",
  toastNoAcc:"Look up an account first.", toastTransfer:"Transfer completed.", toastShift:"Shift updated.",
  toastInsufficientBalance:"Insufficient balance.", notifInsufficientBalance:"Insufficient Balance", toastInsufficientPoints:"Insufficient points balance.",
 
@@ -2457,7 +2491,7 @@ en:{
  colMrCash:"現金", colMrCashChips:"現金碼", colMrRollingChips:"轉碼", colMrCasinoCum:"賭場累計", colMrGuestTotal:"貴賓合計",
  print:"列印", yes:"是", no:"否", process:"處理", staffLabel:"經辦人",
  toastProcessed:"交易已處理。", toastGameStarted:"賽局已開始。", toastSettled:"結算已完成。",
- toastBlocked:"已套用封鎖。", toastCutoff:"結帳已完成。", toastRegistered:"新帳戶已登記。", toastPwMismatch:"密碼不一致。",
+ toastBlocked:"已套用封鎖。", toastCutoff:"結帳已完成。", toastRegistered:"新帳戶已登記。", toastPwMismatch:"密碼不一致。", toastAccIdExists:"該帳戶 ID 已存在。",
  toastNoAcc:"請先查詢帳戶。", toastTransfer:"轉帳已完成。", toastShift:"交班已處理。",
  toastInsufficientBalance:"餘額不足。", notifInsufficientBalance:"餘額不足", toastInsufficientPoints:"點數餘額不足。",
 
@@ -2584,7 +2618,7 @@ en:{
  colMrCash:"现金", colMrCashChips:"现金码", colMrRollingChips:"转码", colMrCasinoCum:"赌场累计", colMrGuestTotal:"贵宾合计",
  print:"打印", yes:"是", no:"否", process:"处理", staffLabel:"经办人",
  toastProcessed:"交易已处理。", toastGameStarted:"赛局已开始。", toastSettled:"结算已完成。",
- toastBlocked:"已应用封锁。", toastCutoff:"结账已完成。", toastRegistered:"新账户已登记。", toastPwMismatch:"密码不一致。",
+ toastBlocked:"已应用封锁。", toastCutoff:"结账已完成。", toastRegistered:"新账户已登记。", toastPwMismatch:"密码不一致。", toastAccIdExists:"该账户 ID 已存在。",
  toastNoAcc:"请先查询账户。", toastTransfer:"转账已完成。", toastShift:"交班已处理。",
  toastInsufficientBalance:"余额不足。", notifInsufficientBalance:"余额不足", toastInsufficientPoints:"点数余额不足。",
 
@@ -4892,12 +4926,13 @@ function renderAccountList(){
 function submitReg(){
  const id = document.getElementById('regAccId').value.trim().toUpperCase();
  if(!id) return;
+ if(DB.accounts[id]){ toast(t('toastAccIdExists')); return; }
  const memberNo = document.getElementById('regMembershipNo').value.trim();
  const wdPw = document.getElementById('regWdPw').value;
  const wdPwConfirm = document.getElementById('regWdPwConfirm').value;
  if(wdPw && wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- DB.accounts[id] = DB.accounts[id] || {member:memberNo||"NEW", phone:"—", rate:"1.00%", telegram:"—", balances:{HANN:0,NUSTAR:0,ONLINE:0}, openedCasino:DB.currentCasino||'HANN', openedDt:now, currency:'PHP', remark:''};
+ DB.accounts[id] = {member:memberNo||"NEW", phone:"—", rate:"1.00%", telegram:"—", balances:{HANN:0,NUSTAR:0,ONLINE:0}, openedCasino:DB.currentCasino||'HANN', openedDt:now, currency:'PHP', remark:''};
  const acc = DB.accounts[id];
  if(memberNo) acc.member = memberNo;
  if(wdPw) acc.withdrawPw = wdPw;
@@ -4918,9 +4953,6 @@ function submitReg(){
  if(siteImg) acc.sitePhoto = siteImg.src;
  const sPad = sigPads['sigPad'];
  if(sPad && sPad.ctx) acc.signaturePhoto = sPad.ctx.canvas.toDataURL();
- if(!acc.openedDt) acc.openedDt = now;
- if(!acc.openedCasino) acc.openedCasino = DB.currentCasino||'HANN';
- if(!acc.currency) acc.currency = 'PHP';
  DB.ledger[id] = DB.ledger[id] || [];
  saveDB();
  pushNotification('notifRegister', id);
@@ -5156,7 +5188,7 @@ function showHotelReceipt(id){
  openModal('modal-hotel-receipt');
 }
 function renderHotels(){
- const rows = DB.hotels||[];
+ const rows = (DB.hotels||[]).filter(b=>recordVisibleInBranch(b.account));
  document.getElementById('hotelBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
   rows.map(b=>`<tr class="row-click" onclick="showHotelReceipt('${b.id}')"><td>${b.account}</td><td>${b.guest||'—'}</td><td>${b.roomType}</td><td class="num">${b.checkin}</td><td class="num">${b.checkout}</td>
    <td>${b.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
@@ -5209,7 +5241,7 @@ function showCarReceipt(id){
  openModal('modal-car-receipt');
 }
 function renderCars(){
- const rows = DB.cars||[];
+ const rows = (DB.cars||[]).filter(c=>recordVisibleInBranch(c.account));
  document.getElementById('carBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
   rows.map(c=>`<tr class="row-click" onclick="showCarReceipt('${c.id}')"><td>${c.account}</td><td class="num">${c.dt}</td><td>${c.pickup||'—'}</td><td>${c.dropoff||'—'}</td><td>${c.carType}</td>
    <td>${c.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
@@ -5260,7 +5292,7 @@ function showAeroReceipt(id){
  openModal('modal-aero-receipt');
 }
 function renderAero(){
- const rows = DB.aero||[];
+ const rows = (DB.aero||[]).filter(a=>recordVisibleInBranch(a.account));
  document.getElementById('aeroBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
   rows.map(a=>`<tr class="row-click" onclick="showAeroReceipt('${a.id}')"><td>${a.account}</td><td>${a.direction==='arrival'?t('directionArrival'):t('directionDeparture')}</td><td>${a.flight}</td><td>${a.airport||'—'}</td><td class="num">${a.dt}</td>
    <td>${a.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
@@ -5328,7 +5360,7 @@ function grantPoints(){
 function renderPoints(){
  DB.pointsByAccount = DB.pointsByAccount||{};
  document.getElementById('pointsBalanceDisp').textContent = fmt(pointsTargetAcc ? (DB.pointsByAccount[pointsTargetAcc]||0) : 0);
- const rows = DB.pointsHistory||[];
+ const rows = (DB.pointsHistory||[]).filter(h=>accountVisibleInBranch(h.account));
  document.getElementById('pointsHistBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="5">—</td></tr>` :
   rows.map(h=>`<tr><td class="num">${h.dt}</td><td>${h.account||''}</td><td class="num ${h.change>=0?'pos':'neg'}">${h.change>=0?'+':''}${fmt(h.change)}</td><td class="num">${fmt(h.balance)}</td><td>${h.reason}</td></tr>`).join('');
 }
@@ -5386,7 +5418,7 @@ function openEventHistList(){
  openModal('modal-event-hist');
 }
 function renderEventHistList(){
- const rows = DB.eventHistory||[];
+ const rows = (DB.eventHistory||[]).filter(r=>accountVisibleInBranch(r.account));
  const body = document.getElementById('eventHistListBody');
  if(!body) return;
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
@@ -5406,7 +5438,7 @@ function payEventCommissionForSettle(account, rolling){
  pushNotification('notifEvent', `${account} · +${fmt(amt)}`);
 }
 function renderEventHistory(){
- const rows = DB.eventHistory||[];
+ const rows = (DB.eventHistory||[]).filter(r=>accountVisibleInBranch(r.account));
  const body = document.getElementById('eventHistBody');
  if(!body) return;
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
@@ -5451,7 +5483,7 @@ function renderTotalDeposit(){
 }
 function renderDashboard(){
  const el = document.getElementById('dashTotalAccVal');
- if(el) el.textContent = Object.keys(DB.accounts||{}).length;
+ if(el) el.textContent = Object.keys(DB.accounts||{}).filter(accountVisibleInBranch).length;
 }
 
 function attemptLogin(){

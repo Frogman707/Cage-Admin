@@ -382,7 +382,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="brand"><span class="mark">CAGE ADMIN</span><span class="ver">v5.0</span></div>
   <div class="divider-v dt-only"></div>
   <div class="branch-select dt-only">
-    <select id="branchSel">
+    <select id="branchSel" onchange="switchBranch(this.value)">
       <option value="NUSTAR">NUSTAR</option>
       <option value="HANN">HANN</option>
       <option value="ONLINE">ONLINE</option>
@@ -1842,51 +1842,100 @@ function getGuestRollingGrandTotal(){
 }
 function getRollingDailyTotal(){
  if(!fbDb) return DB.rollingDailyTotal||0;
- return getGuestRollingGrandTotal() - (DB.rollingDailyTotalBaseline||0);
+ return getGuestRollingGrandTotal() - (bd().rollingDailyTotalBaseline||0);
 }
 
-/* ---- Main Cage Ledger (바인/롤링CC/마커/리딤) — append-only, rollingGrandTotal is derived ---- */
+/* ---- Branch-scoped balancing data (HANN/NUSTAR/ONLINE each have independent cage/balancing state) ---- */
+function currentBranch(){ return DB.currentCasino || 'HANN'; }
+function branchData(branch){
+ DB.branchData = DB.branchData||{};
+ if(!DB.branchData[branch]){
+  DB.branchData[branch] = {
+   rollingGrandTotal:0, mainCageLog:[], mainCageNNAdjust:0, mainCageCCAdjust:0,
+   rollingCashShift:0, nnChipInShift:0, buyinRollingShift:0, workingChipRollingShift:0,
+   nnCashoutShift:0, nnMarkerShift:0, cashBuyinShift:0, ccChipInShift:0, ccMarkerShift:0,
+   breakdownCounts:{cash:{}, nn:{}, cc:{}},
+   cutoffs:[], monthRecordLog:[], balancingCheckLog:[],
+   lastBalancingDt:null, lastCutoffDt:null, lastMonthSettleDt:null,
+   settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
+  };
+ }
+ return DB.branchData[branch];
+}
+function bd(){ return branchData(currentBranch()); }
+function switchBranch(branch){
+ DB.currentCasino = branch;
+ saveDB();
+ if(fbDb){
+  deriveMainCageForBranch();
+  deriveShiftTotalsForBranch();
+  seedCageConfigToCloudIfEmpty().then(()=>subscribeCageConfigCloud());
+ } else {
+  renderMainCageList();
+ }
+ renderBreakdowns();
+ renderCutoffs();
+ renderBalancingSummary();
+ const topBalEl = document.getElementById('lastBalTime');
+ if(topBalEl) topBalEl.textContent = bd().lastBalancingDt || '—';
+ const lastCutoffEl = document.getElementById('lastCutoff');
+ if(lastCutoffEl) lastCutoffEl.textContent = bd().lastCutoffDt || '—';
+ const balCheckModal = document.getElementById('modal-balancing-check-list');
+ if(balCheckModal && balCheckModal.classList.contains('open')) renderBalancingCheckList();
+ const cutoffListModal = document.getElementById('modal-cutoff-list');
+ if(cutoffListModal && cutoffListModal.classList.contains('open')) renderCutoffList();
+ if(typeof renderMonthRecords === 'function') renderMonthRecords();
+}
+
+/* ---- Main Cage Ledger (바인/롤링CC/마커/리딤) — append-only per branch, rollingGrandTotal is derived ---- */
 function mainCageSignedEffect(type, amt){
  return type==='redeem' ? -amt : amt;
 }
 async function seedMainCageLedgerToCloudIfEmpty(){
  if(!fbDb) return;
  try{
-  const snap = await fbDb.collection('mainCageLedger').limit(1).get();
+  const branch = currentBranch();
+  const snap = await fbDb.collection('mainCageLedger').where('branch','==',branch).limit(1).get();
   if(snap.empty){
-   const batch = fbDb.batch();
-   (DB.mainCageLog||[]).slice().reverse().forEach((r,i)=>{
-    const id = 'mcl_seed_'+i;
-    batch.set(fbDb.collection('mainCageLedger').doc(id), {id, type:r.type, amt:r.amt, dt:r.dt, staff:r.staff||''});
-   });
-   await batch.commit();
+   const rows = bd().mainCageLog||[];
+   if(rows.length){
+    const batch = fbDb.batch();
+    rows.slice().reverse().forEach((r,i)=>{
+     const id = 'mcl_seed_'+branch+'_'+i;
+     batch.set(fbDb.collection('mainCageLedger').doc(id), {id, type:r.type, amt:r.amt, dt:r.dt, staff:r.staff||'', branch});
+    });
+    await batch.commit();
+   }
   }
  }catch(e){}
 }
 let fbMainCageUnsub = null;
+let fbMainCageRaw = [];
+function deriveMainCageForBranch(){
+ const branch = currentBranch();
+ const rows = fbMainCageRaw.filter(r=>r.branch===branch);
+ let total = 0;
+ rows.forEach(r=>{ total += mainCageSignedEffect(r.type, r.amt); });
+ bd().mainCageLog = rows.slice().reverse();
+ bd().rollingGrandTotal = total;
+ renderBalancingSummary();
+ const listModal = document.getElementById('modal-maincage-list');
+ if(listModal && listModal.classList.contains('open')) renderMainCageList();
+}
 function subscribeMainCageLedgerCloud(){
  if(!fbDb) return;
  if(fbMainCageUnsub) fbMainCageUnsub();
  fbMainCageUnsub = fbDb.collection('mainCageLedger').orderBy('dt').onSnapshot(snap=>{
-  const rows = [];
-  let total = 0;
-  snap.forEach(doc=>{
-   const r = doc.data();
-   rows.push(r);
-   total += mainCageSignedEffect(r.type, r.amt);
-  });
-  DB.mainCageLog = rows.slice().reverse();
-  DB.rollingGrandTotal = total;
-  renderBalancingSummary();
-  const listModal = document.getElementById('modal-maincage-list');
-  if(listModal && listModal.classList.contains('open')) renderMainCageList();
+  fbMainCageRaw = [];
+  snap.forEach(doc=>fbMainCageRaw.push(doc.data()));
+  deriveMainCageForBranch();
  }, ()=>{});
 }
 function writeMainCageEntry(type, amt, staff){
  if(!fbDb) return null;
  const id = 'mcl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
- const entry = {id, type, amt, dt:now, staff};
+ const entry = {id, type, amt, dt:now, staff, branch:currentBranch()};
  fbDb.collection('mainCageLedger').doc(id).set(entry).catch(()=>{});
  return entry;
 }
@@ -1895,66 +1944,75 @@ function deleteMainCageEntry(id){
  fbDb.collection('mainCageLedger').doc(id).delete().catch(()=>{});
 }
 
-/* ---- Balancing shift counters (rollingCashShift, buyinRollingShift, etc.) — append-only per field ---- */
+/* ---- Balancing shift counters (rollingCashShift, buyinRollingShift, etc.) — append-only per field, per branch ---- */
 const SHIFT_FIELDS = ['rollingCashShift','nnChipInShift','buyinRollingShift','workingChipRollingShift','nnCashoutShift','nnMarkerShift','cashBuyinShift','ccChipInShift','ccMarkerShift'];
 async function seedShiftEventsToCloudIfEmpty(){
  if(!fbDb) return;
  try{
-  const snap = await fbDb.collection('shiftEvents').limit(1).get();
+  const branch = currentBranch();
+  const snap = await fbDb.collection('shiftEvents').where('branch','==',branch).limit(1).get();
   if(snap.empty){
    const batch = fbDb.batch();
    const now = new Date().toISOString().slice(0,16).replace('T',' ');
+   let any = false;
    SHIFT_FIELDS.forEach(field=>{
-    const val = DB[field]||0;
-    if(val) batch.set(fbDb.collection('shiftEvents').doc('shf_seed_'+field), {id:'shf_seed_'+field, field, delta:val, dt:now, staff:''});
+    const val = bd()[field]||0;
+    if(val){
+     any = true;
+     batch.set(fbDb.collection('shiftEvents').doc('shf_seed_'+branch+'_'+field), {id:'shf_seed_'+branch+'_'+field, field, delta:val, dt:now, staff:'', branch});
+    }
    });
-   await batch.commit();
+   if(any) await batch.commit();
   }
  }catch(e){}
 }
 let fbShiftUnsub = null;
+let fbShiftRaw = [];
 let fbShiftTotals = {};
+function deriveShiftTotalsForBranch(){
+ const branch = currentBranch();
+ const totals = {};
+ fbShiftRaw.filter(r=>r.branch===branch).forEach(r=>{ totals[r.field] = (totals[r.field]||0) + r.delta; });
+ fbShiftTotals = totals;
+ renderBalancingSummary();
+}
 function subscribeShiftEventsCloud(){
  if(!fbDb) return;
  if(fbShiftUnsub) fbShiftUnsub();
  fbShiftUnsub = fbDb.collection('shiftEvents').orderBy('dt').onSnapshot(snap=>{
-  const totals = {};
-  snap.forEach(doc=>{
-   const r = doc.data();
-   totals[r.field] = (totals[r.field]||0) + r.delta;
-  });
-  fbShiftTotals = totals;
-  renderBalancingSummary();
+  fbShiftRaw = [];
+  snap.forEach(doc=>fbShiftRaw.push(doc.data()));
+  deriveShiftTotalsForBranch();
  }, ()=>{});
 }
 function writeShiftEvent(field, delta, staff){
  if(!fbDb || !delta) return;
  const id = 'shf_'+Date.now()+'_'+Math.random().toString(36).slice(2,9)+'_'+field;
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
- fbDb.collection('shiftEvents').doc(id).set({id, field, delta, dt:now, staff:staff||''}).catch(()=>{});
+ fbDb.collection('shiftEvents').doc(id).set({id, field, delta, dt:now, staff:staff||'', branch:currentBranch()}).catch(()=>{});
 }
 function applyShift(field, delta, staff){
- if(fbDb){ writeShiftEvent(field, delta, staff); } else { DB[field] = (DB[field]||0) + delta; }
+ if(fbDb){ writeShiftEvent(field, delta, staff); } else { bd()[field] = (bd()[field]||0) + delta; }
 }
 function getShiftVal(field){
- return fbDb ? (fbShiftTotals[field]||0) : (DB[field]||0);
+ return fbDb ? (fbShiftTotals[field]||0) : (bd()[field]||0);
 }
 
-/* ---- Shared cage config (rare-write: last-action timestamps, month-settle baselines) ---- */
+/* ---- Shared cage config, per branch (rare-write: last-action timestamps, month-settle baselines) ---- */
 const CAGE_CONFIG_FIELDS = ['lastBalancingDt','lastCutoffDt','lastMonthSettleDt','settleGameOutBaseline','settleEndedRollingBaseline','settleLedgerNetBaseline','rollingDailyTotalBaseline','cutoffs','monthRecordLog'];
 let fbCageConfigUnsub = null;
 const BREAKDOWN_PREFIXES = ['cash','nn','cc'];
 function subscribeCageConfigCloud(){
  if(!fbDb) return;
  if(fbCageConfigUnsub) fbCageConfigUnsub();
- fbCageConfigUnsub = fbDb.collection('cageConfig').doc('global').onSnapshot(doc=>{
+ fbCageConfigUnsub = fbDb.collection('cageConfig').doc(currentBranch()).onSnapshot(doc=>{
   if(!doc.exists) return;
   const data = doc.data();
-  Object.assign(DB, data);
-  DB.breakdownCounts = DB.breakdownCounts||{};
+  Object.assign(bd(), data);
+  bd().breakdownCounts = bd().breakdownCounts||{};
   BREAKDOWN_PREFIXES.forEach(prefix=>{
    const key = prefix+'BreakdownCounts';
-   if(data[key]) DB.breakdownCounts[prefix] = data[key];
+   if(data[key]) bd().breakdownCounts[prefix] = data[key];
    const anyFocused = document.querySelector(`.breakdown-input[data-prefix="${prefix}"]:focus`);
    const denoms = prefix==='cash' ? CASH_DENOMS : prefix==='nn' ? NN_DENOMS : CC_DENOMS;
    const seedDefault = prefix==='cash' ? {1000:50000} : undefined;
@@ -1965,9 +2023,9 @@ function subscribeCageConfigCloud(){
   });
   renderBalancingSummary();
   const topBalEl = document.getElementById('lastBalTime');
-  if(topBalEl && DB.lastBalancingDt) topBalEl.textContent = DB.lastBalancingDt;
+  if(topBalEl) topBalEl.textContent = bd().lastBalancingDt || '—';
   const lastCutoffEl = document.getElementById('lastCutoff');
-  if(lastCutoffEl && DB.lastCutoffDt) lastCutoffEl.textContent = DB.lastCutoffDt;
+  if(lastCutoffEl) lastCutoffEl.textContent = bd().lastCutoffDt || '—';
   renderCutoffs();
   const cutoffListModal = document.getElementById('modal-cutoff-list');
   if(cutoffListModal && cutoffListModal.classList.contains('open')) renderCutoffList();
@@ -1977,21 +2035,23 @@ function subscribeCageConfigCloud(){
 async function seedCageConfigToCloudIfEmpty(){
  if(!fbDb) return;
  try{
-  const doc = await fbDb.collection('cageConfig').doc('global').get();
+  const branch = currentBranch();
+  const doc = await fbDb.collection('cageConfig').doc(branch).get();
   if(!doc.exists){
    const seed = {};
    const arrayFields = ['cutoffs','monthRecordLog'];
-   CAGE_CONFIG_FIELDS.forEach(f=>{ seed[f] = DB[f] ?? (arrayFields.includes(f)?[]:0); });
+   const b = bd();
+   CAGE_CONFIG_FIELDS.forEach(f=>{ seed[f] = b[f] ?? (arrayFields.includes(f)?[]:0); });
    BREAKDOWN_PREFIXES.forEach(prefix=>{
-    seed[prefix+'BreakdownCounts'] = (DB.breakdownCounts && DB.breakdownCounts[prefix]) || {};
+    seed[prefix+'BreakdownCounts'] = (b.breakdownCounts && b.breakdownCounts[prefix]) || {};
    });
-   await fbDb.collection('cageConfig').doc('global').set(seed);
+   await fbDb.collection('cageConfig').doc(branch).set(seed);
   }
  }catch(e){}
 }
 function writeCageConfig(partial){
  if(!fbDb) return;
- fbDb.collection('cageConfig').doc('global').set(partial, {merge:true}).catch(()=>{});
+ fbDb.collection('cageConfig').doc(currentBranch()).set(partial, {merge:true}).catch(()=>{});
 }
 
 /* ============================================================
@@ -2557,7 +2617,6 @@ function seedDB(){
   games:[
   ],
   rollingDailyTotal:0,
-  rollingGrandTotal:0,
   guestRollingGrandTotal:0,
   settled:[],
   endedGames:[
@@ -2568,7 +2627,6 @@ function seedDB(){
   memos:[
    {account:"SE7419",memo:"VIP guest, handle personally",staff:"TEDDY",dt:"2026-07-01"},
   ],
-  cutoffs:["2026-07-08","2026-07-07","2026-07-06"],
   hotels:[
   ],
   cars:[
@@ -2581,7 +2639,19 @@ function seedDB(){
   pointsHistory:[
    {dt:"2026-07-01 10:00", account:"SE7419", reason:"Monthly rolling bonus", change:15000, balance:128500},
   ],
-  breakdownCounts:{cash:{1000:50000}, nn:{}, cc:{}},
+  currentCasino:'HANN',
+  branchData:{
+   HANN:{
+    rollingGrandTotal:0, mainCageLog:[], mainCageNNAdjust:0, mainCageCCAdjust:0,
+    rollingCashShift:0, nnChipInShift:0, buyinRollingShift:0, workingChipRollingShift:0,
+    nnCashoutShift:0, nnMarkerShift:0, cashBuyinShift:0, ccChipInShift:0, ccMarkerShift:0,
+    breakdownCounts:{cash:{1000:50000}, nn:{}, cc:{}},
+    cutoffs:["2026-07-08","2026-07-07","2026-07-06"],
+    monthRecordLog:[], balancingCheckLog:[],
+    lastBalancingDt:null, lastCutoffDt:null, lastMonthSettleDt:null,
+    settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
+   },
+  },
   notifications:[],
   nextGameSeq:1,
   currentAccount:null,
@@ -4090,7 +4160,7 @@ const NN_DENOMS = [1000000,500000,100000,10000,1000];
 const CC_DENOMS = [1000000,500000,100000,10000,1000,100];
 function renderBreakdownTable(bodyId, denoms, prefix, seedCounts){
  const body = document.getElementById(bodyId);
- const saved = (DB.breakdownCounts && DB.breakdownCounts[prefix]) || {};
+ const saved = (bd().breakdownCounts && bd().breakdownCounts[prefix]) || {};
  body.innerHTML = denoms.map((d,i)=>{
   if(d==='COIN'){
    const val = saved.COIN;
@@ -4127,8 +4197,8 @@ function collectBreakdownCounts(prefix){
 let breakdownWriteTimer = {};
 function recalcBreakdownTotal(prefix){
  const counts = collectBreakdownCounts(prefix);
- DB.breakdownCounts = DB.breakdownCounts||{};
- DB.breakdownCounts[prefix] = counts;
+ bd().breakdownCounts = bd().breakdownCounts||{};
+ bd().breakdownCounts[prefix] = counts;
  saveDB();
  renderBalancingSummary();
  if(fbDb){
@@ -4152,11 +4222,11 @@ function renderBalancingSummary(){
  document.getElementById('holdCashChips').textContent = fmt(holdCashChips);
 
  // 케이지 총계
- const casinoCumRolling = DB.rollingGrandTotal||0; // 메인케이지 바이인(+)·롤링(+)·마커(+)·리딤(-) 누계
+ const casinoCumRolling = bd().rollingGrandTotal||0; // 메인케이지 바이인(+)·롤링(+)·마커(+)·리딤(-) 누계
  // 손님들 총 롤링 = 종료한 모든 게임의 총 롤링
- const guestsTotalRolling = (DB.endedGames||[]).reduce((s,g)=>s+(g.rolling||0),0) - (DB.settleEndedRollingBaseline||0);
+ const guestsTotalRolling = (DB.endedGames||[]).reduce((s,g)=>s+(g.rolling||0),0) - (bd().settleEndedRollingBaseline||0);
  const gameOutAmountRaw = (DB.games||[]).reduce((s,g)=>s+(g.buyin||0)+(g.workingChip||0),0); // 게임 나간 금액 = 바이인 + 워킹칩
- const gameOutAmount = gameOutAmountRaw - (DB.settleGameOutBaseline||0);
+ const gameOutAmount = gameOutAmountRaw - (bd().settleGameOutBaseline||0);
  document.getElementById('cageRolling').textContent = fmt(casinoCumRolling);
  document.getElementById('cageGuestRolling').textContent = fmt(guestsTotalRolling);
  document.getElementById('cageGameOut').textContent = fmt(gameOutAmount);
@@ -4182,7 +4252,7 @@ function renderBalancingSummary(){
  Object.keys(DB.ledger||{}).forEach(acc=>{
   (DB.ledger[acc]||[]).forEach(e=>{ ledgerNetRaw += (e.inn||0) - (e.out||0); });
  });
- const ledgerNet = ledgerNetRaw - (DB.settleLedgerNetBaseline||0);
+ const ledgerNet = ledgerNetRaw - (bd().settleLedgerNetBaseline||0);
  const cashBuyinShift = getShiftVal('cashBuyinShift'); // 게임 시작(현금 바이인) 누계
  const ccChipInShift = getShiftVal('ccChipInShift'); // 중간정산·게임종료 CC칩 디파짓(입고) 누계
  const ccMarkerShift = getShiftVal('ccMarkerShift'); // 중간정산·게임종료 CC 마커리딤 누계 → 캐시+
@@ -4200,11 +4270,11 @@ function renderBalancingSummary(){
  rEl.textContent = fmt(diffRolling); rEl.className = 'num ' + (diffRolling===0?'':diffRolling>0?'pos':'neg');
  cEl.textContent = fmt(diffCash); cEl.className = 'num ' + (diffCash===0?'':diffCash>0?'pos':'neg');
  const lastSettleEl = document.getElementById('lastMonthSettleDt');
- if(lastSettleEl) lastSettleEl.textContent = DB.lastMonthSettleDt || '—';
+ if(lastSettleEl) lastSettleEl.textContent = bd().lastMonthSettleDt || '—';
  const topBalEl = document.getElementById('lastBalTime');
- if(topBalEl && DB.lastBalancingDt) topBalEl.textContent = DB.lastBalancingDt;
+ if(topBalEl) topBalEl.textContent = bd().lastBalancingDt || '—';
  const lastCutoffEl = document.getElementById('lastCutoff');
- if(lastCutoffEl && DB.lastCutoffDt) lastCutoffEl.textContent = DB.lastCutoffDt;
+ if(lastCutoffEl) lastCutoffEl.textContent = bd().lastCutoffDt || '—';
 }
 function processMainCage(){
  const type = document.getElementById('mainCageType').value;
@@ -4230,9 +4300,9 @@ function _doProcessMainCage(type, amt){
  if(fbDb){
   writeMainCageEntry(type, amt, staffName);
  } else {
-  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) + mainCageSignedEffect(type, amt);
-  DB.mainCageLog = DB.mainCageLog||[];
-  DB.mainCageLog.unshift({dt:now, type, amt, staff:staffName});
+  bd().rollingGrandTotal = (bd().rollingGrandTotal||0) + mainCageSignedEffect(type, amt);
+  bd().mainCageLog = bd().mainCageLog||[];
+  bd().mainCageLog.unshift({dt:now, type, amt, staff:staffName});
  }
  document.getElementById('mainCageAmt').value = '';
  saveDB(); renderBalancingSummary();
@@ -4244,7 +4314,7 @@ function openMainCageList(){
  openModal('modal-maincage-list');
 }
 function renderMainCageList(){
- const rows = DB.mainCageLog||[];
+ const rows = bd().mainCageLog||[];
  const body = document.getElementById('mainCageListBody');
  const typeLabel = {buyin:t('mainCageBuyin'), rollingCC:t('mainCageRollingCC'), marker:t('mainCageMarker'), redeem:t('mainCageRedeem')};
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="5">—</td></tr>` :
@@ -4252,7 +4322,7 @@ function renderMainCageList(){
    <td><button class="btn btn-sm btn-danger" onclick="cancelMainCageEntry(${i})">${t('cancelBtn')}</button></td></tr>`).join('');
 }
 function cancelMainCageEntry(idx){
- const entry = (DB.mainCageLog||[])[idx];
+ const entry = (bd().mainCageLog||[])[idx];
  if(!entry) return;
  DB.mainCageNNAdjust = DB.mainCageNNAdjust||0;
  DB.mainCageCCAdjust = DB.mainCageCCAdjust||0;
@@ -4269,8 +4339,8 @@ function cancelMainCageEntry(idx){
  if(fbDb && entry.id){
   deleteMainCageEntry(entry.id);
  } else {
-  DB.rollingGrandTotal = (DB.rollingGrandTotal||0) - mainCageSignedEffect(entry.type, entry.amt);
-  DB.mainCageLog.splice(idx,1);
+  bd().rollingGrandTotal = (bd().rollingGrandTotal||0) - mainCageSignedEffect(entry.type, entry.amt);
+  bd().mainCageLog.splice(idx,1);
  }
  saveDB(); renderBalancingSummary(); renderMainCageList();
  toast(t('toastEntryDeleted'));
@@ -4280,17 +4350,17 @@ function openCutoffList(){
  openModal('modal-cutoff-list');
 }
 function renderCutoffList(){
- const rows = DB.cutoffs||[];
+ const rows = bd().cutoffs||[];
  const body = document.getElementById('cutoffListBody');
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="3">—</td></tr>` :
   rows.map((d,i)=>`<tr><td class="num">${d}</td><td><button class="btn btn-sm" onclick="generateDailyReportPDF('${d}')">PDF</button></td><td><button class="btn btn-sm btn-danger" onclick="deleteCutoff(${i})">${t('deleteBtn')}</button></td></tr>`).join('');
 }
 function deleteCutoff(idx){
- const d = DB.cutoffs[idx];
+ const d = bd().cutoffs[idx];
  if(fbDb){
   writeCageConfig({cutoffs: firebase.firestore.FieldValue.arrayRemove(d)});
  } else {
-  DB.cutoffs.splice(idx,1);
+  bd().cutoffs.splice(idx,1);
   saveDB(); renderCutoffs(); renderCutoffList();
  }
  toast(t('toastEntryDeleted'));
@@ -4307,9 +4377,9 @@ function confirmBalancingCheck(){
 function _doConfirmBalancingCheck(){
  const now = new Date().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
- DB.balancingCheckLog = DB.balancingCheckLog||[];
- DB.balancingCheckLog.unshift({dt:now, staff:staffName});
- DB.lastBalancingDt = now;
+ bd().balancingCheckLog = bd().balancingCheckLog||[];
+ bd().balancingCheckLog.unshift({dt:now, staff:staffName});
+ bd().lastBalancingDt = now;
  const topEl = document.getElementById('lastBalTime');
  if(topEl) topEl.textContent = now;
  if(fbDb) writeCageConfig({lastBalancingDt: now});
@@ -4321,7 +4391,7 @@ function openBalancingCheckList(){
  openModal('modal-balancing-check-list');
 }
 function renderBalancingCheckList(){
- const rows = DB.balancingCheckLog||[];
+ const rows = bd().balancingCheckLog||[];
  const body = document.getElementById('balancingCheckListBody');
  if(!body) return;
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="2">—</td></tr>` :
@@ -4340,11 +4410,11 @@ function doCutoff(){
   const now = new Date().toISOString().slice(0,10);
   const nowDt = new Date().toISOString().slice(0,16).replace('T',' ');
   if(fbDb){
-   if(!DB.cutoffs.includes(now)) writeCageConfig({cutoffs: firebase.firestore.FieldValue.arrayUnion(now)});
+   if(!bd().cutoffs.includes(now)) writeCageConfig({cutoffs: firebase.firestore.FieldValue.arrayUnion(now)});
    writeCageConfig({lastCutoffDt: nowDt});
   } else {
-   if(!DB.cutoffs.includes(now)) DB.cutoffs.unshift(now);
-   DB.lastCutoffDt = nowDt;
+   if(!bd().cutoffs.includes(now)) bd().cutoffs.unshift(now);
+   bd().lastCutoffDt = nowDt;
    saveDB(); renderCutoffs();
   }
   document.getElementById('lastCutoff').textContent = nowDt;
@@ -4352,7 +4422,7 @@ function doCutoff(){
  });
 }
 function renderCutoffs(){
- document.getElementById('cutoffBody').innerHTML = DB.cutoffs.slice(0,2).map(d=>`<tr><td class="num">${d}</td><td><button class="btn btn-sm" onclick="generateDailyReportPDF('${d}')">PDF</button></td></tr>`).join('');
+ document.getElementById('cutoffBody').innerHTML = bd().cutoffs.slice(0,2).map(d=>`<tr><td class="num">${d}</td><td><button class="btn btn-sm" onclick="generateDailyReportPDF('${d}')">PDF</button></td></tr>`).join('');
 }
 let dailyReportCurrentDate = null;
 function generateDailyReportPDF(date){
@@ -4449,15 +4519,15 @@ function confirmMonthSettleReset(){
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  const monthRecord = {
   dt: new Date().toISOString().slice(0,16).replace('T',' '),
-  cash: cashNow, cashChips: ccNow, rollingChips: nnNow, cum: DB.rollingGrandTotal||0, guest: guestNow,
+  cash: cashNow, cashChips: ccNow, rollingChips: nnNow, cum: bd().rollingGrandTotal||0, guest: guestNow,
  };
- DB.monthRecordLog = DB.monthRecordLog||[];
- DB.monthRecordLog.unshift(monthRecord);
+ bd().monthRecordLog = bd().monthRecordLog||[];
+ bd().monthRecordLog.unshift(monthRecord);
 
  if(fbDb){
   // Cloud totals are derived from event collections — zero them going forward with
   // compensating entries instead of mutating the (non-existent, always-recomputed) local totals.
-  const curRollingGrandTotal = DB.rollingGrandTotal||0;
+  const curRollingGrandTotal = bd().rollingGrandTotal||0;
   if(curRollingGrandTotal) writeMainCageEntry('reset', -curRollingGrandTotal, staffName);
   SHIFT_FIELDS.forEach(field=>{
    const val = getShiftVal(field);
@@ -4467,20 +4537,17 @@ function confirmMonthSettleReset(){
    if(g.rolling) writeRollingEvent({gameId:g.gameId, amount:-g.rolling, staff:staffName, memo:'month-settle-reset'});
   });
  } else {
-  DB.rollingGrandTotal = 0;
+  bd().rollingGrandTotal = 0;
   DB.rollingDailyTotal = 0;
-  DB.rollingCashShift = 0;
-  DB.chipInShift = 0;
-  DB.cashOutShift = 0;
-  DB.buyinRollingShift = 0;
-  DB.nnChipInShift = 0;
-  DB.ccChipInShift = 0;
-  DB.ccCashoutShift = 0;
-  DB.cashBuyinShift = 0;
-  DB.workingChipRollingShift = 0;
-  DB.nnCashoutShift = 0;
-  DB.nnMarkerShift = 0;
-  DB.ccMarkerShift = 0;
+  bd().rollingCashShift = 0;
+  bd().buyinRollingShift = 0;
+  bd().nnChipInShift = 0;
+  bd().ccChipInShift = 0;
+  bd().cashBuyinShift = 0;
+  bd().workingChipRollingShift = 0;
+  bd().nnCashoutShift = 0;
+  bd().nnMarkerShift = 0;
+  bd().ccMarkerShift = 0;
   (DB.games||[]).forEach(g=>{ g.rolling = 0; g.lastAdded = 0; });
  }
 
@@ -4502,14 +4569,14 @@ function confirmMonthSettleReset(){
    monthRecordLog: firebase.firestore.FieldValue.arrayUnion(monthRecord),
   });
  } else {
-  DB.settleGameOutBaseline = settleGameOutBaseline;
-  DB.settleEndedRollingBaseline = settleEndedRollingBaseline;
-  DB.settleLedgerNetBaseline = ledgerNetNow;
-  DB.lastMonthSettleDt = now;
+  bd().settleGameOutBaseline = settleGameOutBaseline;
+  bd().settleEndedRollingBaseline = settleEndedRollingBaseline;
+  bd().settleLedgerNetBaseline = ledgerNetNow;
+  bd().lastMonthSettleDt = now;
  }
 
  // Clear physical breakdown counts so staff recounts fresh next period.
- DB.breakdownCounts = {cash:{}, nn:{}, cc:{}};
+ bd().breakdownCounts = {cash:{}, nn:{}, cc:{}};
  renderBreakdownTable('cashBreakBody', CASH_DENOMS, 'cash');
  renderBreakdownTable('nnBreakBody', NN_DENOMS, 'nn');
  renderBreakdownTable('ccBreakBody', CC_DENOMS, 'cc');
@@ -4685,7 +4752,7 @@ function renderBranchRecord(){
    <td class="num">${fmt(r.bal)}</td><td>${r.staff}</td></tr>`).join('');
 }
 function renderMonthRecords(){
- const combined = [...(DB.monthRecordLog||[]), ...MONTH_MOCK];
+ const combined = [...(bd().monthRecordLog||[]), ...MONTH_MOCK];
  const html = combined.map(r=>`<tr><td class="num">${r.dt}</td><td class="num">${fmt(r.cash)}</td><td class="num">${fmt(r.cashChips)}</td><td class="num">${fmt(r.rollingChips)}</td><td class="num">${fmt(r.cum)}</td></tr>`).join('');
  document.getElementById('monthRecBody').innerHTML = html.replace(/<\/td><\/tr>/g,'</td></tr>');
  document.getElementById('monthRecBodyModal').innerHTML = combined.map(r=>`<tr><td class="num">${r.dt}</td><td class="num">${fmt(r.cash)}</td><td class="num">${fmt(r.cashChips)}</td><td class="num">${fmt(r.rollingChips)}</td><td class="num">${fmt(r.guest)}</td></tr>`).join('');
@@ -5089,8 +5156,10 @@ document.getElementById('loginOtp').addEventListener('keydown', e=>{
 (async function init(){
  DB = await loadDB();
  const nowStr = new Date().toISOString().slice(0,16).replace('T',' ');
- if(!DB.lastBalancingDt) DB.lastBalancingDt = nowStr;
- if(!DB.lastCutoffDt) DB.lastCutoffDt = nowStr;
+ if(!bd().lastBalancingDt) bd().lastBalancingDt = nowStr;
+ if(!bd().lastCutoffDt) bd().lastCutoffDt = nowStr;
+ const branchSelEl = document.getElementById('branchSel');
+ if(branchSelEl) branchSelEl.value = currentBranch();
  initSig();
  renderBreakdowns();
  renderStaffDropdowns();

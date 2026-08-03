@@ -418,8 +418,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <button data-view="game" onclick="switchView('game')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.6"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.7 5.7l2.1 2.1M16.2 16.2l2.1 2.1M5.7 18.3l2.1-2.1M16.2 7.8l2.1-2.1"/></svg></span><span data-i18n="navGame"></span></button>
     <button data-view="balancing" onclick="switchView('balancing')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v17M7.5 20h9"/><path d="M4.5 7h6M13.5 7h6"/><path d="M4.5 7l-3 6a3 3 0 0 0 6 0z"/><path d="M19.5 7l-3 6a3 3 0 0 0 6 0z"/></svg></span><span data-i18n="navBalancing"></span></button>
     <button data-view="points" onclick="switchView('points')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20M9 3l-3 6 6 12 6-12-3-6"/></svg></span><span data-i18n="navPoints"></span></button>
-    <button data-view="registration" onclick="switchView('registration')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M18 7.5v5M15.5 10h5"/></svg></span><span data-i18n="navRegistration"></span></button>
     <button data-view="reports" onclick="switchView('reports')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1z"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/></svg></span><span data-i18n="navReports"></span></button>
+    <button data-view="registration" onclick="switchView('registration')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M18 7.5v5M15.5 10h5"/></svg></span><span data-i18n="navRegistration"></span></button>
     <button data-view="concierge" onclick="switchView('concierge')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M2 17h20"/><circle cx="12" cy="4.6" r="1.1" fill="currentColor" stroke="none"/></svg></span><span data-i18n="navConcierge"></span></button>
     <div class="nav-foot">Junket Cage Ops<br>International Standard</div>
   </div>
@@ -434,7 +434,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="card">
           <h3 data-i18n="account"></h3>
           <div class="row" style="margin-bottom:10px;position:relative;">
-            <input id="accSearch" placeholder="" data-i18n-ph="accSearchPh" autocomplete="off" oninput="searchMainAcc(this.value)" onfocus="searchMainAcc(this.value)">
+            <input id="accSearch" placeholder="" data-i18n-ph="accSearchPh" autocomplete="off" oninput="uppercaseInput(this);searchMainAcc(this.value)" onfocus="searchMainAcc(this.value)">
             <button class="btn btn-sm" id="accSearchBtn" style="flex:0 0 auto;" onclick="handleAccSearchBtn()" data-i18n="search"></button>
             <div class="transfer-acc-results" id="mainAccResults"></div>
           </div>
@@ -459,7 +459,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           <h3 data-i18n="transferTo"></h3>
           <div class="field" style="position:relative;">
             <label data-i18n="transferAccSearch"></label>
-            <input id="transferAccSearch" autocomplete="off" data-i18n-ph="transferAccSearchPh" oninput="searchTransferAcc(this.value)" onfocus="searchTransferAcc(this.value)">
+            <input id="transferAccSearch" autocomplete="off" data-i18n-ph="transferAccSearchPh" oninput="uppercaseInput(this);searchTransferAcc(this.value)" onfocus="searchTransferAcc(this.value)">
             <div class="transfer-acc-results" id="transferAccResults"></div>
           </div>
           <div class="field"><label data-i18n="regEngName"></label><input id="transferEngName" disabled></div>
@@ -580,7 +580,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <h3 data-i18n="midSettleTitle"></h3>
             <div class="field" style="position:relative;">
               <label data-i18n="account"></label>
-              <input id="midAccSearch" autocomplete="off" data-i18n-ph="accSearchPh" oninput="searchMidAcc(this.value)" onfocus="searchMidAcc(this.value)">
+              <input id="midAccSearch" autocomplete="off" data-i18n-ph="accSearchPh" oninput="uppercaseInput(this);searchMidAcc(this.value)" onfocus="searchMidAcc(this.value)">
               <div class="transfer-acc-results" id="midAccResults"></div>
             </div>
             <div class="row">
@@ -642,7 +642,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             </div>
             <div class="field" style="position:relative;">
               <label data-i18n="account"></label>
-              <input id="settleAccSearch" autocomplete="off" data-i18n-ph="accSearchPh" oninput="searchSettleAcc(this.value)" onfocus="searchSettleAcc(this.value)">
+              <input id="settleAccSearch" autocomplete="off" data-i18n-ph="accSearchPh" oninput="uppercaseInput(this);searchSettleAcc(this.value)" onfocus="searchSettleAcc(this.value)">
               <div class="transfer-acc-results" id="settleAccResults"></div>
             </div>
             <div class="field"><label data-i18n="gameIdLabel"></label>
@@ -673,7 +673,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <h3 data-i18n="gameEndTitle"></h3>
             <div class="field" style="position:relative;">
               <label data-i18n="account"></label>
-              <input id="endAccSearch" autocomplete="off" data-i18n-ph="accSearchPh" oninput="searchEndAcc(this.value)" onfocus="searchEndAcc(this.value)">
+              <input id="endAccSearch" autocomplete="off" data-i18n-ph="accSearchPh" oninput="uppercaseInput(this);searchEndAcc(this.value)" onfocus="searchEndAcc(this.value)">
               <div class="transfer-acc-results" id="endAccResults"></div>
             </div>
             <div class="row">
@@ -842,7 +842,10 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="grid grid-io">
           <div class="card">
             <h3 data-i18n="hotelTitle"></h3>
-            <div class="field"><label data-i18n="colAccount"></label><input id="hAccount" placeholder="SE7419"></div>
+            <div class="field" style="position:relative;"><label data-i18n="colAccount"></label>
+              <input id="hAccount" autocomplete="off" data-i18n-ph="accSearchPh" oninput="uppercaseInput(this);searchHotelAcc(this.value)" onfocus="searchHotelAcc(this.value)">
+              <div class="transfer-acc-results" id="hAccountResults"></div>
+            </div>
             <div class="field"><label data-i18n="hotelGuestName"></label><input id="hGuest"></div>
             <div class="row">
               <div class="field"><label data-i18n="hotelCheckin"></label><input id="hCheckin" type="date"></div>
@@ -881,7 +884,10 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="grid grid-io">
           <div class="card">
             <h3 data-i18n="carTitle"></h3>
-            <div class="field"><label data-i18n="colAccount"></label><input id="cAccount2" placeholder="SE7419"></div>
+            <div class="field" style="position:relative;"><label data-i18n="colAccount"></label>
+              <input id="cAccount2" autocomplete="off" data-i18n-ph="accSearchPh" oninput="uppercaseInput(this);searchCarAcc(this.value)" onfocus="searchCarAcc(this.value)">
+              <div class="transfer-acc-results" id="cAccount2Results"></div>
+            </div>
             <div class="field"><label data-i18n="carGuestName"></label><input id="cGuestName"></div>
             <div class="row">
               <div class="field"><label data-i18n="carDate"></label><input id="cDate2" type="date"></div>
@@ -917,7 +923,10 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="grid grid-io">
           <div class="card">
             <h3 data-i18n="aeroTitle"></h3>
-            <div class="field"><label data-i18n="colAccount"></label><input id="aAccount" placeholder="SE7419"></div>
+            <div class="field" style="position:relative;"><label data-i18n="colAccount"></label>
+              <input id="aAccount" autocomplete="off" data-i18n-ph="accSearchPh" oninput="uppercaseInput(this);searchAeroAcc(this.value)" onfocus="searchAeroAcc(this.value)">
+              <div class="transfer-acc-results" id="aAccountResults"></div>
+            </div>
             <div class="field"><label data-i18n="aeroGuestName"></label><input id="aGuestName"></div>
             <div class="row">
               <div class="field"><label data-i18n="aeroDirection"></label>
@@ -963,7 +972,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           <h3 data-i18n="pointsBalance"></h3>
           <div class="field" style="position:relative;">
             <label data-i18n="account"></label>
-            <input id="pointsAccSearch" autocomplete="off" data-i18n-ph="accSearchPh" oninput="searchPointsAcc(this.value)" onfocus="searchPointsAcc(this.value)">
+            <input id="pointsAccSearch" autocomplete="off" data-i18n-ph="accSearchPh" oninput="uppercaseInput(this);searchPointsAcc(this.value)" onfocus="searchPointsAcc(this.value)">
             <div class="transfer-acc-results" id="pointsAccResults"></div>
           </div>
           <div class="ticket"><div class="lbl" data-i18n="pointsBalance"></div><div class="amt num" id="pointsBalanceDisp">0</div></div>
@@ -999,7 +1008,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <div class="field"><label data-i18n="eventRateLabel"></label><input id="eventRate"></div>
           </div>
           <div class="row">
-            <button class="btn" onclick="setEventPeriod()" data-i18n="eventSetBtn"></button>
+            <button class="btn" onclick="activateEvent()" data-i18n="eventSetBtn"></button>
             <button class="btn btn-danger" onclick="endEventNow()" data-i18n="eventEndBtn"></button>
           </div>
           <p class="hint" id="eventApplyBox" style="display:none;" data-i18n="eventAutoHint"></p>
@@ -1285,7 +1294,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="modal-close" onclick="closeModal('modal-daily-io')">×</button>
   <h3 data-i18n="dailyIoTitle"></h3>
   <div class="row" style="margin-top:10px;">
-    <div class="field"><label data-i18n="colAccount"></label><input id="dailyIoAccSearch" data-i18n-ph="accSearchPh" oninput="renderDailyIo()"></div>
+    <div class="field"><label data-i18n="colAccount"></label><input id="dailyIoAccSearch" data-i18n-ph="accSearchPh" oninput="uppercaseInput(this);renderDailyIo()"></div>
     <div class="field"><label data-i18n="periodStartLabel"></label><input id="dailyIoStart" type="date" oninput="renderDailyIo()"></div>
     <div class="field"><label data-i18n="periodEndLabel"></label><input id="dailyIoEnd" type="date" oninput="renderDailyIo()"></div>
   </div>
@@ -1359,7 +1368,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="modal-close" onclick="closeModal('modal-ledger-list')">×</button>
   <h3 data-i18n="ledgerListTitle"></h3>
   <div class="row" style="margin-top:10px;">
-    <div class="field"><label data-i18n="colAccount"></label><input id="ledgerListAccSearch" data-i18n-ph="accSearchPh" oninput="renderLedgerList()"></div>
+    <div class="field"><label data-i18n="colAccount"></label><input id="ledgerListAccSearch" data-i18n-ph="accSearchPh" oninput="uppercaseInput(this);renderLedgerList()"></div>
     <div class="field"><label data-i18n="periodStartLabel"></label><input id="ledgerListStart" type="date" oninput="renderLedgerList()"></div>
     <div class="field"><label data-i18n="periodEndLabel"></label><input id="ledgerListEnd" type="date" oninput="renderLedgerList()"></div>
   </div>
@@ -2152,7 +2161,7 @@ ko:{
  pointsTitle:"포인트",
  pointsBalance:"보유 포인트", pointsUseAmt:"사용 포인트", pointsUseReason:"비고", pointsUseBtn:"포인트 사용", pointsHistoryTitle:"포인트 내역", pointsGrantAmt:"지급 포인트", pointsGrantBtn:"포인트 지급",
  eventTitle:"이벤트", eventOn:"활성화됨", eventOnTop:"이벤트 활성화됨", eventOff:"비활성화", eventRateLabel:"이벤트 커미션율(%)", eventCommAmtLabel:"이벤트 커미션 지급액",
- eventStartLabel:"시작일", eventEndLabel:"종료일", eventSetBtn:"기간 설정", eventEndBtn:"종료", eventLogBtn:"기록", toastEventEnded:"이벤트가 종료되었습니다.",
+ eventStartLabel:"시작일", eventEndLabel:"종료일", eventSetBtn:"이벤트 활성화", eventEndBtn:"종료", eventLogBtn:"기록", toastEventEnded:"이벤트가 종료되었습니다.",
  toastEventPeriodMissing:"시작일과 종료일을 모두 입력하세요.", toastEventPeriodInvalid:"종료일은 시작일보다 빠를 수 없습니다.", toastEventPeriodSet:"이벤트 기간이 설정되었습니다.",
  eventPayBtn:"이벤트 커미션 지급", eventHistoryTitle:"이벤트 커미션 지급 내역", eventInactiveHint:"이벤트를 활성화하면 롤링 커미션을 추가로 지급할 수 있습니다.", eventAutoHint:"이벤트 기간 중 롤링 커미션을 정산하면 이벤트 커미션이 자동으로 계좌에 입금됩니다.",
  toastEventInactive:"먼저 이벤트를 활성화하세요.", toastEventPaid:"이벤트 커미션이 지급되었습니다.", notifEvent:"이벤트 커미션 지급",
@@ -2277,7 +2286,7 @@ en:{
  pointsTitle:"Points",
  pointsBalance:"Points Balance", pointsUseAmt:"Points to Use", pointsUseReason:"Remarks", pointsUseBtn:"Use Points", pointsHistoryTitle:"Points History", pointsGrantAmt:"Points to Grant", pointsGrantBtn:"Grant Points",
  eventTitle:"Event", eventOn:"Active", eventOnTop:"Event Active", eventOff:"Inactive", eventRateLabel:"Event Commission Rate (%)", eventCommAmtLabel:"Event Commission Amount",
- eventStartLabel:"Start Date", eventEndLabel:"End Date", eventSetBtn:"Set Period", eventEndBtn:"End", eventLogBtn:"Records", toastEventEnded:"Event ended.",
+ eventStartLabel:"Start Date", eventEndLabel:"End Date", eventSetBtn:"Activate Event", eventEndBtn:"End", eventLogBtn:"Records", toastEventEnded:"Event ended.",
  toastEventPeriodMissing:"Enter both a start and end date.", toastEventPeriodInvalid:"End date cannot be before the start date.", toastEventPeriodSet:"Event period set.",
  eventPayBtn:"Pay Event Commission", eventHistoryTitle:"Event Commission History", eventInactiveHint:"Activate the event to pay additional rolling commission.", eventAutoHint:"While the event is active, event commission is paid automatically to the account whenever a rolling commission is settled.",
  toastEventInactive:"Activate the event first.", toastEventPaid:"Event commission paid.", notifEvent:"Event Commission Paid",
@@ -2402,7 +2411,7 @@ en:{
  pointsTitle:"積分",
  pointsBalance:"積分餘額", pointsUseAmt:"使用積分", pointsUseReason:"備註", pointsUseBtn:"使用積分", pointsHistoryTitle:"積分紀錄", pointsGrantAmt:"發放積分", pointsGrantBtn:"積分發放",
  eventTitle:"活動", eventOn:"已啟用", eventOnTop:"活動進行中", eventOff:"未啟用", eventRateLabel:"活動佣金率(%)", eventCommAmtLabel:"活動佣金發放金額",
- eventStartLabel:"開始日期", eventEndLabel:"結束日期", eventSetBtn:"設定期間", eventEndBtn:"結束", eventLogBtn:"紀錄", toastEventEnded:"活動已結束。",
+ eventStartLabel:"開始日期", eventEndLabel:"結束日期", eventSetBtn:"啟用活動", eventEndBtn:"結束", eventLogBtn:"紀錄", toastEventEnded:"活動已結束。",
  toastEventPeriodMissing:"請輸入開始與結束日期。", toastEventPeriodInvalid:"結束日期不能早於開始日期。", toastEventPeriodSet:"活動期間已設定。",
  eventPayBtn:"發放活動佣金", eventHistoryTitle:"活動佣金發放紀錄", eventInactiveHint:"啟用活動後即可額外發放轉碼佣金。", eventAutoHint:"活動期間內結算轉碼佣金時，活動佣金將自動存入帳戶。",
  toastEventInactive:"請先啟用活動。", toastEventPaid:"活動佣金已發放。", notifEvent:"活動佣金發放",
@@ -2527,7 +2536,7 @@ en:{
  pointsTitle:"积分",
  pointsBalance:"积分余额", pointsUseAmt:"使用积分", pointsUseReason:"备注", pointsUseBtn:"使用积分", pointsHistoryTitle:"积分记录", pointsGrantAmt:"发放积分", pointsGrantBtn:"积分发放",
  eventTitle:"活动", eventOn:"已启用", eventOnTop:"活动进行中", eventOff:"未启用", eventRateLabel:"活动佣金率(%)", eventCommAmtLabel:"活动佣金发放金额",
- eventStartLabel:"开始日期", eventEndLabel:"结束日期", eventSetBtn:"设置期间", eventEndBtn:"结束", eventLogBtn:"记录", toastEventEnded:"活动已结束。",
+ eventStartLabel:"开始日期", eventEndLabel:"结束日期", eventSetBtn:"启用活动", eventEndBtn:"结束", eventLogBtn:"记录", toastEventEnded:"活动已结束。",
  toastEventPeriodMissing:"请输入开始和结束日期。", toastEventPeriodInvalid:"结束日期不能早于开始日期。", toastEventPeriodSet:"活动期间已设置。",
  eventPayBtn:"发放活动佣金", eventHistoryTitle:"活动佣金发放记录", eventInactiveHint:"启用活动后即可额外发放转码佣金。", eventAutoHint:"活动期间内结算转码佣金时，活动佣金将自动存入账户。",
  toastEventInactive:"请先启用活动。", toastEventPaid:"活动佣金已发放。", notifEvent:"活动佣金发放",
@@ -2728,6 +2737,11 @@ async function saveDB(){
 
 function fmt(n){ return Number(n||0).toLocaleString('en-US'); }
 function unformatNum(v){ return Number(String(v||'0').replace(/,/g,'')) || 0; }
+function uppercaseInput(el){
+ const pos = el.selectionStart;
+ el.value = el.value.toUpperCase();
+ if(pos !== null) el.setSelectionRange(pos, pos);
+}
 function formatNumInput(el){
  let v = el.value;
  const neg = v.trim().startsWith('-');
@@ -3645,7 +3659,7 @@ function _doSettleGame(){
   if(fbDb) writeGameDoc(g, 'ended');
  }
  DB.settled = DB.settled||[];
- DB.settled.push({gameId:g.gameId, account:g.account, dt, buyin:g.buyin, cashout, winLoss, rolling:g.rolling, commission, fb, result, staff:staffName});
+ DB.settled.push({gameId:g.gameId, account:g.account, cur:g.cur, dt, buyin:g.buyin, cashout, winLoss, rolling:g.rolling, commission, fb, result, staff:staffName});
  if(result > 0){
   applyAccountTransaction(g.account, 'IN', result, `${t('memoRollingSettle')} (${g.gameId})`);
   renderMemberCard(); renderLedger();
@@ -4817,6 +4831,61 @@ document.getElementById('conciergeTabs').addEventListener('click', e=>{
  ['hotel','car','aero'].forEach(k=>{ document.getElementById('ctab-'+k).style.display = (k===btn.dataset.ctab)?'block':'none'; });
 });
 
+function searchHotelAcc(query){
+ const box = document.getElementById('hAccountResults');
+ query = (query||'').trim().toUpperCase();
+ if(!query){ box.style.display='none'; box.innerHTML=''; return; }
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ box.innerHTML = !matches.length
+  ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
+  : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickHotelAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
+ box.style.display='block';
+}
+function pickHotelAcc(id){
+ document.getElementById('hAccount').value = id;
+ document.getElementById('hAccountResults').style.display='none';
+}
+document.addEventListener('click', e=>{
+ const box = document.getElementById('hAccountResults');
+ if(box && !e.target.closest('#hAccount') && !e.target.closest('#hAccountResults')) box.style.display='none';
+});
+function searchCarAcc(query){
+ const box = document.getElementById('cAccount2Results');
+ query = (query||'').trim().toUpperCase();
+ if(!query){ box.style.display='none'; box.innerHTML=''; return; }
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ box.innerHTML = !matches.length
+  ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
+  : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickCarAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
+ box.style.display='block';
+}
+function pickCarAcc(id){
+ document.getElementById('cAccount2').value = id;
+ document.getElementById('cAccount2Results').style.display='none';
+}
+document.addEventListener('click', e=>{
+ const box = document.getElementById('cAccount2Results');
+ if(box && !e.target.closest('#cAccount2') && !e.target.closest('#cAccount2Results')) box.style.display='none';
+});
+function searchAeroAcc(query){
+ const box = document.getElementById('aAccountResults');
+ query = (query||'').trim().toUpperCase();
+ if(!query){ box.style.display='none'; box.innerHTML=''; return; }
+ const matches = Object.keys(DB.accounts).filter(id => id.includes(query)).slice(0,6);
+ box.innerHTML = !matches.length
+  ? `<div class="transfer-acc-item empty">${t('transferNoMatch')}</div>`
+  : matches.map(id=>`<div class="transfer-acc-item" onmousedown="pickAeroAcc('${id}')"><b>${id}</b><span>${DB.accounts[id].member}</span></div>`).join('');
+ box.style.display='block';
+}
+function pickAeroAcc(id){
+ document.getElementById('aAccount').value = id;
+ document.getElementById('aAccountResults').style.display='none';
+}
+document.addEventListener('click', e=>{
+ const box = document.getElementById('aAccountResults');
+ if(box && !e.target.closest('#aAccount') && !e.target.closest('#aAccountResults')) box.style.display='none';
+});
+
 const HOTEL_QUEEN_TWIN_ROOMS = ['SUPERIOR ROOM','EXECUTIVE SUPERIOR','DELUXE ROOM','EXECUTIVE DELUXE'];
 function updateHotelBedType(){
  const room = document.getElementById('hRoomType').value;
@@ -5044,14 +5113,15 @@ function renderPoints(){
 }
 
 /* ---- Event Rolling Commission ---- */
-function setEventPeriod(){
- const start = document.getElementById('eventStartDate').value;
+function activateEvent(){
+ const nowStr = phNow().toISOString().slice(0,16);
  const end = document.getElementById('eventEndDate').value;
- if(!start || !end){ toast(t('toastEventPeriodMissing')); return; }
- if(end < start){ toast(t('toastEventPeriodInvalid')); return; }
- DB.eventStart = start;
+ if(!end){ toast(t('toastEventPeriodMissing')); return; }
+ if(end < nowStr){ toast(t('toastEventPeriodInvalid')); return; }
+ DB.eventStart = nowStr;
  DB.eventEnd = end;
  DB.eventRate = document.getElementById('eventRate').value.trim() || '1.00';
+ document.getElementById('eventStartDate').value = nowStr;
  saveDB();
  renderEventToggle();
  toast(t('toastEventPeriodSet'));

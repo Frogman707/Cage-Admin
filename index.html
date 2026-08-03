@@ -130,7 +130,8 @@ input[type="datetime-local"]{min-width:150px;}
 .field input:hover,.field select:hover,.field textarea:hover,#accSearch:hover,.breakdown-input:hover{border-color:var(--brass-dim);}
 .field input:focus,.field select:focus,.field textarea:focus,#accSearch:focus,.breakdown-input:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(217,178,106,.12);}
 .field input::placeholder,.field textarea::placeholder,#accSearch::placeholder,.breakdown-input::placeholder{color:var(--ink-faint);opacity:.7;}
-.row{display:flex;gap:10px;}
+.row{display:flex;gap:10px;flex-wrap:wrap;}
+.row > .field{flex:1 1 150px;min-width:150px;}
 .row > *{flex:1;}
 
 .btn{
@@ -202,6 +203,7 @@ tr:hover td{background:var(--panel-raised);}
 
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(8,9,4,.72);z-index:100;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow-y:auto;opacity:0;transition:opacity .18s ease;}
 .modal-bg.open{display:flex;opacity:1;}
+#modal-cage-pin-auth, #modal-withdraw-pw, #modal-withdraw-pin{z-index:200;}
 .modal{background:var(--panel);border:1px solid var(--brass-dim);border-radius:6px;width:560px;max-width:100%;padding:22px 24px;transform:translateY(-10px) scale(.98);transition:transform .18s ease;}
 .modal-bg.open .modal{transform:translateY(0) scale(1);}
 .modal h3{font-family:var(--serif);font-weight:700;color:var(--brass);font-size:17px;margin:0 0 4px;}
@@ -645,7 +647,10 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             </div>
             <div class="field"><label data-i18n="gameIdLabel"></label>
               <select id="settleGameId" onchange="loadSettleGame()"></select></div>
-            <div class="field"><label data-i18n="gameTypeFld"></label><input id="settleType" disabled></div>
+            <div class="row">
+              <div class="field"><label data-i18n="gameTypeFld"></label><input id="settleType" disabled></div>
+              <div class="field"><label data-i18n="totalRollingLabel"></label><input id="settleTotalRolling" class="num" disabled></div>
+            </div>
             <div class="row">
               <div class="field"><label data-i18n="rollingComm"></label><input id="settleRolling" class="num" disabled></div>
               <div class="field"><label data-i18n="fbDiscount"></label><input id="settleFb" type="text" inputmode="numeric" class="fmt-num" value="0" oninput="formatNumInput(this)"></div>
@@ -975,7 +980,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="card">
           <h3 data-i18n="pointsHistoryTitle"></h3>
           <div class="table-wrap"><table>
-            <thead><tr><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="colReason"></th><th data-i18n="colPointsChange"></th><th data-i18n="colPointsBalance"></th></tr></thead>
+            <thead><tr><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="colPointsChange"></th><th data-i18n="colPointsBalance"></th><th data-i18n="pointsUseReason"></th></tr></thead>
             <tbody id="pointsHistBody"></tbody>
           </table></div>
         </div>
@@ -1567,7 +1572,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   </div>
   <div class="field" id="wdAuthLinkBox" style="display:none;margin-top:8px;"><input id="wdAuthLinkVal" readonly onclick="this.select()"></div>
   <button class="btn btn-block" style="margin-top:8px;" onclick="cancelWithdrawAuth()" data-i18n="cancelBtn"></button>
-  <div class="login-hint" data-i18n="wdAuthPwHint"></div>
 </div></div>
 
 <div class="modal-bg" id="modal-withdraw-pin"><div class="modal auth-modal">
@@ -1597,6 +1601,9 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
+/* Philippines Standard Time (UTC+8, no DST) — used for every timestamp the app records. */
+function phNow(){ return new Date(Date.now() + 8*3600000); }
+
 /* ============================================================
    FIRESTORE — cloud sync (staff collection, phase 1)
    ============================================================ */
@@ -1694,7 +1701,7 @@ function subscribeLedgerCloud(){
 function writeLedgerEntry(opts){
  const {accountId, casino, type, amount, staff, memo} = opts;
  const id = 'ldg_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const entry = {id, accountId, casino, dt:now, type, inn: type==='IN'?amount:0, out: type==='OUT'?amount:0, staff, memo};
  if(fbDb){
   fbDb.collection('ledger').doc(id).set(entry).catch(()=>{});
@@ -1827,7 +1834,7 @@ function writeRollingEvent(opts){
  const {gameId, amount, staff, memo} = opts;
  if(!fbDb || !amount) return null;
  const id = 'rev_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const entry = {id, gameId, amount, dt:now, staff, memo:memo||''};
  fbDb.collection('rollingEvents').doc(id).set(entry).catch(()=>{});
  return entry;
@@ -1934,7 +1941,7 @@ function subscribeMainCageLedgerCloud(){
 function writeMainCageEntry(type, amt, staff){
  if(!fbDb) return null;
  const id = 'mcl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const entry = {id, type, amt, dt:now, staff, branch:currentBranch()};
  fbDb.collection('mainCageLedger').doc(id).set(entry).catch(()=>{});
  return entry;
@@ -1953,7 +1960,7 @@ async function seedShiftEventsToCloudIfEmpty(){
   const snap = await fbDb.collection('shiftEvents').where('branch','==',branch).limit(1).get();
   if(snap.empty){
    const batch = fbDb.batch();
-   const now = new Date().toISOString().slice(0,16).replace('T',' ');
+   const now = phNow().toISOString().slice(0,16).replace('T',' ');
    let any = false;
    SHIFT_FIELDS.forEach(field=>{
     const val = bd()[field]||0;
@@ -1988,7 +1995,7 @@ function subscribeShiftEventsCloud(){
 function writeShiftEvent(field, delta, staff){
  if(!fbDb || !delta) return;
  const id = 'shf_'+Date.now()+'_'+Math.random().toString(36).slice(2,9)+'_'+field;
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  fbDb.collection('shiftEvents').doc(id).set({id, field, delta, dt:now, staff:staff||'', branch:currentBranch()}).catch(()=>{});
 }
 function applyShift(field, delta, staff){
@@ -3304,7 +3311,7 @@ function deleteLedgerEntry(account, idx){
 function updateGameIdPreview(){
  const el = document.getElementById('gGameIdPreview');
  if(!el) return;
- const now = new Date();
+ const now = phNow();
  el.value = now.toISOString().slice(2,10).replace(/-/g,'') + String(DB.nextGameSeq).padStart(3,'0');
 }
 function updateGameAccBalance(){
@@ -3390,7 +3397,7 @@ function _doStartGame(account, buyin, workingChip, enteredId){
  const type = document.getElementById('gType').value;
  const startType = document.getElementById('gStartType').value;
  const startKind = document.getElementById('gStartKind').value;
- const now = new Date();
+ const now = phNow();
  const autoId = now.toISOString().slice(2,10).replace(/-/g,'') + String(DB.nextGameSeq).padStart(3,'0');
  const gameId = enteredId || autoId;
  DB.nextGameSeq++;
@@ -3507,9 +3514,9 @@ function confirmRollingInput(){
   if(fbDb){
    writeRollingEvent({gameId, amount, staff:staffName, memo:''});
   } else {
-   const now = new Date();
+   const now = phNow();
    const dateStr = now.toISOString().slice(0,10);
-   const timeStr = now.toTimeString().slice(0,8);
+   const timeStr = now.toISOString().slice(11,19);
    g.rolling = (g.rolling||0) + amount;
    g.lastAdded = amount;
    g.rollingLog = g.rollingLog||[];
@@ -3559,6 +3566,7 @@ function populateSettleSelect(){
  if(ended.length) loadSettleGame();
  else {
   document.getElementById('settleType').value='';
+  document.getElementById('settleTotalRolling').value='';
   document.getElementById('settleRolling').value='';
   document.getElementById('settleResult').textContent='0';
   document.getElementById('receiptBox').innerHTML='';
@@ -3573,6 +3581,7 @@ function loadSettleGame(){
  if(!g) return;
  document.getElementById('settleAccSearch').value = g.account;
  document.getElementById('settleType').value = g.type;
+ document.getElementById('settleTotalRolling').value = fmt(g.rolling||0);
  const rateMatch = g.type.match(/([\d.]+)%/);
  const rate = rateMatch ? Number(rateMatch[1])/100 : 0;
  const comm = Math.round((g.rolling||0)*rate);
@@ -3629,9 +3638,8 @@ function _doSettleGame(){
  const isEnded = Object.prototype.hasOwnProperty.call(g, 'endDt');
  const cashout = isEnded ? (g.buyin||0) + (g.winLoss||0) : null;
  const winLoss = isEnded ? g.winLoss : null;
- const dt = isEnded ? g.endDt : new Date().toISOString().slice(0,16).replace('T',' ');
+ const dt = isEnded ? g.endDt : phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
- renderReceipt(g, commission, fb, result, cashout, winLoss, dt, staffName);
  if(isEnded){
   g.settled = true;
   if(fbDb) writeGameDoc(g, 'ended');
@@ -3644,6 +3652,10 @@ function _doSettleGame(){
  }
  payEventCommissionForSettle(g.account, g.rolling||0);
  saveDB(); populateSettleSelect(); renderEndedGames();
+ // Render the receipt last: populateSettleSelect() re-filters the ended-game dropdown (the
+ // just-settled game no longer matches) and clears #receiptBox as part of that refresh, so the
+ // receipt must be drawn afterward or it gets wiped immediately.
+ renderReceipt(g, commission, fb, result, cashout, winLoss, dt, staffName);
  pushNotification('notifGameSettle', `${g.gameId} · ${g.account} · ${fmt(result)}`);
  toast(t('toastSettled'));
 }
@@ -3738,10 +3750,10 @@ function _doConfirmMidSettle(){
   marker: unformatNum(document.getElementById('midNnMarker').value),
   working: unformatNum(document.getElementById('midNnWorking').value),
  };
- // NN chip cashout / marker redeem / working chips are deducted from rolling
- const added = nn.deposit - nn.cashout - nn.marker - nn.working;
+ // NN chip deposit / cashout / marker redeem / working chips are all deducted from rolling
+ const added = -nn.deposit - nn.cashout - nn.marker - nn.working;
  const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  g.checkpoints = g.checkpoints||[];
  g.checkpoints.unshift({dt:now, added, cc, nn, staff:floorStaff});
  if(fbDb){
@@ -3797,9 +3809,15 @@ function renderMidHistory(g){
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="10">—</td></tr>` :
   rows.map(c=>{
    const cc = c.cc||{}; const nn = c.nn||{};
+   const deposit = (cc.deposit||0) + (nn.deposit||0);
+   const cashout = (cc.cashout||0) + (nn.cashout||0);
+   const marker = (cc.marker||0) + (nn.marker||0);
+   const dealerTips = (cc.dealerTips||0) + (nn.dealerTips||0);
+   const houseTips = (cc.houseTips||0) + (nn.houseTips||0);
+   const working = (cc.working||0) + (nn.working||0);
    return `<tr><td class="num">${c.dt}</td><td>${g.account}</td><td class="num">${g.gameId}</td>
-    <td class="num">${fmt(cc.deposit)}</td><td class="num">${fmt(cc.cashout)}</td><td class="num">${fmt(cc.marker)}</td><td class="num">${fmt(cc.dealerTips)}</td><td class="num">${fmt(cc.houseTips)}</td>
-    <td class="num">${fmt(nn.working)}</td><td>${c.staff}</td></tr>`;
+    <td class="num">${fmt(deposit)}</td><td class="num">${fmt(cashout)}</td><td class="num">${fmt(marker)}</td><td class="num">${fmt(dealerTips)}</td><td class="num">${fmt(houseTips)}</td>
+    <td class="num">${fmt(working)}</td><td>${c.staff}</td></tr>`;
   }).join('');
 }
 function getAllMidCheckpoints(){
@@ -3882,7 +3900,7 @@ function recalcEnd(){
  const nnCashout = unformatNum(document.getElementById('endNnCashout').value);
  const nnMarker = unformatNum(document.getElementById('endNnMarker').value);
  const nnWorking = unformatNum(document.getElementById('endNnWorking').value);
- const netNN = nnDeposit - nnCashout - nnMarker - nnWorking;
+ const netNN = -nnDeposit - nnCashout - nnMarker - nnWorking;
  const totalRolling = (g ? (g.rolling||0) : 0) + netNN;
  const ccSum = ccDeposit + ccCashout + ccMarker + ccDealerTips + ccHouseTips;
  const nnSum = nnDeposit + nnCashout + nnMarker + nnWorking;
@@ -3921,7 +3939,7 @@ function _doConfirmGameEnd(){
   marker: unformatNum(document.getElementById('endNnMarker').value),
   working: unformatNum(document.getElementById('endNnWorking').value),
  };
- const netNN = nn.deposit - nn.cashout - nn.marker - nn.working;
+ const netNN = -nn.deposit - nn.cashout - nn.marker - nn.working;
  const totalRolling = (g.rolling||0) + netNN;
  const ccSum = cc.deposit + cc.cashout + cc.marker + cc.dealerTips + cc.houseTips;
  const nnSum = nn.deposit + nn.cashout + nn.marker + nn.working;
@@ -3933,7 +3951,7 @@ function _doConfirmGameEnd(){
  });
  const winLoss = (historicalSum + ccSum + nnSum) - (g.buyin||0);
  const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  if(fbDb){
   if(netNN) writeRollingEvent({gameId:g.gameId, amount:netNN, staff:floorStaff, memo:'game-end'});
   writeGameDoc({...g, cc, nn, winLoss, endDt:now, endStaff:floorStaff}, 'ended');
@@ -4011,7 +4029,7 @@ function shiftAction(dir){
  } else {
   DB.onDutyStaff = DB.onDutyStaff.filter(s=>s!==staff);
  }
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  DB.shiftLog = DB.shiftLog || [];
  DB.shiftLog.unshift({dt:now, staff, action:dir});
  renderShiftStaff();
@@ -4129,7 +4147,7 @@ function submitStaffForm(){
   toast(t('toastStaffUpdated'));
  } else {
   const id = 'STF-'+Date.now();
-  const now = new Date().toISOString().slice(0,16).replace('T',' ');
+  const now = phNow().toISOString().slice(0,16).replace('T',' ');
   writeStaffDoc({id, name, pin: pin || String(Math.floor(1000+Math.random()*9000)), dt: now});
   toast(t('toastStaffRegistered'));
  }
@@ -4295,7 +4313,7 @@ function _doProcessMainCage(type, amt){
  } else if(type==='redeem'){
   DB.mainCageNNAdjust += amt;
  }
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  if(fbDb){
   writeMainCageEntry(type, amt, staffName);
@@ -4375,7 +4393,7 @@ function confirmBalancingCheck(){
  requestPinAuth(_doConfirmBalancingCheck);
 }
 function _doConfirmBalancingCheck(){
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  bd().balancingCheckLog = bd().balancingCheckLog||[];
  bd().balancingCheckLog.unshift({dt:now, staff:staffName});
@@ -4407,8 +4425,8 @@ function renderBreakdowns(){
 }
 function doCutoff(){
  requestPinAuth(()=>{
-  const now = new Date().toISOString().slice(0,10);
-  const nowDt = new Date().toISOString().slice(0,16).replace('T',' ');
+  const now = phNow().toISOString().slice(0,10);
+  const nowDt = phNow().toISOString().slice(0,16).replace('T',' ');
   if(fbDb){
    if(!bd().cutoffs.includes(now)) writeCageConfig({cutoffs: firebase.firestore.FieldValue.arrayUnion(now)});
    writeCageConfig({lastCutoffDt: nowDt});
@@ -4436,7 +4454,7 @@ function generateDailyReportPDF(date){
  openModal('modal-daily-report');
 }
 function downloadDailyReport(){
- const date = dailyReportCurrentDate || new Date().toISOString().slice(0,10);
+ const date = dailyReportCurrentDate || phNow().toISOString().slice(0,10);
  const bodyHtml = document.getElementById('dailyReportContent').innerHTML;
  const html = `<!DOCTYPE html><html lang="${LANG}"><head><meta charset="UTF-8">
 <title>${t('dailyReportTitle')} ${date}</title>
@@ -4489,7 +4507,7 @@ function correctDiff(){
  const val = DB.memberCompanyDiffVal||0;
  if(val===0){ toast(t('toastNoDiffToCorrect')); return; }
  requestPinAuth(()=>{
-  const now = new Date().toISOString().slice(0,16).replace('T',' ');
+  const now = phNow().toISOString().slice(0,16).replace('T',' ');
   const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
   DB.correctionLog = DB.correctionLog||[];
   DB.correctionLog.unshift({dt:now, amount:val, staff:staffName});
@@ -4518,7 +4536,7 @@ function confirmMonthSettleReset(){
  const guestNow = (DB.games||[]).reduce((s,g)=>s+(g.rolling||0),0) + (DB.endedGames||[]).reduce((s,g)=>s+(g.rolling||0),0);
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  const monthRecord = {
-  dt: new Date().toISOString().slice(0,16).replace('T',' '),
+  dt: phNow().toISOString().slice(0,16).replace('T',' '),
   cash: cashNow, cashChips: ccNow, rollingChips: nnNow, cum: bd().rollingGrandTotal||0, guest: guestNow,
  };
  bd().monthRecordLog = bd().monthRecordLog||[];
@@ -4560,7 +4578,7 @@ function confirmMonthSettleReset(){
   (DB.ledger[acc]||[]).forEach(e=>{ ledgerNetNow += (e.inn||0) - (e.out||0); });
  });
  const rollingDailyTotalBaseline = getGuestRollingGrandTotal();
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
 
  if(fbDb){
   writeCageConfig({
@@ -4646,7 +4664,7 @@ function submitReg(){
  const wdPw = document.getElementById('regWdPw').value;
  const wdPwConfirm = document.getElementById('regWdPwConfirm').value;
  if(wdPw && wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  DB.accounts[id] = DB.accounts[id] || {member:memberNo||"NEW", phone:"—", rate:"1.00%", telegram:"—", balances:{HANN:0,NUSTAR:0,ONLINE:0}, openedCasino:DB.currentCasino||'HANN', openedDt:now, currency:'PHP', remark:''};
  const acc = DB.accounts[id];
  if(memberNo) acc.member = memberNo;
@@ -4697,7 +4715,7 @@ function applyBlock(){
  const reason = document.getElementById('blockReason').value.trim();
  if(!account) return;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
- DB.blocks.unshift({account, type:"Full", reason, staff:staffName, dt:new Date().toISOString().slice(0,10)});
+ DB.blocks.unshift({account, type:"Full", reason, staff:staffName, dt:phNow().toISOString().slice(0,10)});
  document.getElementById('blockAcc').value=''; document.getElementById('blockReason').value='';
  saveDB(); renderBlocks();
  pushNotification('notifBlock', account);
@@ -4763,7 +4781,7 @@ function renderMonthRecords(){
    ============================================================ */
 function pushNotification(titleKey, body){
  DB.notifications = DB.notifications || [];
- DB.notifications.unshift({id: Date.now()+Math.random(), titleKey, body, dt:new Date().toISOString().slice(0,16).replace('T',' '), read:false});
+ DB.notifications.unshift({id: Date.now()+Math.random(), titleKey, body, dt:phNow().toISOString().slice(0,16).replace('T',' '), read:false});
  if(DB.notifications.length>60) DB.notifications.length = 60;
  saveDB(); renderNotifications();
 }
@@ -4993,7 +5011,7 @@ function usePoints(){
  if(amt>balBefore){ toast(t('toastInsufficientPoints')); return; }
  const balAfter = balBefore - amt;
  DB.pointsByAccount[pointsTargetAcc] = balAfter;
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  DB.pointsHistory = DB.pointsHistory||[];
  DB.pointsHistory.unshift({dt:now, account:pointsTargetAcc, reason: reason||'—', change:-amt, balance:balAfter});
  document.getElementById('pUseAmt').value=''; document.getElementById('pUseReason').value='';
@@ -5009,7 +5027,7 @@ function grantPoints(){
  DB.pointsByAccount = DB.pointsByAccount||{};
  const balAfter = (DB.pointsByAccount[pointsTargetAcc]||0) + amt;
  DB.pointsByAccount[pointsTargetAcc] = balAfter;
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  DB.pointsHistory = DB.pointsHistory||[];
  DB.pointsHistory.unshift({dt:now, account:pointsTargetAcc, reason: reason||'—', change:amt, balance:balAfter});
  document.getElementById('pGrantAmt').value=''; document.getElementById('pUseReason').value='';
@@ -5022,7 +5040,7 @@ function renderPoints(){
  document.getElementById('pointsBalanceDisp').textContent = fmt(pointsTargetAcc ? (DB.pointsByAccount[pointsTargetAcc]||0) : 0);
  const rows = DB.pointsHistory||[];
  document.getElementById('pointsHistBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="5">—</td></tr>` :
-  rows.map(h=>`<tr><td class="num">${h.dt}</td><td>${h.account||''}</td><td>${h.reason}</td><td class="num ${h.change>=0?'pos':'neg'}">${h.change>=0?'+':''}${fmt(h.change)}</td><td class="num">${fmt(h.balance)}</td></tr>`).join('');
+  rows.map(h=>`<tr><td class="num">${h.dt}</td><td>${h.account||''}</td><td class="num ${h.change>=0?'pos':'neg'}">${h.change>=0?'+':''}${fmt(h.change)}</td><td class="num">${fmt(h.balance)}</td><td>${h.reason}</td></tr>`).join('');
 }
 
 /* ---- Event Rolling Commission ---- */
@@ -5040,7 +5058,7 @@ function setEventPeriod(){
 }
 function isEventActiveNow(){
  if(!DB.eventStart || !DB.eventEnd) return false;
- const nowStr = new Date().toISOString().slice(0,16);
+ const nowStr = phNow().toISOString().slice(0,16);
  return nowStr >= DB.eventStart && nowStr <= DB.eventEnd;
 }
 function renderEventToggle(){
@@ -5063,10 +5081,10 @@ function renderEventToggle(){
 }
 function endEventNow(){
  if(!DB.eventStart && !DB.eventEnd){ toast(t('toastEventPeriodMissing')); return; }
- const now = new Date().toISOString().slice(0,16);
+ const now = phNow().toISOString().slice(0,16);
  // Set the cutoff a minute in the past so the active-window check (nowStr <= eventEnd)
  // evaluates to inactive immediately, instead of staying "active" for the rest of this minute.
- DB.eventEnd = new Date(Date.now() - 60000).toISOString().slice(0,16);
+ DB.eventEnd = new Date(phNow().getTime() - 60000).toISOString().slice(0,16);
  document.getElementById('eventEndDate').value = now;
  saveDB();
  renderEventToggle();
@@ -5089,7 +5107,7 @@ function payEventCommissionForSettle(account, rolling){
  const amt = Math.round(rolling*rate/100);
  if(amt<=0) return;
  applyAccountTransaction(account, 'IN', amt, t('memoEventCommission'));
- const now = new Date().toISOString().slice(0,16).replace('T',' ');
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  DB.eventHistory = DB.eventHistory||[];
  DB.eventHistory.unshift({dt:now, account, rolling, rate, amt, staff:staffName});
@@ -5155,7 +5173,7 @@ document.getElementById('loginOtp').addEventListener('keydown', e=>{
 
 (async function init(){
  DB = await loadDB();
- const nowStr = new Date().toISOString().slice(0,16).replace('T',' ');
+ const nowStr = phNow().toISOString().slice(0,16).replace('T',' ');
  if(!bd().lastBalancingDt) bd().lastBalancingDt = nowStr;
  if(!bd().lastCutoffDt) bd().lastCutoffDt = nowStr;
  const branchSelEl = document.getElementById('branchSel');

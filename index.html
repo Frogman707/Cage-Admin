@@ -103,7 +103,7 @@ h2.page-title{font-family:var(--serif);font-weight:800;font-size:25px;color:var(
 .grid-2{grid-template-columns:1fr 1fr;}
 .grid-3{grid-template-columns:1fr 1fr 1fr;}
 .grid-4{grid-template-columns:1fr 1fr 1fr 1fr;}
-.grid-io{grid-template-columns:320px 1fr;align-items:start;}
+.grid-io{grid-template-columns:400px 1fr;align-items:start;}
 @media (max-width:900px){.grid-2,.grid-3,.grid-io{grid-template-columns:1fr;}}
 
 .card{
@@ -2744,12 +2744,10 @@ function migrateDB(saved){
  saved.accounts = saved.accounts || {};
  saved.ledger = saved.ledger || {};
  saved.staff = saved.staff || fresh.staff;
- Object.keys(fresh.accounts).forEach(id=>{
-  if(!saved.accounts[id]) saved.accounts[id] = fresh.accounts[id];
- });
- Object.keys(fresh.ledger).forEach(id=>{
-  if(!saved.ledger[id]) saved.ledger[id] = fresh.ledger[id];
- });
+ // Only MAIN is backfilled if somehow missing - it's a required internal bookkeeping account.
+ // Demo guest accounts are intentionally NOT backfilled here: doing so used to silently
+ // resurrect accounts the master Reset button had just deleted on every page load.
+ if(!saved.accounts.MAIN) saved.accounts.MAIN = fresh.accounts.MAIN;
  return saved;
 }
 async function saveDB(){

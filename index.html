@@ -1161,15 +1161,15 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           <div class="dash-section-title"><span class="dash-bar"></span><span data-i18n="dashAccounts"></span></div>
           <table class="dash-table">
             <thead><tr><th data-i18n="dashTotalAcc"></th><th data-i18n="dashNewToday"></th><th data-i18n="dashNewWeek"></th><th data-i18n="dashNewMonth"></th></tr></thead>
-            <tbody><tr><td class="num" id="dashTotalAccVal">527</td><td class="num">0</td><td class="num">6</td><td class="num">26</td></tr></tbody>
+            <tbody><tr><td class="num" id="dashTotalAccVal">0</td><td class="num" id="dashNewTodayVal">0</td><td class="num" id="dashNewWeekVal">0</td><td class="num" id="dashNewMonthVal">0</td></tr></tbody>
           </table>
 
           <div class="dash-section-title"><span class="dash-bar"></span><span data-i18n="dashToday"></span><span class="dash-hint" data-i18n="dashVsYesterday"></span></div>
           <table class="dash-table dash-metric">
             <thead><tr><th data-i18n="dashBuyin"></th><th data-i18n="dashRolling"></th><th data-i18n="dashWinLoss"></th><th data-i18n="dashRollingComm"></th><th data-i18n="dashShareSettle"></th><th data-i18n="dashEventComm"></th><th>WinRate</th><th data-i18n="dashNetProfit"></th></tr></thead>
             <tbody>
-              <tr><td class="num" id="dashTodayBuyin">₱29,570,000</td><td class="num" id="dashTodayRolling">₱119,086,000</td><td class="num" id="dashTodayWinLoss">₱9,474,700</td><td class="num neg" id="dashTodayRollingComm">-₱1,726,747</td><td class="num" id="dashTodayShareSettle">₱0</td><td class="num" id="dashTodayEventComm">₱185,000</td><td class="num" id="dashTodayWinRate">7.96%</td><td class="num" id="dashTodayNetProfit">₱7,688,410</td></tr>
-              <tr class="dash-delta"><td class="num neg">₱-1,960,886 (▼6.22%)</td><td class="num neg">₱-15,219,000 (▼12.78%)</td><td class="num pos">₱1,758,800 (▲22.79%)</td><td class="num pos">₱77,227 (▲4.28%)</td><td class="num">₱0 (0%)</td><td class="num pos">₱185,000 (▲100%)</td><td class="num pos">5.75% (▲2.21%)</td><td class="num pos">₱1,838,690 (▲31.43%)</td></tr>
+              <tr><td class="num" id="dashTodayBuyin">0</td><td class="num" id="dashTodayRolling">0</td><td class="num" id="dashTodayWinLoss">0</td><td class="num" id="dashTodayRollingComm">0</td><td class="num" id="dashTodayShareSettle">0</td><td class="num" id="dashTodayEventComm">0</td><td class="num" id="dashTodayWinRate">0.00%</td><td class="num" id="dashTodayNetProfit">0</td></tr>
+              <tr class="dash-delta"><td class="num" id="dashTodayBuyinDelta">—</td><td class="num" id="dashTodayRollingDelta">—</td><td class="num" id="dashTodayWinLossDelta">—</td><td class="num" id="dashTodayRollingCommDelta">—</td><td class="num" id="dashTodayShareSettleDelta">—</td><td class="num" id="dashTodayEventCommDelta">—</td><td class="num" id="dashTodayWinRateDelta">—</td><td class="num" id="dashTodayNetProfitDelta">—</td></tr>
             </tbody>
           </table>
 
@@ -1177,16 +1177,16 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           <table class="dash-table dash-metric">
             <thead><tr><th data-i18n="dashBuyin"></th><th data-i18n="dashRolling"></th><th data-i18n="dashWinLoss"></th><th data-i18n="dashRollingComm"></th><th data-i18n="dashShareSettle"></th><th data-i18n="dashEventComm"></th><th>WinRate</th><th data-i18n="dashNetProfit"></th></tr></thead>
             <tbody>
-              <tr><td class="num">₱419,772,748</td><td class="num">₱1,352,480,000</td><td class="num">₱37,971,350</td><td class="num neg">-₱16,856,932</td><td class="num">₱0</td><td class="num">₱2,430,000</td><td class="num">2.81%</td><td class="num">₱20,533,145</td></tr>
-              <tr class="dash-delta"><td class="num neg">₱-805,821 (▼4.05%)</td><td class="num pos">₱16,296,114 (▲36.07%)</td><td class="num neg">₱-96,629 (▼5.30%)</td><td class="num neg">-₱232,063 (▼43.44%)</td><td class="num">₱2,411 (0%)</td><td class="num pos">₱2,430,000 (▲100%)</td><td class="num pos">0.14% (▲2.66%)</td><td class="num neg">₱-334,283 (▼26.37%)</td></tr>
+              <tr><td class="num" id="dashMonthBuyin">0</td><td class="num" id="dashMonthRolling">0</td><td class="num" id="dashMonthWinLoss">0</td><td class="num" id="dashMonthRollingComm">0</td><td class="num" id="dashMonthShareSettle">0</td><td class="num" id="dashMonthEventComm">0</td><td class="num" id="dashMonthWinRate">0.00%</td><td class="num" id="dashMonthNetProfit">0</td></tr>
+              <tr class="dash-delta"><td class="num" id="dashMonthBuyinDelta">—</td><td class="num" id="dashMonthRollingDelta">—</td><td class="num" id="dashMonthWinLossDelta">—</td><td class="num" id="dashMonthRollingCommDelta">—</td><td class="num" id="dashMonthShareSettleDelta">—</td><td class="num" id="dashMonthEventCommDelta">—</td><td class="num" id="dashMonthWinRateDelta">—</td><td class="num" id="dashMonthNetProfitDelta">—</td></tr>
             </tbody>
           </table>
 
-          <div class="dash-section-title"><span class="dash-bar"></span><span data-i18n="dashCumulative"></span><span class="dash-hint">(2025-03-30 ~)</span></div>
+          <div class="dash-section-title"><span class="dash-bar"></span><span data-i18n="dashCumulative"></span><span class="dash-hint" id="dashCumSinceHint">(—)</span></div>
           <table class="dash-table dash-metric">
             <thead><tr><th data-i18n="dashBuyin"></th><th data-i18n="dashRolling"></th><th data-i18n="dashWinLoss"></th><th data-i18n="dashRollingComm"></th><th data-i18n="dashShareSettle"></th><th data-i18n="dashEventComm"></th><th>WinRate</th><th data-i18n="dashNetProfit"></th></tr></thead>
             <tbody>
-              <tr><td class="num">₱4,349,097,961</td><td class="num">₱14,946,626,000</td><td class="num">₱301,594,625</td><td class="num neg">-₱171,181,178</td><td class="num neg">-₱67,500</td><td class="num">₱18,650,000</td><td class="num">2.02%</td><td class="num">₱128,936,498</td></tr>
+              <tr><td class="num" id="dashCumBuyin">0</td><td class="num" id="dashCumRolling">0</td><td class="num" id="dashCumWinLoss">0</td><td class="num" id="dashCumRollingComm">0</td><td class="num" id="dashCumShareSettle">0</td><td class="num" id="dashCumEventComm">0</td><td class="num" id="dashCumWinRate">0.00%</td><td class="num" id="dashCumNetProfit">0</td></tr>
             </tbody>
           </table>
         </div>
@@ -1196,35 +1196,35 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           <table class="dash-table">
             <thead><tr><th data-i18n="dashCageCash"></th><th data-i18n="dashUserFunds"></th></tr></thead>
             <tbody>
-              <tr><td class="num" id="dashCageCashVal">₱145,944,831</td><td class="num" id="dashUserFundsVal">₱39,676,231</td></tr>
-              <tr class="dash-delta"><td class="num neg">₱-8,141,265 (▼5.28%)</td><td class="num neg">₱-10,945,494 (▼21.62%)</td></tr>
+              <tr><td class="num" id="dashCageCashVal">0</td><td class="num" id="dashUserFundsVal">0</td></tr>
+              <tr class="dash-delta"><td class="num" id="dashCageCashDelta">—</td><td class="num" id="dashUserFundsDelta">—</td></tr>
             </tbody>
           </table>
           <table class="dash-table" style="margin-top:8px;">
             <thead><tr><th data-i18n="dashCashLabel"></th></tr></thead>
             <tbody>
-              <tr><td class="num" id="dashAssetCashVal">₱106,268,599</td></tr>
-              <tr class="dash-delta"><td class="num pos">₱2,804,229 (▲2.71%)</td></tr>
+              <tr><td class="num" id="dashAssetCashVal">0</td></tr>
+              <tr class="dash-delta"><td class="num" id="dashAssetCashDelta">—</td></tr>
             </tbody>
           </table>
           <table class="dash-table" style="margin-top:8px;">
             <thead><tr><th>NN</th><th>CC</th></tr></thead>
             <tbody>
-              <tr><td class="num" id="dashAssetNNVal">₱91,520,000</td><td class="num" id="dashAssetCCVal">₱20,508,650</td></tr>
-              <tr class="dash-delta"><td class="num pos">₱4,914,000 (▲5.67%)</td><td class="num neg">₱-14,388,700 (▼41.23%)</td></tr>
+              <tr><td class="num" id="dashAssetNNVal">0</td><td class="num" id="dashAssetCCVal">0</td></tr>
+              <tr class="dash-delta"><td class="num" id="dashAssetNNDelta">—</td><td class="num" id="dashAssetCCDelta">—</td></tr>
             </tbody>
           </table>
           <table class="dash-table" style="margin-top:8px;">
             <thead><tr><th>NN + CC</th></tr></thead>
             <tbody>
-              <tr><td class="num" id="dashAssetNNCCVal">₱112,028,650</td></tr>
-              <tr class="dash-delta"><td class="num neg">₱-9,474,700 (▼7.80%)</td></tr>
+              <tr><td class="num" id="dashAssetNNCCVal">0</td></tr>
+              <tr class="dash-delta"><td class="num" id="dashAssetNNCCDelta">—</td></tr>
             </tbody>
           </table>
           <table class="dash-table" style="margin-top:8px;">
             <thead><tr><th data-i18n="dashCageHeldAssets"></th><th data-i18n="dashMarkerLabel"></th></tr></thead>
             <tbody>
-              <tr><td class="num" id="dashCageHeldVal">₱218,297,249</td><td class="num" id="dashMarkerVal">₱50,000,000</td></tr>
+              <tr><td class="num" id="dashCageHeldVal">0</td><td class="num" id="dashMarkerVal">0</td></tr>
             </tbody>
           </table>
         </div>
@@ -1922,7 +1922,7 @@ function branchData(branch){
    rollingCashShift:0, nnChipInShift:0, buyinRollingShift:0, workingChipRollingShift:0,
    nnCashoutShift:0, nnMarkerShift:0, cashBuyinShift:0, ccChipInShift:0, ccMarkerShift:0,
    breakdownCounts:{cash:{}, nn:{}, cc:{}},
-   cutoffs:[], monthRecordLog:[], balancingCheckLog:[],
+   cutoffs:[], monthRecordLog:[], balancingCheckLog:[], dailyReportLog:[],
    lastBalancingDt:null, lastCutoffDt:null, lastMonthSettleDt:null,
    settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
    guestRollingGrandTotal:0, rollingDailyTotal:0,
@@ -1998,6 +1998,7 @@ function switchBranch(branch){
  const gameEndListModal = document.getElementById('modal-gameend-list');
  if(gameEndListModal && gameEndListModal.classList.contains('open')) renderGameEndList();
  if(typeof renderDashboard==='function') renderDashboard();
+ if(typeof renderReportCards==='function') renderReportCards();
 }
 
 /* ---- Main Cage Ledger (바인/롤링CC/마커/리딤) — append-only per branch, rollingGrandTotal is derived ---- */
@@ -2112,7 +2113,7 @@ function getShiftVal(field){
 }
 
 /* ---- Shared cage config, per branch (rare-write: last-action timestamps, month-settle baselines) ---- */
-const CAGE_CONFIG_FIELDS = ['lastBalancingDt','lastCutoffDt','lastMonthSettleDt','settleGameOutBaseline','settleEndedRollingBaseline','settleLedgerNetBaseline','rollingDailyTotalBaseline','cashCarryBaseline','rollingCarryBaseline','cutoffs','monthRecordLog'];
+const CAGE_CONFIG_FIELDS = ['lastBalancingDt','lastCutoffDt','lastMonthSettleDt','settleGameOutBaseline','settleEndedRollingBaseline','settleLedgerNetBaseline','rollingDailyTotalBaseline','cashCarryBaseline','rollingCarryBaseline','cutoffs','monthRecordLog','dailyReportLog'];
 let fbCageConfigUnsub = null;
 const BREAKDOWN_PREFIXES = ['cash','nn','cc'];
 function subscribeCageConfigCloud(){
@@ -2146,6 +2147,7 @@ function subscribeCageConfigCloud(){
   const cutoffListModal = document.getElementById('modal-cutoff-list');
   if(cutoffListModal && cutoffListModal.classList.contains('open')) renderCutoffList();
   if(typeof renderMonthRecords === 'function') renderMonthRecords();
+  if(typeof renderReportCards === 'function') renderReportCards();
  }, ()=>{});
 }
 async function seedCageConfigToCloudIfEmpty(){
@@ -2155,7 +2157,7 @@ async function seedCageConfigToCloudIfEmpty(){
   const doc = await fbDb.collection('cageConfig').doc(branch).get();
   if(!doc.exists){
    const seed = {};
-   const arrayFields = ['cutoffs','monthRecordLog'];
+   const arrayFields = ['cutoffs','monthRecordLog','dailyReportLog'];
    const b = bd();
    CAGE_CONFIG_FIELDS.forEach(f=>{ seed[f] = b[f] ?? (arrayFields.includes(f)?[]:0); });
    BREAKDOWN_PREFIXES.forEach(prefix=>{
@@ -2739,7 +2741,7 @@ function seedDB(){
     nnCashoutShift:0, nnMarkerShift:0, cashBuyinShift:0, ccChipInShift:0, ccMarkerShift:0,
     breakdownCounts:{cash:{}, nn:{}, cc:{}},
     cutoffs:["2026-07-08","2026-07-07","2026-07-06"],
-    monthRecordLog:[], balancingCheckLog:[],
+    monthRecordLog:[], balancingCheckLog:[], dailyReportLog:[],
     lastBalancingDt:null, lastCutoffDt:null, lastMonthSettleDt:null,
     settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
     cashCarryBaseline:0, rollingCarryBaseline:0,
@@ -2890,6 +2892,7 @@ function switchView(name){
  if(view) view.classList.add('active');
  document.querySelectorAll('#navBar button[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
  const mainEl = document.querySelector('.main'); if(mainEl) mainEl.scrollTo(0,0);
+ if(name==='reports' && typeof renderReportCards==='function') renderReportCards();
  syncVisibleListHeights();
 }
 // Caps a right-side history list (.table-wrap) to the natural height of its left-side sibling
@@ -4697,19 +4700,163 @@ function renderBreakdowns(){
  recalcBreakdownTotal('nn');
  recalcBreakdownTotal('cc');
 }
+// The actual cash the account leaving the cage costs the house is the settlement amount after
+// the F&B discount (settleResult), not the gross rolling-commission rate - that's what real cash
+// left the cage, so it's what should reduce net profit / show up as the rolling-comm cost.
+function reportCommissionPaid(s){ return (s.result!=null) ? s.result : (s.commission||0); }
+// fromDate/toDate are 'YYYY-MM-DD' strings (inclusive); pass fromDate=null for "since forever".
+function computePeriodMetrics(fromDate, toDate){
+ const branch = currentBranch();
+ const inRange = dt=>{
+  const d = (dt||'').slice(0,10);
+  if(!d) return false;
+  if(fromDate && d < fromDate) return false;
+  if(toDate && d > toDate) return false;
+  return true;
+ };
+ const settled = (DB.settled||[]).filter(s=>(s.branch||'HANN')===branch && inRange(s.dt));
+ const buyin = settled.reduce((s,r)=>s+(r.buyin||0),0);
+ const rolling = settled.reduce((s,r)=>s+(r.rolling||0),0);
+ const winLoss = settled.reduce((s,r)=>s+(r.winLoss||0),0);
+ const rollingCommPaid = settled.reduce((s,r)=>s+reportCommissionPaid(r),0);
+ const eventComm = (DB.eventHistory||[]).filter(r=>accountVisibleInBranch(r.account) && inRange(r.dt)).reduce((s,r)=>s+(r.amt||0),0);
+ // No share-settlement feature exists yet anywhere in the app, so there is no real data source
+ // for this figure - always 0 rather than a fabricated number.
+ const shareSettle = 0;
+ const netProfit = winLoss - rollingCommPaid - eventComm;
+ const winRate = rolling ? (winLoss/rolling*100) : 0;
+ return {buyin, rolling, winLoss, rollingComm:-rollingCommPaid, shareSettle, eventComm, netProfit, winRate};
+}
+function countNewAccounts(period, todayStr){
+ return Object.entries(DB.accounts||{}).filter(([id,acc])=>{
+  if(!accountVisibleInBranch(id) || isMainAccount(id)) return false;
+  const d = (acc.openedDt||'').slice(0,10);
+  if(!d) return false;
+  if(period==='today') return d===todayStr;
+  if(period==='week'){ const diffDays = Math.round((new Date(todayStr)-new Date(d))/86400000); return diffDays>=0 && diffDays<7; }
+  if(period==='month') return d.slice(0,7)===todayStr.slice(0,7);
+  return false;
+ }).length;
+}
+function currentCageAssetSnapshot(){
+ const branch = currentBranch();
+ const holdCash = unformatNum((document.getElementById('holdCash')||{}).textContent||'0');
+ const holdRollingChips = unformatNum((document.getElementById('holdRollingChips')||{}).textContent||'0');
+ const holdCashChips = unformatNum((document.getElementById('holdCashChips')||{}).textContent||'0');
+ const cash = unformatNum((document.getElementById('combinedCash')||{}).textContent||'0');
+ const userFunds = Object.entries(DB.accounts||{}).filter(([id])=>accountVisibleInBranch(id) && !isMainAccount(id))
+  .reduce((s,[,acc])=>s+((acc.balances&&acc.balances[branch])||0),0);
+ return {cageCash:holdCash, userFunds, cash, nn:holdRollingChips, cc:holdCashChips, nncc:holdRollingChips+holdCashChips};
+}
+function metricDeltaText(nowVal, baseVal, isPct){
+ const diff = nowVal - baseVal;
+ const pctBase = Math.abs(baseVal);
+ const pct = pctBase ? (diff/pctBase*100) : (diff===0?0:100);
+ const arrow = diff>0?'▲':diff<0?'▼':'';
+ const diffStr = isPct ? `${diff<0?'-':''}${Math.abs(diff).toFixed(2)}%` : (diff<0?'-'+fmt(Math.abs(diff)):fmt(diff));
+ return {text:`${diffStr} (${arrow}${Math.abs(pct).toFixed(2)}%)`, cls:diff>0?'pos':diff<0?'neg':''};
+}
+function setDeltaCell(id, nowVal, baseVal, isPct){
+ const el = document.getElementById(id);
+ if(!el) return;
+ if(baseVal===null || baseVal===undefined){ el.textContent = '—'; el.className = 'num'; return; }
+ const {text, cls} = metricDeltaText(nowVal, baseVal, isPct);
+ el.textContent = text; el.className = 'num ' + cls;
+}
+const REPORT_METRIC_FIELDS = [
+ ['Buyin','buyin',false], ['Rolling','rolling',false], ['WinLoss','winLoss',false], ['RollingComm','rollingComm',false],
+ ['ShareSettle','shareSettle',false], ['EventComm','eventComm',false], ['WinRate','winRate',true], ['NetProfit','netProfit',false],
+];
+function fillMetricTable(prefix, m, baseline){
+ REPORT_METRIC_FIELDS.forEach(([suffix,key,isPct])=>{
+  const val = m[key];
+  const el = document.getElementById(prefix+suffix);
+  if(el){
+   el.textContent = isPct ? val.toFixed(2)+'%' : (val<0?'-'+fmt(Math.abs(val)):fmt(val));
+   el.className = 'num' + (!isPct && val<0 ? ' neg' : '');
+  }
+  setDeltaCell(prefix+suffix+'Delta', val, baseline ? baseline[key] : null, isPct);
+ });
+}
+function renderReportCards(){
+ if(!document.getElementById('reportOverviewCard')) return;
+ renderBalancingSummary();
+ const branch = currentBranch();
+ const todayStr = phNow().toISOString().slice(0,10);
+ const yestStr = new Date(new Date(todayStr+'T00:00:00Z').getTime()-86400000).toISOString().slice(0,10);
+ const monthStr = todayStr.slice(0,7);
+ const lastMonthD = new Date(todayStr+'T00:00:00Z'); lastMonthD.setUTCMonth(lastMonthD.getUTCMonth()-1);
+ const lastMonthStr = lastMonthD.toISOString().slice(0,7);
+
+ const totalAccEl = document.getElementById('dashTotalAccVal');
+ if(totalAccEl) totalAccEl.textContent = Object.keys(DB.accounts||{}).filter(id=>accountVisibleInBranch(id) && !isMainAccount(id)).length;
+ const newTodayEl = document.getElementById('dashNewTodayVal'); if(newTodayEl) newTodayEl.textContent = countNewAccounts('today', todayStr);
+ const newWeekEl = document.getElementById('dashNewWeekVal'); if(newWeekEl) newWeekEl.textContent = countNewAccounts('week', todayStr);
+ const newMonthEl = document.getElementById('dashNewMonthVal'); if(newMonthEl) newMonthEl.textContent = countNewAccounts('month', todayStr);
+
+ const log = bd().dailyReportLog||[];
+ const yestLog = log.find(r=>r.date===yestStr);
+
+ fillMetricTable('dashToday', computePeriodMetrics(todayStr, todayStr), yestLog ? yestLog.metrics : null);
+
+ const monthMetrics = computePeriodMetrics(monthStr+'-01', todayStr);
+ const lastMonthRows = log.filter(r=>r.date.slice(0,7)===lastMonthStr);
+ let lastMonthBaseline = null;
+ if(lastMonthRows.length){
+  lastMonthBaseline = {buyin:0, rolling:0, winLoss:0, rollingComm:0, shareSettle:0, eventComm:0, netProfit:0, winRate:0};
+  lastMonthRows.forEach(r=>{
+   ['buyin','rolling','winLoss','rollingComm','shareSettle','eventComm','netProfit'].forEach(k=>{ lastMonthBaseline[k] += r.metrics[k]||0; });
+  });
+  lastMonthBaseline.winRate = lastMonthBaseline.rolling ? (lastMonthBaseline.winLoss/lastMonthBaseline.rolling*100) : 0;
+ }
+ fillMetricTable('dashMonth', monthMetrics, lastMonthBaseline);
+
+ fillMetricTable('dashCum', computePeriodMetrics(null, todayStr), null);
+ const earliestDt = (DB.settled||[]).filter(s=>(s.branch||'HANN')===branch).map(s=>(s.dt||'').slice(0,10)).sort()[0];
+ const cumHintEl = document.getElementById('dashCumSinceHint');
+ if(cumHintEl) cumHintEl.textContent = earliestDt ? `(${earliestDt} ~)` : '(—)';
+
+ const cage = currentCageAssetSnapshot();
+ const setNum = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent = fmt(val); };
+ setNum('dashCageCashVal', cage.cageCash);
+ setNum('dashUserFundsVal', cage.userFunds);
+ setNum('dashAssetCashVal', cage.cash);
+ setNum('dashAssetNNVal', cage.nn);
+ setNum('dashAssetCCVal', cage.cc);
+ setNum('dashAssetNNCCVal', cage.nncc);
+ setNum('dashCageHeldVal', cage.cageCash + cage.nn + cage.cc);
+ setNum('dashMarkerVal', 0); // 마커(외상) 잔액을 추적하는 기능이 아직 없어 0으로 표시
+
+ const yestCage = yestLog ? yestLog.cage : null;
+ setDeltaCell('dashCageCashDelta', cage.cageCash, yestCage ? yestCage.cageCash : null, false);
+ setDeltaCell('dashUserFundsDelta', cage.userFunds, yestCage ? yestCage.userFunds : null, false);
+ setDeltaCell('dashAssetCashDelta', cage.cash, yestCage ? yestCage.cash : null, false);
+ setDeltaCell('dashAssetNNDelta', cage.nn, yestCage ? yestCage.nn : null, false);
+ setDeltaCell('dashAssetCCDelta', cage.cc, yestCage ? yestCage.cc : null, false);
+ setDeltaCell('dashAssetNNCCDelta', cage.nncc, yestCage ? yestCage.nncc : null, false);
+}
 function doCutoff(){
  requestPinAuth(()=>{
   const now = phNow().toISOString().slice(0,10);
   const nowDt = phNow().toISOString().slice(0,16).replace('T',' ');
+  renderBalancingSummary();
+  // Snapshot today's report/cage-asset figures into dailyReportLog - this is what makes the
+  // Report/Cage Assets cards "실제 기록" (genuinely recorded) at cutoff time instead of just
+  // being live-computed and forgotten: tomorrow's "vs yesterday" delta reads today's entry back.
+  const snapshot = {date: now, metrics: computePeriodMetrics(now, now), cage: currentCageAssetSnapshot()};
+  bd().dailyReportLog = (bd().dailyReportLog||[]).filter(r=>r.date!==now);
+  bd().dailyReportLog.unshift(snapshot);
+  bd().dailyReportLog = bd().dailyReportLog.slice(0,370);
   if(fbDb){
    if(!bd().cutoffs.includes(now)) writeCageConfig({cutoffs: firebase.firestore.FieldValue.arrayUnion(now)});
-   writeCageConfig({lastCutoffDt: nowDt});
+   writeCageConfig({lastCutoffDt: nowDt, dailyReportLog: bd().dailyReportLog});
   } else {
    if(!bd().cutoffs.includes(now)) bd().cutoffs.unshift(now);
    bd().lastCutoffDt = nowDt;
    saveDB(); renderCutoffs();
   }
   document.getElementById('lastCutoff').textContent = nowDt;
+  renderReportCards();
   toast(t('toastCutoff'));
  });
 }
@@ -5470,7 +5617,7 @@ function renderAll(){
  renderHotels(); renderCars(); renderAero(); renderPoints(); renderNotifications();
  renderEndedGames(); renderShiftStaff(); renderMemberCompanyDiff(); renderBalancingSummary();
  renderDashboard(); updateAccSearchBtn(); renderEventToggle(); renderEventHistory(); renderAvatarReqBtn();
- renderTotalDeposit();
+ renderTotalDeposit(); renderReportCards();
 }
 function renderTotalDeposit(){
  const allInEl = document.getElementById('totalDepositAllIn');

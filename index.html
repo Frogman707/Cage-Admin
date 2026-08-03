@@ -576,7 +576,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 
       <div id="gtab-midsettle" style="display:none;">
         <div class="grid grid-2">
-          <div class="card">
+          <div class="card" id="midSettleFormCard">
             <h3 data-i18n="midSettleTitle"></h3>
             <div class="field" style="position:relative;">
               <label data-i18n="account"></label>
@@ -621,7 +621,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
               <h3 style="margin:0;flex:1;" data-i18n="midHistoryTitle"></h3>
               <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openMidList()" data-i18n="midListBtn"></button>
             </div>
-            <div class="table-wrap"><table>
+            <div class="table-wrap" id="midHistoryTableWrap"><table>
               <thead><tr>
                 <th data-i18n="colDateTime"></th><th data-i18n="colAccount"></th><th>GameID</th>
                 <th data-i18n="depositColShort"></th><th data-i18n="cashoutColShort"></th><th data-i18n="markerColShort"></th><th data-i18n="dealerTipsColShort"></th><th data-i18n="houseTipsColShort"></th>
@@ -669,7 +669,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 
       <div id="gtab-gameend" style="display:none;">
         <div class="grid grid-2">
-          <div class="card">
+          <div class="card" id="gameEndFormCard">
             <h3 data-i18n="gameEndTitle"></h3>
             <div class="field" style="position:relative;">
               <label data-i18n="account"></label>
@@ -718,7 +718,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
               <h3 style="margin:0;flex:1;" data-i18n="endedGamesTitle"></h3>
               <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openGameEndList()" data-i18n="gameEndListBtn"></button>
             </div>
-            <div class="table-wrap"><table>
+            <div class="table-wrap" id="endedGamesTableWrap"><table>
               <thead><tr><th data-i18n="colDate"></th><th>GameID</th><th data-i18n="colAccount"></th><th data-i18n="buyinTotal"></th><th data-i18n="totalRollingLabel"></th><th data-i18n="winLoss"></th></tr></thead>
               <tbody id="endedGamesBody"></tbody>
             </table></div>
@@ -968,7 +968,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <section class="view" id="view-points">
       <h2 class="page-title" data-i18n="navPoints"></h2>
       <div class="grid grid-2">
-        <div class="card">
+        <div class="card" id="pointsHoldCard">
           <h3 data-i18n="pointsBalance"></h3>
           <div class="field" style="position:relative;">
             <label data-i18n="account"></label>
@@ -988,7 +988,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         </div>
         <div class="card">
           <h3 data-i18n="pointsHistoryTitle"></h3>
-          <div class="table-wrap"><table>
+          <div class="table-wrap" id="pointsHistTableWrap"><table>
             <thead><tr><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="colPointsChange"></th><th data-i18n="colPointsBalance"></th><th data-i18n="pointsUseReason"></th></tr></thead>
             <tbody id="pointsHistBody"></tbody>
           </table></div>
@@ -996,7 +996,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
       </div>
 
       <div class="grid grid-2" style="margin-top:16px;">
-        <div class="card">
+        <div class="card" id="eventFormCard">
           <div style="display:flex;align-items:center;gap:10px;">
             <h3 style="margin:0;flex:1;" data-i18n="eventTitle"></h3>
             <span class="pill nn" id="eventStatusPill" style="display:none;" data-i18n="eventOn"></span>
@@ -1016,7 +1016,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         </div>
         <div class="card">
           <h3 data-i18n="eventHistoryTitle"></h3>
-          <div class="table-wrap"><table>
+          <div class="table-wrap" id="eventHistTableWrap"><table>
             <thead><tr><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="dashRolling"></th><th data-i18n="eventRateLabel"></th><th data-i18n="eventCommAmtLabel"></th><th data-i18n="colStaff"></th></tr></thead>
             <tbody id="eventHistBody"></tbody>
           </table></div>
@@ -1120,7 +1120,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <button class="btn btn-gold" onclick="shiftAction('in')" data-i18n="checkInBtn"></button>
           </div>
         </div>
-        <div class="card eq-card">
+        <div class="card eq-card" id="totalDepositCard">
           <h3 data-i18n="totalDepositTitle"></h3>
           <div class="stat-line"><span data-i18n="allCasino"></span> <span data-i18n="colIn"></span><b class="num pos" id="totalDepositAllIn">0</b> <span data-i18n="colOut"></span><b class="num neg" id="totalDepositAllOut">0</b></div>
           <div class="table-wrap"><table>
@@ -1131,7 +1131,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         </div>
         <div class="card">
           <h3 data-i18n="monthRecordTitle"></h3>
-          <div class="table-wrap"><table>
+          <div class="table-wrap" id="monthRecTableWrap"><table>
             <thead><tr><th data-i18n="colDate"></th><th data-i18n="colMrCash"></th><th data-i18n="colMrCashChips"></th><th data-i18n="colMrRollingChips"></th><th data-i18n="colMrCasinoCum"></th></tr></thead>
             <tbody id="monthRecBody"></tbody>
           </table></div>
@@ -2646,41 +2646,7 @@ function seedDB(){
    "PL7777":{member:"PL7777", phone:"+63 917 555 7777", rate:"1.40%", telegram:"@pl7777", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-02-14 09:40", currency:"PHP", remark:""},
    "PL9642":{member:"PL9642", phone:"+63 917 555 9642", rate:"1.45%", telegram:"@pl9642", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-03-01 11:15", currency:"PHP", remark:""},
   },
-  ledger:{
-   "MAIN":[
-    {casino:"NUSTAR",dt:"2026-08-02 18:00",type:"OUT",inn:0,out:50000000,bal:-46800000,staff:"TEDDY",memo:"cash balancing adjustment"},
-    {casino:"NUSTAR",dt:"2026-08-01 09:00",type:"IN",inn:3200000,out:0,bal:3200000,staff:"TEDDY",memo:"initial cage float"},
-   ],
-   "SE7419":[
-    {casino:"HANN",dt:"2026-07-08 22:41",type:"IN",inn:5000000,out:0,bal:32450000,staff:"TEDDY",memo:""},
-    {casino:"HANN",dt:"2026-07-08 19:02",type:"OUT",inn:0,out:1200000,bal:27450000,staff:"TEDDY",memo:"table settle"},
-    {casino:"NUSTAR",dt:"2026-07-07 16:20",type:"IN",inn:3000000,out:0,bal:30450000,staff:"JAY",memo:""},
-    {casino:"HANN",dt:"2026-07-07 11:05",type:"OUT",inn:0,out:800000,bal:26650000,staff:"TEDDY",memo:"car service"},
-    {casino:"ONLINE",dt:"2026-07-06 20:15",type:"IN",inn:1500000,out:0,bal:28150000,staff:"MINA",memo:""},
-    {casino:"HANN",dt:"2026-07-06 14:30",type:"OUT",inn:0,out:2200000,bal:25950000,staff:"TEDDY",memo:""},
-    {casino:"NUSTAR",dt:"2026-07-05 23:10",type:"IN",inn:4500000,out:0,bal:30450000,staff:"JAY",memo:""},
-    {casino:"HANN",dt:"2026-07-05 18:45",type:"OUT",inn:0,out:500000,bal:25950000,staff:"TEDDY",memo:"hotel deposit"},
-    {casino:"HANN",dt:"2026-07-04 21:00",type:"IN",inn:6000000,out:0,bal:31950000,staff:"TEDDY",memo:""},
-    {casino:"ONLINE",dt:"2026-07-03 15:20",type:"OUT",inn:0,out:1000000,bal:25950000,staff:"MINA",memo:""},
-    {casino:"NUSTAR",dt:"2026-07-02 19:40",type:"IN",inn:2800000,out:0,bal:28750000,staff:"JAY",memo:""},
-    {casino:"HANN",dt:"2026-07-01 12:00",type:"IN",inn:10000000,out:0,bal:25950000,staff:"TEDDY",memo:"initial deposit"},
-   ],
-   "MK2201":[
-    {casino:"HANN",dt:"2026-07-07 14:12",type:"IN",inn:2000000,out:0,bal:5600000,staff:"JAY",memo:""},
-   ],
-   "PL0001":[
-    {casino:"HANN",dt:"2026-07-09 20:10",type:"IN",inn:4000000,out:0,bal:17700000,staff:"MINA",memo:""},
-    {casino:"NUSTAR",dt:"2026-07-09 15:40",type:"OUT",inn:0,out:1000000,bal:13700000,staff:"JAY",memo:""},
-    {casino:"ONLINE",dt:"2026-07-08 22:05",type:"IN",inn:900000,out:0,bal:14700000,staff:"TEDDY",memo:""},
-    {casino:"HANN",dt:"2026-07-08 18:30",type:"OUT",inn:0,out:2200000,bal:13800000,staff:"MINA",memo:"car service"},
-    {casino:"NUSTAR",dt:"2026-07-07 21:15",type:"IN",inn:3300000,out:0,bal:16000000,staff:"JAY",memo:""},
-    {casino:"HANN",dt:"2026-07-07 13:50",type:"OUT",inn:0,out:800000,bal:12700000,staff:"TEDDY",memo:""},
-    {casino:"HANN",dt:"2026-07-06 19:20",type:"IN",inn:5000000,out:0,bal:13500000,staff:"MINA",memo:""},
-    {casino:"ONLINE",dt:"2026-07-05 16:05",type:"OUT",inn:0,out:500000,bal:8500000,staff:"JAY",memo:""},
-    {casino:"NUSTAR",dt:"2026-07-04 20:40",type:"IN",inn:2000000,out:0,bal:9000000,staff:"TEDDY",memo:""},
-    {casino:"HANN",dt:"2026-07-03 11:00",type:"IN",inn:7000000,out:0,bal:7000000,staff:"MINA",memo:"initial deposit"},
-   ]
-  },
+  ledger:{},
   games:[
   ],
   rollingDailyTotal:0,
@@ -2857,7 +2823,52 @@ function switchView(name){
  if(view) view.classList.add('active');
  document.querySelectorAll('#navBar button[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
  const mainEl = document.querySelector('.main'); if(mainEl) mainEl.scrollTo(0,0);
+ syncVisibleListHeights();
 }
+// Caps a right-side history list (.table-wrap) to the natural height of its left-side sibling
+// card, so a long history scrolls internally with the mouse wheel instead of growing the page.
+function syncListHeight(leftCardId, wrapId){
+ const left = document.getElementById(leftCardId);
+ const wrap = document.getElementById(wrapId);
+ if(!left || !wrap) return;
+ const card = wrap.closest('.card');
+ if(!card) return;
+ // The grid row stretches every card to match its tallest member, so a long, still-unbounded
+ // list can inflate the row (and the left card along with it) before we ever get to measure -
+ // collapse this wrap first so the left card's *true* natural height is what gets measured.
+ const prevMaxH = wrap.style.maxHeight, prevOverflow = wrap.style.overflowY;
+ wrap.style.maxHeight = '0px';
+ wrap.style.overflowY = 'hidden';
+ const leftH = left.getBoundingClientRect().height;
+ if(!leftH){ wrap.style.maxHeight = prevMaxH; wrap.style.overflowY = prevOverflow; return; }
+ const offsetInCard = wrap.getBoundingClientRect().top - card.getBoundingClientRect().top;
+ const cardPadBottom = parseFloat(getComputedStyle(card).paddingBottom)||0;
+ const targetH = Math.max(120, leftH - offsetInCard - cardPadBottom);
+ wrap.style.maxHeight = targetH + 'px';
+ wrap.style.overflowY = 'auto';
+}
+function syncVisibleListHeights(){
+ const gameView = document.getElementById('view-game');
+ if(gameView && gameView.classList.contains('active')){
+  const midTab = document.getElementById('gtab-midsettle');
+  if(midTab && midTab.style.display==='block') syncListHeight('midSettleFormCard','midHistoryTableWrap');
+  const endTab = document.getElementById('gtab-gameend');
+  if(endTab && endTab.style.display==='block') syncListHeight('gameEndFormCard','endedGamesTableWrap');
+ }
+ const pointsView = document.getElementById('view-points');
+ if(pointsView && pointsView.classList.contains('active')){
+  syncListHeight('pointsHoldCard','pointsHistTableWrap');
+  syncListHeight('eventFormCard','eventHistTableWrap');
+ }
+ const reportsView = document.getElementById('view-reports');
+ if(reportsView && reportsView.classList.contains('active')){
+  syncListHeight('totalDepositCard','monthRecTableWrap');
+ }
+}
+window.addEventListener('resize', ()=>{
+ clearTimeout(window.__syncListHeightsTimer);
+ window.__syncListHeightsTimer = setTimeout(syncVisibleListHeights, 120);
+});
 function goRegistration(){
  closeModal('modal-open-account');
  switchView('registration');
@@ -2876,6 +2887,7 @@ document.getElementById('gameTabs').addEventListener('click', e=>{
  if(btn.dataset.gtab==='midsettle') populateMidSelect();
  if(btn.dataset.gtab==='gameend') populateEndSelect();
  if(btn.dataset.gtab==='start') updateGameIdPreview();
+ syncVisibleListHeights();
 });
 
 function openModal(id){

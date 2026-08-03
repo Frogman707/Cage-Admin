@@ -1294,6 +1294,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   </div>
 
   <button class="btn btn-gold btn-block" style="margin-top:16px;" onclick="saveAccountEdit()" data-i18n="saveChangesBtn"></button>
+  <button class="btn btn-danger btn-block" style="margin-top:8px;" onclick="withdrawAccount()" data-i18n="memberWithdrawBtn"></button>
 </div></div>
 
 <div class="modal-bg" id="modal-block-list"><div class="modal" style="width:640px;">
@@ -2222,7 +2223,7 @@ ko:{
  memberCompanyDiff:"회원-회사 차액", curDiffLabel:"현재 차액", lastCorrectionLabel:"최근 보정", correctDiffBtn:"차액 보정", correctionRecordBtn:"보정 기록", correctionListTitle:"차액 보정 기록", toastNoDiffToCorrect:"보정할 차액이 없습니다.", toastDiffCorrected:"차액이 보정되었습니다.",
  monthSettleTitle:"월 정산", branchRecord:"지점 기록", monthRecord:"월간 기록", monthSettleBtn:"월 정산", lastMonthSettleLabel:"최근 정산 일시", branchRecordTitle:"지점별 기록",
  monthSettleWarnMsg:"월 정산은 카지노 누계 롤링, 손님들 총 롤링, 보유 캐시, 롤링 칩, 캐시 칩을 초기화 합니다.", cancelBtn:"취소", confirmBtn:"확인", toastMonthSettled:"월 정산이 완료되었습니다.",
- saveChangesBtn:"저장", toastAccountUpdated:"어카운트 정보가 수정되었습니다.",
+ saveChangesBtn:"저장", toastAccountUpdated:"어카운트 정보가 수정되었습니다.", memberWithdrawBtn:"회원 탈퇴", toastAccountWithdrawn:"회원 탈퇴가 완료되었습니다.",
  dailySettlement:"일일 정산", cutoffBtn:"마감", lastCageBalCutoffLabel:"최근 마감", colViewPdf:"보기", dailyReportTitle:"데일리 리포트",
  regTitle:"회원 가입",
  regBasicInfo:"기본 정보", regAccId:"어카운트 ID", regRandomBtn:"자동생성", regPw:"비밀번호", regPwConfirm:"비밀번호 확인",
@@ -2349,7 +2350,7 @@ en:{
  memberCompanyDiff:"Member–Company Diff", curDiffLabel:"Current Diff", lastCorrectionLabel:"Last Correction", correctDiffBtn:"Correct Diff", correctionRecordBtn:"Correction Log", correctionListTitle:"Diff Correction Log", toastNoDiffToCorrect:"No diff to correct.", toastDiffCorrected:"Diff corrected.",
  monthSettleTitle:"Month Settlement", branchRecord:"Branch Record", monthRecord:"Monthly Record", monthSettleBtn:"Month Settlement", lastMonthSettleLabel:"Last Settlement", branchRecordTitle:"Records by Branch",
  monthSettleWarnMsg:"Month settlement will reset the casino cumulative rolling, guests' total rolling, cash on hand, rolling chips, and cash chips.", cancelBtn:"Cancel", confirmBtn:"Confirm", toastMonthSettled:"Month settlement complete.",
- saveChangesBtn:"Save", toastAccountUpdated:"Account info updated.",
+ saveChangesBtn:"Save", toastAccountUpdated:"Account info updated.", memberWithdrawBtn:"Withdraw Membership", toastAccountWithdrawn:"Membership has been withdrawn.",
  dailySettlement:"Daily Settlement", cutoffBtn:"Cutoff", lastCageBalCutoffLabel:"Last Cutoff", colViewPdf:"View", dailyReportTitle:"Daily Report",
  regTitle:"Member Registration",
  regBasicInfo:"Basic Info", regAccId:"Account ID", regRandomBtn:"Auto-generate", regPw:"Password", regPwConfirm:"Confirm Password",
@@ -2476,7 +2477,7 @@ en:{
  memberCompanyDiff:"會員與公司差額", curDiffLabel:"目前差額", lastCorrectionLabel:"最近校正", correctDiffBtn:"差額校正", correctionRecordBtn:"校正紀錄", correctionListTitle:"差額校正紀錄", toastNoDiffToCorrect:"沒有需要校正的差額。", toastDiffCorrected:"差額已校正。",
  monthSettleTitle:"月結算", branchRecord:"分店紀錄", monthRecord:"月度紀錄", monthSettleBtn:"月結算", lastMonthSettleLabel:"最近結算時間", branchRecordTitle:"分店別紀錄",
  monthSettleWarnMsg:"月結算將重置賭場累計轉碼、貴賓總轉碼、庫存現金、轉碼籌碼與現金籌碼。", cancelBtn:"取消", confirmBtn:"確認", toastMonthSettled:"月結算已完成。",
- saveChangesBtn:"儲存", toastAccountUpdated:"帳戶資料已更新。",
+ saveChangesBtn:"儲存", toastAccountUpdated:"帳戶資料已更新。", memberWithdrawBtn:"會員退會", toastAccountWithdrawn:"會員已退會。",
  dailySettlement:"每日結算", cutoffBtn:"結帳", lastCageBalCutoffLabel:"最近結帳", colViewPdf:"檢視", dailyReportTitle:"每日報表",
  regTitle:"會員開戶",
  regBasicInfo:"基本資料", regAccId:"帳號", regRandomBtn:"自動產生", regPw:"密碼", regPwConfirm:"確認密碼",
@@ -2603,7 +2604,7 @@ en:{
  memberCompanyDiff:"会员与公司差额", curDiffLabel:"当前差额", lastCorrectionLabel:"最近校正", correctDiffBtn:"差额校正", correctionRecordBtn:"校正记录", correctionListTitle:"差额校正记录", toastNoDiffToCorrect:"没有需要校正的差额。", toastDiffCorrected:"差额已校正。",
  monthSettleTitle:"月结算", branchRecord:"分店记录", monthRecord:"月度记录", monthSettleBtn:"月结算", lastMonthSettleLabel:"最近结算时间", branchRecordTitle:"分店别记录",
  monthSettleWarnMsg:"月结算将重置赌场累计转码、贵宾总转码、库存现金、转码筹码与现金筹码。", cancelBtn:"取消", confirmBtn:"确认", toastMonthSettled:"月结算已完成。",
- saveChangesBtn:"保存", toastAccountUpdated:"账户资料已更新。",
+ saveChangesBtn:"保存", toastAccountUpdated:"账户资料已更新。", memberWithdrawBtn:"会员退会", toastAccountWithdrawn:"会员已退会。",
  dailySettlement:"每日结算", cutoffBtn:"结账", lastCageBalCutoffLabel:"最近结账", colViewPdf:"查看", dailyReportTitle:"每日报表",
  regTitle:"会员开户",
  regBasicInfo:"基本信息", regAccId:"账号", regRandomBtn:"自动生成", regPw:"密码", regPwConfirm:"确认密码",
@@ -2893,6 +2894,7 @@ function switchView(name){
  document.querySelectorAll('#navBar button[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
  const mainEl = document.querySelector('.main'); if(mainEl) mainEl.scrollTo(0,0);
  if(name==='reports' && typeof renderReportCards==='function') renderReportCards();
+ if(name==='registration' && typeof ensureSigPadSized==='function') ensureSigPadSized('sigPad');
  syncVisibleListHeights();
 }
 // Caps a right-side history list (.table-wrap) to the natural height of its left-side sibling
@@ -3114,6 +3116,56 @@ function saveAccountEdit(){
  saveDB(); renderMemberCard();
  closeModal('modal-edit-account');
  toast(t('toastAccountUpdated'));
+}
+function withdrawAccount(){
+ const id = DB.currentAccount;
+ if(!id || !DB.accounts[id] || isMainAccount(id)) return;
+ requestPinAuth(()=>_doWithdrawAccount(id));
+}
+async function _doWithdrawAccount(id){
+ delete DB.accounts[id];
+ if(fbDb){
+  try{
+   const snap = await fbDb.collection('ledger').where('accountId','==',id).get();
+   const batch = fbDb.batch();
+   snap.forEach(d=>batch.delete(d.ref));
+   await batch.commit();
+  }catch(e){}
+ } else {
+  delete DB.ledger[id];
+ }
+ DB.pointsByAccount = DB.pointsByAccount||{};
+ delete DB.pointsByAccount[id];
+ DB.pointsHistory = (DB.pointsHistory||[]).filter(h=>h.account!==id);
+ DB.eventHistory = (DB.eventHistory||[]).filter(h=>h.account!==id);
+ DB.hotels = (DB.hotels||[]).filter(b=>b.account!==id);
+ DB.cars = (DB.cars||[]).filter(c=>c.account!==id);
+ DB.aero = (DB.aero||[]).filter(a=>a.account!==id);
+ DB.currentAccount = null;
+ // A picked target account for an in-flight transfer/settle/mid-settle/game-end/points action
+ // can no longer point at an account that just stopped existing.
+ [
+  {get:()=>transferTargetAcc, set:v=>transferTargetAcc=v, input:'transferAccSearch', results:'transferAccResults'},
+  {get:()=>settleTargetAcc, set:v=>settleTargetAcc=v, input:'settleAccSearch', results:'settleAccResults'},
+  {get:()=>midTargetAcc, set:v=>midTargetAcc=v, input:'midAccSearch', results:'midAccResults'},
+  {get:()=>endTargetAcc, set:v=>endTargetAcc=v, input:'endAccSearch', results:'endAccResults'},
+  {get:()=>pointsTargetAcc, set:v=>pointsTargetAcc=v, input:'pointsAccSearch', results:'pointsAccResults'},
+ ].forEach(({get,set,input,results})=>{
+  if(get()===id){
+   set(null);
+   const inputEl = document.getElementById(input); if(inputEl) inputEl.value = '';
+   const resultsEl = document.getElementById(results); if(resultsEl) resultsEl.style.display = 'none';
+  }
+ });
+ saveDB();
+ closeModal('modal-edit-account');
+ renderMemberCard(); renderAccountList(); renderLedger(); renderPoints(); renderEventHistory(); renderTotalDeposit();
+ if(typeof renderHotels==='function') renderHotels();
+ if(typeof renderCars==='function') renderCars();
+ if(typeof renderAero==='function') renderAero();
+ if(typeof renderDashboard==='function') renderDashboard();
+ if(typeof renderReportCards==='function') renderReportCards();
+ toast(t('toastAccountWithdrawn'));
 }
 
 /* ---- Telegram Link (QR) ---- */
@@ -5056,11 +5108,21 @@ let sigPads = {};
 function initSigPad(canvasId){
  const canvas = document.getElementById(canvasId);
  if(!canvas) return;
- const resize = ()=>{ canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; };
- resize(); window.addEventListener('resize', resize);
  const ctx = canvas.getContext('2d');
- ctx.strokeStyle = '#D9B26A'; ctx.lineWidth = 2.2; ctx.lineCap='round';
- sigPads[canvasId] = {ctx, drawing:false};
+ // Resizing a canvas clears its bitmap, so preserve whatever was already drawn across a resize
+ // (e.g. the tab becoming visible again after being sized while hidden) instead of wiping it.
+ const resize = ()=>{
+  const data = (canvas.width && canvas.height) ? canvas.toDataURL() : null;
+  canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
+  ctx.strokeStyle = '#D9B26A'; ctx.lineWidth = 2.2; ctx.lineCap='round';
+  if(data && canvas.width && canvas.height){
+   const img = new Image();
+   img.onload = ()=>ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+   img.src = data;
+  }
+ };
+ resize(); window.addEventListener('resize', resize);
+ sigPads[canvasId] = {ctx, drawing:false, resize};
  const pos = e=>{ const r=canvas.getBoundingClientRect(); const p = e.touches?e.touches[0]:e; return {x:p.clientX-r.left, y:p.clientY-r.top}; };
  const start = e=>{ sigPads[canvasId].drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); };
  const move = e=>{ if(!sigPads[canvasId].drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); };
@@ -5071,6 +5133,15 @@ function initSigPad(canvasId){
 function clearSigPad(canvasId){ const s=sigPads[canvasId]; if(s&&s.ctx) s.ctx.clearRect(0,0,9999,9999); }
 function initSig(){ initSigPad('sigPad'); }
 function clearSig(){ clearSigPad('sigPad'); }
+// The registration view is display:none at page load (initSig() runs before the user ever opens
+// it), so the canvas gets sized to a hidden 0x0 clientWidth/Height and never becomes drawable.
+// Re-run the (now non-destructive) resize once the tab is actually visible and correctly sized.
+function ensureSigPadSized(canvasId){
+ const canvas = document.getElementById(canvasId);
+ const s = sigPads[canvasId];
+ if(!canvas || !s) return;
+ if(canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) s.resize();
+}
 function openAccountList(){
  renderAccountList();
  openModal('modal-open-account');

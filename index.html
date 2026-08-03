@@ -524,7 +524,12 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="grid grid-io">
           <div class="card">
             <h3 data-i18n="gameStartTitle"></h3>
-            <div class="field"><label data-i18n="account"></label><input id="gAccount" oninput="uppercaseInput(this);updateGameAccBalance()" onblur="updateGameAccBalance()"></div>
+            <div class="field"><label data-i18n="account"></label>
+              <div class="row" style="gap:6px;">
+                <input id="gAccount" style="flex:1;" oninput="uppercaseInput(this);updateGameAccBalance()" onblur="updateGameAccBalance()">
+                <button type="button" class="btn btn-sm" style="flex:0 0 auto;" onclick="genWalkinAcc()" data-i18n="walkinBtn"></button>
+              </div>
+            </div>
             <div class="field"><label data-i18n="balance"></label><input id="gAccBalance" class="num" disabled></div>
             <div class="row">
               <div class="field"><label data-i18n="startType"></label>
@@ -1922,6 +1927,7 @@ function branchData(branch){
    settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
    guestRollingGrandTotal:0, rollingDailyTotal:0,
    cashCarryBaseline:0, rollingCarryBaseline:0,
+   nextWalkinSeq:1,
   };
  }
  return DB.branchData[branch];
@@ -2289,7 +2295,7 @@ ko:{
  totalRollingLabel:"토탈 롤링",
  rollingReceiptTitle:"롤링커미션 정산서", receiptBuyinAmt:"바인금액", receiptCashoutAmt:"캐쉬아웃", rollingCommSettleAmt:"롤링 커미션 정산금", shiftManagerLabel:"Shift Manager",
  startKindLabel:"시작 종류", startKindLive:"라이브", startKindAvatar:"아바타", startKindSpeed:"스피드",
- genBtn:"생성", addBuyinHint:"기존 게임 ID를 입력하고 바이인 총액을 넣은 뒤 게임 시작을 누르면 추가 바이인으로 처리됩니다.", notifAddBuyin:"추가 바이인", toastAddBuyin:"추가 바이인이 반영되었습니다.",
+ genBtn:"생성", walkinBtn:"워크인", addBuyinHint:"기존 게임 ID를 입력하고 바이인 총액을 넣은 뒤 게임 시작을 누르면 추가 바이인으로 처리됩니다.", notifAddBuyin:"추가 바이인", toastAddBuyin:"추가 바이인이 반영되었습니다.",
  settleListBtn:"정산 목록", settleListTitle:"전체 롤링 커미션 정산 내역",
  midListBtn:"중간 정산 기록", midListTitle:"전체 중간정산 내역", gameEndListBtn:"게임 종료 기록", gameEndListTitle:"전체 게임 종료 기록",
  listSearchPh:"어카운트 또는 게임ID 검색", nnDepositCol:"NN 디파짓", nnCashoutCol:"NN 캐쉬아웃", nnMarkerCol:"NN 마커 리딤", nnWorkingColX:"NN 워킹칩", ongoingTag:"진행중",
@@ -2416,7 +2422,7 @@ en:{
  totalRollingLabel:"Total Rolling",
  rollingReceiptTitle:"Rolling Commission Settlement", receiptBuyinAmt:"Buy-in Amount", receiptCashoutAmt:"CashOut", rollingCommSettleAmt:"Rolling Commission Settlement", shiftManagerLabel:"Shift Manager",
  startKindLabel:"Start Kind", startKindLive:"Live", startKindAvatar:"Avatar", startKindSpeed:"Speed",
- genBtn:"Generate", addBuyinHint:"Enter an existing Game ID and a Buy-in Total, then press Start Game to add an additional buy-in.", notifAddBuyin:"Additional Buy-in", toastAddBuyin:"Additional buy-in recorded.",
+ genBtn:"Generate", walkinBtn:"Walk-in", addBuyinHint:"Enter an existing Game ID and a Buy-in Total, then press Start Game to add an additional buy-in.", notifAddBuyin:"Additional Buy-in", toastAddBuyin:"Additional buy-in recorded.",
  settleListBtn:"Settlement List", settleListTitle:"All Rolling Commission Settlements",
  midListBtn:"Mid-Settlement Records", midListTitle:"All Mid-Settlement History", gameEndListBtn:"Game End Records", gameEndListTitle:"All Game End Records",
  listSearchPh:"Search account or Game ID", nnDepositCol:"NN Deposit", nnCashoutCol:"NN CashOut", nnMarkerCol:"NN Marker Redeem", nnWorkingColX:"NN Working Chips", ongoingTag:"Ongoing",
@@ -2543,7 +2549,7 @@ en:{
  totalRollingLabel:"總轉碼",
  rollingReceiptTitle:"轉碼佣金結算單", receiptBuyinAmt:"買入金額", receiptCashoutAmt:"兌現金額", rollingCommSettleAmt:"轉碼佣金結算金額", shiftManagerLabel:"班務經理",
  startKindLabel:"開局種類", startKindLive:"真人", startKindAvatar:"虛擬分身", startKindSpeed:"極速",
- genBtn:"產生", addBuyinHint:"輸入現有的遊戲ID並填入買入總額，按下開始遊戲即可追加買入。", notifAddBuyin:"追加買入", toastAddBuyin:"追加買入已記錄。",
+ genBtn:"產生", walkinBtn:"散客", addBuyinHint:"輸入現有的遊戲ID並填入買入總額，按下開始遊戲即可追加買入。", notifAddBuyin:"追加買入", toastAddBuyin:"追加買入已記錄。",
  settleListBtn:"結算清單", settleListTitle:"全部轉碼佣金結算紀錄",
  midListBtn:"中途結算紀錄", midListTitle:"全部中途結算紀錄", gameEndListBtn:"結束賽局紀錄", gameEndListTitle:"全部結束賽局紀錄",
  listSearchPh:"搜尋帳戶或局號", nnDepositCol:"NN 存入", nnCashoutCol:"NN 兌現", nnMarkerCol:"NN 馬克兌換", nnWorkingColX:"NN 在檯碼", ongoingTag:"進行中",
@@ -2670,7 +2676,7 @@ en:{
  totalRollingLabel:"总转码",
  rollingReceiptTitle:"转码佣金结算单", receiptBuyinAmt:"买入金额", receiptCashoutAmt:"兑现金额", rollingCommSettleAmt:"转码佣金结算金额", shiftManagerLabel:"班务经理",
  startKindLabel:"开局种类", startKindLive:"真人", startKindAvatar:"虚拟分身", startKindSpeed:"极速",
- genBtn:"生成", addBuyinHint:"输入现有的游戏ID并填入买入总额，按下开始游戏即可追加买入。", notifAddBuyin:"追加买入", toastAddBuyin:"追加买入已记录。",
+ genBtn:"生成", walkinBtn:"散客", addBuyinHint:"输入现有的游戏ID并填入买入总额，按下开始游戏即可追加买入。", notifAddBuyin:"追加买入", toastAddBuyin:"追加买入已记录。",
  settleListBtn:"结算清单", settleListTitle:"全部转码佣金结算记录",
  midListBtn:"中途结算记录", midListTitle:"全部中途结算记录", gameEndListBtn:"结束赛局记录", gameEndListTitle:"全部结束赛局记录",
  listSearchPh:"搜索账户或局号", nnDepositCol:"NN 存入", nnCashoutCol:"NN 兑现", nnMarkerCol:"NN 马克兑换", nnWorkingColX:"NN 在台码", ongoingTag:"进行中",
@@ -2737,6 +2743,7 @@ function seedDB(){
     lastBalancingDt:null, lastCutoffDt:null, lastMonthSettleDt:null,
     settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
     cashCarryBaseline:0, rollingCarryBaseline:0,
+    nextWalkinSeq:1,
    },
   },
   notifications:[],
@@ -3564,6 +3571,17 @@ function updateGameAccBalance(){
  const el = document.getElementById('gAccBalance');
  const acc = DB.accounts[id];
  el.value = acc ? fmt(Object.values(acc.balances).reduce((a,b)=>a+b,0)) : '';
+}
+// Walk-in guests buy in with a simple sequential label (W1, W2, W3...) instead of a real
+// registered account - no account opening required. The counter is per-branch and reset by
+// the master Reset button along with the rest of that branch's records.
+function genWalkinAcc(){
+ const label = 'W' + bd().nextWalkinSeq;
+ bd().nextWalkinSeq++;
+ document.getElementById('gAccount').value = label;
+ document.getElementById('gStartType').value = 'cash';
+ updateGameAccBalance();
+ saveDB();
 }
 function enforceThousand(el){
  const raw = unformatNum(el.value);

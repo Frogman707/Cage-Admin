@@ -203,7 +203,7 @@ tr:hover td{background:var(--panel-raised);}
 
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(8,9,4,.72);z-index:100;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow-y:auto;opacity:0;transition:opacity .18s ease;}
 .modal-bg.open{display:flex;opacity:1;}
-#modal-cage-pin-auth, #modal-withdraw-pw, #modal-withdraw-pin{z-index:200;}
+#modal-cage-pin-auth, #modal-withdraw-pw, #modal-withdraw-pin, #modal-reset-confirm{z-index:200;}
 .modal{background:var(--panel);border:1px solid var(--brass-dim);border-radius:6px;width:560px;max-width:100%;padding:22px 24px;transform:translateY(-10px) scale(.98);transition:transform .18s ease;}
 .modal-bg.open .modal{transform:translateY(0) scale(1);}
 .modal h3{font-family:var(--serif);font-weight:700;color:var(--brass);font-size:17px;margin:0 0 4px;}
@@ -1609,6 +1609,17 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   </table></div>
 </div></div>
 
+<div class="modal-bg" id="modal-reset-confirm"><div class="modal auth-modal">
+  <h3 data-i18n="resetConfirmTitle"></h3>
+  <p class="auth-sub" data-i18n="resetConfirmSub"></p>
+  <div class="field"><input type="password" id="resetPassword" placeholder="••••" autocomplete="off"></div>
+  <p class="login-error" id="resetPasswordError" data-i18n="resetPasswordErrorMsg" style="display:none;"></p>
+  <button class="btn btn-danger btn-block" style="margin-top:10px;" onclick="confirmReset()" data-i18n="resetConfirmBtn"></button>
+  <button class="btn btn-block" style="margin-top:8px;" onclick="closeModal('modal-reset-confirm')" data-i18n="cancelBtn"></button>
+</div></div>
+
+<button id="resetBtn" onclick="openResetConfirm()" data-i18n="resetBtnLabel" style="position:fixed;left:10px;bottom:10px;z-index:60;font-size:10px;padding:3px 8px;opacity:.35;background:transparent;border:1px solid var(--line);color:var(--ink-faint);border-radius:4px;cursor:pointer;transition:opacity .15s ease;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35"></button>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -2189,6 +2200,7 @@ ko:{
  transferAccSearch:"어카운트 검색", transferAccSearchPh:"어카운트 검색", transferNoMatch:"일치하는 어카운트가 없습니다", transferPickAcc:"이체할 어카운트를 선택하세요",
  rollingInputCol:"입력", rollingWord:"롤링", idCardAuth:"ID 카드 인증", authWaiting:"인증 대기중", authWaiting2:"대기중", authDone:"인증완료",
  wdAuthPwTitle:"출금 비밀번호 인증", wdAuthPwSub:"출금 비밀번호를 입력하세요", wdAuthPwErrorMsg:"비밀번호가 일치하지 않습니다.", wdAuthPwHint:"데모 비밀번호: 0000 (미등록 계좌 기준)",
+ resetBtnLabel:"리셋", resetConfirmTitle:"전체 초기화", resetConfirmSub:"마스터 비밀번호를 입력하세요. 이 브라우저의 데이터가 모두 초기화됩니다.", resetPasswordErrorMsg:"비밀번호가 일치하지 않습니다.", resetConfirmBtn:"초기화",
  wdAuthLinkBtn:"링크 생성", wdAuthTelegramBtn:"텔레그램 전송", toastNoTelegram:"연동된 텔레그램이 없습니다.", toastTelegramSent:"텔레그램으로 인증 링크를 전송했습니다.",
  wdAuthPinTitle:"핀코드 인증", wdAuthPinSub:"근무자 핀코드를 입력하세요", wdAuthPinErrorMsg:"핀코드가 일치하지 않습니다.", wdAuthPinHint:"데모 핀코드: 1234",
  cagePinAuthTitle:"핀코드 인증", cagePinAuthSub:"처리를 위해 근무자 핀코드를 입력하세요",
@@ -2314,6 +2326,7 @@ en:{
  transferAccSearch:"Account Search", transferAccSearchPh:"Search account", transferNoMatch:"No matching account", transferPickAcc:"Select an account to transfer to",
  rollingInputCol:"Input", rollingWord:"ROLLING", idCardAuth:"ID Card Authentication", authWaiting:"Awaiting Auth", authWaiting2:"Waiting", authDone:"Authenticated",
  wdAuthPwTitle:"Withdrawal Password", wdAuthPwSub:"Enter the withdrawal password", wdAuthPwErrorMsg:"Incorrect password.", wdAuthPwHint:"Demo password: 0000 (default for unregistered accounts)",
+ resetBtnLabel:"Reset", resetConfirmTitle:"Reset All Data", resetConfirmSub:"Enter the master password. All local data in this browser will be reset.", resetPasswordErrorMsg:"Incorrect password.", resetConfirmBtn:"Reset",
  wdAuthLinkBtn:"Generate Link", wdAuthTelegramBtn:"Send via Telegram", toastNoTelegram:"No linked Telegram account.", toastTelegramSent:"Verification link sent via Telegram.",
  wdAuthPinTitle:"PIN Authentication", wdAuthPinSub:"Enter the staff PIN code", wdAuthPinErrorMsg:"Incorrect PIN.", wdAuthPinHint:"Demo PIN: 1234",
  cagePinAuthTitle:"PIN Authentication", cagePinAuthSub:"Enter the staff PIN code to proceed",
@@ -2439,6 +2452,7 @@ en:{
  transferAccSearch:"帳戶搜尋", transferAccSearchPh:"搜尋帳戶", transferNoMatch:"沒有符合的帳戶", transferPickAcc:"請選擇要轉帳的帳戶",
  rollingInputCol:"輸入", rollingWord:"轉碼", idCardAuth:"ID 卡驗證", authWaiting:"驗證中", authWaiting2:"等待中", authDone:"驗證完成",
  wdAuthPwTitle:"出款密碼驗證", wdAuthPwSub:"請輸入出款密碼", wdAuthPwErrorMsg:"密碼不正確。", wdAuthPwHint:"示範密碼：0000（未設定帳戶適用）",
+ resetBtnLabel:"重置", resetConfirmTitle:"全部重置", resetConfirmSub:"請輸入主管密碼。此瀏覽器的資料將全部重置。", resetPasswordErrorMsg:"密碼不正確。", resetConfirmBtn:"重置",
  wdAuthLinkBtn:"產生連結", wdAuthTelegramBtn:"透過 Telegram 傳送", toastNoTelegram:"尚未綁定 Telegram。", toastTelegramSent:"已透過 Telegram 傳送驗證連結。",
  wdAuthPinTitle:"PIN 驗證", wdAuthPinSub:"請輸入值班人員 PIN 碼", wdAuthPinErrorMsg:"PIN 碼不正確。", wdAuthPinHint:"示範 PIN：1234",
  cagePinAuthTitle:"PIN 驗證", cagePinAuthSub:"請輸入值班人員 PIN 碼以繼續",
@@ -2564,6 +2578,7 @@ en:{
  transferAccSearch:"账户搜索", transferAccSearchPh:"搜索账户", transferNoMatch:"没有符合的账户", transferPickAcc:"请选择要转账的账户",
  rollingInputCol:"输入", rollingWord:"转码", idCardAuth:"ID 卡验证", authWaiting:"验证中", authWaiting2:"等待中", authDone:"验证完成",
  wdAuthPwTitle:"出款密码验证", wdAuthPwSub:"请输入出款密码", wdAuthPwErrorMsg:"密码不正确。", wdAuthPwHint:"演示密码：0000（未设置账户适用）",
+ resetBtnLabel:"重置", resetConfirmTitle:"全部重置", resetConfirmSub:"请输入主管密码。此浏览器的数据将全部重置。", resetPasswordErrorMsg:"密码不正确。", resetConfirmBtn:"重置",
  wdAuthLinkBtn:"生成链接", wdAuthTelegramBtn:"通过 Telegram 发送", toastNoTelegram:"尚未绑定 Telegram。", toastTelegramSent:"已通过 Telegram 发送验证链接。",
  wdAuthPinTitle:"PIN 验证", wdAuthPinSub:"请输入值班人员 PIN 码", wdAuthPinErrorMsg:"PIN 码不正确。", wdAuthPinHint:"演示 PIN：1234",
  cagePinAuthTitle:"PIN 验证", cagePinAuthSub:"请输入值班人员 PIN 码以继续",
@@ -3154,6 +3169,35 @@ function cancelWithdrawAuth(){
 }
 document.getElementById('wdAuthPw').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmWithdrawPw(); });
 document.getElementById('wdAuthPin').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmWithdrawPin(); });
+
+/* ---- Master reset (local data only — never touches Firestore) ---- */
+const MASTER_RESET_PASSWORD = 'kyle';
+function openResetConfirm(){
+ document.getElementById('resetPassword').value = '';
+ document.getElementById('resetPasswordError').style.display = 'none';
+ openModal('modal-reset-confirm');
+}
+function confirmReset(){
+ const entered = document.getElementById('resetPassword').value;
+ if(entered !== MASTER_RESET_PASSWORD){
+  document.getElementById('resetPasswordError').style.display = 'block';
+  return;
+ }
+ closeModal('modal-reset-confirm');
+ performLocalReset();
+}
+document.getElementById('resetPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmReset(); });
+async function performLocalReset(){
+ const fresh = seedDB();
+ try{
+  if(window.storage && window.storage.set){
+   await window.storage.set('cage-admin-db', JSON.stringify(fresh));
+  } else {
+   localStorage.setItem('cage-admin-db', JSON.stringify(fresh));
+  }
+ }catch(e){}
+ location.reload();
+}
 
 /* ---- Cage-level PIN-only auth (balancing confirm, main cage, cutoff, month settle, diff correction) ---- */
 let pendingPinCallback = null;

@@ -213,12 +213,18 @@ tr:hover td{background:var(--panel-raised);}
 .checkbox-row{display:flex;align-items:center;gap:8px;font-size:12px;}
 .stat-line{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid #26271b;}
 .stat-line b{font-family:var(--mono);}
-.sig-pad{background:var(--void);border:1px solid var(--line);border-radius:4px;touch-action:none;width:100%;height:120px;}
+.sig-pad{background:var(--void);border:1px solid var(--line);border-radius:4px;touch-action:none;width:100%;height:220px;}
 .photo-box{
   border:1px dashed var(--line);border-radius:4px;height:96px;display:flex;align-items:center;justify-content:center;
   color:var(--ink-faint);font-size:11px;position:relative;overflow:hidden;background:var(--void);
 }
 .photo-box img{width:100%;height:100%;object-fit:cover;}
+/* Registration + account-edit passport/site photo boxes: match the same ID-3 passport aspect
+   ratio (~1.42:1) and full-image object-fit:contain used by the Identity Verification card, so a
+   real passport scan looks the same size/shape everywhere it's shown, not cropped into a small
+   square here and shown properly there. */
+#pbPassport, #pbSite, #editPbPassport, #editPbSite{aspect-ratio:1.42/1;height:auto;}
+#pbPassport img, #pbSite img, #editPbPassport img, #editPbSite img{object-fit:contain;}
 .receipt{background:#FFFFFF;color:#1a1a1a;padding:26px 24px;border-radius:4px;font-family:var(--sans);font-size:13px;border:2px solid #222;box-shadow:0 16px 40px -18px rgba(0,0,0,.7);}
 .receipt h4{font-family:var(--sans);font-weight:800;text-align:center;margin:0 0 20px;font-size:18px;letter-spacing:1px;}
 .receipt .rline{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #b8ab84;}

@@ -284,7 +284,10 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .auth-modal .stat-line span{font-weight:600;letter-spacing:.5px;color:var(--ink-dim);}
 .id-verify-title{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-faint);margin:16px 0 8px;border-top:1px solid var(--line);padding-top:12px;}
 .id-verify-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-.id-verify-grid .photo-box{height:64px;font-size:9px;line-height:1.4;text-align:center;padding:4px;}
+/* ID-3 (ISO/IEC 7810) passport bio-page ratio, ~125mm x 88mm - lets the whole scanned page show
+   at a size actually close to the real document instead of a small cropped square thumbnail. */
+.id-verify-grid .photo-box{aspect-ratio:1.42/1;height:auto;font-size:9px;line-height:1.4;text-align:center;padding:4px;}
+.id-verify-grid .photo-box img{object-fit:contain;}
 .id-verify-label{font-size:11.5px;color:var(--ink-dim);text-align:center;margin-top:5px;text-transform:uppercase;letter-spacing:.3px;font-weight:600;}
 .balance-grid{margin-top:14px;}
 .balance-sub-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;}

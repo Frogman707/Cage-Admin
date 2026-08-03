@@ -366,7 +366,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <div id="login-gate">
   <div class="login-card">
     <div class="login-mark">CAGE ADMIN</div>
-    <div class="login-ver">v5.0</div>
+    <div class="login-ver" id="loginVerToggle" onclick="toggleMasterLogin()" style="cursor:pointer;">v5.0</div>
 
     <div id="login-step1">
       <div class="field"><label data-i18n="loginStaffLabel"></label>
@@ -376,6 +376,15 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
       <p class="login-error" id="loginError" data-i18n="loginErrorMsg" style="display:none;"></p>
       <p class="login-error" id="loginOtpError" data-i18n="loginOtpErrorMsg" style="display:none;"></p>
       <button class="btn btn-gold btn-block" onclick="attemptLogin()" data-i18n="loginBtn"></button>
+    </div>
+
+    <div id="login-master-step" style="display:none;">
+      <div class="field"><label data-i18n="masterPwLabel"></label><input id="masterPw" type="password" maxlength="20" placeholder="••••••" autocomplete="off"></div>
+      <div class="field"><label data-i18n="loginOtpLabel"></label><input id="masterOtp" type="text" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off" class="otp-input"></div>
+      <p class="login-error" id="masterLoginError" data-i18n="loginErrorMsg" style="display:none;"></p>
+      <p class="login-error" id="masterOtpError" data-i18n="loginOtpErrorMsg" style="display:none;"></p>
+      <button class="btn btn-gold btn-block" onclick="attemptMasterLogin()" data-i18n="masterLoginBtn"></button>
+      <button class="btn btn-block" style="margin-top:8px;" onclick="toggleMasterLogin()" data-i18n="masterBackBtn"></button>
     </div>
   </div>
 </div>
@@ -421,7 +430,10 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <button data-view="reports" onclick="switchView('reports')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1z"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/></svg></span><span data-i18n="navReports"></span></button>
     <button data-view="registration" onclick="switchView('registration')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M18 7.5v5M15.5 10h5"/></svg></span><span data-i18n="navRegistration"></span></button>
     <button data-view="concierge" onclick="switchView('concierge')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M2 17h20"/><circle cx="12" cy="4.6" r="1.1" fill="currentColor" stroke="none"/></svg></span><span data-i18n="navConcierge"></span></button>
-    <div class="nav-foot">Junket Cage Ops<br>International Standard</div>
+    <div class="nav-foot" style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;">
+      <span>Junket Cage Ops<br>International Standard</span>
+      <button id="resetBtn" onclick="openResetConfirm()" style="flex:0 0 auto;font-size:10px;padding:3px 8px;opacity:.35;background:transparent;border:1px solid var(--line);color:var(--ink-faint);border-radius:4px;cursor:pointer;transition:opacity .15s ease;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35">Reset</button>
+    </div>
   </div>
 
   <div class="main">
@@ -1107,14 +1119,10 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openStaffMgmt()" data-i18n="staffMgmtBtn"></button>
             <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openShiftList()" data-i18n="shiftListBtn"></button>
           </div>
-          <div class="row" style="align-items:flex-end;">
-            <div>
-              <div class="stat-line"><span data-i18n="currentWorker"></span><b class="num" id="currentWorker">Kyle, Jena</b></div>
-              <div class="stat-line"><span data-i18n="shiftDateTimeLabel"></span><b class="num" id="shiftLastDt">—</b></div>
-            </div>
-            <div class="field" style="margin:0;"><label data-i18n="checkInStaffLabel"></label>
-              <select id="checkInStaffSelect"></select></div>
-          </div>
+          <div class="stat-line"><span data-i18n="currentWorker"></span><b class="num" id="currentWorker">Kyle, Jena</b></div>
+          <div class="stat-line"><span data-i18n="shiftDateTimeLabel"></span><b class="num" id="shiftLastDt">—</b></div>
+          <div class="field" style="margin-top:12px;"><label data-i18n="checkInStaffLabel"></label>
+            <select id="checkInStaffSelect"></select></div>
           <div class="row" style="margin-top:10px;">
             <button class="btn" onclick="shiftAction('out')" data-i18n="checkOutBtn"></button>
             <button class="btn btn-gold" onclick="shiftAction('in')" data-i18n="checkInBtn"></button>
@@ -1122,7 +1130,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         </div>
         <div class="card eq-card" id="totalDepositCard">
           <h3 data-i18n="totalDepositTitle"></h3>
-          <div class="stat-line"><span data-i18n="allCasino"></span> <span data-i18n="colIn"></span><b class="num pos" id="totalDepositAllIn">0</b> <span data-i18n="colOut"></span><b class="num neg" id="totalDepositAllOut">0</b></div>
+          <div class="stat-line"><span data-i18n="allCasino"></span> <span data-i18n="colIn"></span><b class="num" id="totalDepositAllIn">0</b> <span data-i18n="colOut"></span><b class="num" id="totalDepositAllOut">0</b></div>
           <div class="table-wrap"><table>
             <thead><tr><th data-i18n="colCasino"></th><th data-i18n="colIn"></th><th data-i18n="colOut"></th></tr></thead>
             <tbody id="totalDepositByBranchBody"></tbody>
@@ -1617,8 +1625,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="btn btn-danger btn-block" style="margin-top:10px;" onclick="confirmReset()" data-i18n="resetConfirmBtn"></button>
   <button class="btn btn-block" style="margin-top:8px;" onclick="closeModal('modal-reset-confirm')" data-i18n="cancelBtn"></button>
 </div></div>
-
-<button id="resetBtn" onclick="openResetConfirm()" style="position:fixed;right:10px;bottom:10px;z-index:60;font-size:10px;padding:3px 8px;opacity:.35;background:transparent;border:1px solid var(--line);color:var(--ink-faint);border-radius:4px;cursor:pointer;transition:opacity .15s ease;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35">Reset</button>
 
 <div class="toast" id="toast"></div>
 
@@ -2149,6 +2155,7 @@ ko:{
  toastStaffNameRequired:"이름을 입력하세요.", toastStaffDuplicate:"이미 등록된 이름입니다.", toastStaffRegistered:"직원이 등록되었습니다.", toastStaffUpdated:"직원 정보가 수정되었습니다.",
  toastStaffDeleted:"직원이 삭제되었습니다.", toastPinRegenerated:"PIN이 재발급되었습니다.", toastStaffMinOne:"최소 1명의 직원은 있어야 합니다.", confirmDeleteStaff:"이 직원을 삭제하시겠습니까?",
  loginStaffLabel:"근무자", loginPinLabel:"비밀번호(PIN)", loginErrorMsg:"비밀번호가 일치하지 않습니다.", loginBtn:"로그인", loginHint:"데모 PIN: 1234",
+ masterPwLabel:"마스터 비밀번호", masterLoginBtn:"마스터 로그인", masterBackBtn:"뒤로",
  loginOtpDesc:"Authenticator 앱에 표시된 6자리 인증 코드를 입력하세요.", loginOtpLabel:"인증코드(Authenticator)", loginOtpErrorMsg:"인증 코드가 일치하지 않습니다.",
  loginVerifyBtn:"인증 확인", loginOtpHint:"데모 코드: 123456", loginBackBtn:"뒤로",
  btnTelegramAdd:"텔레그램 연동", copyLinkBtn:"링크 복사", authTimeLabel:"인증 시간", telegramManageBtn:"텔레그램 연동 관리",
@@ -2275,6 +2282,7 @@ en:{
  toastStaffNameRequired:"Enter a name.", toastStaffDuplicate:"This name is already registered.", toastStaffRegistered:"Staff registered.", toastStaffUpdated:"Staff updated.",
  toastStaffDeleted:"Staff deleted.", toastPinRegenerated:"PIN regenerated.", toastStaffMinOne:"At least one staff member is required.", confirmDeleteStaff:"Delete this staff member?",
  loginStaffLabel:"Staff", loginPinLabel:"Password (PIN)", loginErrorMsg:"Incorrect password.", loginBtn:"Log In", loginHint:"Demo PIN: 1234",
+ masterPwLabel:"Master Password", masterLoginBtn:"Master Login", masterBackBtn:"Back",
  loginOtpDesc:"Enter the 6-digit code shown in your Authenticator app.", loginOtpLabel:"Auth Code (Authenticator)", loginOtpErrorMsg:"Incorrect authentication code.",
  loginVerifyBtn:"Verify", loginOtpHint:"Demo code: 123456", loginBackBtn:"Back",
  btnTelegramAdd:"Telegram Link", copyLinkBtn:"Copy Link", authTimeLabel:"Auth Time", telegramManageBtn:"Telegram Link Management",
@@ -2401,6 +2409,7 @@ en:{
  toastStaffNameRequired:"請輸入姓名。", toastStaffDuplicate:"此姓名已被登記。", toastStaffRegistered:"員工已新增。", toastStaffUpdated:"員工資料已更新。",
  toastStaffDeleted:"員工已刪除。", toastPinRegenerated:"PIN已重新產生。", toastStaffMinOne:"至少需保留一名員工。", confirmDeleteStaff:"確定要刪除此員工嗎？",
  loginStaffLabel:"人員", loginPinLabel:"密碼(PIN)", loginErrorMsg:"密碼不正確。", loginBtn:"登入", loginHint:"示範 PIN：1234",
+ masterPwLabel:"主管密碼", masterLoginBtn:"主管登入", masterBackBtn:"返回",
  loginOtpDesc:"請輸入 Authenticator 應用程式顯示的 6 位數驗證碼。", loginOtpLabel:"驗證碼(Authenticator)", loginOtpErrorMsg:"驗證碼不正確。",
  loginVerifyBtn:"驗證", loginOtpHint:"示範驗證碼：123456", loginBackBtn:"返回",
  btnTelegramAdd:"Telegram 綁定", copyLinkBtn:"複製連結", authTimeLabel:"驗證時間", telegramManageBtn:"Telegram 綁定管理",
@@ -2527,6 +2536,7 @@ en:{
  toastStaffNameRequired:"请输入姓名。", toastStaffDuplicate:"此姓名已被登记。", toastStaffRegistered:"员工已新增。", toastStaffUpdated:"员工资料已更新。",
  toastStaffDeleted:"员工已删除。", toastPinRegenerated:"PIN已重新生成。", toastStaffMinOne:"至少需保留一名员工。", confirmDeleteStaff:"确定要删除此员工吗？",
  loginStaffLabel:"人员", loginPinLabel:"密码(PIN)", loginErrorMsg:"密码不正确。", loginBtn:"登录", loginHint:"演示 PIN：1234",
+ masterPwLabel:"主管密码", masterLoginBtn:"主管登录", masterBackBtn:"返回",
  loginOtpDesc:"请输入 Authenticator 应用中显示的 6 位验证码。", loginOtpLabel:"验证码(Authenticator)", loginOtpErrorMsg:"验证码不正确。",
  loginVerifyBtn:"验证", loginOtpHint:"演示验证码：123456", loginBackBtn:"返回",
  btnTelegramAdd:"Telegram 绑定", copyLinkBtn:"复制链接", authTimeLabel:"验证时间", telegramManageBtn:"Telegram 绑定管理",
@@ -4265,9 +4275,7 @@ function renderStaffDropdowns(){
  const opts = rows.map(s=>`<option>${s.name}</option>`).join('');
  const loginSel = document.getElementById('loginStaff');
  const shiftSel = document.getElementById('checkInStaffSelect');
- // MASTER is a login-only override account (not a real staff member) - it's never added to
- // DB.staff, never shows up in staff management or the on-duty check-in dropdown.
- if(loginSel){ const cur = loginSel.value; loginSel.innerHTML = `<option value="MASTER">MASTER</option>${opts}`; if(cur==='MASTER'||rows.some(s=>s.name===cur)) loginSel.value = cur; }
+ if(loginSel){ const cur = loginSel.value; loginSel.innerHTML = opts; if(rows.some(s=>s.name===cur)) loginSel.value = cur; }
  if(shiftSel){ const cur = shiftSel.value; shiftSel.innerHTML = opts; if(rows.some(s=>s.name===cur)) shiftSel.value = cur; }
 }
 function genStaffPin(){
@@ -5410,7 +5418,7 @@ function renderTotalDeposit(){
  if(body){
   body.innerHTML = ['NUSTAR','HANN','ONLINE'].map(c=>{
    const v = byBranch[c]||{inn:0,out:0};
-   return `<tr><td>${c}</td><td class="num pos">${fmt(v.inn)}</td><td class="num neg">${fmt(v.out)}</td></tr>`;
+   return `<tr><td>${c}</td><td class="num">${fmt(v.inn)}</td><td class="num">${fmt(v.out)}</td></tr>`;
   }).join('');
  }
 }
@@ -5423,10 +5431,9 @@ function attemptLogin(){
  const staff = document.getElementById('loginStaff').value;
  const pin = document.getElementById('loginPin').value;
  const otp = document.getElementById('loginOtp').value;
- const isMaster = staff === 'MASTER';
- const staffRec = isMaster ? null : ((DB && DB.staff) || []).find(s=>s.name===staff);
+ const staffRec = ((DB && DB.staff) || []).find(s=>s.name===staff);
  let hasError = false;
- if(isMaster ? pin !== MASTER_RESET_PASSWORD : (!staffRec || pin !== staffRec.pin)){
+ if(!staffRec || pin !== staffRec.pin){
   document.getElementById('loginError').style.display = 'block';
   hasError = true;
  } else {
@@ -5440,8 +5447,7 @@ function attemptLogin(){
  }
  if(hasError) return;
  document.getElementById('login-gate').style.display = 'none';
- // MASTER is an admin override login, not a floor worker - never add it to the on-duty roster.
- if(!isMaster && typeof DB !== 'undefined' && DB){
+ if(typeof DB !== 'undefined' && DB){
   DB.onDutyStaff = DB.onDutyStaff || ['Teddy','Jena'];
   if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff);
   if(typeof renderShiftStaff === 'function') renderShiftStaff();
@@ -5454,6 +5460,43 @@ document.getElementById('loginPin').addEventListener('keydown', e=>{
 document.getElementById('loginOtp').addEventListener('keydown', e=>{
  if(e.key==='Enter') attemptLogin();
 });
+
+// Master login has no entry in the staff dropdown - it's reached by clicking the version
+// number on the login card, so it doesn't show up as a selectable option for anyone glancing
+// at the staff list.
+function toggleMasterLogin(){
+ const step1 = document.getElementById('login-step1');
+ const masterStep = document.getElementById('login-master-step');
+ const showMaster = masterStep.style.display === 'none';
+ step1.style.display = showMaster ? 'none' : '';
+ masterStep.style.display = showMaster ? 'block' : 'none';
+ document.getElementById('masterPw').value = '';
+ document.getElementById('masterOtp').value = '';
+ document.getElementById('masterLoginError').style.display = 'none';
+ document.getElementById('masterOtpError').style.display = 'none';
+}
+function attemptMasterLogin(){
+ const pw = document.getElementById('masterPw').value;
+ const otp = document.getElementById('masterOtp').value;
+ let hasError = false;
+ if(pw !== MASTER_RESET_PASSWORD){
+  document.getElementById('masterLoginError').style.display = 'block';
+  hasError = true;
+ } else {
+  document.getElementById('masterLoginError').style.display = 'none';
+ }
+ if(otp !== '123456'){
+  document.getElementById('masterOtpError').style.display = 'block';
+  hasError = true;
+ } else {
+  document.getElementById('masterOtpError').style.display = 'none';
+ }
+ if(hasError) return;
+ document.getElementById('login-gate').style.display = 'none';
+ // Master is an admin override login, not a floor worker - never add it to the on-duty roster.
+}
+document.getElementById('masterPw').addEventListener('keydown', e=>{ if(e.key==='Enter') attemptMasterLogin(); });
+document.getElementById('masterOtp').addEventListener('keydown', e=>{ if(e.key==='Enter') attemptMasterLogin(); });
 
 (async function init(){
  DB = await loadDB();

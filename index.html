@@ -429,20 +429,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  .receipt-print-copy .receipt .rapproved{margin-top:14px;}
  .receipt-print-copy .receipt .rsign-row{margin-top:16px;}
  .receipt-print-divider{border-top:1px dashed #999;margin:12px 0;}
- body.printing-list > *{display:none !important;}
- body.printing-list > #listPrintArea{display:block !important;padding:10mm;box-sizing:border-box;}
- body.printing-list{background:#fff !important;background-image:none !important;}
- #listPrintArea{color:#1a1a1a;font-family:var(--sans);}
- #listPrintArea h3{font-size:16px;margin:0 0 14px;color:#1a1a1a;}
- #listPrintArea table{width:100%;border-collapse:collapse;font-size:11px;}
- /* The on-screen table styles (td{color:var(--ink)}, .pos/.neg, etc.) are tuned for this app's
-    dark theme and would otherwise print as near-invisible pale text on white paper - force plain
-    dark text here, but let win/loss keep its own green/red so that distinction still reads. */
- #listPrintArea th,#listPrintArea td{border:1px solid #999;padding:5px 7px;text-align:center;color:#1a1a1a !important;background:transparent;}
- #listPrintArea th{background:#eee !important;}
- #listPrintArea td.pos{color:#1a7a4c !important;}
- #listPrintArea td.neg{color:#b5342a !important;}
- #listPrintArea .empty-row td{color:#666 !important;}
 }
 /* On a genuinely roomy full screen, Game Management's fixed 400px form column has plenty of
    space to grow into - widen it and size the fields up instead of leaving that space empty. */
@@ -1498,12 +1484,9 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 
 <div class="modal-bg" id="modal-settle-list"><div class="modal" style="width:1180px;">
   <button class="modal-close" onclick="closeModal('modal-settle-list')">×</button>
-  <div style="display:flex;align-items:center;gap:10px;">
-    <h3 style="margin:0;flex:1;" data-i18n="settleListTitle"></h3>
-    <button class="btn btn-sm" onclick="printSettleList()" data-i18n="printBtn"></button>
-  </div>
+  <h3 data-i18n="settleListTitle"></h3>
   <div class="field" style="margin-top:10px;"><input id="settleListSearch" data-i18n-ph="listSearchPh" oninput="renderSettleList()"></div>
-  <div class="table-wrap"><table id="settleListTable">
+  <div class="table-wrap"><table>
     <thead><tr>
       <th data-i18n="colDate"></th><th>GameID</th><th data-i18n="colAccount"></th>
       <th data-i18n="receiptBuyinAmt"></th><th data-i18n="receiptCashoutAmt"></th><th data-i18n="winLoss"></th>
@@ -1639,6 +1622,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <div class="modal-bg" id="modal-settled-receipt"><div class="modal" style="width:420px;">
   <button class="modal-close" onclick="closeModal('modal-settled-receipt')">×</button>
   <div class="receipt" id="settledReceiptBox"></div>
+  <button class="btn btn-block" style="margin-top:10px;" onclick="printReceiptFrom('settledReceiptBox')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-3px;margin-right:4px;"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M6 14h12v7H6z"/></svg><span data-i18n="printBtn"></span></button>
 </div></div>
 
 <div class="modal-bg" id="modal-hotel-receipt"><div class="modal" style="width:400px;">
@@ -1737,10 +1721,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <!-- Populated only at print time by printReceipt() with 2 copies (guest / cage) of the current
      settlement receipt, laid out for one A4 sheet - never shown on screen. -->
 <div id="receiptPrintArea" style="display:none;"></div>
-
-<!-- Populated only at print time by printSettleList() with the full rolling-commission
-     settlement list, in plain print-friendly light styling - never shown on screen. -->
-<div id="listPrintArea" style="display:none;"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -4074,13 +4054,16 @@ function renderReceipt(g, commission, fb, result, cashout, winLoss, dt, staffNam
   <div class="rapproved">APPROVED BY${staffName?' — '+staffName:''}</div>
   <div class="rsign-row"><div>${t('receiptGuestSig')}</div></div>`;
 }
-// Print just the settlement receipt, not the whole page (sidebar/nav/other cards) - the
+// Print just a settlement receipt, not the whole page (sidebar/nav/other cards) - the
 // 'printing-receipt' class scopes an @media print rule that hides everything except
 // #receiptPrintArea, so every other print button on other pages (unaffected by this class) keeps
 // printing normally. The printed sheet carries 2 copies of the same receipt (guest / cage), sized
 // to both fit on one A4 page, since that's how this slip is actually used at the cage.
-function printReceipt(){
- const src = document.getElementById('receiptBox');
+// boxId lets this be reused for any already-rendered .receipt element - the live one on the
+// 롤링 커미션 정산 tab (#receiptBox), or a specific historical record rendered into
+// #settledReceiptBox (from the settlement list or its popup).
+function printReceiptFrom(boxId){
+ const src = document.getElementById(boxId);
  const area = document.getElementById('receiptPrintArea');
  if(src && area && src.innerHTML.trim()){
   // Clone the WHOLE .receipt element (not just its innerHTML) so the print copies keep the
@@ -4104,6 +4087,18 @@ function printReceipt(){
  }
  document.body.classList.add('printing-receipt');
  window.print();
+}
+function printReceipt(){ printReceiptFrom('receiptBox'); }
+// Render one historical settled record into #settledReceiptBox and print it immediately, without
+// needing to first open the settled-receipt popup.
+function printSettledRow(gameId){
+ const s = (DB.settled||[]).find(x=>x.gameId===gameId);
+ if(!s) return;
+ const matchingGame = [...(DB.endedGames||[]), ...(DB.games||[])].find(g=>g.gameId===gameId);
+ const cur = s.cur || (matchingGame && matchingGame.cur) || '';
+ const gLike = {account:s.account, gameId:s.gameId, cur, buyin:s.buyin, rolling:s.rolling};
+ renderReceipt(gLike, s.commission, s.fb, s.result, s.cashout, s.winLoss, s.dt, s.staff, 'settledReceiptBox');
+ printReceiptFrom('settledReceiptBox');
 }
 window.addEventListener('afterprint', ()=>document.body.classList.remove('printing-receipt'));
 function settleGame(){
@@ -4160,23 +4155,10 @@ function renderSettleList(){
    <td class="num">${fmt(s.buyin)}</td><td class="num">${cashoutDisp}</td>
    <td class="num ${s.winLoss>0?'pos':s.winLoss<0?'neg':''}">${winLossDisp}</td>
    <td class="num">${fmt(s.rolling)}</td><td class="num">${fmt(s.commission)}</td>
-   <td class="num">${s.fb?fmt(s.fb):'-'}</td><td class="num">${fmt(s.result)}</td><td>${s.staff||''}</td></tr>`;
+   <td class="num">${s.fb?fmt(s.fb):'-'}</td><td class="num">${fmt(s.result)}</td>
+   <td>${s.staff||''} <button class="btn btn-sm" onclick='event.stopPropagation();printSettledRow(${JSON.stringify(s.gameId)})'>${t('printBtn')}</button></td></tr>`;
   }).join('');
 }
-// Print the full (currently filtered/searched) rolling-commission settlement list - isolates
-// #listPrintArea the same way printReceipt() isolates #receiptPrintArea, via the 'printing-list'
-// body class, so every other print button on other pages is unaffected.
-function printSettleList(){
- const area = document.getElementById('listPrintArea');
- const table = document.getElementById('settleListTable');
- if(area && table){
-  area.innerHTML = `<h3>${t('settleListTitle')}</h3>`;
-  area.appendChild(table.cloneNode(true));
- }
- document.body.classList.add('printing-list');
- window.print();
-}
-window.addEventListener('afterprint', ()=>document.body.classList.remove('printing-list'));
 function showSettledReceipt(gameId){
  const s = (DB.settled||[]).find(x=>x.gameId===gameId);
  if(!s) return;

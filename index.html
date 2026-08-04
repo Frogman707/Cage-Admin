@@ -5868,7 +5868,7 @@ function requestWithdrawAuth(accountId, onSuccess){
 function genWithdrawPwLink(){
  const id = pendingAuthAccount || DB.currentAccount;
  if(!id){ toast(t('toastNoAcc')); return; }
- const link = `https://t.me/CageAdminBot?verify=${id}-${Date.now()}`;
+ const link = `https://t.me/${TELEGRAM_BOT_USERNAME}?verify=${id}-${Date.now()}`;
  document.getElementById('wdAuthLinkVal').value = link;
  document.getElementById('wdAuthLinkBox').style.display = '';
  if(navigator.clipboard && navigator.clipboard.writeText){
@@ -5877,13 +5877,26 @@ function genWithdrawPwLink(){
   toast(t('toastLinkCopied'));
  }
 }
-function sendWithdrawPwTelegram(){
+async function sendWithdrawPwTelegram(){
  const id = pendingAuthAccount || DB.currentAccount;
  if(!id){ toast(t('toastNoAcc')); return; }
  const acc = DB.accounts[id];
- if(!acc || !acc.telegram || acc.telegram==='—'){ toast(t('toastNoTelegram')); return; }
+ const links = (acc && acc.telegramLinks) || [];
+ if(!links.length){ toast(t('toastNoTelegram')); return; }
  if(!document.getElementById('wdAuthLinkVal').value) genWithdrawPwLink();
- toast(t('toastTelegramSent'));
+ const link = document.getElementById('wdAuthLinkVal').value;
+ const chatId = links[0].chatId;
+ try{
+  const resp = await fetch(`${TG_FUNCTIONS_BASE}/sendTelegramMessage`, {
+   method: 'POST',
+   headers: { 'Content-Type': 'application/json', 'X-App-Secret': TG_APP_API_SECRET },
+   body: JSON.stringify({ account: id, chatId, text: `[${id}] 출금 인증 요청 / Withdrawal authentication request\n${link}` }),
+  });
+  if(!resp.ok) throw new Error('send failed');
+  toast(t('toastTelegramSent'));
+ }catch(e){
+  toast(t('toastTelegramSendFailed'));
+ }
 }
 function confirmWithdrawPw(){
  const acc = DB.accounts[pendingAuthAccount];

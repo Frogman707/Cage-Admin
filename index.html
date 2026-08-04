@@ -335,7 +335,22 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .tg-modal h3{margin:0 0 14px;}
 .tg-modal .tg-timer{font-size:12px;color:var(--ink-faint);margin-bottom:14px;}
 .tg-modal .tg-timer b{color:var(--brass);font-family:var(--mono);}
-.tg-qr-wrap{background:#fff;border-radius:8px;padding:14px;display:inline-block;box-shadow:0 14px 34px -14px rgba(0,0,0,.6);}
+.tg-qr-wrap{background:#fff;border-radius:10px;padding:16px;display:inline-block;box-shadow:0 14px 34px -14px rgba(0,0,0,.6);}
+.tg-header{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:10px;}
+.tg-header svg{color:#29A9EB;flex-shrink:0;}
+.tg-header h3{margin:0;}
+.tg-acc-pill{display:inline-block;background:var(--panel-hi);border:1px solid var(--brass-dim);border-radius:20px;padding:5px 16px;font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.5px;color:var(--brass);margin-bottom:14px;}
+.tg-hint{font-size:12px;color:var(--ink-faint);margin:0 0 16px;line-height:1.5;}
+.tg-qr-wrap svg{display:block;width:186px;height:186px;}
+.tg-copy-btn{margin-top:16px;display:inline-flex;align-items:center;gap:6px;}
+.tg-status{display:flex;align-items:center;justify-content:center;gap:8px;margin:18px 0 2px;font-size:12.5px;color:var(--ink-faint);min-height:16px;}
+.tg-status-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);flex-shrink:0;}
+.tg-status.waiting .tg-status-dot{background:#E8B54A;animation:tgPulse 1.4s ease-in-out infinite;}
+.tg-status.linked{color:var(--jade);font-weight:600;}
+.tg-status.linked .tg-status-dot{background:var(--jade);}
+@keyframes tgPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(1.35);}}
+.tg-divider{border-top:1px solid var(--brass-dim);opacity:.28;margin:18px 0 14px;}
+.tg-manage-btn{font-size:12.5px;padding:9px;opacity:.82;}
 .tg-manage-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #24251A;font-size:12.5px;}
 .breakdown-card{display:flex;flex-direction:column;}
 .breakdown-card .stat-line{margin-top:auto;padding-top:12px;}
@@ -1561,18 +1576,31 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   </table></div>
 </div></div>
 
-<div class="modal-bg" id="modal-telegram-qr"><div class="modal tg-modal" style="width:360px;">
+<div class="modal-bg" id="modal-telegram-qr"><div class="modal tg-modal" style="width:380px;">
   <button class="modal-close" onclick="closeTelegramQr()">×</button>
-  <h3 id="tgQrTitle">텔레그램 연동 : —</h3>
-  <button class="btn btn-sm" onclick="copyTelegramLink()" data-i18n="copyLinkBtn"></button>
-  <div class="tg-qr-wrap" id="tgQrBox" style="margin-top:14px;"></div>
-  <div class="tg-timer" id="tgLinkStatus"></div>
-  <button class="btn btn-block" style="margin-top:16px;" onclick="openTelegramManage()" data-i18n="telegramManageBtn"></button>
+  <div class="tg-header">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:21px;height:21px;"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9 22 2Z"/></svg>
+    <h3 data-i18n="btnTelegramAdd"></h3>
+  </div>
+  <div class="tg-acc-pill" id="tgQrTitle">—</div>
+  <p class="tg-hint" data-i18n="tgScanHint"></p>
+  <div class="tg-qr-wrap" id="tgQrBox"></div>
+  <button class="btn btn-sm tg-copy-btn" onclick="copyTelegramLink()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    <span data-i18n="copyLinkBtn"></span>
+  </button>
+  <div class="tg-status" id="tgLinkStatus"><span class="tg-status-dot"></span><span class="tg-status-text"></span></div>
+  <div class="tg-divider"></div>
+  <button class="btn btn-block tg-manage-btn" onclick="openTelegramManage()" data-i18n="telegramManageBtn"></button>
 </div></div>
 
 <div class="modal-bg" id="modal-telegram-manage"><div class="modal" style="width:600px;">
   <button class="modal-close" onclick="closeModal('modal-telegram-manage')">×</button>
-  <h3 id="tgManageTitle" data-i18n="telegramManageBtn"></h3>
+  <div class="tg-header" style="justify-content:flex-start;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:19px;height:19px;"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9 22 2Z"/></svg>
+    <h3 data-i18n="telegramManageBtn"></h3>
+    <span class="tg-acc-pill" id="tgManageTitle" style="margin:0 0 0 4px;"></span>
+  </div>
   <div class="table-wrap" style="margin-top:10px;"><table>
     <thead><tr><th data-i18n="telegramIdCol"></th><th data-i18n="regDateCol"></th><th data-i18n="deleteAuthCol"></th></tr></thead>
     <tbody id="tgManageBody"></tbody>
@@ -4646,6 +4674,7 @@ ko:{
  totpRegenBtn:"키 재발급 (기존 앱 연결 해제)", totpRegenConfirm:"재발급하면 기존 Authenticator 앱 연결이 끊어집니다. 계속할까요?",
  toastTotpRegenerated:"OTP 키가 재발급되었습니다. Authenticator 앱을 다시 연결하세요.",
  btnTelegramAdd:"텔레그램 연동", copyLinkBtn:"링크 복사", authTimeLabel:"인증 시간", telegramManageBtn:"텔레그램 연동 관리",
+ tgScanHint:"QR코드를 스캔하거나 아래 링크를 손님에게 전달하세요.",
  telegramIdCol:"텔레그램ID", regDateCol:"등록 날짜", deleteAuthCol:"삭제 (인증 필요)",
  toastLinkCopied:"링크가 복사되었습니다.", toastTelegramDeleted:"텔레그램 연동이 삭제되었습니다.",
  cageTotal:"케이지 총계", rollingLabel:"롤링", cashLabel:"캐시", diffLabel:"차이(Diff)",
@@ -4724,7 +4753,7 @@ ko:{
  wdAuthPwTitle:"출금 비밀번호 인증", wdAuthPwSub:"출금 비밀번호를 입력하세요", wdAuthPwErrorMsg:"비밀번호가 일치하지 않습니다.", wdAuthPwHint:"데모 비밀번호: 0000 (미등록 계좌 기준)",
  resetBtnLabel:"Reset", resetConfirmTitle:"지점 초기화", resetConfirmSub:"마스터 비밀번호를 입력하세요. [{branch}] 지점의 계정(MAIN 제외)·게임·정산·포인트/이벤트·근무기록·컨시어지 기록이 모두 초기화됩니다. 다른 지점 기록은 영향받지 않습니다.", resetPasswordErrorMsg:"비밀번호가 일치하지 않습니다.", resetConfirmBtn:"초기화",
  wdAuthLinkBtn:"링크 생성", wdAuthTelegramBtn:"텔레그램 전송", toastNoTelegram:"연동된 텔레그램이 없습니다.", toastTelegramSent:"텔레그램으로 인증 링크를 전송했습니다.",
- tgWaitingStatus:"연동 대기 중... (손님이 QR을 스캔하면 자동으로 연동됩니다)", tgLinkedStatus:"✓ 연동됨: {id}", toastTelegramLinked:"{id} 연동이 완료되었습니다.", toastTelegramSendFailed:"전송에 실패했습니다.",
+ tgWaitingStatus:"연동 대기 중...", tgLinkedStatus:"연동됨: {id}", toastTelegramLinked:"{id} 연동이 완료되었습니다.", toastTelegramSendFailed:"전송에 실패했습니다.",
  wdAuthPinTitle:"핀코드 인증", wdAuthPinSub:"근무자 핀코드를 입력하세요", wdAuthPinErrorMsg:"핀코드가 일치하지 않습니다.", wdAuthPinHint:"데모 핀코드: 1234",
  cagePinAuthTitle:"핀코드 인증", cagePinAuthSub:"처리를 위해 근무자 핀코드를 입력하세요",
  toastRollingConfirmed:"롤링이 입력되었습니다.", notifRollingInput:"롤링 입력", detailViewTitle:"상세보기", colRollingCum:"롤링누계", receiptCol:"영수증",
@@ -4858,7 +4887,8 @@ en:{
  wdAuthPwTitle:"Withdrawal Password", wdAuthPwSub:"Enter the withdrawal password", wdAuthPwErrorMsg:"Incorrect password.", wdAuthPwHint:"Demo password: 0000 (default for unregistered accounts)",
  resetBtnLabel:"Reset", resetConfirmTitle:"Reset Branch", resetConfirmSub:"Enter the master password. All [{branch}] branch records — accounts (except MAIN), games, balancing, points/event, shift log, and concierge — will be reset. Other branches are not affected.", resetPasswordErrorMsg:"Incorrect password.", resetConfirmBtn:"Reset",
  wdAuthLinkBtn:"Generate Link", wdAuthTelegramBtn:"Send via Telegram", toastNoTelegram:"No linked Telegram account.", toastTelegramSent:"Verification link sent via Telegram.",
- tgWaitingStatus:"Waiting for link... (auto-links once the guest scans the QR)", tgLinkedStatus:"✓ Linked: {id}", toastTelegramLinked:"{id} has been linked.", toastTelegramSendFailed:"Failed to send.",
+ tgWaitingStatus:"Waiting for link...", tgLinkedStatus:"Linked: {id}", toastTelegramLinked:"{id} has been linked.", toastTelegramSendFailed:"Failed to send.",
+ tgScanHint:"Scan the QR code or send the link below to the guest.",
  wdAuthPinTitle:"PIN Authentication", wdAuthPinSub:"Enter the staff PIN code", wdAuthPinErrorMsg:"Incorrect PIN.", wdAuthPinHint:"Demo PIN: 1234",
  cagePinAuthTitle:"PIN Authentication", cagePinAuthSub:"Enter the staff PIN code to proceed",
  toastRollingConfirmed:"Rolling entry recorded.", notifRollingInput:"Rolling Entry", detailViewTitle:"Details", colRollingCum:"Rolling Cumulative", receiptCol:"Receipt",
@@ -4992,7 +5022,8 @@ en:{
  wdAuthPwTitle:"出款密碼驗證", wdAuthPwSub:"請輸入出款密碼", wdAuthPwErrorMsg:"密碼不正確。", wdAuthPwHint:"示範密碼：0000（未設定帳戶適用）",
  resetBtnLabel:"Reset", resetConfirmTitle:"分店初始化", resetConfirmSub:"請輸入主管密碼。[{branch}] 分店的帳戶(MAIN除外)、遊戲、結算、點數/活動、交班紀錄、禮賓服務紀錄將全部重置。不影響其他分店的紀錄。", resetPasswordErrorMsg:"密碼不正確。", resetConfirmBtn:"重置",
  wdAuthLinkBtn:"產生連結", wdAuthTelegramBtn:"透過 Telegram 傳送", toastNoTelegram:"尚未綁定 Telegram。", toastTelegramSent:"已透過 Telegram 傳送驗證連結。",
- tgWaitingStatus:"等待連動中...（貴賓掃描 QR 後將自動連動）", tgLinkedStatus:"✓ 已連動：{id}", toastTelegramLinked:"{id} 已完成連動。", toastTelegramSendFailed:"傳送失敗。",
+ tgWaitingStatus:"等待連動中...", tgLinkedStatus:"已連動：{id}", toastTelegramLinked:"{id} 已完成連動。", toastTelegramSendFailed:"傳送失敗。",
+ tgScanHint:"請掃描 QR 碼，或將下方連結傳送給貴賓。",
  wdAuthPinTitle:"PIN 驗證", wdAuthPinSub:"請輸入值班人員 PIN 碼", wdAuthPinErrorMsg:"PIN 碼不正確。", wdAuthPinHint:"示範 PIN：1234",
  cagePinAuthTitle:"PIN 驗證", cagePinAuthSub:"請輸入值班人員 PIN 碼以繼續",
  toastRollingConfirmed:"轉碼已輸入。", notifRollingInput:"轉碼輸入", detailViewTitle:"詳細資料", colRollingCum:"轉碼累計", receiptCol:"收據",
@@ -5126,7 +5157,8 @@ en:{
  wdAuthPwTitle:"出款密码验证", wdAuthPwSub:"请输入出款密码", wdAuthPwErrorMsg:"密码不正确。", wdAuthPwHint:"演示密码：0000（未设置账户适用）",
  resetBtnLabel:"Reset", resetConfirmTitle:"分店初始化", resetConfirmSub:"请输入主管密码。[{branch}] 分店的账户(MAIN除外)、游戏、结算、积分/活动、交班记录、礼宾服务记录将全部重置。不影响其他分店的记录。", resetPasswordErrorMsg:"密码不正确。", resetConfirmBtn:"重置",
  wdAuthLinkBtn:"生成链接", wdAuthTelegramBtn:"通过 Telegram 发送", toastNoTelegram:"尚未绑定 Telegram。", toastTelegramSent:"已通过 Telegram 发送验证链接。",
- tgWaitingStatus:"等待连接中...（贵宾扫描二维码后将自动连接）", tgLinkedStatus:"✓ 已连接：{id}", toastTelegramLinked:"{id} 已完成连接。", toastTelegramSendFailed:"发送失败。",
+ tgWaitingStatus:"等待连接中...", tgLinkedStatus:"已连接：{id}", toastTelegramLinked:"{id} 已完成连接。", toastTelegramSendFailed:"发送失败。",
+ tgScanHint:"请扫描二维码，或将下方链接发送给贵宾。",
  wdAuthPinTitle:"PIN 验证", wdAuthPinSub:"请输入值班人员 PIN 码", wdAuthPinErrorMsg:"PIN 码不正确。", wdAuthPinHint:"演示 PIN：1234",
  cagePinAuthTitle:"PIN 验证", cagePinAuthSub:"请输入值班人员 PIN 码以继续",
  toastRollingConfirmed:"转码已输入。", notifRollingInput:"转码输入", detailViewTitle:"详细资料", colRollingCum:"转码累计", receiptCol:"收据",
@@ -5767,10 +5799,12 @@ function openTelegramLink(overrideId){
  const id = overrideId || DB.currentAccount;
  if(!id){ toast(t('toastNoAcc')); return; }
  tgLinkTargetId = id;
- document.getElementById('tgQrTitle').textContent = `${t('btnTelegramAdd')} : ${id}`;
+ document.getElementById('tgQrTitle').textContent = id;
  renderQrSvg(document.getElementById('tgQrBox'), `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${id}`);
  const statusEl = document.getElementById('tgLinkStatus');
- statusEl.textContent = t('tgWaitingStatus');
+ const statusTextEl = statusEl.querySelector('.tg-status-text');
+ statusEl.className = 'tg-status waiting';
+ statusTextEl.textContent = t('tgWaitingStatus');
 
  stopTelegramPoll();
  let knownCount = null;
@@ -5781,7 +5815,8 @@ function openTelegramLink(overrideId){
   if(links.length > knownCount){
    const newest = links[links.length-1];
    toast(t('toastTelegramLinked').replace('{id}', newest.id));
-   statusEl.textContent = t('tgLinkedStatus').replace('{id}', newest.id);
+   statusEl.className = 'tg-status linked';
+   statusTextEl.textContent = t('tgLinkedStatus').replace('{id}', newest.id);
    knownCount = links.length;
   }
   const acc = DB.accounts[id];
@@ -5809,7 +5844,7 @@ async function openTelegramManage(overrideId){
  const id = overrideId || DB.currentAccount;
  if(!id) return;
  tgLinkTargetId = id;
- document.getElementById('tgManageTitle').textContent = `${t('telegramManageBtn')} : ${id}`;
+ document.getElementById('tgManageTitle').textContent = id;
  renderTelegramManage();
  const links = await fetchTelegramLinks(id);
  if(links !== null){

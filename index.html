@@ -5846,6 +5846,28 @@ async function deleteTelegramLink(idx){
  }
 }
 
+/* ---- Automatic per-situation Telegram notifications (문자 양식 자동 전송) ----
+   Best-effort/silent: if the account has no linked Telegram, this is a no-op - it never blocks
+   or reports failure on the actual cage operation the message is describing. */
+function nowDateTimeParts(){
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
+ const [date, time] = now.split(' ');
+ return {date, time};
+}
+function branchLabel(){ return currentBranch(); }
+function last3Digits(id){ return String(id||'').slice(-3); }
+function sendCageNotification(accountId, lines){
+ const acc = DB.accounts[accountId];
+ const links = acc && acc.telegramLinks;
+ if(!links || !links.length || !links[0].chatId) return;
+ const text = lines.filter(l=>l!==null).join('\n');
+ fetch(`${TG_FUNCTIONS_BASE}/sendTelegramMessage`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'X-App-Secret': TG_APP_API_SECRET },
+  body: JSON.stringify({ account: accountId, chatId: links[0].chatId, text }),
+ }).catch(()=>{});
+}
+
 function setIoType(type){
  DB.ioType = type;
  document.getElementById('ioTypeDeposit').classList.toggle('on', type==='deposit');
@@ -6089,9 +6111,14 @@ function hasSufficientBalance(accountId, casino, amount){
 }
 function applyAccountTransaction(accountId, type, amount, memo){
  const acc = DB.accounts[accountId];
- if(!acc || !amount || amount<=0) return;
+ if(!acc || !amount || amount<=0) return null;
  const casino = (acc.balances && acc.balances.HANN!==undefined) ? 'HANN' : Object.keys(acc.balances||{})[0] || 'HANN';
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ // Computed here (prior known balance ± amount) rather than read back from acc.balances after
+ // writeLedgerEntry - in cloud-sync mode the local balance doesn't update synchronously, so a
+ // post-call read would be stale for the notification message below.
+ const priorBal = (acc.balances && acc.balances[casino]) || 0;
+ const newBal = priorBal + (type==='IN' ? amount : -amount);
  writeLedgerEntry({accountId, casino, type, amount, staff:staffName, memo});
  // 해당 카지노의 MAIN 어카운트(지점 메인 어카운트)와의 이체로 처리 — 손님 계좌와 반대 방향으로 동일
  // 금액을 기록해 전체 계좌 입출금 합계(케이지 합산금액 캐시)에는 영향이 없고, 게임 나간 금액 등 개별
@@ -6101,6 +6128,7 @@ function applyAccountTransaction(accountId, type, amount, memo){
   const mainType = type==='IN' ? 'OUT' : 'IN';
   writeLedgerEntry({accountId:mainId, casino, type:mainType, amount, staff:staffName, memo:`${memo} — ${accountId}`});
  }
+ return {casino, balance:newBal};
 }
 function _doProcessIo(amt){
  const casino = document.getElementById('ioCasino').value;
@@ -6113,6 +6141,9 @@ function _doProcessIo(amt){
   pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
   return;
  }
+ const acc = DB.accounts[DB.currentAccount];
+ const priorBal = (acc && acc.balances && acc.balances[casino]) || 0;
+ const newBal = priorBal + (DB.ioType==='deposit' ? amt : -amt);
  writeLedgerEntry({accountId: DB.currentAccount, casino, type: DB.ioType==='deposit'?'IN':'OUT', amount:amt, staff:staffName, memo});
  if(DB.ioType==='withdraw'){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + amt;
@@ -6121,6 +6152,13 @@ function _doProcessIo(amt){
  saveDB(); renderMemberCard(); renderLedger(); renderBalancingSummary();
  pushNotification(DB.ioType==='deposit'?'notifDeposit':'notifWithdraw', `${DB.currentAccount} · ${casino} · ${fmt(amt)}`);
  toast(t('toastProcessed'));
+ const {date, time} = nowDateTimeParts();
+ const curLabel = (acc && acc.currency) || 'PHP';
+ if(DB.ioType==='deposit'){
+  sendCageNotification(DB.currentAccount, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${DB.currentAccount}`, `DEP.: ${fmt(amt)}`, `CURR.: ${curLabel}`, `BAL: ${fmt(newBal)}`, `REMARKS: CASH D/P`]);
+ } else {
+  sendCageNotification(DB.currentAccount, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${DB.currentAccount}`, `C/O.: ${fmt(amt)}`, `CURR.: ${curLabel}`, `BAL: ${fmt(newBal)}`, `REMARKS: C/O`]);
+ }
 }
 
 let transferTargetAcc = null;
@@ -6166,6 +6204,10 @@ function _doTransfer(amt){
   pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
   return;
  }
+ const fromAcc = DB.accounts[DB.currentAccount];
+ const toAcc = DB.accounts[transferTargetAcc];
+ const fromPriorBal = (fromAcc && fromAcc.balances && fromAcc.balances[casino]) || 0;
+ const toPriorBal = (toAcc && toAcc.balances && toAcc.balances[casino]) || 0;
  writeLedgerEntry({accountId: DB.currentAccount, casino, type:'OUT', amount:amt, staff:staffName, memo:`→ ${transferTargetAcc}`});
  writeLedgerEntry({accountId: transferTargetAcc, casino, type:'IN', amount:amt, staff:staffName, memo:`← ${DB.currentAccount}`});
  const toAccId = transferTargetAcc;
@@ -6176,6 +6218,9 @@ function _doTransfer(amt){
  saveDB(); renderMemberCard(); renderLedger();
  pushNotification('notifTransferT', `${DB.currentAccount} → ${toAccId} · ${casino} · ${fmt(amt)}`);
  toast(t('toastTransfer'));
+ const {date, time} = nowDateTimeParts();
+ sendCageNotification(DB.currentAccount, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${DB.currentAccount}`, `AMT.: ${fmt(amt)}`, `CURR.: ${(fromAcc&&fromAcc.currency)||'PHP'}`, `BAL: ${fmt(fromPriorBal-amt)}`, `REMARKS: TO ${toAccId}`]);
+ sendCageNotification(toAccId, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${toAccId}`, `AMT.: ${fmt(amt)}`, `CURR.: ${(toAcc&&toAcc.currency)||'PHP'}`, `BAL: ${fmt(toPriorBal+amt)}`, `REMARKS: FROM ${DB.currentAccount}`]);
 }
 
 function renderLedger(){
@@ -6296,12 +6341,16 @@ function _doAddBuyin(existing, buyin, workingChip){
  DB.gameNNAdjust = (DB.gameNNAdjust||0) - (buyin + workingChip);
  applyShift('buyinRollingShift', buyin, staffName);
  if(workingChip) applyShift('workingChipRollingShift', workingChip, staffName);
+ const {date, time} = nowDateTimeParts();
+ const remarkNo = last3Digits(existing.gameId);
  if(existing.startType === 'cash'){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + buyin;
   applyShift('cashBuyinShift', buyin, staffName);
+  sendCageNotification(existing.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${existing.account}`, `GAME#: ${existing.gameId}`, `CURR.: ${existing.cur||'PHP'}`, `ADD B/I: (CASH) ${fmt(buyin)}`, `REMARKS: ADD B/I#${remarkNo}`]);
  } else if(existing.startType === 'account'){
-  applyAccountTransaction(existing.account, 'OUT', buyin, `${t('memoGameBuyin')} (${existing.gameId})`);
+  const txn = applyAccountTransaction(existing.account, 'OUT', buyin, `${t('memoGameBuyin')} (${existing.gameId})`);
   renderMemberCard(); renderLedger();
+  if(txn) sendCageNotification(existing.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${existing.account}`, `GAME#: ${existing.gameId}`, `CURR.: ${existing.cur||'PHP'}`, `ADD B/I: ${fmt(buyin)}`, `BAL: ${fmt(txn.balance)}`, `REMARKS: ADD B/I#${remarkNo}`]);
  }
  if(fbDb) writeGameDoc(existing);
  document.getElementById('gBuyin').value = '';
@@ -6330,12 +6379,16 @@ function _doStartGame(account, buyin, workingChip, enteredId){
  DB.gameNNAdjust = (DB.gameNNAdjust||0) - (buyin + workingChip);
  applyShift('buyinRollingShift', buyin, staffName);
  if(workingChip) applyShift('workingChipRollingShift', workingChip, staffName);
+ const {date, time} = nowDateTimeParts();
+ const remarkNo = last3Digits(gameId);
  if(startType === 'cash'){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + buyin;
   applyShift('cashBuyinShift', buyin, staffName);
+  sendCageNotification(account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${account}`, `GAME#: ${gameId}`, `CURR.: ${cur||'PHP'}`, `B/I: (CASH) ${fmt(buyin)}`, `REMARKS: B/I #${remarkNo}`]);
  } else if(startType === 'account'){
-  applyAccountTransaction(account, 'OUT', buyin, `${t('memoGameBuyin')} (${gameId})`);
+  const txn = applyAccountTransaction(account, 'OUT', buyin, `${t('memoGameBuyin')} (${gameId})`);
   renderMemberCard(); renderLedger();
+  if(txn) sendCageNotification(account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${account}`, `GAME#: ${gameId}`, `CURR.: ${cur||'PHP'}`, `B/I: (D/P) ${fmt(buyin)}`, `BAL: ${fmt(txn.balance)}`, `REMARKS: B/I #${remarkNo}`]);
  }
  if(fbDb) writeGameDoc(newGame);
  saveDB(); renderInGame(); renderOngoing(); updateGameIdPreview(); renderBalancingSummary();
@@ -6621,9 +6674,18 @@ function _doSettleGame(){
  }
  DB.settled = DB.settled||[];
  DB.settled.push({gameId:g.gameId, account:g.account, cur:g.cur, branch:g.branch||currentBranch(), dt, buyin:g.buyin, cashout, winLoss, rolling:g.rolling, commission, fb, result, staff:staffName});
+ let settleTxn = null;
  if(result > 0){
-  applyAccountTransaction(g.account, 'IN', result, `${t('memoRollingSettle')} (${g.gameId})`);
+  settleTxn = applyAccountTransaction(g.account, 'IN', result, `${t('memoRollingSettle')} (${g.gameId})`);
   renderMemberCard(); renderLedger();
+ }
+ if(settleTxn){
+  const {date, time} = nowDateTimeParts();
+  const remarkNo = last3Digits(g.gameId);
+  if(isEnded){
+   sendCageNotification(g.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${g.account}`, `GAME#: ${g.gameId}`, `CURR.: ${g.cur||'PHP'}`, `B/I: ${fmt(g.buyin||0)}`, `C/O: ${fmt(cashout||0)}`, `TIP: 0`, `F/C: ${fb?fmt(fb):0}`, `BAL: ${fmt(settleTxn.balance)}`, `REMARKS: F/G #${remarkNo}`]);
+  }
+  sendCageNotification(g.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${g.account}`, `GAME#: ${g.gameId}`, `CURR.: ${g.cur||'PHP'}`, `R/C: ${fmt(commission)}`, `BAL: ${fmt(settleTxn.balance)}`, `REMARKS: F/G #${remarkNo}`]);
  }
  payEventCommissionForSettle(g.account, g.rolling||0);
  saveDB(); populateSettleSelect(); renderEndedGames();
@@ -6772,8 +6834,12 @@ function _doConfirmMidSettle(){
  }
  const depositSum = cc.deposit + nn.deposit;
  if(depositSum > 0){
-  applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoMidSettleDeposit')} (${g.gameId})`);
+  const txn = applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoMidSettleDeposit')} (${g.gameId})`);
   renderMemberCard(); renderLedger();
+  if(txn){
+   const {date, time} = nowDateTimeParts();
+   sendCageNotification(g.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${g.account}`, `GAME#: ${g.gameId}`, `CURR.: ${g.cur||'PHP'}`, `DEP.: ${fmt(depositSum)}`, `BAL: ${fmt(txn.balance)}`, `REMARKS: ST D/P #${last3Digits(g.gameId)}`]);
+  }
  }
  ['midCcDeposit','midCcCashout','midCcMarker','midCcDealerTips','midCcHouseTips',
   'midNnDeposit','midNnCashout','midNnMarker','midNnWorking'].forEach(fid=>{
@@ -6966,8 +7032,12 @@ function _doConfirmGameEnd(){
  }
  const depositSum = cc.deposit + nn.deposit;
  if(depositSum > 0){
-  applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoGameEndDeposit')} (${g.gameId})`);
+  const txn = applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoGameEndDeposit')} (${g.gameId})`);
   renderMemberCard(); renderLedger();
+  if(txn){
+   const {date, time} = nowDateTimeParts();
+   sendCageNotification(g.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${g.account}`, `GAME#: ${g.gameId}`, `CURR.: ${g.cur||'PHP'}`, `B/I: ${fmt(g.buyin||0)}`, `DEP.: ${fmt(depositSum)}`, `TIP: 0`, `F/C: 0`, `BAL: ${fmt(txn.balance)}`, `REMARKS: F/G #${last3Digits(g.gameId)}`]);
+  }
  }
  saveDB(); renderInGame(); renderOngoing(); populateEndSelect(); renderEndedGames(); renderBalancingSummary();
  pushNotification('notifGameEnd', `${g.gameId} · ${g.account} · ${winLoss>=0?'+':''}${fmt(winLoss)}`);

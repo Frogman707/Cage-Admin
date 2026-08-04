@@ -28,12 +28,20 @@ function applyCors(req, res) {
 }
 
 async function callTelegram(token, method, payload) {
-  const resp = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+  const resp = await fetch(`https://api.telegram.org/bot${token.trim()}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   return resp.json();
+}
+
+// Secrets set via `"value" | firebase functions:secrets:set NAME --data-file -` from PowerShell
+// can pick up an invisible trailing newline/whitespace depending on how PowerShell encodes the
+// piped stdin, which breaks a strict === comparison silently (looks identical in any terminal).
+// Trim defensively on both sides everywhere a secret is compared.
+function secretEquals(provided, expected) {
+  return String(provided || "").trim() === String(expected || "").trim();
 }
 
 /**
@@ -44,7 +52,7 @@ async function callTelegram(token, method, payload) {
 exports.telegramWebhook = onRequest(
   { secrets: [TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET] },
   async (req, res) => {
-    if (req.get("X-Telegram-Bot-Api-Secret-Token") !== TELEGRAM_WEBHOOK_SECRET.value()) {
+    if (!secretEquals(req.get("X-Telegram-Bot-Api-Secret-Token"), TELEGRAM_WEBHOOK_SECRET.value())) {
       res.status(401).send("unauthorized");
       return;
     }
@@ -54,8 +62,8 @@ exports.telegramWebhook = onRequest(
 
     if (msg && text && text.startsWith("/start")) {
       const accountId = text.trim().split(/\s+/)[1];
+      const chatId = msg.chat.id;
       if (accountId) {
-        const chatId = msg.chat.id;
         const username = msg.from && msg.from.username ? "@" + msg.from.username : null;
         const firstName = (msg.from && msg.from.first_name) || null;
 
@@ -77,6 +85,18 @@ exports.telegramWebhook = onRequest(
         } catch (e) {
           logger.error("Failed to send confirmation message", e);
         }
+      } else {
+        // Plain "/start" with no payload - only reachable by typing it manually, not through the
+        // app's QR/link. Still reply so a manual test isn't silently indistinguishable from a
+        // dead webhook.
+        try {
+          await callTelegram(TELEGRAM_BOT_TOKEN.value(), "sendMessage", {
+            chat_id: chatId,
+            text: "이 봇은 Cage Admin 앱에서 제공하는 전용 링크로만 사용됩니다. / This bot only works via the link provided in the Cage Admin app.",
+          });
+        } catch (e) {
+          logger.error("Failed to send no-payload reply", e);
+        }
       }
     }
 
@@ -95,7 +115,7 @@ exports.getTelegramLinks = onRequest(
   { secrets: [APP_API_SECRET] },
   async (req, res) => {
     if (applyCors(req, res)) return;
-    if (req.get("X-App-Secret") !== APP_API_SECRET.value()) {
+    if (!secretEquals(req.get("X-App-Secret"), APP_API_SECRET.value())) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
@@ -130,7 +150,7 @@ exports.sendTelegramMessage = onRequest(
       res.status(405).json({ error: "POST only" });
       return;
     }
-    if (req.get("X-App-Secret") !== APP_API_SECRET.value()) {
+    if (!secretEquals(req.get("X-App-Secret"), APP_API_SECRET.value())) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
@@ -170,7 +190,7 @@ exports.deleteTelegramLink = onRequest(
       res.status(405).json({ error: "POST only" });
       return;
     }
-    if (req.get("X-App-Secret") !== APP_API_SECRET.value()) {
+    if (!secretEquals(req.get("X-App-Secret"), APP_API_SECRET.value())) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }

@@ -214,6 +214,7 @@ tr:hover td{background:var(--panel-raised);}
 .stat-line{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid #26271b;}
 .stat-line b{font-family:var(--mono);}
 .sig-pad{background:var(--void);border:1px solid var(--line);border-radius:4px;touch-action:none;width:100%;height:220px;}
+@media (min-width:1300px){ #sigPad{height:340px;} }
 .photo-box{
   border:1px dashed var(--line);border-radius:4px;height:96px;display:flex;align-items:center;justify-content:center;
   color:var(--ink-faint);font-size:11px;position:relative;overflow:hidden;background:var(--void);
@@ -225,7 +226,7 @@ tr:hover td{background:var(--panel-raised);}
    square here and shown properly there. */
 #pbPassport, #pbSite, #editPbPassport, #editPbSite{aspect-ratio:1.42/1;height:auto;}
 #pbPassport img, #pbSite img, #editPbPassport img, #editPbSite img{object-fit:contain;}
-.receipt{background:#FFFFFF;color:#1a1a1a;padding:26px 24px;border-radius:4px;font-family:var(--sans);font-size:13px;border:2px solid #222;box-shadow:0 16px 40px -18px rgba(0,0,0,.7);}
+.receipt{background:#FFFFFF;color:#1a1a1a;padding:26px 24px;border-radius:4px;font-family:var(--sans);font-size:13px;border:2px solid #222;box-shadow:0 16px 40px -18px rgba(0,0,0,.7);max-width:560px;margin:0 auto;}
 .receipt h4{font-family:var(--sans);font-weight:800;text-align:center;margin:0 0 20px;font-size:18px;letter-spacing:1px;}
 .receipt .rline{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #b8ab84;}
 .receipt .rmeta-row{display:flex;justify-content:space-between;margin-bottom:9px;font-size:12.5px;}
@@ -301,9 +302,14 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .ticket-sm::before{content:'';position:absolute;top:0;left:6px;right:6px;height:1px;background:var(--grad-gold);opacity:.85;}
 .ticket-sm .lbl{font-size:9.5px;letter-spacing:.3px;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ticket-sm .amt{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--brass);margin-top:4px;white-space:nowrap;letter-spacing:-.3px;text-align:center;}
-.chip-section{border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px;background:rgba(217,178,106,.025);}
+.chip-section{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:rgba(217,178,106,.025);}
 .chip-section.nn{background:rgba(47,169,140,.035);}
-.chip-section-title{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--brass);margin-bottom:10px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+/* The 3-field rows (deposit/cashout/marker) are authored to sit on one line, but the app-wide
+   150px field min-width made them wrap onto an extra line inside this section's narrower fixed
+   400px column - narrowing just for chip-section fields lets that intended single-line layout
+   actually happen, which is what keeps the 중간정산/게임종료 forms short enough to fit one screen. */
+.chip-section .row > .field{flex:1 1 100px;min-width:100px;margin-bottom:8px;}
+.chip-section-title{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--brass);margin-bottom:8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
 .chip-section-title.nn{color:#6FE0C4;}
 .chip-section-title .hint{font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint);margin:0;}
 .tg-modal{text-align:center;}
@@ -368,6 +374,18 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .login-hint:first-of-type{margin-top:16px;}
 .login-card .btn{margin-top:22px;}
 .otp-input{text-align:center;letter-spacing:8px;font-family:var(--mono);font-size:18px;}
+/* Shorter viewports (small laptops, browser chrome eating into the window) get slightly tighter
+   vertical spacing everywhere, so a tall form still fits on one screen without scrolling. */
+@media (max-height:820px){
+ .card{padding:10px 14px;}
+ .card h3{margin-bottom:8px;}
+ .field{margin-bottom:6px;}
+ .field input,.field select,.field textarea{padding:6px 9px;}
+ .chip-section{padding:6px 8px;margin-bottom:6px;}
+ .chip-section .row > .field{margin-bottom:4px;}
+ .chip-section-title{margin-bottom:4px;}
+ .receipt{padding:16px 16px;}
+}
 </style>
 </head>
 <body>
@@ -993,7 +1011,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <!-- ============ POINTS ============ -->
     <section class="view" id="view-points">
       <h2 class="page-title" data-i18n="navPoints"></h2>
-      <div class="grid grid-2">
+      <div class="grid grid-io">
         <div class="card" id="pointsHoldCard">
           <h3 data-i18n="pointsBalance"></h3>
           <div class="field" style="position:relative;">
@@ -1021,12 +1039,12 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         </div>
       </div>
 
-      <div class="grid grid-2" style="margin-top:16px;">
+      <div class="grid grid-io" style="margin-top:16px;">
         <div class="card" id="eventFormCard">
           <div style="display:flex;align-items:center;gap:10px;">
             <h3 style="margin:0;flex:1;" data-i18n="eventTitle"></h3>
             <span class="pill nn" id="eventStatusPill" style="display:none;" data-i18n="eventOn"></span>
-            <button class="btn btn-sm" onclick="openEventHistList()" data-i18n="eventLogBtn"></button>
+            <button class="btn btn-sm" onclick="openEventActivationList()" data-i18n="eventLogBtn"></button>
           </div>
           <div class="row" style="margin-top:14px;">
             <div class="field"><label data-i18n="eventStartLabel"></label><input id="eventStartDate" type="datetime-local"></div>
@@ -1149,7 +1167,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <thead><tr><th data-i18n="colCasino"></th><th data-i18n="colIn"></th><th data-i18n="colOut"></th></tr></thead>
             <tbody id="totalDepositByBranchBody"></tbody>
           </table></div>
-          <button class="btn btn-sm" style="margin-top:auto;" onclick="window.print()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-3px;margin-right:4px;"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M6 14h12v7H6z"/></svg><span data-i18n="print"></span></button>
         </div>
         <div class="card">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
@@ -1473,12 +1490,12 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   </table></div>
 </div></div>
 
-<div class="modal-bg" id="modal-event-hist"><div class="modal" style="width:640px;">
-  <button class="modal-close" onclick="closeModal('modal-event-hist')">×</button>
-  <h3 data-i18n="eventHistoryTitle"></h3>
+<div class="modal-bg" id="modal-event-activation-list"><div class="modal" style="width:640px;">
+  <button class="modal-close" onclick="closeModal('modal-event-activation-list')">×</button>
+  <h3 data-i18n="eventActivationListTitle"></h3>
   <div class="table-wrap" style="margin-top:10px;"><table>
-    <thead><tr><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="dashRolling"></th><th data-i18n="eventRateLabel"></th><th data-i18n="eventCommAmtLabel"></th><th data-i18n="colStaff"></th></tr></thead>
-    <tbody id="eventHistListBody"></tbody>
+    <thead><tr><th data-i18n="colDate"></th><th data-i18n="eventStartLabel"></th><th data-i18n="eventEndLabel"></th><th data-i18n="eventRateLabel"></th><th data-i18n="colStaff"></th></tr></thead>
+    <tbody id="eventActivationListBody"></tbody>
   </table></div>
 </div></div>
 
@@ -1990,8 +2007,8 @@ function switchBranch(branch){
  if(typeof renderAccountList==='function') renderAccountList();
  if(typeof renderPoints==='function') renderPoints();
  if(typeof renderEventHistory==='function') renderEventHistory();
- const eventHistModal = document.getElementById('modal-event-hist');
- if(eventHistModal && eventHistModal.classList.contains('open') && typeof renderEventHistList==='function') renderEventHistList();
+ const eventActivationModal = document.getElementById('modal-event-activation-list');
+ if(eventActivationModal && eventActivationModal.classList.contains('open') && typeof renderEventActivationList==='function') renderEventActivationList();
  if(typeof renderHotels==='function') renderHotels();
  if(typeof renderCars==='function') renderCars();
  if(typeof renderAero==='function') renderAero();
@@ -2274,7 +2291,7 @@ ko:{
  pointsTitle:"포인트",
  pointsBalance:"보유 포인트", pointsUseAmt:"사용 포인트", pointsUseReason:"비고", pointsUseBtn:"포인트 사용", pointsHistoryTitle:"포인트 내역", pointsGrantAmt:"지급 포인트", pointsGrantBtn:"포인트 지급",
  eventTitle:"이벤트", eventOn:"활성화됨", eventOnTop:"이벤트 활성화", eventOff:"비활성화", eventRateLabel:"이벤트 커미션율(%)", eventCommAmtLabel:"이벤트 커미션 지급액",
- eventStartLabel:"시작일", eventEndLabel:"종료일", eventSetBtn:"이벤트 활성화", eventEndBtn:"종료", eventLogBtn:"기록", toastEventEnded:"이벤트가 종료되었습니다.",
+ eventStartLabel:"시작일", eventEndLabel:"종료일", eventSetBtn:"이벤트 활성화", eventEndBtn:"종료", eventLogBtn:"이벤트 활성화 내역", eventActivationListTitle:"이벤트 활성화 내역", toastEventEnded:"이벤트가 종료되었습니다.",
  toastEventPeriodMissing:"시작일과 종료일을 모두 입력하세요.", toastEventPeriodInvalid:"종료일은 시작일보다 빠를 수 없습니다.", toastEventPeriodSet:"이벤트 기간이 설정되었습니다.",
  eventPayBtn:"이벤트 커미션 지급", eventHistoryTitle:"이벤트 커미션 지급 내역", eventInactiveHint:"이벤트를 활성화하면 롤링 커미션을 추가로 지급할 수 있습니다.", eventAutoHint:"이벤트 기간 중 롤링 커미션을 정산하면 이벤트 커미션이 자동으로 계좌에 입금됩니다.",
  toastEventInactive:"먼저 이벤트를 활성화하세요.", toastEventPaid:"이벤트 커미션이 지급되었습니다.", notifEvent:"이벤트 커미션 지급",
@@ -2401,7 +2418,7 @@ en:{
  pointsTitle:"Points",
  pointsBalance:"Points Balance", pointsUseAmt:"Points to Use", pointsUseReason:"Remarks", pointsUseBtn:"Use Points", pointsHistoryTitle:"Points History", pointsGrantAmt:"Points to Grant", pointsGrantBtn:"Grant Points",
  eventTitle:"Event", eventOn:"Active", eventOnTop:"Event Active", eventOff:"Inactive", eventRateLabel:"Event Commission Rate (%)", eventCommAmtLabel:"Event Commission Amount",
- eventStartLabel:"Start Date", eventEndLabel:"End Date", eventSetBtn:"Activate Event", eventEndBtn:"End", eventLogBtn:"Records", toastEventEnded:"Event ended.",
+ eventStartLabel:"Start Date", eventEndLabel:"End Date", eventSetBtn:"Activate Event", eventEndBtn:"End", eventLogBtn:"Event Activation History", eventActivationListTitle:"Event Activation History", toastEventEnded:"Event ended.",
  toastEventPeriodMissing:"Enter both a start and end date.", toastEventPeriodInvalid:"End date cannot be before the start date.", toastEventPeriodSet:"Event period set.",
  eventPayBtn:"Pay Event Commission", eventHistoryTitle:"Event Commission History", eventInactiveHint:"Activate the event to pay additional rolling commission.", eventAutoHint:"While the event is active, event commission is paid automatically to the account whenever a rolling commission is settled.",
  toastEventInactive:"Activate the event first.", toastEventPaid:"Event commission paid.", notifEvent:"Event Commission Paid",
@@ -2528,7 +2545,7 @@ en:{
  pointsTitle:"積分",
  pointsBalance:"積分餘額", pointsUseAmt:"使用積分", pointsUseReason:"備註", pointsUseBtn:"使用積分", pointsHistoryTitle:"積分紀錄", pointsGrantAmt:"發放積分", pointsGrantBtn:"積分發放",
  eventTitle:"活動", eventOn:"已啟用", eventOnTop:"活動進行中", eventOff:"未啟用", eventRateLabel:"活動佣金率(%)", eventCommAmtLabel:"活動佣金發放金額",
- eventStartLabel:"開始日期", eventEndLabel:"結束日期", eventSetBtn:"啟用活動", eventEndBtn:"結束", eventLogBtn:"紀錄", toastEventEnded:"活動已結束。",
+ eventStartLabel:"開始日期", eventEndLabel:"結束日期", eventSetBtn:"啟用活動", eventEndBtn:"結束", eventLogBtn:"活動啟用紀錄", eventActivationListTitle:"活動啟用紀錄", toastEventEnded:"活動已結束。",
  toastEventPeriodMissing:"請輸入開始與結束日期。", toastEventPeriodInvalid:"結束日期不能早於開始日期。", toastEventPeriodSet:"活動期間已設定。",
  eventPayBtn:"發放活動佣金", eventHistoryTitle:"活動佣金發放紀錄", eventInactiveHint:"啟用活動後即可額外發放轉碼佣金。", eventAutoHint:"活動期間內結算轉碼佣金時，活動佣金將自動存入帳戶。",
  toastEventInactive:"請先啟用活動。", toastEventPaid:"活動佣金已發放。", notifEvent:"活動佣金發放",
@@ -2655,7 +2672,7 @@ en:{
  pointsTitle:"积分",
  pointsBalance:"积分余额", pointsUseAmt:"使用积分", pointsUseReason:"备注", pointsUseBtn:"使用积分", pointsHistoryTitle:"积分记录", pointsGrantAmt:"发放积分", pointsGrantBtn:"积分发放",
  eventTitle:"活动", eventOn:"已启用", eventOnTop:"活动进行中", eventOff:"未启用", eventRateLabel:"活动佣金率(%)", eventCommAmtLabel:"活动佣金发放金额",
- eventStartLabel:"开始日期", eventEndLabel:"结束日期", eventSetBtn:"启用活动", eventEndBtn:"结束", eventLogBtn:"记录", toastEventEnded:"活动已结束。",
+ eventStartLabel:"开始日期", eventEndLabel:"结束日期", eventSetBtn:"启用活动", eventEndBtn:"结束", eventLogBtn:"活动启用记录", eventActivationListTitle:"活动启用记录", toastEventEnded:"活动已结束。",
  toastEventPeriodMissing:"请输入开始和结束日期。", toastEventPeriodInvalid:"结束日期不能早于开始日期。", toastEventPeriodSet:"活动期间已设置。",
  eventPayBtn:"发放活动佣金", eventHistoryTitle:"活动佣金发放记录", eventInactiveHint:"启用活动后即可额外发放转码佣金。", eventAutoHint:"活动期间内结算转码佣金时，活动佣金将自动存入账户。",
  toastEventInactive:"请先启用活动。", toastEventPaid:"活动佣金已发放。", notifEvent:"活动佣金发放",
@@ -5628,9 +5645,23 @@ function activateEvent(){
  DB.eventEnd = end;
  DB.eventRate = document.getElementById('eventRate').value.trim() || '1.00';
  document.getElementById('eventStartDate').value = nowStr;
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ DB.eventActivationLog = DB.eventActivationLog||[];
+ DB.eventActivationLog.unshift({dt: phNow().toISOString().slice(0,16).replace('T',' '), start: DB.eventStart, end: DB.eventEnd, rate: DB.eventRate, staff: staffName});
  saveDB();
  renderEventToggle();
  toast(t('toastEventPeriodSet'));
+}
+function openEventActivationList(){
+ renderEventActivationList();
+ openModal('modal-event-activation-list');
+}
+function renderEventActivationList(){
+ const rows = DB.eventActivationLog||[];
+ const body = document.getElementById('eventActivationListBody');
+ if(!body) return;
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="5">—</td></tr>` :
+  rows.map(r=>`<tr><td class="num">${r.dt}</td><td class="num">${r.start}</td><td class="num">${r.end}</td><td class="num">${r.rate}%</td><td>${r.staff}</td></tr>`).join('');
 }
 function isEventActiveNow(){
  if(!DB.eventStart || !DB.eventEnd) return false;
@@ -5665,17 +5696,6 @@ function endEventNow(){
  saveDB();
  renderEventToggle();
  toast(t('toastEventEnded'));
-}
-function openEventHistList(){
- renderEventHistList();
- openModal('modal-event-hist');
-}
-function renderEventHistList(){
- const rows = (DB.eventHistory||[]).filter(r=>accountVisibleInBranch(r.account));
- const body = document.getElementById('eventHistListBody');
- if(!body) return;
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
-  rows.map(r=>`<tr><td class="num">${r.dt}</td><td>${r.account}</td><td class="num">${fmt(r.rolling)}</td><td class="num">${r.rate}%</td><td class="num">${fmt(r.amt)}</td><td>${r.staff}</td></tr>`).join('');
 }
 function payEventCommissionForSettle(account, rolling){
  if(!isEventActiveNow() || !rolling) return;

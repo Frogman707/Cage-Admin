@@ -16,8 +16,6 @@
   --brass-dim:#8A6A34;
   --jade:#2FA98C;
   --jade-dim:#1C6E5A;
-  --sky:#4FA3D8;
-  --sky-dim:#2C6A94;
   --ink:#EDE8DA;
   --ink-dim:#A79F87;
   --ink-faint:#6E6858;
@@ -195,7 +193,7 @@ tr:hover td{background:var(--panel-raised);}
 .pos{color:#7FCBA8;}
 .neg{color:var(--danger);}
 .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
-.pill.cc{background:rgba(79,163,216,.18);color:var(--sky);}
+.pill.cc{background:rgba(47,169,140,.18);color:#6FE0C4;}
 .pill.nn{background:rgba(217,105,90,.18);color:var(--danger);}
 .pill.out{background:rgba(217,105,90,.18);color:#E8998C;}
 
@@ -311,10 +309,13 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .auth-modal .stat-line{font-size:14px;padding:10px 0;}
 .auth-modal .stat-line span{font-weight:600;letter-spacing:.5px;color:var(--ink-dim);}
 .id-verify-title{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-faint);margin:16px 0 8px;border-top:1px solid var(--line);padding-top:12px;}
-.id-verify-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:640px;margin:0 auto;}
+/* Fixed box width (not a 1fr share of the card) so the photos stay a sensible, constant size
+   regardless of how wide the surrounding full-bleed card gets on a large monitor - the earlier
+   1fr + max-width approach still let box size drift with viewport width. */
+.id-verify-grid{display:grid;grid-template-columns:repeat(3,260px);gap:24px;justify-content:center;}
 /* ID-3 (ISO/IEC 7810) passport bio-page ratio, ~125mm x 88mm - lets the whole scanned page show
    at a size actually close to the real document instead of a small cropped square thumbnail. */
-.id-verify-grid .photo-box{aspect-ratio:1.42/1;height:auto;font-size:9px;line-height:1.4;text-align:center;padding:4px;}
+.id-verify-grid .photo-box{width:260px;aspect-ratio:1.42/1;height:auto;font-size:10px;line-height:1.4;text-align:center;padding:4px;}
 .id-verify-grid .photo-box img{object-fit:contain;}
 .id-verify-label{font-size:11.5px;color:var(--ink-dim);text-align:center;margin-top:5px;text-transform:uppercase;letter-spacing:.3px;font-weight:600;}
 .balance-grid{margin-top:14px;}
@@ -325,7 +326,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .ticket-sm .amt{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--brass);margin-top:4px;white-space:nowrap;letter-spacing:-.3px;text-align:center;}
 .chip-section{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:rgba(217,178,106,.025);}
 .chip-section.nn{background:rgba(217,105,90,.035);}
-.chip-section.cc{background:rgba(79,163,216,.035);}
+.chip-section.cc{background:rgba(47,169,140,.035);}
 /* The 3-field rows (deposit/cashout/marker) are authored to sit on one line, but the app-wide
    150px field min-width made them wrap onto an extra line inside this section's narrower fixed
    400px column - narrowing just for chip-section fields lets that intended single-line layout
@@ -333,7 +334,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .chip-section .row > .field{flex:1 1 100px;min-width:100px;margin-bottom:8px;}
 .chip-section-title{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--brass);margin-bottom:8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
 .chip-section-title.nn{color:var(--danger);}
-.chip-section-title.cc{color:var(--sky);}
+.chip-section-title.cc{color:#6FE0C4;}
 .chip-section-title .hint{font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint);margin:0;}
 .tg-modal{text-align:center;}
 .tg-modal h3{margin:0 0 14px;}

@@ -204,6 +204,9 @@ tr:hover td{background:var(--panel-raised);}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(8,9,4,.72);z-index:100;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow-y:auto;opacity:0;transition:opacity .18s ease;}
 .modal-bg.open{display:flex;opacity:1;}
 #modal-cage-pin-auth, #modal-withdraw-pw, #modal-withdraw-pin, #modal-reset-confirm{z-index:200;}
+/* modal-totp-setup can be opened from the master-login screen, before #login-gate (z-index:500)
+   is hidden - it needs to sit above that overlay or it renders invisibly behind it. */
+#modal-totp-setup{z-index:600;}
 .modal{background:var(--panel);border:1px solid var(--brass-dim);border-radius:6px;width:560px;max-width:100%;padding:22px 24px;transform:translateY(-10px) scale(.98);transition:transform .18s ease;}
 .modal-bg.open .modal{transform:translateY(0) scale(1);}
 .modal h3{font-family:var(--serif);font-weight:700;color:var(--brass);font-size:17px;margin:0 0 4px;}

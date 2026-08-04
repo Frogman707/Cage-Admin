@@ -312,7 +312,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 /* Fixed box width (not a 1fr share of the card) so the photos stay a sensible, constant size
    regardless of how wide the surrounding full-bleed card gets on a large monitor - the earlier
    1fr + max-width approach still let box size drift with viewport width. */
-.id-verify-grid{display:grid;grid-template-columns:repeat(3,260px);gap:24px;justify-content:center;}
+.id-verify-grid{display:grid;grid-template-columns:repeat(3,260px);gap:24px;justify-content:space-evenly;}
 /* ID-3 (ISO/IEC 7810) passport bio-page ratio, ~125mm x 88mm - lets the whole scanned page show
    at a size actually close to the real document instead of a small cropped square thumbnail. */
 .id-verify-grid .photo-box{width:260px;aspect-ratio:1.42/1;height:auto;font-size:10px;line-height:1.4;text-align:center;padding:4px;}

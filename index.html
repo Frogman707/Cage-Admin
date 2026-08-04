@@ -16,6 +16,8 @@
   --brass-dim:#8A6A34;
   --jade:#2FA98C;
   --jade-dim:#1C6E5A;
+  --sky:#4FA3D8;
+  --sky-dim:#2C6A94;
   --ink:#EDE8DA;
   --ink-dim:#A79F87;
   --ink-faint:#6E6858;
@@ -193,8 +195,8 @@ tr:hover td{background:var(--panel-raised);}
 .pos{color:#7FCBA8;}
 .neg{color:var(--danger);}
 .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
-.pill.cc{background:rgba(217,178,106,.16);color:var(--brass);}
-.pill.nn{background:rgba(47,169,140,.18);color:#6FE0C4;}
+.pill.cc{background:rgba(79,163,216,.18);color:var(--sky);}
+.pill.nn{background:rgba(217,105,90,.18);color:var(--danger);}
 .pill.out{background:rgba(217,105,90,.18);color:#E8998C;}
 
 .tabs-mini{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px;}
@@ -309,7 +311,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .auth-modal .stat-line{font-size:14px;padding:10px 0;}
 .auth-modal .stat-line span{font-weight:600;letter-spacing:.5px;color:var(--ink-dim);}
 .id-verify-title{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-faint);margin:16px 0 8px;border-top:1px solid var(--line);padding-top:12px;}
-.id-verify-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.id-verify-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:640px;margin:0 auto;}
 /* ID-3 (ISO/IEC 7810) passport bio-page ratio, ~125mm x 88mm - lets the whole scanned page show
    at a size actually close to the real document instead of a small cropped square thumbnail. */
 .id-verify-grid .photo-box{aspect-ratio:1.42/1;height:auto;font-size:9px;line-height:1.4;text-align:center;padding:4px;}
@@ -322,14 +324,16 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .ticket-sm .lbl{font-size:9.5px;letter-spacing:.3px;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ticket-sm .amt{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--brass);margin-top:4px;white-space:nowrap;letter-spacing:-.3px;text-align:center;}
 .chip-section{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:rgba(217,178,106,.025);}
-.chip-section.nn{background:rgba(47,169,140,.035);}
+.chip-section.nn{background:rgba(217,105,90,.035);}
+.chip-section.cc{background:rgba(79,163,216,.035);}
 /* The 3-field rows (deposit/cashout/marker) are authored to sit on one line, but the app-wide
    150px field min-width made them wrap onto an extra line inside this section's narrower fixed
    400px column - narrowing just for chip-section fields lets that intended single-line layout
    actually happen, which is what keeps the 중간정산/게임종료 forms short enough to fit one screen. */
 .chip-section .row > .field{flex:1 1 100px;min-width:100px;margin-bottom:8px;}
 .chip-section-title{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--brass);margin-bottom:8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
-.chip-section-title.nn{color:#6FE0C4;}
+.chip-section-title.nn{color:var(--danger);}
+.chip-section-title.cc{color:var(--sky);}
 .chip-section-title .hint{font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint);margin:0;}
 .tg-modal{text-align:center;}
 .tg-modal h3{margin:0 0 14px;}
@@ -342,7 +346,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .tg-acc-pill{display:inline-block;background:var(--panel-hi);border:1px solid var(--brass-dim);border-radius:20px;padding:5px 16px;font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.5px;color:var(--brass);margin-bottom:14px;}
 .tg-hint{font-size:12px;color:var(--ink-faint);margin:0 0 16px;line-height:1.5;}
 .tg-qr-wrap svg{display:block;width:186px;height:186px;}
-.tg-copy-btn{margin-top:16px;display:inline-flex;align-items:center;gap:6px;}
+.tg-copy-btn{margin:16px auto 0;display:flex;align-items:center;justify-content:center;gap:6px;width:fit-content;}
 .tg-status{display:flex;align-items:center;justify-content:center;gap:8px;margin:18px 0 2px;font-size:12.5px;color:var(--ink-faint);min-height:16px;}
 .tg-status-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);flex-shrink:0;}
 .tg-status.waiting .tg-status-dot{background:#E8B54A;animation:tgPulse 1.4s ease-in-out infinite;}
@@ -749,8 +753,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
               </div>
             </div>
 
-            <div class="chip-section">
-              <div class="chip-section-title" data-i18n="ccChipsLabel"></div>
+            <div class="chip-section cc">
+              <div class="chip-section-title cc" data-i18n="ccChipsLabel"></div>
               <div class="row">
                 <div class="field"><label data-i18n="depositAmtCol"></label><input id="midCcDeposit" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this)"></div>
                 <div class="field"><label data-i18n="cashoutAmtCol"></label><input id="midCcCashout" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this)"></div>
@@ -842,8 +846,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
               </div>
             </div>
 
-            <div class="chip-section">
-              <div class="chip-section-title" data-i18n="ccChipsLabel"></div>
+            <div class="chip-section cc">
+              <div class="chip-section-title cc" data-i18n="ccChipsLabel"></div>
               <div class="row">
                 <div class="field"><label data-i18n="depositAmtCol"></label><input id="endCcDeposit" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this);recalcEnd()"></div>
                 <div class="field"><label data-i18n="cashoutAmtCol"></label><input id="endCcCashout" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this);recalcEnd()"></div>

@@ -1565,8 +1565,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="modal-close" onclick="closeTelegramQr()">×</button>
   <h3 id="tgQrTitle">텔레그램 연동 : —</h3>
   <button class="btn btn-sm" onclick="copyTelegramLink()" data-i18n="copyLinkBtn"></button>
-  <div class="tg-timer"><span data-i18n="authTimeLabel"></span> : <b id="tgTimer">10:00</b></div>
-  <div class="tg-qr-wrap"><canvas id="tgQrCanvas" width="220" height="220"></canvas></div>
+  <div class="tg-qr-wrap" id="tgQrBox" style="margin-top:14px;"></div>
+  <div class="tg-timer" id="tgLinkStatus"></div>
   <button class="btn btn-block" style="margin-top:16px;" onclick="openTelegramManage()" data-i18n="telegramManageBtn"></button>
 </div></div>
 
@@ -4724,6 +4724,7 @@ ko:{
  wdAuthPwTitle:"출금 비밀번호 인증", wdAuthPwSub:"출금 비밀번호를 입력하세요", wdAuthPwErrorMsg:"비밀번호가 일치하지 않습니다.", wdAuthPwHint:"데모 비밀번호: 0000 (미등록 계좌 기준)",
  resetBtnLabel:"Reset", resetConfirmTitle:"지점 초기화", resetConfirmSub:"마스터 비밀번호를 입력하세요. [{branch}] 지점의 계정(MAIN 제외)·게임·정산·포인트/이벤트·근무기록·컨시어지 기록이 모두 초기화됩니다. 다른 지점 기록은 영향받지 않습니다.", resetPasswordErrorMsg:"비밀번호가 일치하지 않습니다.", resetConfirmBtn:"초기화",
  wdAuthLinkBtn:"링크 생성", wdAuthTelegramBtn:"텔레그램 전송", toastNoTelegram:"연동된 텔레그램이 없습니다.", toastTelegramSent:"텔레그램으로 인증 링크를 전송했습니다.",
+ tgWaitingStatus:"연동 대기 중... (손님이 QR을 스캔하면 자동으로 연동됩니다)", tgLinkedStatus:"✓ 연동됨: {id}", toastTelegramLinked:"{id} 연동이 완료되었습니다.", toastTelegramSendFailed:"전송에 실패했습니다.",
  wdAuthPinTitle:"핀코드 인증", wdAuthPinSub:"근무자 핀코드를 입력하세요", wdAuthPinErrorMsg:"핀코드가 일치하지 않습니다.", wdAuthPinHint:"데모 핀코드: 1234",
  cagePinAuthTitle:"핀코드 인증", cagePinAuthSub:"처리를 위해 근무자 핀코드를 입력하세요",
  toastRollingConfirmed:"롤링이 입력되었습니다.", notifRollingInput:"롤링 입력", detailViewTitle:"상세보기", colRollingCum:"롤링누계", receiptCol:"영수증",
@@ -4857,6 +4858,7 @@ en:{
  wdAuthPwTitle:"Withdrawal Password", wdAuthPwSub:"Enter the withdrawal password", wdAuthPwErrorMsg:"Incorrect password.", wdAuthPwHint:"Demo password: 0000 (default for unregistered accounts)",
  resetBtnLabel:"Reset", resetConfirmTitle:"Reset Branch", resetConfirmSub:"Enter the master password. All [{branch}] branch records — accounts (except MAIN), games, balancing, points/event, shift log, and concierge — will be reset. Other branches are not affected.", resetPasswordErrorMsg:"Incorrect password.", resetConfirmBtn:"Reset",
  wdAuthLinkBtn:"Generate Link", wdAuthTelegramBtn:"Send via Telegram", toastNoTelegram:"No linked Telegram account.", toastTelegramSent:"Verification link sent via Telegram.",
+ tgWaitingStatus:"Waiting for link... (auto-links once the guest scans the QR)", tgLinkedStatus:"✓ Linked: {id}", toastTelegramLinked:"{id} has been linked.", toastTelegramSendFailed:"Failed to send.",
  wdAuthPinTitle:"PIN Authentication", wdAuthPinSub:"Enter the staff PIN code", wdAuthPinErrorMsg:"Incorrect PIN.", wdAuthPinHint:"Demo PIN: 1234",
  cagePinAuthTitle:"PIN Authentication", cagePinAuthSub:"Enter the staff PIN code to proceed",
  toastRollingConfirmed:"Rolling entry recorded.", notifRollingInput:"Rolling Entry", detailViewTitle:"Details", colRollingCum:"Rolling Cumulative", receiptCol:"Receipt",
@@ -4990,6 +4992,7 @@ en:{
  wdAuthPwTitle:"出款密碼驗證", wdAuthPwSub:"請輸入出款密碼", wdAuthPwErrorMsg:"密碼不正確。", wdAuthPwHint:"示範密碼：0000（未設定帳戶適用）",
  resetBtnLabel:"Reset", resetConfirmTitle:"分店初始化", resetConfirmSub:"請輸入主管密碼。[{branch}] 分店的帳戶(MAIN除外)、遊戲、結算、點數/活動、交班紀錄、禮賓服務紀錄將全部重置。不影響其他分店的紀錄。", resetPasswordErrorMsg:"密碼不正確。", resetConfirmBtn:"重置",
  wdAuthLinkBtn:"產生連結", wdAuthTelegramBtn:"透過 Telegram 傳送", toastNoTelegram:"尚未綁定 Telegram。", toastTelegramSent:"已透過 Telegram 傳送驗證連結。",
+ tgWaitingStatus:"等待連動中...（貴賓掃描 QR 後將自動連動）", tgLinkedStatus:"✓ 已連動：{id}", toastTelegramLinked:"{id} 已完成連動。", toastTelegramSendFailed:"傳送失敗。",
  wdAuthPinTitle:"PIN 驗證", wdAuthPinSub:"請輸入值班人員 PIN 碼", wdAuthPinErrorMsg:"PIN 碼不正確。", wdAuthPinHint:"示範 PIN：1234",
  cagePinAuthTitle:"PIN 驗證", cagePinAuthSub:"請輸入值班人員 PIN 碼以繼續",
  toastRollingConfirmed:"轉碼已輸入。", notifRollingInput:"轉碼輸入", detailViewTitle:"詳細資料", colRollingCum:"轉碼累計", receiptCol:"收據",
@@ -5123,6 +5126,7 @@ en:{
  wdAuthPwTitle:"出款密码验证", wdAuthPwSub:"请输入出款密码", wdAuthPwErrorMsg:"密码不正确。", wdAuthPwHint:"演示密码：0000（未设置账户适用）",
  resetBtnLabel:"Reset", resetConfirmTitle:"分店初始化", resetConfirmSub:"请输入主管密码。[{branch}] 分店的账户(MAIN除外)、游戏、结算、积分/活动、交班记录、礼宾服务记录将全部重置。不影响其他分店的记录。", resetPasswordErrorMsg:"密码不正确。", resetConfirmBtn:"重置",
  wdAuthLinkBtn:"生成链接", wdAuthTelegramBtn:"通过 Telegram 发送", toastNoTelegram:"尚未绑定 Telegram。", toastTelegramSent:"已通过 Telegram 发送验证链接。",
+ tgWaitingStatus:"等待连接中...（贵宾扫描二维码后将自动连接）", tgLinkedStatus:"✓ 已连接：{id}", toastTelegramLinked:"{id} 已完成连接。", toastTelegramSendFailed:"发送失败。",
  wdAuthPinTitle:"PIN 验证", wdAuthPinSub:"请输入值班人员 PIN 码", wdAuthPinErrorMsg:"PIN 码不正确。", wdAuthPinHint:"演示 PIN：1234",
  cagePinAuthTitle:"PIN 验证", cagePinAuthSub:"请输入值班人员 PIN 码以继续",
  toastRollingConfirmed:"转码已输入。", notifRollingInput:"转码输入", detailViewTitle:"详细资料", colRollingCum:"转码累计", receiptCol:"收据",
@@ -5730,30 +5734,30 @@ async function _doWithdrawAccount(id){
  toast(t('toastAccountWithdrawn'));
 }
 
-/* ---- Telegram Link (QR) ---- */
-function drawFakeQR(canvas, seed){
- const ctx = canvas.getContext('2d');
- const size = 25;
- const cell = canvas.width / size;
- ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
- ctx.fillStyle = '#111';
- let s = 0; for(let i=0;i<seed.length;i++) s = (s*31 + seed.charCodeAt(i)) >>> 0;
- if(s===0) s = 12345;
- function rand(){ s = (s*1103515245 + 12345) & 0x7fffffff; return (s % 1000)/1000; }
- const isFinder = (x,y)=> (x<7&&y<7)||(x>size-8&&y<7)||(x<7&&y>size-8);
- for(let y=0;y<size;y++){
-  for(let x=0;x<size;x++){
-   if(isFinder(x,y)) continue;
-   if(rand()>0.55) ctx.fillRect(x*cell, y*cell, cell, cell);
-  }
- }
- [[0,0],[size-7,0],[0,size-7]].forEach(([fx,fy])=>{
-  ctx.fillStyle='#111'; ctx.fillRect(fx*cell,fy*cell,7*cell,7*cell);
-  ctx.fillStyle='#fff'; ctx.fillRect((fx+1)*cell,(fy+1)*cell,5*cell,5*cell);
-  ctx.fillStyle='#111'; ctx.fillRect((fx+2)*cell,(fy+2)*cell,3*cell,3*cell);
- });
+/* ---- Telegram Link (QR) — backed by real Cloud Functions (@CageAdminVIPBot) ----
+   The bot's webhook (functions/telegramWebhook) writes a Firestore doc the moment a guest's
+   /start deep link reaches it; the client never talks to Firestore directly for this - it polls
+   getTelegramLinks (protected by APP_API_SECRET) instead, so this collection's access doesn't
+   depend on this project's Firestore security rules at all. */
+const TELEGRAM_BOT_USERNAME = 'CageAdminVIPBot';
+const TG_FUNCTIONS_BASE = 'https://us-central1-cage-admin-25bbf.cloudfunctions.net';
+const TG_APP_API_SECRET = '19293b491727ee62611dbcec7056662c73023281d7702da0';
+
+async function fetchTelegramLinks(accountId){
+ try{
+  const resp = await fetch(`${TG_FUNCTIONS_BASE}/getTelegramLinks?account=${encodeURIComponent(accountId)}`, {
+   headers: { 'X-App-Secret': TG_APP_API_SECRET },
+  });
+  if(!resp.ok) return null;
+  const data = await resp.json();
+  return data.links || [];
+ }catch(e){ return null; }
 }
-let tgTimerInterval = null;
+
+let tgPollInterval = null;
+let tgLinkTargetId = null;
+function stopTelegramPoll(){ clearInterval(tgPollInterval); tgPollInterval = null; }
+
 function openTelegramLinkForReg(){
  const id = document.getElementById('regAccId').value.trim().toUpperCase();
  if(!id){ toast(t('toastNoAcc')); return; }
@@ -5764,43 +5768,55 @@ function openTelegramLink(overrideId){
  if(!id){ toast(t('toastNoAcc')); return; }
  tgLinkTargetId = id;
  document.getElementById('tgQrTitle').textContent = `${t('btnTelegramAdd')} : ${id}`;
- const canvas = document.getElementById('tgQrCanvas');
- drawFakeQR(canvas, id + '-' + Date.now());
- let secondsLeft = 600;
- const timerEl = document.getElementById('tgTimer');
- const updateTimer = ()=>{
-  const m = Math.floor(secondsLeft/60), s = secondsLeft%60;
-  timerEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
+ renderQrSvg(document.getElementById('tgQrBox'), `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${id}`);
+ const statusEl = document.getElementById('tgLinkStatus');
+ statusEl.textContent = t('tgWaitingStatus');
+
+ stopTelegramPoll();
+ let knownCount = null;
+ const poll = async () => {
+  const links = await fetchTelegramLinks(id);
+  if(links === null) return;
+  if(knownCount === null){ knownCount = links.length; return; }
+  if(links.length > knownCount){
+   const newest = links[links.length-1];
+   toast(t('toastTelegramLinked').replace('{id}', newest.id));
+   statusEl.textContent = t('tgLinkedStatus').replace('{id}', newest.id);
+   knownCount = links.length;
+  }
+  const acc = DB.accounts[id];
+  if(acc){ acc.telegramLinks = links; saveDB(); }
+  if(tgLinkTargetId===id && document.getElementById('modal-telegram-manage').classList.contains('open')) renderTelegramManage();
  };
- updateTimer();
- clearInterval(tgTimerInterval);
- tgTimerInterval = setInterval(()=>{
-  secondsLeft--;
-  if(secondsLeft<=0){ clearInterval(tgTimerInterval); }
-  else updateTimer();
- }, 1000);
+ poll();
+ tgPollInterval = setInterval(poll, 3000);
  openModal('modal-telegram-qr');
 }
-let tgLinkTargetId = null;
 function closeTelegramQr(){
- clearInterval(tgTimerInterval);
+ stopTelegramPoll();
  closeModal('modal-telegram-qr');
 }
 function copyTelegramLink(){
  const id = tgLinkTargetId || DB.currentAccount;
- const link = `https://t.me/CageAdminBot?start=${id}`;
+ const link = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${id}`;
  if(navigator.clipboard && navigator.clipboard.writeText){
   navigator.clipboard.writeText(link).then(()=>toast(t('toastLinkCopied'))).catch(()=>toast(t('toastLinkCopied')));
  } else {
   toast(t('toastLinkCopied'));
  }
 }
-function openTelegramManage(overrideId){
+async function openTelegramManage(overrideId){
  const id = overrideId || DB.currentAccount;
  if(!id) return;
  tgLinkTargetId = id;
  document.getElementById('tgManageTitle').textContent = `${t('telegramManageBtn')} : ${id}`;
  renderTelegramManage();
+ const links = await fetchTelegramLinks(id);
+ if(links !== null){
+  const acc = DB.accounts[id];
+  if(acc){ acc.telegramLinks = links; saveDB(); }
+  if(tgLinkTargetId===id) renderTelegramManage();
+ }
  openModal('modal-telegram-manage');
 }
 function renderTelegramManage(){
@@ -5811,13 +5827,23 @@ function renderTelegramManage(){
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="3">—</td></tr>` :
   rows.map((r,i)=>`<tr><td>${esc(r.id)}</td><td class="num">${esc(r.dt)}</td><td><button class="btn btn-sm btn-danger" onclick="deleteTelegramLink(${i})">×</button></td></tr>`).join('');
 }
-function deleteTelegramLink(idx){
+async function deleteTelegramLink(idx){
  const id = tgLinkTargetId || DB.currentAccount;
  const acc = id ? DB.accounts[id] : null;
- if(!acc || !acc.telegramLinks) return;
+ if(!acc || !acc.telegramLinks || !acc.telegramLinks[idx]) return;
+ const chatId = acc.telegramLinks[idx].chatId;
  acc.telegramLinks.splice(idx,1);
  saveDB(); renderTelegramManage();
  toast(t('toastTelegramDeleted'));
+ if(chatId){
+  try{
+   await fetch(`${TG_FUNCTIONS_BASE}/deleteTelegramLink`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-App-Secret': TG_APP_API_SECRET },
+    body: JSON.stringify({ account: id, chatId }),
+   });
+  }catch(e){}
+ }
 }
 
 function setIoType(type){

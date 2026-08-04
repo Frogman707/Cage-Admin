@@ -157,3 +157,30 @@ exports.sendTelegramMessage = onRequest(
     }
   }
 );
+
+/**
+ * Lets the app actually remove a link (the "×" button in 텔레그램 연동 관리) instead of just
+ * hiding it locally, which used to get silently re-added on the next getTelegramLinks poll.
+ */
+exports.deleteTelegramLink = onRequest(
+  { secrets: [APP_API_SECRET] },
+  async (req, res) => {
+    if (applyCors(req, res)) return;
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "POST only" });
+      return;
+    }
+    if (req.get("X-App-Secret") !== APP_API_SECRET.value()) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const { account, chatId } = req.body || {};
+    if (!account || !chatId) {
+      res.status(400).json({ error: "missing account/chatId" });
+      return;
+    }
+    const docId = `${String(account).toUpperCase()}_${chatId}`;
+    await db.collection("telegramLinks").doc(docId).delete();
+    res.status(200).json({ ok: true });
+  }
+);

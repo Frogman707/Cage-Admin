@@ -242,16 +242,19 @@ tr:hover td{background:var(--panel-raised);}
 .receipt .ramt-row.bold{font-weight:800;}
 .receipt .ramt-row.winloss .val{color:#1a6fb5;}
 /* Rolling-commission slip only: its amount rows share the exact same 2-column grid as
-   .rmeta-grid above, so each value's start column lines up with where 게임번호/시간 sit,
-   instead of the label/value pair being spread across the receipt's full width on its own. */
+   .rmeta-grid above, so the label starts at the same column as 게임번호/시간 (column 2),
+   with the amount itself flush against the receipt's right edge. */
 .receipt .ramt-currency{font-size:13px;color:#555;margin:14px 0 6px;}
 .receipt .ramt-col .ramt-row{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;align-items:baseline;padding:9px 0;font-size:15px;border-bottom:1px solid #ccc;}
-.receipt .ramt-col .ramt-row .val{font-family:var(--sans);font-weight:400;text-align:left;white-space:nowrap;}
+.receipt .ramt-col .ramt-row .ramt-line{grid-column:2;display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+.receipt .ramt-col .ramt-row .ramt-line>span:first-child{white-space:nowrap;}
+.receipt .ramt-col .ramt-row .val{font-family:var(--sans);font-weight:400;text-align:right;white-space:nowrap;}
 .receipt .ramt-col .ramt-row.bold{font-weight:700;}
 .receipt .ramt-col .ramt-row.bold .val{font-weight:700;}
 .receipt .ramt-col .ramt-row.winloss,.receipt .ramt-col .ramt-row.winloss .val{font-weight:700;}
 .receipt .ramt-final{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;align-items:center;background:#F0A500;padding:10px 14px;margin-top:8px;border-radius:2px;}
-.receipt .ramt-final .val{font-family:var(--sans);font-weight:800;font-size:17px;color:#1a1a1a;text-align:left;}
+.receipt .ramt-final .ramt-line{grid-column:2;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.receipt .ramt-final .val{font-family:var(--sans);font-weight:800;font-size:17px;color:#1a1a1a;text-align:right;}
 .receipt .ramt-final span:first-child{font-weight:700;font-size:15px;}
 .receipt .rapproved{margin-top:24px;font-size:11.5px;font-weight:600;}
 .receipt .rsign-row{display:flex;justify-content:flex-end;margin-top:32px;gap:24px;}
@@ -4052,13 +4055,13 @@ function renderReceipt(g, commission, fb, result, cashout, winLoss, dt, staffNam
   </div>
   <div class="ramt-currency">(${curLabel})</div>
   <div class="ramt-col">
-    <div class="ramt-row bold"><span>${t('receiptBuyinAmt')}</span><span class="val">${fmt(g.buyin||0)}</span></div>
-    <div class="ramt-row"><span>${t('receiptCashoutAmt')}</span><span class="val">${cashoutDisp}</span></div>
-    <div class="ramt-row winloss"><span>${t('winLoss')}</span><span class="val">${winLossDisp}</span></div>
-    <div class="ramt-row bold"><span>${t('receiptTotalRolling')}</span><span class="val">${fmt(g.rolling||0)}</span></div>
-    <div class="ramt-row bold"><span>${t('rollingCommSettleAmt')}</span><span class="val">${fmt(commission)}</span></div>
-    <div class="ramt-row"><span>F&B</span><span class="val">${fb?fmt(fb):'-'}</span></div>
-    <div class="ramt-final"><span>${t('receiptTotalAmt')}</span><span class="val">${fmt(result)}</span></div>
+    <div class="ramt-row bold"><span class="ramt-line"><span>${t('receiptBuyinAmt')}</span><span class="val">${fmt(g.buyin||0)}</span></span></div>
+    <div class="ramt-row"><span class="ramt-line"><span>${t('receiptCashoutAmt')}</span><span class="val">${cashoutDisp}</span></span></div>
+    <div class="ramt-row winloss"><span class="ramt-line"><span>${t('winLoss')}</span><span class="val">${winLossDisp}</span></span></div>
+    <div class="ramt-row bold"><span class="ramt-line"><span>${t('receiptTotalRolling')}</span><span class="val">${fmt(g.rolling||0)}</span></span></div>
+    <div class="ramt-row bold"><span class="ramt-line"><span>${t('rollingCommSettleAmt')}</span><span class="val">${fmt(commission)}</span></span></div>
+    <div class="ramt-row"><span class="ramt-line"><span>F&B</span><span class="val">${fb?fmt(fb):'-'}</span></span></div>
+    <div class="ramt-final"><span class="ramt-line"><span>${t('receiptTotalAmt')}</span><span class="val">${fmt(result)}</span></span></div>
   </div>
   <div class="rapproved">APPROVED BY${staffName?' — '+staffName:''}</div>
   <div class="rsign-row"><div>${t('receiptGuestSig')}</div></div>`;

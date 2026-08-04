@@ -237,20 +237,21 @@ tr:hover td{background:var(--panel-raised);}
 .receipt .rmeta-cell{display:flex;align-items:baseline;gap:14px;font-size:15px;}
 .receipt .rmeta-label{font-weight:700;color:#1a1a1a;white-space:nowrap;}
 .receipt .rmeta-value{font-weight:700;color:#1a1a1a;}
-.receipt .ramt-wrap{display:flex;gap:14px;margin-top:14px;}
-.receipt .ramt-curlabel{width:56px;flex-shrink:0;font-size:13px;color:#555;padding-top:10px;}
-.receipt .ramt-col{flex:1;min-width:0;}
 .receipt .ramt-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid #999;font-size:13px;gap:10px;}
 .receipt .ramt-row .val{font-family:var(--mono);font-weight:700;white-space:nowrap;}
 .receipt .ramt-row.bold{font-weight:800;}
 .receipt .ramt-row.winloss .val{color:#1a6fb5;}
-.receipt .ramt-col .ramt-row{padding:9px 0;font-size:15px;border-bottom:1px solid #ccc;}
-.receipt .ramt-col .ramt-row .val{font-family:var(--sans);font-weight:400;}
+/* Rolling-commission slip only: its amount rows share the exact same 2-column grid as
+   .rmeta-grid above, so each value's start column lines up with where 게임번호/시간 sit,
+   instead of the label/value pair being spread across the receipt's full width on its own. */
+.receipt .ramt-currency{font-size:13px;color:#555;margin:14px 0 6px;}
+.receipt .ramt-col .ramt-row{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;align-items:baseline;padding:9px 0;font-size:15px;border-bottom:1px solid #ccc;}
+.receipt .ramt-col .ramt-row .val{font-family:var(--sans);font-weight:400;text-align:left;white-space:nowrap;}
 .receipt .ramt-col .ramt-row.bold{font-weight:700;}
 .receipt .ramt-col .ramt-row.bold .val{font-weight:700;}
 .receipt .ramt-col .ramt-row.winloss,.receipt .ramt-col .ramt-row.winloss .val{font-weight:700;}
-.receipt .ramt-final{display:flex;justify-content:space-between;align-items:center;background:#F0A500;padding:10px 14px;margin-top:8px;border-radius:2px;}
-.receipt .ramt-final .val{font-family:var(--sans);font-weight:800;font-size:17px;color:#1a1a1a;}
+.receipt .ramt-final{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;align-items:center;background:#F0A500;padding:10px 14px;margin-top:8px;border-radius:2px;}
+.receipt .ramt-final .val{font-family:var(--sans);font-weight:800;font-size:17px;color:#1a1a1a;text-align:left;}
 .receipt .ramt-final span:first-child{font-weight:700;font-size:15px;}
 .receipt .rapproved{margin-top:24px;font-size:11.5px;font-weight:600;}
 .receipt .rsign-row{display:flex;justify-content:flex-end;margin-top:32px;gap:24px;}
@@ -413,13 +414,24 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     visibility:hidden keeps every hidden element's height counted towards the page, which was
     silently spilling this one small receipt onto a second, mostly-blank printed page. */
  body.printing-receipt > *{display:none !important;}
- body.printing-receipt > #receiptPrintArea{display:block !important;padding:10mm;box-sizing:border-box;}
+ body.printing-receipt > #receiptPrintArea{
+  display:flex !important;flex-direction:column;
+  width:210mm;height:297mm;padding:0;margin:0;box-sizing:border-box;
+ }
  /* This app's screen theme is a dark navy background - force plain white paper for the printed
     page regardless of the browser's own "print background graphics" setting. */
  body.printing-receipt{background:#fff !important;background-image:none !important;}
  /* Two copies (guest / cage) stacked on one A4 sheet - sized down from the on-screen receipt so
-    both halves comfortably fit the printable height instead of spilling onto a second page. */
- .receipt-print-copy .receipt{max-width:100%;margin:0;box-shadow:none;border:1px solid #222;padding:14px 18px;font-size:12px;}
+    both halves comfortably fit the printable height instead of spilling onto a second page. Each
+    half is exactly 50% of the physical page and centers its receipt inside that half, so the
+    dashed cut line always falls exactly at the paper's vertical midpoint no matter how tall
+    either receipt's actual content is - that's what lets it be cut evenly down the middle. */
+ .receipt-print-copy{
+  flex:0 0 50%;height:50%;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;padding:8mm;
+ }
+ .receipt-print-copy-top{border-bottom:1px dashed #999;}
+ .receipt-print-copy .receipt{max-width:100%;width:100%;margin:0;box-shadow:none;border:1px solid #222;padding:14px 18px;font-size:12px;}
  .receipt-print-copy .receipt h4{font-size:16px;margin-bottom:10px;}
  .receipt-print-copy .receipt .rmeta-grid{margin:8px 0 10px;row-gap:6px;}
  .receipt-print-copy .receipt .rmeta-cell{font-size:12px;gap:10px;}
@@ -428,7 +440,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  .receipt-print-copy .receipt .ramt-final .val{font-size:13px;}
  .receipt-print-copy .receipt .rapproved{margin-top:14px;}
  .receipt-print-copy .receipt .rsign-row{margin-top:16px;}
- .receipt-print-divider{border-top:1px dashed #999;margin:12px 0;}
 }
 /* On a genuinely roomy full screen, Game Management's fixed 400px form column has plenty of
    space to grow into - widen it and size the fields up instead of leaving that space empty. */
@@ -2281,7 +2292,7 @@ ko:{
  ongoingGamesTitle:"롤링", dailyLabel:"당일", cumulativeLabel:"누적", ongoingCountLabel:"진행 건수",
  colTime:"시간", colReqMember:"요청 회원", colKind:"구분", colPrevRolling:"이전 롤링", colRollingSub:"롤링누계", colRollingTotal:"롤링 합계",
  settlePageTitle:"롤링 커미션 정산", gameTypeFld:"게임 타입", rollingComm:"롤링 커미션", fbDiscount:"F&B 할인", resultLabel:"정산금", settleBtn:"정산 확정",
- receiptTitle:"정산 영수증", receiptGameNo:"게임 번호", receiptAccNo:"어카운트 번호", receiptDate:"일자",
+ receiptTitle:"정산 영수증", receiptGameNo:"게임 번호", receiptAccNo:"어카운트", receiptDate:"일자",
  receiptTotalRolling:"총 롤링", receiptCommAmt:"커미션 금액", receiptTotalAmt:"총 금액", receiptGuestSig:"고객 서명", printBtn:"인쇄", downloadBtn:"다운로드",
   shiftChangeTitle:"근무 교대", currentWorker:"현재 근무자", checkInStaffLabel:"근무자 선택", checkOutBtn:"퇴근 확인", checkInBtn:"출근 확인",
  shiftListBtn:"기록", shiftDateTimeLabel:"일시", shiftListTitle:"근무교대 기록", colAction:"구분", colCheckIn:"출근", colCheckOut:"퇴근",
@@ -4039,17 +4050,15 @@ function renderReceipt(g, commission, fb, result, cashout, winLoss, dt, staffNam
     <div class="rmeta-cell"><span class="rmeta-label">${t('receiptDate')}</span><span class="rmeta-value">${rDate||'—'}</span></div>
     <div class="rmeta-cell"><span class="rmeta-label">${t('colTime')}</span><span class="rmeta-value">${rTime||'—'}</span></div>
   </div>
-  <div class="ramt-wrap">
-    <div class="ramt-curlabel">(${curLabel})</div>
-    <div class="ramt-col">
-      <div class="ramt-row bold"><span>${t('receiptBuyinAmt')}</span><span class="val">${fmt(g.buyin||0)}</span></div>
-      <div class="ramt-row"><span>${t('receiptCashoutAmt')}</span><span class="val">${cashoutDisp}</span></div>
-      <div class="ramt-row winloss"><span>${t('winLoss')}</span><span class="val">${winLossDisp}</span></div>
-      <div class="ramt-row bold"><span>${t('receiptTotalRolling')}</span><span class="val">${fmt(g.rolling||0)}</span></div>
-      <div class="ramt-row bold"><span>${t('rollingCommSettleAmt')}</span><span class="val">${fmt(commission)}</span></div>
-      <div class="ramt-row"><span>F&B</span><span class="val">${fb?fmt(fb):'-'}</span></div>
-      <div class="ramt-final"><span>${t('receiptTotalAmt')}</span><span class="val">${fmt(result)}</span></div>
-    </div>
+  <div class="ramt-currency">(${curLabel})</div>
+  <div class="ramt-col">
+    <div class="ramt-row bold"><span>${t('receiptBuyinAmt')}</span><span class="val">${fmt(g.buyin||0)}</span></div>
+    <div class="ramt-row"><span>${t('receiptCashoutAmt')}</span><span class="val">${cashoutDisp}</span></div>
+    <div class="ramt-row winloss"><span>${t('winLoss')}</span><span class="val">${winLossDisp}</span></div>
+    <div class="ramt-row bold"><span>${t('receiptTotalRolling')}</span><span class="val">${fmt(g.rolling||0)}</span></div>
+    <div class="ramt-row bold"><span>${t('rollingCommSettleAmt')}</span><span class="val">${fmt(commission)}</span></div>
+    <div class="ramt-row"><span>F&B</span><span class="val">${fb?fmt(fb):'-'}</span></div>
+    <div class="ramt-final"><span>${t('receiptTotalAmt')}</span><span class="val">${fmt(result)}</span></div>
   </div>
   <div class="rapproved">APPROVED BY${staffName?' — '+staffName:''}</div>
   <div class="rsign-row"><div>${t('receiptGuestSig')}</div></div>`;
@@ -4070,6 +4079,9 @@ function printReceiptFrom(boxId){
   // .receipt class itself - everything else (.rmeta-grid, .ramt-row, ...) is styled as a
   // descendant of .receipt, so without that wrapper none of it would render at all. Strip the id
   // off each clone since it's about to appear twice in the same document.
+  // Each copy gets exactly half the physical page height (see @media print below), with the
+  // receipt centered inside its half - so the dashed cut line between them always falls exactly
+  // at the paper's vertical midpoint, regardless of how tall either receipt's content is.
   const makeCopy = ()=>{
    const wrap = document.createElement('div');
    wrap.className = 'receipt-print-copy';
@@ -4079,10 +4091,9 @@ function printReceiptFrom(boxId){
    return wrap;
   };
   area.innerHTML = '';
-  area.appendChild(makeCopy());
-  const divider = document.createElement('div');
-  divider.className = 'receipt-print-divider';
-  area.appendChild(divider);
+  const topCopy = makeCopy();
+  topCopy.classList.add('receipt-print-copy-top');
+  area.appendChild(topCopy);
   area.appendChild(makeCopy());
  }
  document.body.classList.add('printing-receipt');

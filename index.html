@@ -404,12 +404,16 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  .receipt .ramt-final .val{font-size:14px;}
 }
 @media print{
- @page{size:A4;margin:10mm;}
+ /* A non-zero @page margin leaves Chrome room to draw its own default header/footer (page title +
+    URL up top, date + page number below) - setting it to 0 and padding the actual content
+    ourselves instead is what suppresses that, with no dependence on the user unchecking
+    "Headers and footers" in their print dialog. */
+ @page{size:A4;margin:0;}
  /* display:none (not visibility:hidden) actually removes the rest of the app from the layout -
     visibility:hidden keeps every hidden element's height counted towards the page, which was
     silently spilling this one small receipt onto a second, mostly-blank printed page. */
  body.printing-receipt > *{display:none !important;}
- body.printing-receipt > #receiptPrintArea{display:block !important;}
+ body.printing-receipt > #receiptPrintArea{display:block !important;padding:10mm;box-sizing:border-box;}
  /* This app's screen theme is a dark navy background - force plain white paper for the printed
     page regardless of the browser's own "print background graphics" setting. */
  body.printing-receipt{background:#fff !important;background-image:none !important;}
@@ -424,7 +428,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  .receipt-print-copy .receipt .ramt-final .val{font-size:13px;}
  .receipt-print-copy .receipt .rapproved{margin-top:14px;}
  .receipt-print-copy .receipt .rsign-row{margin-top:16px;}
- .receipt-copy-label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;}
  .receipt-print-divider{border-top:1px dashed #999;margin:12px 0;}
 }
 /* On a genuinely roomy full screen, Game Management's fixed 400px form column has plenty of
@@ -2279,7 +2282,6 @@ ko:{
  settlePageTitle:"롤링 커미션 정산", gameTypeFld:"게임 타입", rollingComm:"롤링 커미션", fbDiscount:"F&B 할인", resultLabel:"정산금", settleBtn:"정산 확정",
  receiptTitle:"정산 영수증", receiptGameNo:"게임 번호", receiptAccNo:"어카운트 번호", receiptDate:"일자",
  receiptTotalRolling:"총 롤링", receiptCommAmt:"커미션 금액", receiptTotalAmt:"총 금액", receiptGuestSig:"고객 서명", printBtn:"인쇄", downloadBtn:"다운로드",
- receiptCopyGuest:"손님용", receiptCopyCage:"케이지 보관용",
   shiftChangeTitle:"근무 교대", currentWorker:"현재 근무자", checkInStaffLabel:"근무자 선택", checkOutBtn:"퇴근 확인", checkInBtn:"출근 확인",
  shiftListBtn:"기록", shiftDateTimeLabel:"일시", shiftListTitle:"근무교대 기록", colAction:"구분", colCheckIn:"출근", colCheckOut:"퇴근",
  staffMgmtBtn:"직원 관리", staffMgmtTitle:"직원 관리", staffNameLabel:"이름", staffPinLabel:"PIN", staffGenPinBtn:"PIN 생성", staffRegisterBtn:"등록", staffSaveBtn:"저장", staffCancelEditBtn:"취소",
@@ -2407,7 +2409,6 @@ en:{
  settlePageTitle:"Rolling Commission Settlement", gameTypeFld:"Game Type", rollingComm:"Rolling Commission", fbDiscount:"F&B Discount", resultLabel:"Settlement Amount", settleBtn:"Confirm Settlement",
  receiptTitle:"Settlement Receipt", receiptGameNo:"Game No.", receiptAccNo:"Account No.", receiptDate:"Date",
  receiptTotalRolling:"Total Rolling", receiptCommAmt:"Commission Amount", receiptTotalAmt:"Total Amount", receiptGuestSig:"Guest's Signature", printBtn:"Print", downloadBtn:"Download",
- receiptCopyGuest:"Guest Copy", receiptCopyCage:"Cage Copy",
   shiftChangeTitle:"Shift Change", currentWorker:"Current Staff", checkInStaffLabel:"Select Staff", checkOutBtn:"Check Out", checkInBtn:"Check In",
  shiftListBtn:"Records", shiftDateTimeLabel:"Date & Time", shiftListTitle:"Shift Change History", colAction:"Action", colCheckIn:"Check-in", colCheckOut:"Check-out",
  staffMgmtBtn:"Staff Management", staffMgmtTitle:"Staff Management", staffNameLabel:"Name", staffPinLabel:"PIN", staffGenPinBtn:"Generate PIN", staffRegisterBtn:"Register", staffSaveBtn:"Save", staffCancelEditBtn:"Cancel",
@@ -2535,7 +2536,6 @@ en:{
  settlePageTitle:"轉碼佣金結算", gameTypeFld:"局別", rollingComm:"轉碼佣金", fbDiscount:"F&B 折讓", resultLabel:"結算金額", settleBtn:"確認結算",
  receiptTitle:"結算收據", receiptGameNo:"局號", receiptAccNo:"帳號", receiptDate:"日期",
  receiptTotalRolling:"轉碼總額", receiptCommAmt:"佣金金額", receiptTotalAmt:"合計金額", receiptGuestSig:"貴賓簽名", printBtn:"列印", downloadBtn:"下載",
- receiptCopyGuest:"客戶存根", receiptCopyCage:"碼房留存",
   shiftChangeTitle:"交班作業", currentWorker:"目前值班人數", checkInStaffLabel:"選擇人員", checkOutBtn:"下班確認", checkInBtn:"上班確認",
  shiftListBtn:"紀錄", shiftDateTimeLabel:"日期時間", shiftListTitle:"交班紀錄", colAction:"動作", colCheckIn:"上班", colCheckOut:"下班",
  staffMgmtBtn:"員工管理", staffMgmtTitle:"員工管理", staffNameLabel:"姓名", staffPinLabel:"PIN", staffGenPinBtn:"產生PIN", staffRegisterBtn:"新增", staffSaveBtn:"儲存", staffCancelEditBtn:"取消",
@@ -2663,7 +2663,6 @@ en:{
  settlePageTitle:"转码佣金结算", gameTypeFld:"局别", rollingComm:"转码佣金", fbDiscount:"F&B 折让", resultLabel:"结算金额", settleBtn:"确认结算",
  receiptTitle:"结算收据", receiptGameNo:"局号", receiptAccNo:"账号", receiptDate:"日期",
  receiptTotalRolling:"转码总额", receiptCommAmt:"佣金金额", receiptTotalAmt:"合计金额", receiptGuestSig:"贵宾签名", printBtn:"打印", downloadBtn:"下载",
- receiptCopyGuest:"客户存根", receiptCopyCage:"码房留存",
   shiftChangeTitle:"交班操作", currentWorker:"当前值班人数", checkInStaffLabel:"选择人员", checkOutBtn:"下班确认", checkInBtn:"上班确认",
  shiftListBtn:"记录", shiftDateTimeLabel:"日期时间", shiftListTitle:"交班记录", colAction:"操作", colCheckIn:"上班", colCheckOut:"下班",
  staffMgmtBtn:"员工管理", staffMgmtTitle:"员工管理", staffNameLabel:"姓名", staffPinLabel:"PIN", staffGenPinBtn:"生成PIN", staffRegisterBtn:"新增", staffSaveBtn:"保存", staffCancelEditBtn:"取消",
@@ -4067,24 +4066,20 @@ function printReceipt(){
   // .receipt class itself - everything else (.rmeta-grid, .ramt-row, ...) is styled as a
   // descendant of .receipt, so without that wrapper none of it would render at all. Strip the id
   // off each clone since it's about to appear twice in the same document.
-  const makeCopy = (labelKey)=>{
+  const makeCopy = ()=>{
    const wrap = document.createElement('div');
    wrap.className = 'receipt-print-copy';
-   const label = document.createElement('div');
-   label.className = 'receipt-copy-label';
-   label.textContent = t(labelKey);
    const clone = src.cloneNode(true);
    clone.removeAttribute('id');
-   wrap.appendChild(label);
    wrap.appendChild(clone);
    return wrap;
   };
   area.innerHTML = '';
-  area.appendChild(makeCopy('receiptCopyGuest'));
+  area.appendChild(makeCopy());
   const divider = document.createElement('div');
   divider.className = 'receipt-print-divider';
   area.appendChild(divider);
-  area.appendChild(makeCopy('receiptCopyCage'));
+  area.appendChild(makeCopy());
  }
  document.body.classList.add('printing-receipt');
  window.print();

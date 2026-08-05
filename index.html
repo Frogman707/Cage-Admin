@@ -6090,18 +6090,14 @@ async function confirmReset(){
  performBranchReset();
 }
 document.getElementById('resetPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmReset(); });
-// Reset is destructive and irreversible (accounts in particular live only in this browser's
-// local storage, with no cloud copy to fall back on) - so snapshot exactly what's about to be
-// wiped and hand the staff member a JSON file before anything is actually deleted.
+// Reset wipes this branch's ledger/games/balancing history (accounts themselves are kept -
+// see performBranchResetData) - so snapshot exactly what's about to be wiped and hand the
+// staff member a JSON file before anything is actually deleted.
 function downloadBranchResetBackup(branch){
- const deletedAccIds = new Set(Object.keys(DB.accounts||{}).filter(id=>
-  !isMainAccount(id) && (DB.accounts[id].openedCasino||'HANN')===branch));
  const backup = {
   branch, dt: phNow().toISOString().slice(0,16).replace('T',' '),
-  accounts:{}, ledger:{}, games:[], endedGames:[], settled:[], balancing:{},
-  pointsByAccount:{}, pointsHistory:[], eventHistory:[], hotels:[], cars:[], aero:[],
+  ledger:{}, games:[], endedGames:[], settled:[], balancing:{},
  };
- deletedAccIds.forEach(id=>{ backup.accounts[id] = DB.accounts[id]; });
  Object.keys(DB.ledger||{}).forEach(acc=>{
   const entries = (DB.ledger[acc]||[]).filter(e=>(e.casino||'HANN')===branch);
   if(entries.length) backup.ledger[acc] = entries;
@@ -6110,14 +6106,6 @@ function downloadBranchResetBackup(branch){
  backup.endedGames = (DB.endedGames||[]).filter(g=>(g.branch||'HANN')===branch);
  backup.settled = (DB.settled||[]).filter(s=>(s.branch||'HANN')===branch);
  backup.balancing = JSON.parse(JSON.stringify(bd()||{}));
- deletedAccIds.forEach(id=>{
-  if(DB.pointsByAccount && DB.pointsByAccount[id]!==undefined) backup.pointsByAccount[id] = DB.pointsByAccount[id];
- });
- backup.pointsHistory = (DB.pointsHistory||[]).filter(h=>deletedAccIds.has(h.account));
- backup.eventHistory = (DB.eventHistory||[]).filter(h=>deletedAccIds.has(h.account));
- backup.hotels = (DB.hotels||[]).filter(b=>deletedAccIds.has(b.account));
- backup.cars = (DB.cars||[]).filter(c=>deletedAccIds.has(c.account));
- backup.aero = (DB.aero||[]).filter(a=>deletedAccIds.has(a.account));
 
  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
  const url = URL.createObjectURL(blob);
@@ -6144,15 +6132,8 @@ async function performBranchResetData(){
  const combinedCashNow = unformatNum((document.getElementById('combinedCash')||{}).textContent||'0');
  const combinedRollingNow = unformatNum((document.getElementById('combinedRolling')||{}).textContent||'0');
 
- // Accounts (never synced to Firestore — always local): drop every non-MAIN account opened in
- // this branch. Track their IDs first so points/event/concierge history tied to them can be
- // cleaned up too.
- const deletedAccIds = new Set();
- Object.keys(DB.accounts||{}).forEach(id=>{
-  if(isMainAccount(id)) return;
-  if((DB.accounts[id].openedCasino||'HANN')===branch){ deletedAccIds.add(id); delete DB.accounts[id]; }
- });
- if(DB.currentAccount && deletedAccIds.has(DB.currentAccount)) DB.currentAccount = null;
+ // Accounts are kept across a reset - only this branch's ledger/games/balancing history is
+ // cleared, same as any other period reset.
 
  // Ledger: drop this branch's entries from every account (accounts opened in other branches can
  // still carry a transaction tagged to this casino via the free casino selector on deposit/transfer).
@@ -6199,21 +6180,9 @@ async function performBranchResetData(){
  bd().rollingCarryBaseline = combinedRollingNow;
  if(fbDb) await seedCageConfigToCloudIfEmpty();
 
- // Points & Event: clear balances/history tied to the accounts just deleted (MAIN's own
- // points/event history is shared across branches and is left untouched).
- DB.pointsByAccount = DB.pointsByAccount||{};
- deletedAccIds.forEach(id=>{ delete DB.pointsByAccount[id]; });
- DB.pointsHistory = (DB.pointsHistory||[]).filter(h=>!deletedAccIds.has(h.account));
- DB.eventHistory = (DB.eventHistory||[]).filter(h=>!deletedAccIds.has(h.account));
-
  // Shift & Report: clear the shift check-in/out log for this reset action (on-duty roster is
  // shared, live staff state and is intentionally left alone so nobody gets bumped off shift).
  DB.shiftLog = [];
-
- // Concierge: hotel/car/aero bookings tied to the accounts just deleted.
- DB.hotels = (DB.hotels||[]).filter(b=>!deletedAccIds.has(b.account));
- DB.cars = (DB.cars||[]).filter(c=>!deletedAccIds.has(c.account));
- DB.aero = (DB.aero||[]).filter(a=>!deletedAccIds.has(a.account));
 
  saveDB();
 }

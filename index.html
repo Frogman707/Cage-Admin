@@ -248,13 +248,11 @@ tr:hover td{background:var(--panel-raised);}
 .receipt .ramt-row.bold{font-weight:800;}
 .receipt .ramt-row.winloss .val{color:#1a6fb5;}
 /* Rolling-commission slip only: its amount rows share the same 2-column grid as .rmeta-grid
-   above, so the label starts at the same column as 게임번호/시간 (column 2). The underline sits
-   on the label+amount pair itself (fit-content, justify-self:start), not the full grid column -
-   it stretches only as wide as the text and amount actually are. */
+   above, so the label starts at the same column as 게임번호/시간 (column 2), with the amount
+   itself flush against the receipt's right edge. No underline - the row is bare. */
 .receipt .ramt-currency{font-size:12px;color:#555;margin:4px 0 4px;text-align:right;}
 .receipt .ramt-col .ramt-row{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;align-items:baseline;padding:6px 0;font-size:13px;font-weight:400;}
-.receipt .ramt-col .ramt-row .ramt-line{grid-column:2;justify-self:start;display:flex;align-items:baseline;gap:10px;padding-bottom:6px;border-bottom:1px solid #ccc;}
-.receipt .ramt-col .ramt-row.no-line .ramt-line{border-bottom:none;}
+.receipt .ramt-col .ramt-row .ramt-line{grid-column:2;display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
 .receipt .ramt-col .ramt-row .ramt-line>span:first-child{white-space:nowrap;}
 .receipt .ramt-col .ramt-row .val{font-family:var(--sans);font-weight:400;text-align:right;white-space:nowrap;}
 .receipt .ramt-final{display:flex;margin-top:6px;}

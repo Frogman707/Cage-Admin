@@ -4187,6 +4187,12 @@ async function initFirestore(){
   if(!ok) return;
   firebase.initializeApp(FIREBASE_CONFIG);
   fbDb = firebase.firestore();
+  // Some Wi-Fi networks (hotel/resort/corporate proxies) block or mangle Firestore's normal
+  // streaming connection while ordinary HTTPS (page/script loads) works fine - the symptom is
+  // exactly "can't sync but no obvious error." Auto-detecting long-polling falls back to plain
+  // HTTP requests on networks like that, without forcing the slower method everywhere. Must be
+  // called before any other Firestore method on this instance.
+  fbDb.settings({experimentalAutoDetectLongPolling: true});
   fbDb.enablePersistence({synchronizeTabs:true}).catch(()=>{});
  }catch(e){}
 }

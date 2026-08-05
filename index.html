@@ -248,15 +248,15 @@ tr:hover td{background:var(--panel-raised);}
    .rmeta-grid above, so the label starts at the same column as 게임번호/시간 (column 2),
    with the amount itself flush against the receipt's right edge. */
 .receipt .ramt-currency{font-size:13px;color:#555;margin:14px 0 6px;}
-.receipt .ramt-col .ramt-row{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;align-items:baseline;padding:9px 0;font-size:15px;border-bottom:1px solid #ccc;}
-.receipt .ramt-col .ramt-row .ramt-line{grid-column:2;display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+.receipt .ramt-col .ramt-row{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;align-items:baseline;padding:9px 0;font-size:15px;}
+.receipt .ramt-col .ramt-row .ramt-line{grid-column:2;display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding-bottom:9px;border-bottom:1px solid #ccc;}
 .receipt .ramt-col .ramt-row .ramt-line>span:first-child{white-space:nowrap;}
 .receipt .ramt-col .ramt-row .val{font-family:var(--sans);font-weight:400;text-align:right;white-space:nowrap;}
 .receipt .ramt-col .ramt-row.bold{font-weight:700;}
 .receipt .ramt-col .ramt-row.bold .val{font-weight:700;}
 .receipt .ramt-col .ramt-row.winloss,.receipt .ramt-col .ramt-row.winloss .val{font-weight:700;}
-.receipt .ramt-final{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;align-items:center;background:#F0A500;padding:10px 14px;margin-top:8px;border-radius:2px;}
-.receipt .ramt-final .ramt-line{grid-column:2;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.receipt .ramt-final{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;align-items:center;margin-top:8px;}
+.receipt .ramt-final .ramt-line{grid-column:2;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#F0A500;padding:10px 14px;border-radius:2px;}
 .receipt .ramt-final .val{font-family:var(--sans);font-weight:800;font-size:17px;color:#1a1a1a;text-align:right;}
 .receipt .ramt-final span:first-child{font-weight:700;font-size:15px;}
 .receipt .rapproved{margin-top:24px;font-size:11.5px;font-weight:600;}
@@ -427,7 +427,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  .receipt .rmeta-grid{margin:10px 0 12px;row-gap:8px;}
  .receipt .rmeta-cell{font-size:13px;}
  .receipt .ramt-col .ramt-row{padding:6px 0;font-size:13px;}
- .receipt .ramt-final{padding:7px 10px;}
+ .receipt .ramt-final .ramt-line{padding:7px 10px;}
  .receipt .ramt-final .val{font-size:14px;}
 }
 @media print{
@@ -459,7 +459,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  .receipt-print-copy .receipt .rmeta-cell{font-size:16px;gap:14px;}
  .receipt-print-copy .receipt .ramt-currency{font-size:15px;margin:18px 0 8px;}
  .receipt-print-copy .receipt .ramt-col .ramt-row{padding:11px 0;font-size:17px;}
- .receipt-print-copy .receipt .ramt-final{padding:14px 18px;margin-top:10px;}
+ .receipt-print-copy .receipt .ramt-final{margin-top:10px;}
+ .receipt-print-copy .receipt .ramt-final .ramt-line{padding:14px 18px;}
  .receipt-print-copy .receipt .ramt-final .val{font-size:19px;}
  .receipt-print-copy .receipt .rapproved{margin-top:30px;font-size:14px;}
  .receipt-print-copy .receipt .rsign-row{margin-top:48px;}
@@ -7352,8 +7353,8 @@ function renderBalancingSummary(){
  const workingChipRollingShift = getShiftVal('workingChipRollingShift'); // 게임시작 워킹칩(+누계) − 중간정산·게임종료 워킹칩(-누계) — 공식에서는 부호 반전하여 반영
  const nnCashoutShift = getShiftVal('nnCashoutShift'); // 중간정산·게임종료 NN 캐쉬아웃 누계 → 롤링+
  const nnMarkerShift = getShiftVal('nnMarkerShift'); // 중간정산·게임종료 NN 마커리딤 누계 → 롤링+
- // + 캐리 베이스라인: 리셋/월정산 시점에 남아있던 실물 자산을 이월시켜, 활동 카운터가 0으로
- // 되돌아가더라도 케이지 합산금액(실사 대조용 절대값)은 끊기지 않고 계속 이어지게 한다.
+ // + 캐리 베이스라인: 마스터 리셋(전체 초기화) 시점에 남아있던 실물 자산을 이월시킨 값. 월 정산은
+ // 이 베이스라인을 0으로 남겨두므로 월정산 직후에는 케이지 합산금액이 정확히 0이 된다.
  const combinedRolling = casinoCumRolling - rollingCashShift - buyinRollingShift - workingChipRollingShift + nnChipInShift + nnCashoutShift + nnMarkerShift + (bd().rollingCarryBaseline||0);
 
  // 케이지 합산금액 - 캐시
@@ -7776,11 +7777,6 @@ function confirmMonthSettleReset(){
  const cashNow = unformatNum(document.getElementById('cashBreakTotal').textContent);
  const ccNow = unformatNum(document.getElementById('ccBreakTotal').textContent);
  const nnNow = unformatNum(document.getElementById('nnBreakTotal').textContent);
- // 케이지 합산금액(캐시/롤링)은 실물 자산이 그대로 남아있는 이월 잔액이므로, 활동 카운터를 0으로
- // 되돌리더라도 합산금액 자체는 끊기지 않게 지금 값을 캐리 베이스라인으로 저장해둔다.
- // (그대로 안 하면 정산 직후 보유현황을 입력만 해도 차액이 발생함)
- const combinedCashNow = unformatNum(document.getElementById('combinedCash').textContent);
- const combinedRollingNow = unformatNum(document.getElementById('combinedRolling').textContent);
  const guestNow = visibleGames().reduce((s,g)=>s+(g.rolling||0),0) + visibleEndedGames().reduce((s,g)=>s+(g.rolling||0),0);
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  const monthRecord = {
@@ -7828,11 +7824,13 @@ function confirmMonthSettleReset(){
  const rollingDailyTotalBaseline = getGuestRollingGrandTotal();
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
 
+ // 케이지 합산금액(캐시/롤링)의 캐리 베이스라인을 0으로 명시해서, 마스터 리셋 등에서 남아있던
+ // 값이 있더라도 월 정산 직후에는 항상 정확히 0이 되도록 한다.
  if(fbDb){
   writeCageConfig({
    settleGameOutBaseline, settleEndedRollingBaseline, settleLedgerNetBaseline: ledgerNetNow,
    rollingDailyTotalBaseline, lastMonthSettleDt: now,
-   cashCarryBaseline: combinedCashNow, rollingCarryBaseline: combinedRollingNow,
+   cashCarryBaseline: 0, rollingCarryBaseline: 0,
    monthRecordLog: firebase.firestore.FieldValue.arrayUnion(monthRecord),
   });
  } else {
@@ -7841,8 +7839,8 @@ function confirmMonthSettleReset(){
   bd().settleLedgerNetBaseline = ledgerNetNow;
   bd().lastMonthSettleDt = now;
  }
- bd().cashCarryBaseline = combinedCashNow;
- bd().rollingCarryBaseline = combinedRollingNow;
+ bd().cashCarryBaseline = 0;
+ bd().rollingCarryBaseline = 0;
 
  // Clear physical breakdown counts so staff recounts fresh next period.
  bd().breakdownCounts = {cash:{}, nn:{}, cc:{}};

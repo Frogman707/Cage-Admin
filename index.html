@@ -244,6 +244,16 @@ tr:hover td{background:var(--panel-raised);}
    A4-shaped box that made the card much taller than its neighbor. */
 #receiptBox, #settledReceiptBox{padding:18px 20px;}
 #receiptBox h4, #settledReceiptBox h4{font-size:15px;margin-bottom:12px;}
+/* Live preview only (before the settlement is confirmed) - matches the site's standard dark
+   card surface instead of a stark white sheet, since this one never gets printed as-is (the
+   settled popup and print output still render on white, matching an actual paper receipt). */
+#receiptBox{background:var(--panel);color:var(--ink);border-color:var(--line);}
+#receiptBox .receipt-empty-hint{color:var(--ink-dim);}
+#receiptBox .rline{border-bottom-color:var(--line);}
+#receiptBox .rmeta-label, #receiptBox .rmeta-value{color:var(--ink);}
+#receiptBox .ramt-row{border-bottom-color:var(--line);}
+#receiptBox .ramt-currency{color:var(--ink-dim);}
+#receiptBox .rsign-row div{border-top-color:var(--ink);}
 .receipt .rmeta-grid{display:grid;grid-template-columns:1fr 1fr;row-gap:8px;column-gap:16px;margin:10px 0 12px;}
 .receipt .rmeta-cell{display:flex;align-items:baseline;gap:10px;font-size:13px;}
 .receipt .rmeta-label{font-weight:700;color:#1a1a1a;white-space:nowrap;}

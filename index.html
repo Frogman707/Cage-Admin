@@ -230,19 +230,17 @@ tr:hover td{background:var(--panel-raised);}
 #pbPassport, #pbSite, #editPbPassport, #editPbSite{aspect-ratio:1.42/1;height:auto;}
 #pbPassport img, #pbSite img, #editPbPassport img, #editPbSite img{object-fit:contain;}
 .receipt{background:#FFFFFF;color:#1a1a1a;padding:26px 24px;border-radius:4px;font-family:var(--sans);font-size:13px;border:2px solid #222;box-shadow:0 16px 40px -18px rgba(0,0,0,.7);max-width:560px;margin:0 auto;}
-/* Rolling-commission receipt only (both the live preview and the settled-record popup) - shaped
-   like an actual A4 page (210:297) instead of an arbitrary box, with its content vertically
-   centered inside that shape the same way the printed copy is. overflow:auto is a safety net in
-   case unusually long data ever pushes the content taller than the A4-proportioned box allows. */
-#receiptBox, #settledReceiptBox{aspect-ratio:210/297;display:flex;flex-direction:column;justify-content:flex-start;overflow:auto;}
 .receipt h4{font-family:var(--sans);font-weight:800;text-align:center;margin:0 0 30px;font-size:18px;letter-spacing:1px;}
 .receipt .rline{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #b8ab84;}
 .receipt .rmeta-row{display:flex;justify-content:space-between;margin-bottom:9px;font-size:12.5px;}
 .receipt .rmeta-row b{font-weight:800;}
-/* Rolling-commission settlement slip: its own bigger, form-like meta/amount styling (scoped so
-   the plain hotel/car/aero receipts, which reuse the base .rmeta-row/.ramt-row look, are unaffected). */
-.receipt .rmeta-grid{display:grid;grid-template-columns:1fr 1fr;row-gap:20px;column-gap:16px;margin:18px 0 26px;}
-.receipt .rmeta-cell{display:flex;align-items:baseline;gap:14px;font-size:15px;}
+/* Rolling-commission settlement slip only (#receiptBox live preview + #settledReceiptBox popup) -
+   compact enough to sit beside the settle form without towering over it, instead of the earlier
+   A4-shaped box that made the card much taller than its neighbor. */
+#receiptBox, #settledReceiptBox{padding:18px 20px;}
+#receiptBox h4, #settledReceiptBox h4{font-size:15px;margin-bottom:12px;}
+.receipt .rmeta-grid{display:grid;grid-template-columns:1fr 1fr;row-gap:8px;column-gap:16px;margin:10px 0 12px;}
+.receipt .rmeta-cell{display:flex;align-items:baseline;gap:10px;font-size:13px;}
 .receipt .rmeta-label{font-weight:700;color:#1a1a1a;white-space:nowrap;}
 .receipt .rmeta-value{font-weight:700;color:#1a1a1a;}
 .receipt .ramt-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid #999;font-size:13px;gap:10px;}
@@ -252,19 +250,19 @@ tr:hover td{background:var(--panel-raised);}
 /* Rolling-commission slip only: its amount rows span the receipt's full width, label at the
    left edge and amount at the right, same as the plain hotel/car/aero .ramt-row - the
    underline sits directly under the .ramt-line content, not stretched across dead space. */
-.receipt .ramt-currency{font-size:13px;color:#555;margin:14px 0 6px;text-align:right;}
-.receipt .ramt-col .ramt-row{display:flex;align-items:baseline;padding:9px 0;font-size:15px;font-weight:400;}
-.receipt .ramt-col .ramt-row .ramt-line{flex:1;display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding-bottom:9px;border-bottom:1px solid #ccc;}
+.receipt .ramt-currency{font-size:12px;color:#555;margin:4px 0 4px;text-align:right;}
+.receipt .ramt-col .ramt-row{display:flex;align-items:baseline;padding:6px 0;font-size:13px;font-weight:400;}
+.receipt .ramt-col .ramt-row .ramt-line{flex:1;display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding-bottom:6px;border-bottom:1px solid #ccc;}
 .receipt .ramt-col .ramt-row.no-line .ramt-line{border-bottom:none;}
 .receipt .ramt-col .ramt-row .ramt-line>span:first-child{white-space:nowrap;}
 .receipt .ramt-col .ramt-row .val{font-family:var(--sans);font-weight:400;text-align:right;white-space:nowrap;}
-.receipt .ramt-final{display:flex;margin-top:8px;}
-.receipt .ramt-final .ramt-line{flex:1;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#F0A500;padding:10px 14px;border-radius:2px;}
-.receipt .ramt-final .val{font-family:var(--sans);font-weight:800;font-size:17px;color:#1a1a1a;text-align:right;}
-.receipt .ramt-final span:first-child{font-weight:700;font-size:15px;}
-.receipt .rapproved{margin-top:24px;font-size:11.5px;font-weight:600;}
-.receipt .rsign-row{display:flex;justify-content:flex-end;margin-top:32px;gap:24px;}
-.receipt .rsign-row div{flex:0 0 50%;text-align:center;border-top:1px solid #1a1a1a;padding-top:6px;font-size:11px;}
+.receipt .ramt-final{display:flex;margin-top:6px;}
+.receipt .ramt-final .ramt-line{flex:1;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#F0A500;padding:7px 12px;border-radius:2px;}
+.receipt .ramt-final .val{font-family:var(--sans);font-weight:800;font-size:14.5px;color:#1a1a1a;text-align:right;}
+.receipt .ramt-final span:first-child{font-weight:700;font-size:13px;}
+.receipt .rapproved{margin-top:12px;font-size:10.5px;font-weight:600;}
+.receipt .rsign-row{display:flex;justify-content:flex-end;margin-top:14px;gap:24px;}
+.receipt .rsign-row div{flex:0 0 50%;text-align:center;border-top:1px solid #1a1a1a;padding-top:5px;font-size:10.5px;}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--brass);color:#071120;
   padding:9px 18px;border-radius:20px;font-size:12.5px;font-weight:700;z-index:300;opacity:0;transition:.25s;pointer-events:none;}
 .toast.show{opacity:1;bottom:30px;}

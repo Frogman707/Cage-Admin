@@ -4141,7 +4141,7 @@ let fbStaffUnsub = null;
 // sitting in DB.staff, and get rejected every time. Login now stays disabled until this
 // resolves, with a hard timeout so a genuinely offline session doesn't lock out login forever.
 let staffCloudSynced = false;
-function markLoginReady(offlineFailure){
+function markLoginReady(offlineFailure, errorDetail){
  if(staffCloudSynced) return;
  staffCloudSynced = true;
  const btn = document.getElementById('loginBtn');
@@ -4149,7 +4149,11 @@ function markLoginReady(offlineFailure){
  if(btn) btn.disabled = false;
  if(hint){
   if(offlineFailure){
-   hint.textContent = t('loginOfflineWarning');
+   // errorDetail (a Firestore error code like "resource-exhausted" or "permission-denied", when
+   // available) is appended on screen - "connection failed" looked identical whether this was a
+   // dead network, a blocked domain, or the server itself rejecting the request, which made every
+   // one of those completely different problems indistinguishable from the login screen alone.
+   hint.textContent = t('loginOfflineWarning') + (errorDetail ? ` (${errorDetail})` : '');
    hint.style.display = '';
   } else {
    hint.style.display = 'none';
@@ -4242,7 +4246,14 @@ function subscribeStaffCloud(){
   if(snap.metadata.fromCache) return;
   clearTimeout(readyFallback);
   markLoginReady();
- }, ()=>{ clearTimeout(readyFallback); markLoginReady(true); });
+ }, err=>{
+  // Every failure mode (genuinely offline, blocked network, Firestore quota exhausted, a rules/
+  // permission problem) lands here and used to look identical to the user - show the SDK's own
+  // error code so a repeat failure can actually be diagnosed instead of re-guessing at "network."
+  console.error('subscribeStaffCloud onSnapshot error:', err);
+  clearTimeout(readyFallback);
+  markLoginReady(true, err && (err.code || err.message));
+ });
 }
 
 /* ---- Ledger (account deposits/withdrawals/transfers) — append-only, balance is derived ---- */
@@ -8847,13 +8858,13 @@ function startInactivityTimer(){
  updateHotelBedType();
  await initFirestore();
  if(!fbDb){
-  markLoginReady(true);
+  markLoginReady(true, 'sdk-load-failed');
  } else {
   // Backstop independent of subscribeStaffCloud's own timer, in case something upstream of it
   // (e.g. seedStaffToCloudIfEmpty's own network call, which has no timeout of its own) is what
   // actually hangs. Widened alongside subscribeStaffCloud's own timer for the same reason - a
   // slow-but-working connection deserves more room before being written off as unreachable.
-  setTimeout(()=>markLoginReady(true), 20000);
+  setTimeout(()=>markLoginReady(true, 'timed-out'), 20000);
   await seedStaffToCloudIfEmpty();
   subscribeStaffCloud();
   await seedLedgerToCloudIfEmpty();

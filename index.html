@@ -1408,6 +1408,16 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="field"><label data-i18n="colAccount"></label><input id="editAccId" disabled></div>
 
   <div class="row" style="margin-top:12px;">
+    <div class="field"><label data-i18n="regPw"></label><input type="password"></div>
+    <div class="field"><label data-i18n="regPwConfirm"></label><input type="password"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label data-i18n="regWdPw"></label><input type="password" id="editWdPw"></div>
+    <div class="field"><label data-i18n="regWdPwConfirm"></label><input type="password" id="editWdPwConfirm"></div>
+  </div>
+  <div class="hint" data-i18n="editWdPwHint"></div>
+
+  <div class="row" style="margin-top:12px;">
     <div class="field"><label data-i18n="regEngName"></label><input id="editEngName" placeholder="LEE JIHOON"></div>
     <div class="field"><label data-i18n="regNickname"></label><input id="editNickname" placeholder="Teddy"></div>
   </div>
@@ -4812,7 +4822,7 @@ ko:{
  dailySettlement:"일일 정산", cutoffBtn:"마감", lastCageBalCutoffLabel:"최근 마감", colViewPdf:"보기", dailyReportTitle:"데일리 리포트",
  regTitle:"회원 가입",
  regBasicInfo:"기본 정보", regAccId:"어카운트 ID", regRandomBtn:"자동생성", regPw:"비밀번호", regPwConfirm:"비밀번호 확인",
- regWdPw:"출금 비밀번호", regWdPwHint:"출금 시 별도로 필요한 보안 비밀번호입니다.", regWdPwConfirm:"출금 비밀번호 확인",
+ regWdPw:"출금 비밀번호", regWdPwHint:"출금 시 별도로 필요한 보안 비밀번호입니다.", regWdPwConfirm:"출금 비밀번호 확인", editWdPwHint:"변경할 경우에만 입력하세요. 비워두면 기존 비밀번호가 유지됩니다.",
  regEngName:"영문 이름", regNickname:"닉네임", regMembershipNo:"멤버쉽 카드번호", regVipCard:"VIP 카드 발급",
  regContact:"연락처 인증", regPhone:"전화번호", regSendAuthBtn:"인증 발송", regAuthInput:"인증번호", regAuthConfirmBtn:"확인",
  regTelegramId:"텔레그램 ID", regAgentCode:"에이전트 코드", regProxy:"프록시 계정", regProxyHint:"프록시 활성화 시 대리 운영자가 어카운트를 관리할 수 있습니다.",
@@ -4946,7 +4956,7 @@ en:{
  dailySettlement:"Daily Settlement", cutoffBtn:"Cutoff", lastCageBalCutoffLabel:"Last Cutoff", colViewPdf:"View", dailyReportTitle:"Daily Report",
  regTitle:"Member Registration",
  regBasicInfo:"Basic Info", regAccId:"Account ID", regRandomBtn:"Auto-generate", regPw:"Password", regPwConfirm:"Confirm Password",
- regWdPw:"Withdrawal Password", regWdPwHint:"A separate security password required for withdrawals.", regWdPwConfirm:"Confirm Withdrawal Password",
+ regWdPw:"Withdrawal Password", regWdPwHint:"A separate security password required for withdrawals.", regWdPwConfirm:"Confirm Withdrawal Password", editWdPwHint:"Only fill this in to change it. Leave blank to keep the current password.",
  regEngName:"English Name", regNickname:"Nickname", regMembershipNo:"Membership Card No.", regVipCard:"Issue VIP Card",
  regContact:"Contact Verification", regPhone:"Phone Number", regSendAuthBtn:"Send Code", regAuthInput:"Verification Code", regAuthConfirmBtn:"Confirm",
  regTelegramId:"Telegram ID", regAgentCode:"Agent Code", regProxy:"Proxy Account", regProxyHint:"When enabled, a delegated operator may manage this account.",
@@ -5081,7 +5091,7 @@ en:{
  dailySettlement:"每日結算", cutoffBtn:"結帳", lastCageBalCutoffLabel:"最近結帳", colViewPdf:"檢視", dailyReportTitle:"每日報表",
  regTitle:"會員開戶",
  regBasicInfo:"基本資料", regAccId:"帳號", regRandomBtn:"自動產生", regPw:"密碼", regPwConfirm:"確認密碼",
- regWdPw:"提款密碼", regWdPwHint:"提款時需另外驗證的安全密碼。", regWdPwConfirm:"確認提款密碼",
+ regWdPw:"提款密碼", regWdPwHint:"提款時需另外驗證的安全密碼。", regWdPwConfirm:"確認提款密碼", editWdPwHint:"僅在需要變更時填寫，留空則保留原密碼。",
  regEngName:"英文姓名", regNickname:"暱稱", regMembershipNo:"會員卡號", regVipCard:"發行貴賓卡",
  regContact:"聯絡方式驗證", regPhone:"電話號碼", regSendAuthBtn:"發送驗證碼", regAuthInput:"驗證碼", regAuthConfirmBtn:"確認",
  regTelegramId:"Telegram ID", regAgentCode:"疊碼仔代碼", regProxy:"代理帳戶", regProxyHint:"啟用後，可由代理操作人員管理此帳戶。",
@@ -5216,7 +5226,7 @@ en:{
  dailySettlement:"每日结算", cutoffBtn:"结账", lastCageBalCutoffLabel:"最近结账", colViewPdf:"查看", dailyReportTitle:"每日报表",
  regTitle:"会员开户",
  regBasicInfo:"基本信息", regAccId:"账号", regRandomBtn:"自动生成", regPw:"密码", regPwConfirm:"确认密码",
- regWdPw:"取款密码", regWdPwHint:"取款时需另外验证的安全密码。", regWdPwConfirm:"确认取款密码",
+ regWdPw:"取款密码", regWdPwHint:"取款时需另外验证的安全密码。", regWdPwConfirm:"确认取款密码", editWdPwHint:"仅在需要更改时填写，留空则保留原密码。",
  regEngName:"英文姓名", regNickname:"昵称", regMembershipNo:"会员卡号", regVipCard:"发行贵宾卡",
  regContact:"联系方式验证", regPhone:"电话号码", regSendAuthBtn:"发送验证码", regAuthInput:"验证码", regAuthConfirmBtn:"确认",
  regTelegramId:"Telegram ID", regAgentCode:"码佣代理代码", regProxy:"代理账户", regProxyHint:"启用后，可由代理操作人员管理此账户。",
@@ -5780,6 +5790,11 @@ function openEditAccount(){
  if(!id || !DB.accounts[id]){ toast(t('toastNoAcc')); return; }
  const acc = DB.accounts[id];
  document.getElementById('editAccId').value = id;
+ // Left blank rather than prefilled with the current withdrawPw - leaving both this and its
+ // confirm field empty means "no change" on save (same as a real change-password form), instead
+ // of forcing staff to retype a value they never meant to touch just to avoid a mismatch error.
+ document.getElementById('editWdPw').value = '';
+ document.getElementById('editWdPwConfirm').value = '';
  document.getElementById('editEngName').value = acc.engName||'';
  document.getElementById('editNickname').value = acc.nickname||'';
  document.getElementById('editVip').checked = !!acc.vip;
@@ -5811,6 +5826,10 @@ function saveAccountEdit(){
  const id = DB.currentAccount;
  if(!id || !DB.accounts[id]) return;
  const acc = DB.accounts[id];
+ const wdPw = document.getElementById('editWdPw').value;
+ const wdPwConfirm = document.getElementById('editWdPwConfirm').value;
+ if(wdPw && wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
+ if(wdPw) acc.withdrawPw = wdPw;
  acc.engName = document.getElementById('editEngName').value.trim();
  acc.nickname = document.getElementById('editNickname').value.trim();
  acc.vip = document.getElementById('editVip').checked;

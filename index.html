@@ -447,25 +447,23 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  /* This app's screen theme is a dark navy background - force plain white paper for the printed
     page regardless of the browser's own "print background graphics" setting. */
  body.printing-receipt{background:#fff !important;background-image:none !important;}
- /* Two copies (guest / cage) stacked on one A4 sheet - sized down from the on-screen receipt so
-    both halves comfortably fit the printable height instead of spilling onto a second page. Each
-    half is exactly 50% of the physical page and centers its receipt inside that half, so the
-    dashed cut line always falls exactly at the paper's vertical midpoint no matter how tall
-    either receipt's actual content is - that's what lets it be cut evenly down the middle. */
+ /* One full A4 page per settlement statement - generously sized and spaced (not the cramped,
+    half-page receipt look) so it reads as a proper formal 정산서 document. */
  .receipt-print-copy{
-  flex:0 0 50%;height:50%;box-sizing:border-box;
-  display:flex;align-items:center;justify-content:center;overflow:hidden;padding:8mm;
+  width:100%;height:100%;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;padding:26mm 22mm;
  }
- .receipt-print-copy-top{border-bottom:1px dashed #999;}
- .receipt-print-copy .receipt{max-width:100%;width:100%;margin:0;box-shadow:none;border:1px solid #222;padding:14px 18px;font-size:12px;}
- .receipt-print-copy .receipt h4{font-size:16px;margin-bottom:10px;}
- .receipt-print-copy .receipt .rmeta-grid{margin:8px 0 10px;row-gap:6px;}
- .receipt-print-copy .receipt .rmeta-cell{font-size:12px;gap:10px;}
- .receipt-print-copy .receipt .ramt-col .ramt-row{padding:4px 0;font-size:12px;}
- .receipt-print-copy .receipt .ramt-final{padding:6px 10px;margin-top:4px;}
- .receipt-print-copy .receipt .ramt-final .val{font-size:13px;}
- .receipt-print-copy .receipt .rapproved{margin-top:14px;}
- .receipt-print-copy .receipt .rsign-row{margin-top:16px;}
+ .receipt-print-copy .receipt{max-width:100%;width:100%;margin:0;box-shadow:none;border:2px solid #222;padding:40px 44px;font-size:15px;}
+ .receipt-print-copy .receipt h4{font-size:25px;margin-bottom:28px;}
+ .receipt-print-copy .receipt .rmeta-grid{margin:20px 0 26px;row-gap:16px;}
+ .receipt-print-copy .receipt .rmeta-cell{font-size:16px;gap:14px;}
+ .receipt-print-copy .receipt .ramt-currency{font-size:15px;margin:18px 0 8px;}
+ .receipt-print-copy .receipt .ramt-col .ramt-row{padding:11px 0;font-size:17px;}
+ .receipt-print-copy .receipt .ramt-final{padding:14px 18px;margin-top:10px;}
+ .receipt-print-copy .receipt .ramt-final .val{font-size:19px;}
+ .receipt-print-copy .receipt .rapproved{margin-top:30px;font-size:14px;}
+ .receipt-print-copy .receipt .rsign-row{margin-top:48px;}
+ .receipt-print-copy .receipt .rsign-row div{font-size:14px;padding-top:10px;}
 }
 /* On a genuinely roomy full screen, Game Management's fixed 400px form column has plenty of
    space to grow into - widen it and size the fields up instead of leaving that space empty. */
@@ -1545,7 +1543,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <thead><tr>
       <th data-i18n="colDate"></th><th>GameID</th><th data-i18n="colAccount"></th>
       <th data-i18n="receiptBuyinAmt"></th><th data-i18n="receiptCashoutAmt"></th><th data-i18n="winLoss"></th>
-      <th data-i18n="receiptTotalRolling"></th><th data-i18n="rollingCommSettleAmt"></th><th>F&B</th><th data-i18n="receiptTotalAmt"></th><th data-i18n="colStaff"></th>
+      <th data-i18n="receiptTotalRolling"></th><th data-i18n="rollingCommSettleAmt"></th><th>F&B</th><th data-i18n="receiptTotalAmt"></th><th data-i18n="colStaff"></th><th></th>
     </tr></thead>
     <tbody id="settleListBody"></tbody>
   </table></div>
@@ -4146,6 +4144,7 @@ function subscribeStaffCloud(){
    }
   });
   renderStaffDropdowns();
+  renderShiftStaff();
   if(document.getElementById('modal-staff-mgmt').classList.contains('open')) renderStaffMgmtList();
  }, ()=>{});
 }
@@ -6644,8 +6643,7 @@ function renderReceipt(g, commission, fb, result, cashout, winLoss, dt, staffNam
 // Print just a settlement receipt, not the whole page (sidebar/nav/other cards) - the
 // 'printing-receipt' class scopes an @media print rule that hides everything except
 // #receiptPrintArea, so every other print button on other pages (unaffected by this class) keeps
-// printing normally. The printed sheet carries 2 copies of the same receipt (guest / cage), sized
-// to both fit on one A4 page, since that's how this slip is actually used at the cage.
+// printing normally. The printed sheet is one full A4 page per statement.
 // boxId lets this be reused for any already-rendered .receipt element - the live one on the
 // 롤링 커미션 정산 tab (#receiptBox), or a specific historical record rendered into
 // #settledReceiptBox (from the settlement list or its popup).
@@ -6653,26 +6651,17 @@ function printReceiptFrom(boxId){
  const src = document.getElementById(boxId);
  const area = document.getElementById('receiptPrintArea');
  if(src && area && src.innerHTML.trim()){
-  // Clone the WHOLE .receipt element (not just its innerHTML) so the print copies keep the
+  // Clone the WHOLE .receipt element (not just its innerHTML) so the printed copy keeps the
   // .receipt class itself - everything else (.rmeta-grid, .ramt-row, ...) is styled as a
   // descendant of .receipt, so without that wrapper none of it would render at all. Strip the id
-  // off each clone since it's about to appear twice in the same document.
-  // Each copy gets exactly half the physical page height (see @media print below), with the
-  // receipt centered inside its half - so the dashed cut line between them always falls exactly
-  // at the paper's vertical midpoint, regardless of how tall either receipt's content is.
-  const makeCopy = ()=>{
-   const wrap = document.createElement('div');
-   wrap.className = 'receipt-print-copy';
-   const clone = src.cloneNode(true);
-   clone.removeAttribute('id');
-   wrap.appendChild(clone);
-   return wrap;
-  };
+  // off the clone since #receiptPrintArea already has its own container id.
+  const wrap = document.createElement('div');
+  wrap.className = 'receipt-print-copy';
+  const clone = src.cloneNode(true);
+  clone.removeAttribute('id');
+  wrap.appendChild(clone);
   area.innerHTML = '';
-  const topCopy = makeCopy();
-  topCopy.classList.add('receipt-print-copy-top');
-  area.appendChild(topCopy);
-  area.appendChild(makeCopy());
+  area.appendChild(wrap);
  }
  document.body.classList.add('printing-receipt');
  window.print();
@@ -6745,7 +6734,7 @@ function renderSettleList(){
  const q = (document.getElementById('settleListSearch').value||'').trim().toUpperCase();
  const rows = (DB.settled||[]).filter(s => (s.branch||'HANN')===currentBranch() && (!q || s.account.includes(q) || s.gameId.includes(q)));
  const body = document.getElementById('settleListBody');
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="11">—</td></tr>` :
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="12">—</td></tr>` :
   rows.map(s=>{
    const cashoutDisp = (s.cashout===null||s.cashout===undefined) ? '-' : fmt(s.cashout);
    const winLossDisp = (s.winLoss===null||s.winLoss===undefined) ? '-' : fmt(s.winLoss);
@@ -6754,7 +6743,8 @@ function renderSettleList(){
    <td class="num ${s.winLoss>0?'pos':s.winLoss<0?'neg':''}">${winLossDisp}</td>
    <td class="num">${fmt(s.rolling)}</td><td class="num">${fmt(s.commission)}</td>
    <td class="num">${s.fb?fmt(s.fb):'-'}</td><td class="num">${fmt(s.result)}</td>
-   <td>${esc(s.staff)} <button class="btn btn-sm" onclick='event.stopPropagation();printSettledRow(${JSON.stringify(s.gameId)})'>${t('printBtn')}</button></td></tr>`;
+   <td>${esc(s.staff)}</td>
+   <td style="text-align:right;"><button class="btn btn-sm" onclick='event.stopPropagation();printSettledRow(${JSON.stringify(s.gameId)})'>${t('printBtn')}</button></td></tr>`;
   }).join('');
 }
 function showSettledReceipt(gameId){
@@ -7127,7 +7117,17 @@ function shiftAction(dir){
  toast(t('toastShift'));
 }
 function renderShiftStaff(){
- const list = DB.onDutyStaff||['Teddy','Jena'];
+ // Prune any on-duty name that's no longer a registered staff member (deleted locally, from
+ // another device, or straight from Firestore) so the top bar never shows a ghost worker. Only
+ // prune once staff data has actually loaded - an empty DB.staff during the brief window before
+ // the cloud snapshot arrives must not be mistaken for "nobody is registered".
+ const raw = DB.onDutyStaff||['Teddy','Jena'];
+ let list = raw;
+ if((DB.staff||[]).length){
+  const registeredNames = new Set(DB.staff.map(s=>s.name));
+  list = raw.filter(n=>registeredNames.has(n));
+  if(list.length!==raw.length){ DB.onDutyStaff = list; saveDB(); }
+ }
  const el = document.getElementById('currentWorker');
  if(el) el.textContent = list.length ? list.join(', ') : '-';
  const dtEl = document.getElementById('shiftLastDt');

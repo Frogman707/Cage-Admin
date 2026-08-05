@@ -6680,9 +6680,9 @@ function renderReceipt(g, commission, fb, result, cashout, winLoss, dt, staffNam
   <div class="ramt-col">
     <div class="ramt-row no-line"><span class="ramt-line"><span>${t('receiptBuyinAmt')}</span><span class="val">${fmt(g.buyin||0)}</span></span></div>
     <div class="ramt-row no-line"><span class="ramt-line"><span>${t('receiptCashoutAmt')}</span><span class="val">${cashoutDisp}</span></span></div>
-    <div class="ramt-row winloss"><span class="ramt-line"><span>${t('winLoss')}</span><span class="val">${winLossDisp}</span></span></div>
-    <div class="ramt-row"><span class="ramt-line"><span>${t('receiptRollingLabel')}</span><span class="val">${fmt(g.rolling||0)}</span></span></div>
-    <div class="ramt-row"><span class="ramt-line"><span>${t('rollingCommSettleAmt')}</span><span class="val">${fmt(commission)}</span></span></div>
+    <div class="ramt-row winloss no-line"><span class="ramt-line"><span>${t('winLoss')}</span><span class="val">${winLossDisp}</span></span></div>
+    <div class="ramt-row no-line"><span class="ramt-line"><span>${t('receiptRollingLabel')}</span><span class="val">${fmt(g.rolling||0)}</span></span></div>
+    <div class="ramt-row no-line"><span class="ramt-line"><span>${t('rollingCommSettleAmt')}</span><span class="val">${fmt(commission)}</span></span></div>
     <div class="ramt-row"><span class="ramt-line"><span>F&B</span><span class="val">${fb?fmt(fb):'-'}</span></span></div>
     <div class="ramt-final"><span class="ramt-line"><span>${t('receiptTotalAmt')}</span><span class="val">${fmt(result)}</span></span></div>
   </div>

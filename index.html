@@ -247,12 +247,12 @@ tr:hover td{background:var(--panel-raised);}
 .receipt .ramt-row .val{font-family:var(--mono);font-weight:700;white-space:nowrap;}
 .receipt .ramt-row.bold{font-weight:800;}
 .receipt .ramt-row.winloss .val{color:#1a6fb5;}
-/* Rolling-commission slip only: its amount rows span the receipt's full width, label at the
-   left edge and amount at the right, same as the plain hotel/car/aero .ramt-row - the
-   underline sits directly under the .ramt-line content, not stretched across dead space. */
+/* Rolling-commission slip only: its amount rows span the receipt's full width for the underline,
+   but the label+amount pair itself clusters together at the right edge (gap:10px) instead of
+   being stretched apart by space-between, same as the plain hotel/car/aero .ramt-row. */
 .receipt .ramt-currency{font-size:12px;color:#555;margin:4px 0 4px;text-align:right;}
 .receipt .ramt-col .ramt-row{display:flex;align-items:baseline;padding:6px 0;font-size:13px;font-weight:400;}
-.receipt .ramt-col .ramt-row .ramt-line{flex:1;display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding-bottom:6px;border-bottom:1px solid #ccc;}
+.receipt .ramt-col .ramt-row .ramt-line{flex:1;display:flex;justify-content:flex-end;align-items:baseline;gap:10px;padding-bottom:6px;border-bottom:1px solid #ccc;}
 .receipt .ramt-col .ramt-row.no-line .ramt-line{border-bottom:none;}
 .receipt .ramt-col .ramt-row .ramt-line>span:first-child{white-space:nowrap;}
 .receipt .ramt-col .ramt-row .val{font-family:var(--sans);font-weight:400;text-align:right;white-space:nowrap;}
@@ -6681,7 +6681,7 @@ function renderReceipt(g, commission, fb, result, cashout, winLoss, dt, staffNam
     <div class="ramt-row winloss no-line"><span class="ramt-line"><span>${t('winLoss')}</span><span class="val">${winLossDisp}</span></span></div>
     <div class="ramt-row no-line"><span class="ramt-line"><span>${t('receiptRollingLabel')}</span><span class="val">${fmt(g.rolling||0)}</span></span></div>
     <div class="ramt-row no-line"><span class="ramt-line"><span>${t('rollingCommSettleAmt')}</span><span class="val">${fmt(commission)}</span></span></div>
-    <div class="ramt-row"><span class="ramt-line"><span>F&B</span><span class="val">${fb?fmt(fb):'-'}</span></span></div>
+    <div class="ramt-row no-line"><span class="ramt-line"><span>F&B</span><span class="val">${fb?fmt(fb):'-'}</span></span></div>
     <div class="ramt-final"><span class="ramt-line"><span>${t('receiptTotalAmt')}</span><span class="val">${fmt(result)}</span></span></div>
   </div>
   <div class="rapproved">APPROVED BY${staffName?' — '+esc(staffName):''}</div>

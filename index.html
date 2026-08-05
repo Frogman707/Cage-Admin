@@ -8641,7 +8641,10 @@ async function attemptLogin(){
  } else {
   document.getElementById('loginError').style.display = 'none';
  }
- const otpOk = staffRec && staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp);
+ // Temporary, user-requested exception: ERIC logs in with a fixed code instead of a real TOTP
+ // check - this staff member has no working authenticator app set up. Every other staff member
+ // still goes through verifyTotp() as normal.
+ const otpOk = staffRec && (staffRec.name === 'ERIC' ? otp.trim() === '1234' : staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp));
  if(!otpOk){
   document.getElementById('loginOtpError').style.display = 'block';
   hasError = true;

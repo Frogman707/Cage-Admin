@@ -4192,10 +4192,12 @@ async function initFirestore(){
   fbDb = firebase.firestore();
   // Some Wi-Fi networks (hotel/resort/corporate proxies) block or mangle Firestore's normal
   // streaming connection while ordinary HTTPS (page/script loads) works fine - the symptom is
-  // exactly "can't sync but no obvious error." Auto-detecting long-polling falls back to plain
-  // HTTP requests on networks like that, without forcing the slower method everywhere. Must be
-  // called before any other Firestore method on this instance.
-  fbDb.settings({experimentalAutoDetectLongPolling: true});
+  // exactly "can't sync but no obvious error." Auto-detection still failed to connect on this
+  // network in practice, so force long-polling outright rather than trust the detection heuristic
+  // - plain HTTP requests are slightly less efficient but far more likely to get through
+  // restrictive networks than either the native streaming connection or its auto-detect probe.
+  // Must be called before any other Firestore method on this instance.
+  fbDb.settings({experimentalForceLongPolling: true});
   fbDb.enablePersistence({synchronizeTabs:true}).catch(()=>{});
  }catch(e){}
 }
@@ -8670,7 +8672,7 @@ async function attemptLogin(){
  // Temporary, user-requested exception: ERIC logs in with a fixed code instead of a real TOTP
  // check - this staff member has no working authenticator app set up. Every other staff member
  // still goes through verifyTotp() as normal.
- const otpOk = staffRec && ((staffRec.name||'').toUpperCase() === 'ERIC' ? otp.trim() === '1234' : staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp));
+ const otpOk = staffRec && ((staffRec.name||'').toUpperCase() === 'ERIC' ? otp.trim() === '123456' : staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp));
  if(!otpOk){
   document.getElementById('loginOtpError').style.display = 'block';
   hasError = true;

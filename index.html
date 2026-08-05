@@ -8767,7 +8767,12 @@ function regenTotpSecretCurrent(){
  if(_totpSetupCtx.kind==='staff'){
   const s = (DB.staff||[]).find(x=>x.id===_totpSetupCtx.staffId);
   if(!s) return;
-  writeStaffDoc({...s, totpSecret: fresh});
+  // Mutate the local record itself, not just the write payload - otherwise the QR code
+  // rendered right below (via openTotpSetup, which re-reads DB.staff) still reflects the OLD
+  // secret until the cloud write echoes back through onSnapshot, so whatever gets scanned
+  // right now would never match what was actually just saved.
+  s.totpSecret = fresh;
+  writeStaffDoc({...s});
  } else {
   DB.masterTotpSecret = fresh;
   if(typeof saveDB==='function') saveDB();

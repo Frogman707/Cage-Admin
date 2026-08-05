@@ -4364,18 +4364,26 @@ function getRollingDailyTotal(){
 
 /* ---- Branch-scoped balancing data (HANN/NUSTAR/ONLINE each have independent cage/balancing state) ---- */
 function currentBranch(){ return DB.currentCasino || 'HANN'; }
+// Guest accounts are shared across every branch (a member can be found and transacted with
+// regardless of which branch registered them - only their per-branch balances.HANN/NUSTAR/ONLINE
+// differ). MAIN accounts are the exception: each one is a branch's own house bank, so it only
+// ever appears while that specific branch is selected.
 function accountVisibleInBranch(id){
  const acc = DB.accounts[id];
- return !!acc && (acc.openedCasino||'HANN') === currentBranch();
+ if(!acc) return false;
+ if(isMainAccount(id)) return (acc.openedCasino||'HANN') === currentBranch();
+ return true;
 }
 // Looser check for records (concierge bookings, etc.) that reference an account by free-typed
 // name rather than a picked/validated one: hide it only when the account is known AND
 // definitely belongs to another branch, since an unrecognized name can't be attributed to any
-// branch and hiding it everywhere would make it look lost.
+// branch and hiding it everywhere would make it look lost. Guest accounts are shared across
+// branches (see accountVisibleInBranch above), so only MAIN accounts can actually fail this check.
 function recordVisibleInBranch(accountId){
  const acc = DB.accounts[accountId];
  if(!acc) return true;
- return (acc.openedCasino||'HANN') === currentBranch();
+ if(isMainAccount(accountId)) return (acc.openedCasino||'HANN') === currentBranch();
+ return true;
 }
 // Each branch has its own internal "house" account used as the double-entry mirror for every
 // guest deposit/withdraw in that casino - MAIN-HANN, MAIN-NUSTAR, MAIN-ONLINE.

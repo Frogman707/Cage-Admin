@@ -501,7 +501,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
       <div class="field"><label data-i18n="loginOtpLabel"></label><input id="loginOtp" type="text" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off" class="otp-input"></div>
       <p class="login-error" id="loginError" data-i18n="loginErrorMsg" style="display:none;"></p>
       <p class="login-error" id="loginOtpError" data-i18n="loginOtpErrorMsg" style="display:none;"></p>
-      <button class="btn btn-gold btn-block" onclick="attemptLogin()" data-i18n="loginBtn"></button>
+      <p class="hint" id="loginSyncHint" data-i18n="loginSyncHint"></p>
+      <button class="btn btn-gold btn-block" id="loginBtn" disabled onclick="attemptLogin()" data-i18n="loginBtn"></button>
     </div>
 
     <div id="login-master-step" style="display:none;">
@@ -4121,6 +4122,22 @@ const FIREBASE_CONFIG = {
 };
 let fbDb = null;
 let fbStaffUnsub = null;
+// Staff records (including each person's TOTP secret) only exist locally until the first
+// Firestore snapshot arrives - attemptLogin() checked whatever was in memory at that instant
+// with no regard for whether it was real. On a slower connection (e.g. cellular on a phone/
+// tablet) that gap is long enough for a staff member to type a code from their authenticator
+// app - which matches the real, cloud-stored secret - against the stale placeholder still
+// sitting in DB.staff, and get rejected every time. Login now stays disabled until this
+// resolves, with a hard timeout so a genuinely offline session doesn't lock out login forever.
+let staffCloudSynced = false;
+function markLoginReady(){
+ if(staffCloudSynced) return;
+ staffCloudSynced = true;
+ const btn = document.getElementById('loginBtn');
+ const hint = document.getElementById('loginSyncHint');
+ if(btn) btn.disabled = false;
+ if(hint) hint.style.display = 'none';
+}
 function initFirestore(){
  try{
   if(typeof firebase === 'undefined') return;
@@ -4143,6 +4160,10 @@ async function seedStaffToCloudIfEmpty(){
 function subscribeStaffCloud(){
  if(!fbDb) return;
  if(fbStaffUnsub) fbStaffUnsub();
+ // If the very first snapshot hasn't arrived within 8s (slow/blocked connection), stop making
+ // the staff member wait on a login that may never come and fall back to whatever's local -
+ // matches this function's own long-standing behavior for every other failure mode.
+ const readyFallback = setTimeout(markLoginReady, 8000);
  fbStaffUnsub = fbDb.collection('staff').orderBy('dt').onSnapshot(snap=>{
   DB.staff = snap.docs.map(d=>d.data());
   // Cloud docs synced from before real TOTP existed won't have a secret yet - backfill and
@@ -4156,7 +4177,9 @@ function subscribeStaffCloud(){
   renderStaffDropdowns();
   renderShiftStaff();
   if(document.getElementById('modal-staff-mgmt').classList.contains('open')) renderStaffMgmtList();
- }, ()=>{});
+  clearTimeout(readyFallback);
+  markLoginReady();
+ }, ()=>{ clearTimeout(readyFallback); markLoginReady(); });
 }
 
 /* ---- Ledger (account deposits/withdrawals/transfers) — append-only, balance is derived ---- */
@@ -4685,7 +4708,7 @@ ko:{
  colStaffName:"이름", colStaffPin:"PIN", colStaffRegDt:"등록일", editBtn:"수정", regenPinBtn:"PIN 재생성", otpSetupBtn:"OTP 설정",
  toastStaffNameRequired:"이름을 입력하세요.", toastStaffDuplicate:"이미 등록된 이름입니다.", toastStaffRegistered:"직원이 등록되었습니다.", toastStaffUpdated:"직원 정보가 수정되었습니다.",
  toastStaffDeleted:"직원이 삭제되었습니다.", toastPinRegenerated:"PIN이 재발급되었습니다.", toastStaffMinOne:"최소 1명의 직원은 있어야 합니다.",
- loginStaffLabel:"근무자", loginPinLabel:"비밀번호(PIN)", loginErrorMsg:"비밀번호가 일치하지 않습니다.", loginBtn:"로그인",
+ loginStaffLabel:"근무자", loginPinLabel:"비밀번호(PIN)", loginErrorMsg:"비밀번호가 일치하지 않습니다.", loginBtn:"로그인", loginSyncHint:"직원 정보를 동기화하는 중입니다. 잠시만 기다려주세요.",
  masterPwLabel:"마스터 비밀번호", masterLoginBtn:"마스터 로그인", masterBackBtn:"뒤로", masterTotpSetupBtn:"마스터 OTP 설정 / 재설정",
  loginOtpDesc:"Authenticator 앱에 표시된 6자리 인증 코드를 입력하세요.", loginOtpLabel:"인증코드(Authenticator)", loginOtpErrorMsg:"인증 코드가 일치하지 않습니다.",
  loginVerifyBtn:"인증 확인", loginBackBtn:"뒤로",
@@ -4820,7 +4843,7 @@ en:{
  colStaffName:"Name", colStaffPin:"PIN", colStaffRegDt:"Registered", editBtn:"Edit", regenPinBtn:"Regenerate PIN", otpSetupBtn:"OTP Setup",
  toastStaffNameRequired:"Enter a name.", toastStaffDuplicate:"This name is already registered.", toastStaffRegistered:"Staff registered.", toastStaffUpdated:"Staff updated.",
  toastStaffDeleted:"Staff deleted.", toastPinRegenerated:"PIN regenerated.", toastStaffMinOne:"At least one staff member is required.",
- loginStaffLabel:"Staff", loginPinLabel:"Password (PIN)", loginErrorMsg:"Incorrect password.", loginBtn:"Log In",
+ loginStaffLabel:"Staff", loginPinLabel:"Password (PIN)", loginErrorMsg:"Incorrect password.", loginBtn:"Log In", loginSyncHint:"Syncing staff data - please wait a moment.",
  masterPwLabel:"Master Password", masterLoginBtn:"Master Login", masterBackBtn:"Back", masterTotpSetupBtn:"Master OTP Setup / Reset",
  loginOtpDesc:"Enter the 6-digit code shown in your Authenticator app.", loginOtpLabel:"Auth Code (Authenticator)", loginOtpErrorMsg:"Incorrect authentication code.",
  loginVerifyBtn:"Verify", loginBackBtn:"Back",
@@ -4955,7 +4978,7 @@ en:{
  colStaffName:"姓名", colStaffPin:"PIN", colStaffRegDt:"登記日期", editBtn:"編輯", regenPinBtn:"重新產生PIN", otpSetupBtn:"OTP 設定",
  toastStaffNameRequired:"請輸入姓名。", toastStaffDuplicate:"此姓名已被登記。", toastStaffRegistered:"員工已新增。", toastStaffUpdated:"員工資料已更新。",
  toastStaffDeleted:"員工已刪除。", toastPinRegenerated:"PIN已重新產生。", toastStaffMinOne:"至少需保留一名員工。",
- loginStaffLabel:"人員", loginPinLabel:"密碼(PIN)", loginErrorMsg:"密碼不正確。", loginBtn:"登入",
+ loginStaffLabel:"人員", loginPinLabel:"密碼(PIN)", loginErrorMsg:"密碼不正確。", loginBtn:"登入", loginSyncHint:"正在同步員工資料，請稍候。",
  masterPwLabel:"主管密碼", masterLoginBtn:"主管登入", masterBackBtn:"返回", masterTotpSetupBtn:"主管 OTP 設定／重設",
  loginOtpDesc:"請輸入 Authenticator 應用程式顯示的 6 位數驗證碼。", loginOtpLabel:"驗證碼(Authenticator)", loginOtpErrorMsg:"驗證碼不正確。",
  loginVerifyBtn:"驗證", loginBackBtn:"返回",
@@ -5090,7 +5113,7 @@ en:{
  colStaffName:"姓名", colStaffPin:"PIN", colStaffRegDt:"登记日期", editBtn:"编辑", regenPinBtn:"重新生成PIN", otpSetupBtn:"OTP 设置",
  toastStaffNameRequired:"请输入姓名。", toastStaffDuplicate:"此姓名已被登记。", toastStaffRegistered:"员工已新增。", toastStaffUpdated:"员工资料已更新。",
  toastStaffDeleted:"员工已删除。", toastPinRegenerated:"PIN已重新生成。", toastStaffMinOne:"至少需保留一名员工。",
- loginStaffLabel:"人员", loginPinLabel:"密码(PIN)", loginErrorMsg:"密码不正确。", loginBtn:"登录",
+ loginStaffLabel:"人员", loginPinLabel:"密码(PIN)", loginErrorMsg:"密码不正确。", loginBtn:"登录", loginSyncHint:"正在同步员工数据，请稍候。",
  masterPwLabel:"主管密码", masterLoginBtn:"主管登录", masterBackBtn:"返回", masterTotpSetupBtn:"主管 OTP 设置／重置",
  loginOtpDesc:"请输入 Authenticator 应用中显示的 6 位验证码。", loginOtpLabel:"验证码(Authenticator)", loginOtpErrorMsg:"验证码不正确。",
  loginVerifyBtn:"验证", loginBackBtn:"返回",
@@ -8591,6 +8614,9 @@ function renderDashboard(){
 }
 
 async function attemptLogin(){
+ // Enter-to-submit on the PIN/OTP fields calls this directly, bypassing the button's own
+ // disabled state - block here too so a keyboard submit can't slip through the sync window.
+ if(!staffCloudSynced) return;
  const staff = document.getElementById('loginStaff').value;
  const pin = document.getElementById('loginPin').value;
  const otp = document.getElementById('loginOtp').value;
@@ -8768,7 +8794,12 @@ function startInactivityTimer(){
  updateGameIdPreview();
  updateHotelBedType();
  initFirestore();
- if(fbDb){
+ if(!fbDb){
+  markLoginReady();
+ } else {
+  // Backstop independent of subscribeStaffCloud's own timer, in case something upstream of it
+  // (e.g. seedStaffToCloudIfEmpty's own network call) is what actually hangs.
+  setTimeout(markLoginReady, 12000);
   await seedStaffToCloudIfEmpty();
   subscribeStaffCloud();
   await seedLedgerToCloudIfEmpty();

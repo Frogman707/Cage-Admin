@@ -255,8 +255,8 @@ tr:hover td{background:var(--panel-raised);}
 .receipt .ramt-col .ramt-row .ramt-line{grid-column:2;display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
 .receipt .ramt-col .ramt-row .ramt-line>span:first-child{white-space:nowrap;}
 .receipt .ramt-col .ramt-row .val{font-family:var(--sans);font-weight:400;text-align:right;white-space:nowrap;}
-.receipt .ramt-final{display:flex;margin-top:6px;}
-.receipt .ramt-final .ramt-line{flex:1;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#F0A500;padding:7px 12px;border-radius:2px;}
+.receipt .ramt-final{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;margin-top:6px;}
+.receipt .ramt-final .ramt-line{grid-column:2;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#F0A500;padding:7px 12px;border-radius:2px;}
 .receipt .ramt-final .val{font-family:var(--sans);font-weight:800;font-size:14.5px;color:#1a1a1a;text-align:right;}
 .receipt .ramt-final span:first-child{font-weight:700;font-size:13px;}
 .receipt .rapproved{margin-top:12px;font-size:10.5px;font-weight:600;}

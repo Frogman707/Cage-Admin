@@ -230,6 +230,11 @@ tr:hover td{background:var(--panel-raised);}
 #pbPassport, #pbSite, #editPbPassport, #editPbSite{aspect-ratio:1.42/1;height:auto;}
 #pbPassport img, #pbSite img, #editPbPassport img, #editPbSite img{object-fit:contain;}
 .receipt{background:#FFFFFF;color:#1a1a1a;padding:26px 24px;border-radius:4px;font-family:var(--sans);font-size:13px;border:2px solid #222;box-shadow:0 16px 40px -18px rgba(0,0,0,.7);max-width:560px;margin:0 auto;}
+/* Rolling-commission receipt only (both the live preview and the settled-record popup) - shaped
+   like an actual A4 page (210:297) instead of an arbitrary box, with its content vertically
+   centered inside that shape the same way the printed copy is. overflow:auto is a safety net in
+   case unusually long data ever pushes the content taller than the A4-proportioned box allows. */
+#receiptBox, #settledReceiptBox{aspect-ratio:210/297;display:flex;flex-direction:column;justify-content:flex-start;overflow:auto;}
 .receipt h4{font-family:var(--sans);font-weight:800;text-align:center;margin:0 0 30px;font-size:18px;letter-spacing:1px;}
 .receipt .rline{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #b8ab84;}
 .receipt .rmeta-row{display:flex;justify-content:space-between;margin-bottom:9px;font-size:12.5px;}
@@ -247,14 +252,12 @@ tr:hover td{background:var(--panel-raised);}
 /* Rolling-commission slip only: its amount rows span the receipt's full width, label at the
    left edge and amount at the right, same as the plain hotel/car/aero .ramt-row - the
    underline sits directly under the .ramt-line content, not stretched across dead space. */
-.receipt .ramt-currency{font-size:13px;color:#555;margin:14px 0 6px;}
-.receipt .ramt-col .ramt-row{display:flex;align-items:baseline;padding:9px 0;font-size:15px;}
+.receipt .ramt-currency{font-size:13px;color:#555;margin:14px 0 6px;text-align:right;}
+.receipt .ramt-col .ramt-row{display:flex;align-items:baseline;padding:9px 0;font-size:15px;font-weight:400;}
 .receipt .ramt-col .ramt-row .ramt-line{flex:1;display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding-bottom:9px;border-bottom:1px solid #ccc;}
+.receipt .ramt-col .ramt-row.no-line .ramt-line{border-bottom:none;}
 .receipt .ramt-col .ramt-row .ramt-line>span:first-child{white-space:nowrap;}
 .receipt .ramt-col .ramt-row .val{font-family:var(--sans);font-weight:400;text-align:right;white-space:nowrap;}
-.receipt .ramt-col .ramt-row.bold{font-weight:700;}
-.receipt .ramt-col .ramt-row.bold .val{font-weight:700;}
-.receipt .ramt-col .ramt-row.winloss,.receipt .ramt-col .ramt-row.winloss .val{font-weight:700;}
 .receipt .ramt-final{display:flex;margin-top:8px;}
 .receipt .ramt-final .ramt-line{flex:1;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#F0A500;padding:10px 14px;border-radius:2px;}
 .receipt .ramt-final .val{font-family:var(--sans);font-weight:800;font-size:17px;color:#1a1a1a;text-align:right;}
@@ -1690,7 +1693,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   </div>
 </div></div>
 
-<div class="modal-bg" id="modal-settled-receipt"><div class="modal" style="width:420px;">
+<div class="modal-bg" id="modal-settled-receipt"><div class="modal" style="width:560px;">
   <button class="modal-close" onclick="closeModal('modal-settled-receipt')">×</button>
   <div class="receipt" id="settledReceiptBox"></div>
   <button class="btn btn-block" style="margin-top:10px;" onclick="printReceiptFrom('settledReceiptBox')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-3px;margin-right:4px;"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M6 14h12v7H6z"/></svg><span data-i18n="printBtn"></span></button>
@@ -4665,7 +4668,7 @@ ko:{
  colTime:"시간", colReqMember:"요청 회원", colKind:"구분", colPrevRolling:"이전 롤링", colRollingSub:"롤링누계", colRollingTotal:"롤링 합계",
  settlePageTitle:"롤링 커미션 정산", gameTypeFld:"게임 타입", rollingComm:"롤링 커미션", fbDiscount:"F&B 할인", resultLabel:"정산금", settleBtn:"정산 확정",
  receiptTitle:"정산 영수증", receiptGameNo:"게임 번호", receiptAccNo:"어카운트", receiptDate:"일자",
- receiptTotalRolling:"총 롤링", receiptCommAmt:"커미션 금액", receiptTotalAmt:"총 금액", receiptGuestSig:"고객 서명", printBtn:"인쇄", downloadBtn:"다운로드",
+ receiptTotalRolling:"총 롤링", receiptRollingLabel:"롤링", receiptCommAmt:"커미션 금액", receiptTotalAmt:"총 금액", receiptGuestSig:"고객 서명", printBtn:"인쇄", downloadBtn:"다운로드",
   shiftChangeTitle:"근무 교대", currentWorker:"현재 근무자", checkInStaffLabel:"근무자 선택", checkOutBtn:"퇴근 확인", checkInBtn:"출근 확인",
  shiftListBtn:"기록", shiftDateTimeLabel:"일시", shiftListTitle:"근무교대 기록", colAction:"구분", colCheckIn:"출근", colCheckOut:"퇴근",
  staffMgmtBtn:"직원 관리", staffMgmtTitle:"직원 관리", staffNameLabel:"이름", staffPinLabel:"PIN", staffGenPinBtn:"PIN 생성", staffRegisterBtn:"등록", staffSaveBtn:"저장", staffCancelEditBtn:"취소",
@@ -4800,7 +4803,7 @@ en:{
  colTime:"Time", colReqMember:"Requested By", colKind:"Kind", colPrevRolling:"Prev. Rolling", colRollingSub:"Rolling Cumulative", colRollingTotal:"Rolling Total",
  settlePageTitle:"Rolling Commission Settlement", gameTypeFld:"Game Type", rollingComm:"Rolling Commission", fbDiscount:"F&B Discount", resultLabel:"Settlement Amount", settleBtn:"Confirm Settlement",
  receiptTitle:"Settlement Receipt", receiptGameNo:"Game No.", receiptAccNo:"Account No.", receiptDate:"Date",
- receiptTotalRolling:"Total Rolling", receiptCommAmt:"Commission Amount", receiptTotalAmt:"Total Amount", receiptGuestSig:"Guest's Signature", printBtn:"Print", downloadBtn:"Download",
+ receiptTotalRolling:"Total Rolling", receiptRollingLabel:"Rolling", receiptCommAmt:"Commission Amount", receiptTotalAmt:"Total Amount", receiptGuestSig:"Guest's Signature", printBtn:"Print", downloadBtn:"Download",
   shiftChangeTitle:"Shift Change", currentWorker:"Current Staff", checkInStaffLabel:"Select Staff", checkOutBtn:"Check Out", checkInBtn:"Check In",
  shiftListBtn:"Records", shiftDateTimeLabel:"Date & Time", shiftListTitle:"Shift Change History", colAction:"Action", colCheckIn:"Check-in", colCheckOut:"Check-out",
  staffMgmtBtn:"Staff Management", staffMgmtTitle:"Staff Management", staffNameLabel:"Name", staffPinLabel:"PIN", staffGenPinBtn:"Generate PIN", staffRegisterBtn:"Register", staffSaveBtn:"Save", staffCancelEditBtn:"Cancel",
@@ -4935,7 +4938,7 @@ en:{
  colTime:"時間", colReqMember:"申請會員", colKind:"類別", colPrevRolling:"先前轉碼", colRollingSub:"轉碼累計", colRollingTotal:"轉碼合計",
  settlePageTitle:"轉碼佣金結算", gameTypeFld:"局別", rollingComm:"轉碼佣金", fbDiscount:"F&B 折讓", resultLabel:"結算金額", settleBtn:"確認結算",
  receiptTitle:"結算收據", receiptGameNo:"局號", receiptAccNo:"帳號", receiptDate:"日期",
- receiptTotalRolling:"轉碼總額", receiptCommAmt:"佣金金額", receiptTotalAmt:"合計金額", receiptGuestSig:"貴賓簽名", printBtn:"列印", downloadBtn:"下載",
+ receiptTotalRolling:"轉碼總額", receiptRollingLabel:"轉碼", receiptCommAmt:"佣金金額", receiptTotalAmt:"合計金額", receiptGuestSig:"貴賓簽名", printBtn:"列印", downloadBtn:"下載",
   shiftChangeTitle:"交班作業", currentWorker:"目前值班人數", checkInStaffLabel:"選擇人員", checkOutBtn:"下班確認", checkInBtn:"上班確認",
  shiftListBtn:"紀錄", shiftDateTimeLabel:"日期時間", shiftListTitle:"交班紀錄", colAction:"動作", colCheckIn:"上班", colCheckOut:"下班",
  staffMgmtBtn:"員工管理", staffMgmtTitle:"員工管理", staffNameLabel:"姓名", staffPinLabel:"PIN", staffGenPinBtn:"產生PIN", staffRegisterBtn:"新增", staffSaveBtn:"儲存", staffCancelEditBtn:"取消",
@@ -5070,7 +5073,7 @@ en:{
  colTime:"时间", colReqMember:"申请会员", colKind:"类别", colPrevRolling:"先前转码", colRollingSub:"转码累计", colRollingTotal:"转码合计",
  settlePageTitle:"转码佣金结算", gameTypeFld:"局别", rollingComm:"转码佣金", fbDiscount:"F&B 折让", resultLabel:"结算金额", settleBtn:"确认结算",
  receiptTitle:"结算收据", receiptGameNo:"局号", receiptAccNo:"账号", receiptDate:"日期",
- receiptTotalRolling:"转码总额", receiptCommAmt:"佣金金额", receiptTotalAmt:"合计金额", receiptGuestSig:"贵宾签名", printBtn:"打印", downloadBtn:"下载",
+ receiptTotalRolling:"转码总额", receiptRollingLabel:"转码", receiptCommAmt:"佣金金额", receiptTotalAmt:"合计金额", receiptGuestSig:"贵宾签名", printBtn:"打印", downloadBtn:"下载",
   shiftChangeTitle:"交班操作", currentWorker:"当前值班人数", checkInStaffLabel:"选择人员", checkOutBtn:"下班确认", checkInBtn:"上班确认",
  shiftListBtn:"记录", shiftDateTimeLabel:"日期时间", shiftListTitle:"交班记录", colAction:"操作", colCheckIn:"上班", colCheckOut:"下班",
  staffMgmtBtn:"员工管理", staffMgmtTitle:"员工管理", staffNameLabel:"姓名", staffPinLabel:"PIN", staffGenPinBtn:"生成PIN", staffRegisterBtn:"新增", staffSaveBtn:"保存", staffCancelEditBtn:"取消",
@@ -6675,11 +6678,11 @@ function renderReceipt(g, commission, fb, result, cashout, winLoss, dt, staffNam
   </div>
   <div class="ramt-currency">(${curLabel})</div>
   <div class="ramt-col">
-    <div class="ramt-row bold"><span class="ramt-line"><span>${t('receiptBuyinAmt')}</span><span class="val">${fmt(g.buyin||0)}</span></span></div>
-    <div class="ramt-row"><span class="ramt-line"><span>${t('receiptCashoutAmt')}</span><span class="val">${cashoutDisp}</span></span></div>
+    <div class="ramt-row no-line"><span class="ramt-line"><span>${t('receiptBuyinAmt')}</span><span class="val">${fmt(g.buyin||0)}</span></span></div>
+    <div class="ramt-row no-line"><span class="ramt-line"><span>${t('receiptCashoutAmt')}</span><span class="val">${cashoutDisp}</span></span></div>
     <div class="ramt-row winloss"><span class="ramt-line"><span>${t('winLoss')}</span><span class="val">${winLossDisp}</span></span></div>
-    <div class="ramt-row bold"><span class="ramt-line"><span>${t('receiptTotalRolling')}</span><span class="val">${fmt(g.rolling||0)}</span></span></div>
-    <div class="ramt-row bold"><span class="ramt-line"><span>${t('rollingCommSettleAmt')}</span><span class="val">${fmt(commission)}</span></span></div>
+    <div class="ramt-row"><span class="ramt-line"><span>${t('receiptRollingLabel')}</span><span class="val">${fmt(g.rolling||0)}</span></span></div>
+    <div class="ramt-row"><span class="ramt-line"><span>${t('rollingCommSettleAmt')}</span><span class="val">${fmt(commission)}</span></span></div>
     <div class="ramt-row"><span class="ramt-line"><span>F&B</span><span class="val">${fb?fmt(fb):'-'}</span></span></div>
     <div class="ramt-final"><span class="ramt-line"><span>${t('receiptTotalAmt')}</span><span class="val">${fmt(result)}</span></span></div>
   </div>

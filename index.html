@@ -6321,7 +6321,11 @@ function withdrawAcrossBranches(accountId, casino, amt, staffName, memo){
 function applyAccountTransaction(accountId, type, amount, memo){
  const acc = DB.accounts[accountId];
  if(!acc || !amount || amount<=0) return null;
- const casino = (acc.balances && acc.balances.HANN!==undefined) ? 'HANN' : Object.keys(acc.balances||{})[0] || 'HANN';
+ // Was hardcoded to always resolve to HANN whenever an account had a HANN key at all (true for
+ // almost every account, even ones with 0 there) - checked/deducted the wrong branch's balance
+ // for any account whose actual funds sat in NUSTAR/ONLINE, rejecting valid buy-ins as
+ // "insufficient" and, had it gone through, would have wrongly drained the wrong branch's ledger.
+ const casino = currentBranch();
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  // Computed here (prior known balance ± amount) rather than read back from acc.balances after
  // writeLedgerEntry - in cloud-sync mode the local balance doesn't update synchronously, so a
@@ -6534,8 +6538,7 @@ function startGame(){
  }
 }
 function checkAccountBuyinBalance(account, buyin){
- const acc = DB.accounts[account];
- const casino = (acc && acc.balances && acc.balances.HANN!==undefined) ? 'HANN' : Object.keys((acc&&acc.balances)||{})[0] || 'HANN';
+ const casino = currentBranch();
  if(!hasSufficientBalance(account, casino, buyin)){
   toast(t('toastInsufficientBalance'));
   pushNotification('notifInsufficientBalance', `${account} · ${casino}`);

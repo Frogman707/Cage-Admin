@@ -319,7 +319,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .id-verify-grid .photo-box img{object-fit:contain;}
 .id-verify-label{font-size:11.5px;color:var(--ink-dim);text-align:center;margin-top:5px;text-transform:uppercase;letter-spacing:.3px;font-weight:600;}
 .balance-grid{margin-top:14px;}
-.balance-sub-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;}
+.balance-sub-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px;}
 .ticket-sm{position:relative;background:linear-gradient(155deg, var(--panel-hi), var(--panel) 70%);border:1px solid var(--brass-dim);border-radius:6px;padding:10px 6px;text-align:center;min-width:0;}
 .ticket-sm::before{content:'';position:absolute;top:0;left:6px;right:6px;height:1px;background:var(--grad-gold);opacity:.85;}
 .ticket-sm .lbl{font-size:9.5px;letter-spacing:.3px;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -4767,7 +4767,7 @@ ko:{
  cagePinAuthTitle:"핀코드 인증", cagePinAuthSub:"처리를 위해 근무자 핀코드를 입력하세요",
  toastRollingConfirmed:"롤링이 입력되었습니다.", notifRollingInput:"롤링 입력", detailViewTitle:"상세보기", colRollingCum:"롤링누계", receiptCol:"영수증",
  idVerifyTitle:"신원 확인", noPhoto:"등록된 사진 없음", proxyOff:"미사용",
- balanceNustar:"NUSTAR 잔액", balanceOnline:"ONLINE 잔액",
+ balanceHann:"HANN 잔액", balanceNustar:"NUSTAR 잔액", balanceOnline:"ONLINE 잔액",
  depositAmtCol:"디파짓 금액", cashoutAmtCol:"캐쉬아웃 금액", markerRedeemAmtCol:"마커 리딤 금액", dealerTipsAmtCol:"딜러 팁 금액", houseTipsAmtCol:"하우스 팁 금액", workingChipsAmtCol:"워킹칩 금액",
  depositColShort:"디파짓", cashoutColShort:"캐쉬아웃", markerColShort:"마커 리딤", dealerTipsColShort:"딜러 팁", houseTipsColShort:"하우스 팁", workingChipsColShort:"워킹칩",
  specialRemark:"특이사항", floorStaffLabel:"근무자", nnDeductHint:"(캐쉬아웃·마커 리딤·워킹칩은 롤링에서 차감됩니다)",
@@ -4902,7 +4902,7 @@ en:{
  cagePinAuthTitle:"PIN Authentication", cagePinAuthSub:"Enter the staff PIN code to proceed",
  toastRollingConfirmed:"Rolling entry recorded.", notifRollingInput:"Rolling Entry", detailViewTitle:"Details", colRollingCum:"Rolling Cumulative", receiptCol:"Receipt",
  idVerifyTitle:"Identity Verification", noPhoto:"No photo on file", proxyOff:"Off",
- balanceNustar:"NUSTAR Balance", balanceOnline:"ONLINE Balance",
+ balanceHann:"HANN Balance", balanceNustar:"NUSTAR Balance", balanceOnline:"ONLINE Balance",
  depositAmtCol:"Deposit Amount", cashoutAmtCol:"CashOut Amount", markerRedeemAmtCol:"Marker Redeem Amount", dealerTipsAmtCol:"Dealer Tips Amount", houseTipsAmtCol:"House Tips Amount", workingChipsAmtCol:"Working Chips Amount",
  depositColShort:"Deposit", cashoutColShort:"CashOut", markerColShort:"Marker Redeem", dealerTipsColShort:"Dealer Tips", houseTipsColShort:"House Tips", workingChipsColShort:"Working Chips",
  specialRemark:"Special Remark", floorStaffLabel:"Staff", nnDeductHint:"(CashOut / Marker Redeem / Working Chips are deducted from rolling)",
@@ -5037,7 +5037,7 @@ en:{
  cagePinAuthTitle:"PIN 驗證", cagePinAuthSub:"請輸入值班人員 PIN 碼以繼續",
  toastRollingConfirmed:"轉碼已輸入。", notifRollingInput:"轉碼輸入", detailViewTitle:"詳細資料", colRollingCum:"轉碼累計", receiptCol:"收據",
  idVerifyTitle:"身份驗證", noPhoto:"尚無照片", proxyOff:"未啟用",
- balanceNustar:"NUSTAR 餘額", balanceOnline:"ONLINE 餘額",
+ balanceHann:"HANN 餘額", balanceNustar:"NUSTAR 餘額", balanceOnline:"ONLINE 餘額",
  depositAmtCol:"存入金額", cashoutAmtCol:"兌現金額", markerRedeemAmtCol:"馬克兌換金額", dealerTipsAmtCol:"荷官小費金額", houseTipsAmtCol:"公司小費金額", workingChipsAmtCol:"在檯碼金額",
  depositColShort:"存入", cashoutColShort:"兌現", markerColShort:"馬克兌換", dealerTipsColShort:"荷官小費", houseTipsColShort:"公司小費", workingChipsColShort:"在檯碼",
  specialRemark:"特別備註", floorStaffLabel:"值班人員", nnDeductHint:"（兌現／馬克兌換／在檯碼將從轉碼中扣除）",
@@ -5172,7 +5172,7 @@ en:{
  cagePinAuthTitle:"PIN 验证", cagePinAuthSub:"请输入值班人员 PIN 码以继续",
  toastRollingConfirmed:"转码已输入。", notifRollingInput:"转码输入", detailViewTitle:"详细资料", colRollingCum:"转码累计", receiptCol:"收据",
  idVerifyTitle:"身份验证", noPhoto:"尚无照片", proxyOff:"未启用",
- balanceNustar:"NUSTAR 余额", balanceOnline:"ONLINE 余额",
+ balanceHann:"HANN 余额", balanceNustar:"NUSTAR 余额", balanceOnline:"ONLINE 余额",
  depositAmtCol:"存入金额", cashoutAmtCol:"兑现金额", markerRedeemAmtCol:"马克兑换金额", dealerTipsAmtCol:"荷官小费金额", houseTipsAmtCol:"公司小费金额", workingChipsAmtCol:"在台码金额",
  depositColShort:"存入", cashoutColShort:"兑现", markerColShort:"马克兑换", dealerTipsColShort:"荷官小费", houseTipsColShort:"公司小费", workingChipsColShort:"在台码",
  specialRemark:"特别备注", floorStaffLabel:"值班人员", nnDeductHint:"（兑现／马克兑换／在台码将从转码中扣除）",
@@ -5637,6 +5637,7 @@ function renderMemberCard(){
     <div class="balance-grid">
       <div class="ticket"><div class="lbl">${t('balanceTotal')}</div><div class="amt num">${fmt(total)}</div></div>
       <div class="balance-sub-grid">
+        <div class="ticket-sm"><div class="lbl">${t('balanceHann')}</div><div class="amt num">${fmt(acc.balances.HANN||0)}</div></div>
         <div class="ticket-sm"><div class="lbl">${t('balanceNustar')}</div><div class="amt num">${fmt(acc.balances.NUSTAR||0)}</div></div>
         <div class="ticket-sm"><div class="lbl">${t('balanceOnline')}</div><div class="amt num">${fmt(acc.balances.ONLINE||0)}</div></div>
       </div>

@@ -173,7 +173,7 @@ input[type="datetime-local"]{min-width:150px;}
 
 /* ticket balance */
 .ticket{
-  position:relative;background:var(--void);border:1px dashed var(--brass-dim);border-radius:4px;
+  position:relative;background:var(--void);border:1px solid var(--brass-dim);border-radius:4px;
   padding:16px 18px;margin-top:14px;text-align:center;
 }
 .ticket::before{content:'';position:absolute;top:0;left:14px;right:14px;height:1px;background:var(--grad-gold);opacity:.85;}
@@ -6187,7 +6187,7 @@ function processIo(){
  if(amt<=0) return;
  if(DB.ioType==='withdraw'){
   const casino = document.getElementById('ioCasino').value;
-  if(!hasSufficientBalance(DB.currentAccount, casino, amt)){
+  if(!hasSufficientTotalBalance(DB.currentAccount, amt)){
    toast(t('toastInsufficientBalance'));
    pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
    return;
@@ -6202,6 +6202,31 @@ function hasSufficientBalance(accountId, casino, amount){
  if(!acc) return false;
  const bal = (acc.balances && acc.balances[casino]) || 0;
  return bal >= amount;
+}
+// Cash withdrawal draws against the account's balance across every branch (selected branch
+// first, spilling into the others if it alone isn't enough) - unlike transfers/buy-ins, which
+// stay strictly within the single selected casino via hasSufficientBalance above.
+function hasSufficientTotalBalance(accountId, amount){
+ const acc = DB.accounts[accountId];
+ if(!acc) return false;
+ const total = Object.values(acc.balances||{}).reduce((a,b)=>a+(b||0),0);
+ return total >= amount;
+}
+// Deduct amt from acc's balance starting with casino, spilling any shortfall into the other
+// branches (fixed HANN/NUSTAR/ONLINE order) - one writeLedgerEntry per branch actually drawn
+// from, since a single ledger entry can only carry one casino tag.
+function withdrawAcrossBranches(accountId, casino, amt, staffName, memo){
+ const acc = DB.accounts[accountId];
+ const order = [casino, ...['HANN','NUSTAR','ONLINE'].filter(c=>c!==casino)];
+ let remaining = amt;
+ order.forEach(c=>{
+  if(remaining<=0) return;
+  const avail = (acc.balances && acc.balances[c]) || 0;
+  const take = Math.min(avail, remaining);
+  if(take<=0) return;
+  writeLedgerEntry({accountId, casino:c, type:'OUT', amount:take, staff:staffName, memo});
+  remaining -= take;
+ });
 }
 function applyAccountTransaction(accountId, type, amount, memo){
  const acc = DB.accounts[accountId];
@@ -6228,19 +6253,24 @@ function _doProcessIo(amt){
  const casino = document.getElementById('ioCasino').value;
  const memo = document.getElementById('ioMemo').value;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const acc = DB.accounts[DB.currentAccount];
  // Re-check with the freshest known balance right before writing (narrows, though cannot fully
  // close, the race window between the initial check and PIN confirmation on another terminal).
- if(DB.ioType==='withdraw' && !hasSufficientBalance(DB.currentAccount, casino, amt)){
+ if(DB.ioType==='withdraw' && !hasSufficientTotalBalance(DB.currentAccount, amt)){
   toast(t('toastInsufficientBalance'));
   pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
   return;
  }
- const acc = DB.accounts[DB.currentAccount];
- const priorBal = (acc && acc.balances && acc.balances[casino]) || 0;
- const newBal = priorBal + (DB.ioType==='deposit' ? amt : -amt);
- writeLedgerEntry({accountId: DB.currentAccount, casino, type: DB.ioType==='deposit'?'IN':'OUT', amount:amt, staff:staffName, memo});
+ let newBal;
  if(DB.ioType==='withdraw'){
+  const priorTotal = Object.values((acc&&acc.balances)||{}).reduce((a,b)=>a+(b||0),0);
+  newBal = priorTotal - amt;
+  withdrawAcrossBranches(DB.currentAccount, casino, amt, staffName, memo);
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + amt;
+ } else {
+  const priorBal = (acc && acc.balances && acc.balances[casino]) || 0;
+  newBal = priorBal + amt;
+  writeLedgerEntry({accountId: DB.currentAccount, casino, type:'IN', amount:amt, staff:staffName, memo});
  }
  document.getElementById('ioAmount').value=''; document.getElementById('ioMemo').value = DB.ioType==='deposit' ? 'Cash Deposit' : 'Cash Out';
  saveDB(); renderMemberCard(); renderLedger(); renderBalancingSummary();

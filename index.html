@@ -4130,17 +4130,51 @@ let fbStaffUnsub = null;
 // sitting in DB.staff, and get rejected every time. Login now stays disabled until this
 // resolves, with a hard timeout so a genuinely offline session doesn't lock out login forever.
 let staffCloudSynced = false;
-function markLoginReady(){
+function markLoginReady(offlineFailure){
  if(staffCloudSynced) return;
  staffCloudSynced = true;
  const btn = document.getElementById('loginBtn');
  const hint = document.getElementById('loginSyncHint');
  if(btn) btn.disabled = false;
- if(hint) hint.style.display = 'none';
+ if(hint){
+  if(offlineFailure){
+   hint.textContent = t('loginOfflineWarning');
+   hint.style.display = '';
+  } else {
+   hint.style.display = 'none';
+  }
+ }
 }
-function initFirestore(){
+function loadScriptOnce(src){
+ return new Promise((resolve, reject)=>{
+  const el = document.createElement('script');
+  el.src = src;
+  el.onload = ()=>resolve();
+  el.onerror = ()=>reject(new Error('script load failed: '+src));
+  document.head.appendChild(el);
+ });
+}
+// The two <script src> tags at the top of the page are the normal path in; this only runs when
+// those failed (flaky connection, CDN blip) and `firebase` never showed up. A dynamically
+// injected <script> gets its own fresh network request, so a few retries with backoff recover
+// from a transient failure without needing a full page reload.
+async function ensureFirebaseSdkLoaded(maxRetries){
+ maxRetries = maxRetries===undefined ? 3 : maxRetries;
+ for(let attempt=0; attempt<=maxRetries; attempt++){
+  if(typeof firebase !== 'undefined' && firebase.firestore) return true;
+  try{
+   await loadScriptOnce('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
+   await loadScriptOnce('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js');
+  }catch(e){}
+  if(typeof firebase !== 'undefined' && firebase.firestore) return true;
+  if(attempt<maxRetries) await new Promise(r=>setTimeout(r, 1000*Math.pow(2,attempt)));
+ }
+ return false;
+}
+async function initFirestore(){
  try{
-  if(typeof firebase === 'undefined') return;
+  const ok = await ensureFirebaseSdkLoaded();
+  if(!ok) return;
   firebase.initializeApp(FIREBASE_CONFIG);
   fbDb = firebase.firestore();
   fbDb.enablePersistence({synchronizeTabs:true}).catch(()=>{});
@@ -4163,7 +4197,7 @@ function subscribeStaffCloud(){
  // If the very first snapshot hasn't arrived within 8s (slow/blocked connection), stop making
  // the staff member wait on a login that may never come and fall back to whatever's local -
  // matches this function's own long-standing behavior for every other failure mode.
- const readyFallback = setTimeout(markLoginReady, 8000);
+ const readyFallback = setTimeout(()=>markLoginReady(true), 8000);
  fbStaffUnsub = fbDb.collection('staff').orderBy('dt').onSnapshot(snap=>{
   DB.staff = snap.docs.map(d=>d.data());
   // Cloud docs synced from before real TOTP existed won't have a secret yet - backfill and
@@ -4179,7 +4213,7 @@ function subscribeStaffCloud(){
   if(document.getElementById('modal-staff-mgmt').classList.contains('open')) renderStaffMgmtList();
   clearTimeout(readyFallback);
   markLoginReady();
- }, ()=>{ clearTimeout(readyFallback); markLoginReady(); });
+ }, ()=>{ clearTimeout(readyFallback); markLoginReady(true); });
 }
 
 /* ---- Ledger (account deposits/withdrawals/transfers) — append-only, balance is derived ---- */
@@ -4708,7 +4742,7 @@ ko:{
  colStaffName:"이름", colStaffPin:"PIN", colStaffRegDt:"등록일", editBtn:"수정", regenPinBtn:"PIN 재생성", otpSetupBtn:"OTP 설정",
  toastStaffNameRequired:"이름을 입력하세요.", toastStaffDuplicate:"이미 등록된 이름입니다.", toastStaffRegistered:"직원이 등록되었습니다.", toastStaffUpdated:"직원 정보가 수정되었습니다.",
  toastStaffDeleted:"직원이 삭제되었습니다.", toastPinRegenerated:"PIN이 재발급되었습니다.", toastStaffMinOne:"최소 1명의 직원은 있어야 합니다.",
- loginStaffLabel:"근무자", loginPinLabel:"비밀번호(PIN)", loginErrorMsg:"비밀번호가 일치하지 않습니다.", loginBtn:"로그인", loginSyncHint:"직원 정보를 동기화하는 중입니다. 잠시만 기다려주세요.",
+ loginStaffLabel:"근무자", loginPinLabel:"비밀번호(PIN)", loginErrorMsg:"비밀번호가 일치하지 않습니다.", loginBtn:"로그인", loginSyncHint:"직원 정보를 동기화하는 중입니다. 잠시만 기다려주세요.", loginOfflineWarning:"⚠ 서버 연결에 실패했습니다. Wi-Fi/데이터 연결을 확인하고 새로고침 후 다시 시도해주세요.",
  masterPwLabel:"마스터 비밀번호", masterLoginBtn:"마스터 로그인", masterBackBtn:"뒤로", masterTotpSetupBtn:"마스터 OTP 설정 / 재설정",
  loginOtpDesc:"Authenticator 앱에 표시된 6자리 인증 코드를 입력하세요.", loginOtpLabel:"인증코드(Authenticator)", loginOtpErrorMsg:"인증 코드가 일치하지 않습니다.",
  loginVerifyBtn:"인증 확인", loginBackBtn:"뒤로",
@@ -4843,7 +4877,7 @@ en:{
  colStaffName:"Name", colStaffPin:"PIN", colStaffRegDt:"Registered", editBtn:"Edit", regenPinBtn:"Regenerate PIN", otpSetupBtn:"OTP Setup",
  toastStaffNameRequired:"Enter a name.", toastStaffDuplicate:"This name is already registered.", toastStaffRegistered:"Staff registered.", toastStaffUpdated:"Staff updated.",
  toastStaffDeleted:"Staff deleted.", toastPinRegenerated:"PIN regenerated.", toastStaffMinOne:"At least one staff member is required.",
- loginStaffLabel:"Staff", loginPinLabel:"Password (PIN)", loginErrorMsg:"Incorrect password.", loginBtn:"Log In", loginSyncHint:"Syncing staff data - please wait a moment.",
+ loginStaffLabel:"Staff", loginPinLabel:"Password (PIN)", loginErrorMsg:"Incorrect password.", loginBtn:"Log In", loginSyncHint:"Syncing staff data - please wait a moment.", loginOfflineWarning:"⚠ Could not reach the server. Check your Wi-Fi/data connection and refresh to try again.",
  masterPwLabel:"Master Password", masterLoginBtn:"Master Login", masterBackBtn:"Back", masterTotpSetupBtn:"Master OTP Setup / Reset",
  loginOtpDesc:"Enter the 6-digit code shown in your Authenticator app.", loginOtpLabel:"Auth Code (Authenticator)", loginOtpErrorMsg:"Incorrect authentication code.",
  loginVerifyBtn:"Verify", loginBackBtn:"Back",
@@ -4978,7 +5012,7 @@ en:{
  colStaffName:"姓名", colStaffPin:"PIN", colStaffRegDt:"登記日期", editBtn:"編輯", regenPinBtn:"重新產生PIN", otpSetupBtn:"OTP 設定",
  toastStaffNameRequired:"請輸入姓名。", toastStaffDuplicate:"此姓名已被登記。", toastStaffRegistered:"員工已新增。", toastStaffUpdated:"員工資料已更新。",
  toastStaffDeleted:"員工已刪除。", toastPinRegenerated:"PIN已重新產生。", toastStaffMinOne:"至少需保留一名員工。",
- loginStaffLabel:"人員", loginPinLabel:"密碼(PIN)", loginErrorMsg:"密碼不正確。", loginBtn:"登入", loginSyncHint:"正在同步員工資料，請稍候。",
+ loginStaffLabel:"人員", loginPinLabel:"密碼(PIN)", loginErrorMsg:"密碼不正確。", loginBtn:"登入", loginSyncHint:"正在同步員工資料，請稍候。", loginOfflineWarning:"⚠ 無法連接伺服器。請檢查Wi-Fi/行動數據連線後重新整理再試一次。",
  masterPwLabel:"主管密碼", masterLoginBtn:"主管登入", masterBackBtn:"返回", masterTotpSetupBtn:"主管 OTP 設定／重設",
  loginOtpDesc:"請輸入 Authenticator 應用程式顯示的 6 位數驗證碼。", loginOtpLabel:"驗證碼(Authenticator)", loginOtpErrorMsg:"驗證碼不正確。",
  loginVerifyBtn:"驗證", loginBackBtn:"返回",
@@ -5113,7 +5147,7 @@ en:{
  colStaffName:"姓名", colStaffPin:"PIN", colStaffRegDt:"登记日期", editBtn:"编辑", regenPinBtn:"重新生成PIN", otpSetupBtn:"OTP 设置",
  toastStaffNameRequired:"请输入姓名。", toastStaffDuplicate:"此姓名已被登记。", toastStaffRegistered:"员工已新增。", toastStaffUpdated:"员工资料已更新。",
  toastStaffDeleted:"员工已删除。", toastPinRegenerated:"PIN已重新生成。", toastStaffMinOne:"至少需保留一名员工。",
- loginStaffLabel:"人员", loginPinLabel:"密码(PIN)", loginErrorMsg:"密码不正确。", loginBtn:"登录", loginSyncHint:"正在同步员工数据，请稍候。",
+ loginStaffLabel:"人员", loginPinLabel:"密码(PIN)", loginErrorMsg:"密码不正确。", loginBtn:"登录", loginSyncHint:"正在同步员工数据，请稍候。", loginOfflineWarning:"⚠ 无法连接服务器。请检查Wi-Fi/移动数据连接后刷新重试。",
  masterPwLabel:"主管密码", masterLoginBtn:"主管登录", masterBackBtn:"返回", masterTotpSetupBtn:"主管 OTP 设置／重置",
  loginOtpDesc:"请输入 Authenticator 应用中显示的 6 位验证码。", loginOtpLabel:"验证码(Authenticator)", loginOtpErrorMsg:"验证码不正确。",
  loginVerifyBtn:"验证", loginBackBtn:"返回",
@@ -8793,13 +8827,13 @@ function startInactivityTimer(){
  applyI18n();
  updateGameIdPreview();
  updateHotelBedType();
- initFirestore();
+ await initFirestore();
  if(!fbDb){
-  markLoginReady();
+  markLoginReady(true);
  } else {
   // Backstop independent of subscribeStaffCloud's own timer, in case something upstream of it
   // (e.g. seedStaffToCloudIfEmpty's own network call) is what actually hangs.
-  setTimeout(markLoginReady, 12000);
+  setTimeout(()=>markLoginReady(true), 12000);
   await seedStaffToCloudIfEmpty();
   subscribeStaffCloud();
   await seedLedgerToCloudIfEmpty();

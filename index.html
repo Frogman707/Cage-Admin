@@ -4221,6 +4221,12 @@ function subscribeStaffCloud(){
   renderStaffDropdowns();
   renderShiftStaff();
   if(document.getElementById('modal-staff-mgmt').classList.contains('open')) renderStaffMgmtList();
+  // Offline persistence means a snapshot can arrive instantly straight from the local cache
+  // (metadata.fromCache) before the SDK has actually reached the server - that cache can be
+  // stale (a staff member deleted, or a TOTP secret regenerated, on another device since this
+  // one last truly synced). Rendering it is fine, but don't unlock login on it: wait for a
+  // snapshot the SDK confirms came from the live server, or the timeout's offline warning.
+  if(snap.metadata.fromCache) return;
   clearTimeout(readyFallback);
   markLoginReady();
  }, ()=>{ clearTimeout(readyFallback); markLoginReady(true); });

@@ -707,7 +707,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
               <div class="field"><label data-i18n="tableLabel"></label>
                 <select id="gTable"><option value=""></option><option>NS001</option><option>NS002</option><option>NS003</option><option>NS004</option><option>NS005</option><option>NS006</option><option>NS007</option><option>NS008</option><option>NS009</option><option>NS010</option></select></div>
               <div class="field"><label data-i18n="gameType"></label>
-                <select id="gType"><option>Rolling 1.45%</option><option>Share 40%</option><option>Rolling 1% + Share 10%</option></select></div>
+                <select id="gType"><option>Rolling 1.5%</option><option>Share 40%</option><option>Rolling 1% + Share 10%</option></select></div>
             </div>
             <div class="row">
               <div class="field"><label data-i18n="startKindLabel"></label>
@@ -8441,7 +8441,7 @@ function submitReg(){
  const wdPwConfirm = document.getElementById('regWdPwConfirm').value;
  if(wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- DB.accounts[id] = {member:memberNo||"NEW", phone:"—", rate:"1.00%", telegram:"—", balance:0, openedCasino:DB.currentCasino||'HANN', openedDt:now, currency:'PHP', remark:''};
+ DB.accounts[id] = {member:memberNo||"NEW", phone:"—", rate:"1.5%", telegram:"—", balance:0, openedCasino:DB.currentCasino||'HANN', openedDt:now, currency:'PHP', remark:''};
  const acc = DB.accounts[id];
  if(memberNo) acc.member = memberNo;
  if(wdPw) acc.withdrawPw = wdPw;

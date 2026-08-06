@@ -118,6 +118,7 @@ h2.page-title{font-family:var(--serif);font-weight:800;font-size:25px;color:var(
 
 .field{margin-bottom:12px;}
 .field label{display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;font-weight:500;}
+.field.req-field>label::after{content:' *';color:var(--danger);}
 .field input,.field select,.field textarea,#accSearch,.breakdown-input{
   width:100%;background:var(--void);border:1px solid var(--line);color:var(--ink);
   padding:8px 10px;border-radius:var(--radius);font-size:13px;
@@ -1229,7 +1230,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="card">
           <h3 data-i18n="regBasicInfo"></h3>
           <div class="row">
-            <div class="field"><label data-i18n="regAccId"></label><input id="regAccId" placeholder="PL0000"></div>
+            <div class="field req-field"><label data-i18n="regAccId"></label><input id="regAccId" placeholder="PL0000"></div>
             <button class="btn btn-sm" style="align-self:flex-end;height:38px;margin-bottom:12px;" onclick="randomAccId()" data-i18n="regRandomBtn"></button>
           </div>
           <div class="row">
@@ -1237,12 +1238,12 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <div class="field"><label data-i18n="regPwConfirm"></label><input type="password"></div>
           </div>
           <div class="row">
-            <div class="field"><label data-i18n="regWdPw"></label><input type="password" id="regWdPw"></div>
-            <div class="field"><label data-i18n="regWdPwConfirm"></label><input type="password" id="regWdPwConfirm"></div>
+            <div class="field req-field"><label data-i18n="regWdPw"></label><input type="password" id="regWdPw"></div>
+            <div class="field req-field"><label data-i18n="regWdPwConfirm"></label><input type="password" id="regWdPwConfirm"></div>
           </div>
           <div class="hint" data-i18n="regWdPwHint"></div>
           <div class="row" style="margin-top:12px;">
-            <div class="field"><label data-i18n="regEngName"></label><input id="regEngName"></div>
+            <div class="field req-field"><label data-i18n="regEngName"></label><input id="regEngName"></div>
             <div class="field"><label data-i18n="regNickname"></label><input id="regNickname"></div>
           </div>
           <div class="field"><label data-i18n="regMembershipNo"></label><input id="regMembershipNo" placeholder="52049817"></div>
@@ -1251,7 +1252,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 
         <div class="card">
           <h3 data-i18n="regContact"></h3>
-          <div class="field"><label data-i18n="regPhone"></label>
+          <div class="field req-field"><label data-i18n="regPhone"></label>
             <div class="row"><select id="regPhoneCountry" style="flex:0 0 90px;"><option>🇵🇭 +63</option><option>🇰🇷 +82</option><option>🇨🇳 +86</option><option>🇭🇰 +852</option></select>
               <input id="regPhone" placeholder="912 345 6789"></div>
           </div>
@@ -1268,7 +1269,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="card">
           <h3 data-i18n="regPassport"></h3>
           <div class="row">
-            <div class="field"><label data-i18n="regPassportNo"></label><input id="regPassportNo" placeholder="EC1234567"></div>
+            <div class="field req-field"><label data-i18n="regPassportNo"></label><input id="regPassportNo" placeholder="EC1234567"></div>
             <div class="field"><label data-i18n="regPassportExp"></label><input id="regPassportExp" type="date"></div>
           </div>
           <div class="row">
@@ -4973,7 +4974,7 @@ ko:{
  colMrCash:"현금", colMrCashChips:"현금칩", colMrRollingChips:"롤링칩", colMrCasinoCum:"카지노 누적", colMrGuestTotal:"고객 합계",
  print:"인쇄", yes:"예", no:"아니오", process:"처리", staffLabel:"담당자",
  toastProcessed:"처리되었습니다.", toastGameStarted:"게임이 시작되었습니다.", toastSettled:"정산이 완료되었습니다.",
- toastBlocked:"차단이 적용되었습니다.", toastCutoff:"마감 처리되었습니다.", toastRegistered:"신규 어카운트가 등록되었습니다.", toastPwMismatch:"비밀번호가 일치하지 않습니다.", toastAccIdExists:"이미 존재하는 어카운트 ID입니다.",
+ toastBlocked:"차단이 적용되었습니다.", toastCutoff:"마감 처리되었습니다.", toastRegistered:"신규 어카운트가 등록되었습니다.", toastPwMismatch:"비밀번호가 일치하지 않습니다.", toastAccIdExists:"이미 존재하는 어카운트 ID입니다.", toastRegRequiredFields:"필수 항목(어카운트 ID, 영문 이름, 전화번호, 여권 번호, 출금 비밀번호)을 모두 입력해주세요.",
  toastNoAcc:"어카운트를 먼저 조회하세요.", toastTransfer:"이체가 완료되었습니다.", toastShift:"교대 처리되었습니다.",
  toastTransferHalfFailed:"출금은 처리됐지만 입금이 실패했습니다! 다시 시도하지 말고 입출금 내역을 직접 확인해주세요.",
  toastInsufficientBalance:"잔액이 부족합니다.", notifInsufficientBalance:"잔액 부족", toastInsufficientPoints:"포인트 잔액이 부족합니다.",
@@ -5110,7 +5111,7 @@ en:{
  colMrCash:"Cash", colMrCashChips:"Cash Chips", colMrRollingChips:"Rolling Chips", colMrCasinoCum:"Casino Cum.", colMrGuestTotal:"Guest Total",
  print:"Print", yes:"Yes", no:"No", process:"Process", staffLabel:"Staff",
  toastProcessed:"Transaction processed.", toastGameStarted:"Game started.", toastSettled:"Settlement confirmed.",
- toastBlocked:"Account blocked.", toastCutoff:"Cutoff completed.", toastRegistered:"New account registered.", toastPwMismatch:"Passwords do not match.", toastAccIdExists:"That account ID already exists.",
+ toastBlocked:"Account blocked.", toastCutoff:"Cutoff completed.", toastRegistered:"New account registered.", toastPwMismatch:"Passwords do not match.", toastAccIdExists:"That account ID already exists.", toastRegRequiredFields:"Please fill in all required fields (Account ID, English Name, Phone Number, Passport No., Withdrawal Password).",
  toastNoAcc:"Look up an account first.", toastTransfer:"Transfer completed.", toastShift:"Shift updated.",
  toastTransferHalfFailed:"The withdrawal went through but the deposit failed! Do not retry - check the ledger history directly.",
  toastInsufficientBalance:"Insufficient balance.", notifInsufficientBalance:"Insufficient Balance", toastInsufficientPoints:"Insufficient points balance.",
@@ -5248,7 +5249,7 @@ en:{
  colMrCash:"現金", colMrCashChips:"現金碼", colMrRollingChips:"轉碼", colMrCasinoCum:"賭場累計", colMrGuestTotal:"貴賓合計",
  print:"列印", yes:"是", no:"否", process:"處理", staffLabel:"經辦人",
  toastProcessed:"交易已處理。", toastGameStarted:"賽局已開始。", toastSettled:"結算已完成。",
- toastBlocked:"已套用封鎖。", toastCutoff:"結帳已完成。", toastRegistered:"新帳戶已登記。", toastPwMismatch:"密碼不一致。", toastAccIdExists:"該帳戶 ID 已存在。",
+ toastBlocked:"已套用封鎖。", toastCutoff:"結帳已完成。", toastRegistered:"新帳戶已登記。", toastPwMismatch:"密碼不一致。", toastAccIdExists:"該帳戶 ID 已存在。", toastRegRequiredFields:"請填寫所有必填項目（帳號、英文姓名、電話號碼、護照號碼、提款密碼）。",
  toastNoAcc:"請先查詢帳戶。", toastTransfer:"轉帳已完成。", toastShift:"交班已處理。",
  toastTransferHalfFailed:"扣款已處理，但入帳失敗！請勿重試，請直接查看交易紀錄確認。",
  toastInsufficientBalance:"餘額不足。", notifInsufficientBalance:"餘額不足", toastInsufficientPoints:"點數餘額不足。",
@@ -5386,7 +5387,7 @@ en:{
  colMrCash:"现金", colMrCashChips:"现金码", colMrRollingChips:"转码", colMrCasinoCum:"赌场累计", colMrGuestTotal:"贵宾合计",
  print:"打印", yes:"是", no:"否", process:"处理", staffLabel:"经办人",
  toastProcessed:"交易已处理。", toastGameStarted:"赛局已开始。", toastSettled:"结算已完成。",
- toastBlocked:"已应用封锁。", toastCutoff:"结账已完成。", toastRegistered:"新账户已登记。", toastPwMismatch:"密码不一致。", toastAccIdExists:"该账户 ID 已存在。",
+ toastBlocked:"已应用封锁。", toastCutoff:"结账已完成。", toastRegistered:"新账户已登记。", toastPwMismatch:"密码不一致。", toastAccIdExists:"该账户 ID 已存在。", toastRegRequiredFields:"请填写所有必填项目（账号、英文姓名、电话号码、护照号码、取款密码）。",
  toastNoAcc:"请先查询账户。", toastTransfer:"转账已完成。", toastShift:"交班已处理。",
  toastTransferHalfFailed:"扣款已处理，但入账失败！请勿重试，请直接查看交易记录确认。",
  toastInsufficientBalance:"余额不足。", notifInsufficientBalance:"余额不足", toastInsufficientPoints:"点数余额不足。",
@@ -8384,14 +8385,23 @@ function renderAccountList(){
    return `<tr><td>${esc(acc.openedCasino)||'—'}</td><td class="num">${esc(acc.openedDt)||'—'}</td><td>${esc(id)}</td><td>${esc(acc.currency)||'—'}</td><td class="num">${fmt(total)}</td><td>${esc(acc.remark)}</td></tr>`;
   }).join('');
 }
+// Minimum viable member record: identity (account ID, English name, passport no.), contact
+// (phone), and withdrawal security (withdrawal password) - see the .req-field asterisks on the
+// registration form. Everything else stays optional.
+const REG_REQUIRED_FIELDS = ['regAccId','regEngName','regPhone','regPassportNo','regWdPw','regWdPwConfirm'];
 function submitReg(){
  const id = document.getElementById('regAccId').value.trim().toUpperCase();
- if(!id) return;
+ const missingField = REG_REQUIRED_FIELDS.find(fid=>!document.getElementById(fid).value.trim());
+ if(missingField){
+  toast(t('toastRegRequiredFields'));
+  document.getElementById(missingField).focus();
+  return;
+ }
  if(DB.accounts[id]){ toast(t('toastAccIdExists')); return; }
  const memberNo = document.getElementById('regMembershipNo').value.trim();
  const wdPw = document.getElementById('regWdPw').value;
  const wdPwConfirm = document.getElementById('regWdPwConfirm').value;
- if(wdPw && wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
+ if(wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  DB.accounts[id] = {member:memberNo||"NEW", phone:"—", rate:"1.00%", telegram:"—", balance:0, openedCasino:DB.currentCasino||'HANN', openedDt:now, currency:'PHP', remark:''};
  const acc = DB.accounts[id];

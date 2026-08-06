@@ -5763,8 +5763,24 @@ function renderMemberCard(){
       </div>
     </div>
   </div>`;
+ fitTicketAmounts();
  renderIdVerify();
 }
+// A balance figure must never be visually cut off - unlike a label, a truncated number reads as
+// a DIFFERENT (wrong) amount rather than an ugly one. The 3-column HANN/NUSTAR/ONLINE grid has a
+// fixed width no CSS rule alone can guarantee fits every magnitude (a 9-figure MAIN account
+// balance overflowed its box here), so shrink the font just enough to make each one fit instead.
+function fitTicketAmounts(){
+ document.querySelectorAll('.ticket-sm .amt').forEach(el=>{
+  el.style.fontSize = '';
+  let size = parseFloat(getComputedStyle(el).fontSize);
+  while(el.scrollWidth > el.clientWidth && size > 9){
+   size -= 1;
+   el.style.fontSize = size + 'px';
+  }
+ });
+}
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitTicketAmounts).catch(()=>{});
 function renderIdVerify(){
  const box = document.getElementById('idVerifyBox');
  if(!box) return;

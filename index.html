@@ -937,7 +937,11 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           </div>
           <div class="stat-line"><span data-i18n="rollingLabel"></span><b class="num" id="diffRolling">0</b></div>
           <div class="stat-line"><span data-i18n="cashLabel"></span><b class="num" id="diffCash">0</b></div>
-          <button class="btn btn-gold btn-block" style="margin-top:auto;" onclick="confirmBalancingCheck()" data-i18n="balancingCheckBtn"></button>
+          <div class="hint" data-i18n="initialSetupHint"></div>
+          <div class="row" style="margin-top:auto;padding-top:10px;">
+            <button class="btn" onclick="initialSetupBalancing()" data-i18n="initialSetupBtn"></button>
+            <button class="btn btn-gold" onclick="confirmBalancingCheck()" data-i18n="balancingCheckBtn"></button>
+          </div>
         </div>
       </div>
 
@@ -1519,7 +1523,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="modal-close" onclick="closeModal('modal-balancing-check-list')">×</button>
   <h3 data-i18n="balancingCheckListTitle"></h3>
   <div class="table-wrap" style="margin-top:10px;"><table>
-    <thead><tr><th data-i18n="colDate"></th><th data-i18n="colStaff"></th></tr></thead>
+    <thead><tr><th data-i18n="colDate"></th><th data-i18n="colStaff"></th><th data-i18n="ioRemark"></th></tr></thead>
     <tbody id="balancingCheckListBody"></tbody>
   </table></div>
 </div></div>
@@ -4941,6 +4945,7 @@ ko:{
  holdingsTitle:"보유 현황", holdCashLabel:"보유 캐시", holdRollingChipsLabel:"보유 롤링칩스", holdCashChipsLabel:"보유 캐시 칩스",
  casinoCumRollingLabel:"카지노 누계 롤링", guestsTotalRollingLabel:"손님들 총 롤링", gameOutAmountLabel:"게임 나간 금액",
  cageCombinedTitle:"케이지 합산금액", cageCombinedRollingLabel:"케이지 합산금액 (롤링)", cageCombinedCashLabel:"케이지 합산금액 (캐시)", diffLabel2:"차액", balancingCheckBtn:"밸런싱 확인", toastBalancingChecked:"밸런싱이 확인되었습니다.", toastBalancingNotZero:"롤링과 캐시 차액이 모두 0이어야 밸런싱을 확인할 수 있습니다.",
+ initialSetupBtn:"초기 세팅", initialSetupHint:"처음 세팅 등으로 실제 보유 현금·롤링칩과 시스템 계산값이 달라 차액이 발생했다면, 이 버튼으로 현재 차액을 기준점으로 반영해 0으로 맞출 수 있습니다.", toastInitialSetupApplied:"초기 세팅 값이 반영되어 차액이 0이 되었습니다.", toastNoDiffToSetup:"반영할 차액이 없습니다.", initialSetupLogNote:"초기 세팅 반영", balancingConfirmLogNote:"밸런싱 확인",
  ledgerListBtn:"목록", ledgerListTitle:"입출금 내역", searchByDateLabel:"날짜로 검색", periodStartLabel:"시작일", periodEndLabel:"종료일",
  mainCageTitle:"메인 케이지", mainCageTypeLabel:"구분", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
  mainCageProcessBtn:"처리", toastMainCageProcessed:"메인 케이지 거래가 처리되었습니다.", notifMainCage:"메인 케이지 거래",
@@ -5078,6 +5083,7 @@ en:{
  holdingsTitle:"Holdings", holdCashLabel:"Cash on Hand", holdRollingChipsLabel:"Rolling Chips on Hand", holdCashChipsLabel:"Cash Chips on Hand",
  casinoCumRollingLabel:"Casino Cumulative Rolling", guestsTotalRollingLabel:"Guests' Total Rolling", gameOutAmountLabel:"Amount Out to Games",
  cageCombinedTitle:"Cage Combined Amount", cageCombinedRollingLabel:"Cage Combined (Rolling)", cageCombinedCashLabel:"Cage Combined (Cash)", diffLabel2:"Difference", balancingCheckBtn:"Confirm Balancing", toastBalancingChecked:"Balancing confirmed.", toastBalancingNotZero:"Both the rolling and cash difference must be 0 to confirm balancing.",
+ initialSetupBtn:"Initial Setup", initialSetupHint:"If the actual cash/rolling chips on hand differ from the system's calculated value (e.g. from initial setup), use this to apply the current difference as the new baseline so it reads 0.", toastInitialSetupApplied:"Initial setup applied - the difference is now 0.", toastNoDiffToSetup:"No difference to apply.", initialSetupLogNote:"Initial Setup Applied", balancingConfirmLogNote:"Balancing Confirmed",
  ledgerListBtn:"List", ledgerListTitle:"Transaction History", searchByDateLabel:"Search by Date", periodStartLabel:"Start Date", periodEndLabel:"End Date",
  mainCageTitle:"Main Cage", mainCageTypeLabel:"Type", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
  mainCageProcessBtn:"Process", toastMainCageProcessed:"Main cage transaction processed.", notifMainCage:"Main Cage Transaction",
@@ -5216,6 +5222,7 @@ en:{
  holdingsTitle:"庫存現況", holdCashLabel:"庫存現金", holdRollingChipsLabel:"庫存轉碼籌碼", holdCashChipsLabel:"庫存現金籌碼",
  casinoCumRollingLabel:"賭場累計轉碼", guestsTotalRollingLabel:"貴賓總轉碼", gameOutAmountLabel:"局內流出金額",
  cageCombinedTitle:"碼房合計金額", cageCombinedRollingLabel:"碼房合計金額（轉碼）", cageCombinedCashLabel:"碼房合計金額（現金）", diffLabel2:"差額", balancingCheckBtn:"確認結餘", toastBalancingChecked:"結餘已確認。", toastBalancingNotZero:"轉碼與現金差額必須皆為0才能確認結餘。",
+ initialSetupBtn:"初始設定", initialSetupHint:"若因初始設定等原因，實際持有現金／轉碼籌碼與系統計算值不同而產生差額，可用此按鈕將目前差額反映為新的基準點，使其歸零。", toastInitialSetupApplied:"初始設定已套用，差額已歸零。", toastNoDiffToSetup:"沒有可套用的差額。", initialSetupLogNote:"初始設定套用", balancingConfirmLogNote:"結餘確認",
  ledgerListBtn:"清單", ledgerListTitle:"收付紀錄", searchByDateLabel:"依日期搜尋", periodStartLabel:"開始日期", periodEndLabel:"結束日期",
  mainCageTitle:"主碼房", mainCageTypeLabel:"類型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
  mainCageProcessBtn:"處理", toastMainCageProcessed:"主碼房交易已處理。", notifMainCage:"主碼房交易",
@@ -5354,6 +5361,7 @@ en:{
  holdingsTitle:"库存现况", holdCashLabel:"库存现金", holdRollingChipsLabel:"库存转码筹码", holdCashChipsLabel:"库存现金筹码",
  casinoCumRollingLabel:"赌场累计转码", guestsTotalRollingLabel:"贵宾总转码", gameOutAmountLabel:"局内流出金额",
  cageCombinedTitle:"码房合计金额", cageCombinedRollingLabel:"码房合计金额（转码）", cageCombinedCashLabel:"码房合计金额（现金）", diffLabel2:"差额", balancingCheckBtn:"确认结余", toastBalancingChecked:"结余已确认。", toastBalancingNotZero:"转码与现金差额必须均为0才能确认结余。",
+ initialSetupBtn:"初始设定", initialSetupHint:"若因初始设定等原因，实际持有现金／转码筹码与系统计算值不同而产生差额，可用此按钮将当前差额反映为新的基准点，使其归零。", toastInitialSetupApplied:"初始设定已套用，差额已归零。", toastNoDiffToSetup:"没有可套用的差额。", initialSetupLogNote:"初始设定套用", balancingConfirmLogNote:"结余确认",
  ledgerListBtn:"清单", ledgerListTitle:"收付记录", searchByDateLabel:"按日期搜索", periodStartLabel:"开始日期", periodEndLabel:"结束日期",
  mainCageTitle:"主码房", mainCageTypeLabel:"类型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
  mainCageProcessBtn:"处理", toastMainCageProcessed:"主码房交易已处理。", notifMainCage:"主码房交易",
@@ -7987,13 +7995,39 @@ function _doConfirmBalancingCheck(){
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  bd().balancingCheckLog = bd().balancingCheckLog||[];
- bd().balancingCheckLog.unshift({dt:now, staff:staffName});
+ bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'confirm'});
  bd().lastBalancingDt = now;
  const topEl = document.getElementById('lastBalTime');
  if(topEl) topEl.textContent = now;
  if(fbDb) writeCageConfig({lastBalancingDt: now});
  saveDB();
  toast(t('toastBalancingChecked'));
+}
+// For a brand-new branch (or any legitimate physical recount), the system's calculated cage
+// totals start at 0 while the actual counted cash/rolling chips typically don't, so
+// diffCash/diffRolling can never reach 0 through normal transactions alone - confirmBalancingCheck
+// would stay permanently blocked. This absorbs whatever the current difference is into the
+// carry-forward baseline (the same mechanism a branch reset uses to preserve continuity) so the
+// counted amounts become the new zero point, and logs it just like a balancing confirmation so
+// it stays auditable.
+function initialSetupBalancing(){
+ const diffRolling = Number((document.getElementById('diffRolling').textContent||'0').replace(/,/g,''));
+ const diffCash = Number((document.getElementById('diffCash').textContent||'0').replace(/,/g,''));
+ if(diffRolling === 0 && diffCash === 0){ toast(t('toastNoDiffToSetup')); return; }
+ requestPinAuth(_doInitialSetupBalancing);
+}
+function _doInitialSetupBalancing(){
+ const diffRolling = Number((document.getElementById('diffRolling').textContent||'0').replace(/,/g,''));
+ const diffCash = Number((document.getElementById('diffCash').textContent||'0').replace(/,/g,''));
+ bd().cashCarryBaseline = (bd().cashCarryBaseline||0) - diffCash;
+ bd().rollingCarryBaseline = (bd().rollingCarryBaseline||0) - diffRolling;
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ bd().balancingCheckLog = bd().balancingCheckLog||[];
+ bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'setup', diffCash, diffRolling});
+ if(fbDb) writeCageConfig({cashCarryBaseline: bd().cashCarryBaseline, rollingCarryBaseline: bd().rollingCarryBaseline});
+ saveDB(); renderBalancingSummary();
+ toast(t('toastInitialSetupApplied'));
 }
 function openBalancingCheckList(){
  renderBalancingCheckList();
@@ -8003,8 +8037,8 @@ function renderBalancingCheckList(){
  const rows = bd().balancingCheckLog||[];
  const body = document.getElementById('balancingCheckListBody');
  if(!body) return;
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="2">—</td></tr>` :
-  rows.map(r=>`<tr><td class="num">${esc(r.dt)}</td><td>${esc(r.staff)}</td></tr>`).join('');
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="3">—</td></tr>` :
+  rows.map(r=>`<tr><td class="num">${esc(r.dt)}</td><td>${esc(r.staff)}</td><td>${r.type==='setup' ? esc(t('initialSetupLogNote')) : esc(t('balancingConfirmLogNote'))}</td></tr>`).join('');
 }
 function renderBreakdowns(){
  renderBreakdownTable('cashBreakBody', CASH_DENOMS, 'cash');

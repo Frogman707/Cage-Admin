@@ -1008,6 +1008,21 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           </div>
         </div>
       </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <h3 style="margin:0;flex:1;" data-i18n="branchTransferTitle"></h3>
+          <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openBranchTransferList()" data-i18n="branchTransferListBtn"></button>
+        </div>
+        <div class="grid grid-3">
+          <div class="field"><label data-i18n="branchTransferTo"></label>
+            <select id="branchTransferTo"><option value="HANN">HANN</option><option value="NUSTAR">NUSTAR</option><option value="ONLINE">ONLINE</option></select>
+          </div>
+          <div class="field"><label data-i18n="amount"></label><input id="branchTransferAmt" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this)"></div>
+          <div class="field"><label data-i18n="ioRemark"></label><input id="branchTransferMemo"></div>
+        </div>
+        <button class="btn btn-gold" style="margin-top:10px;" onclick="processBranchTransfer()" data-i18n="branchTransferProcessBtn"></button>
+      </div>
     </section>
 
     <!-- ============ CONCIERGE (HOTEL / CAR / AERO) ============ -->
@@ -1666,6 +1681,15 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="table-wrap" style="margin-top:10px;"><table>
     <thead><tr><th data-i18n="colDate"></th><th data-i18n="mainCageTypeLabel"></th><th data-i18n="amount"></th><th data-i18n="colStaff"></th><th></th></tr></thead>
     <tbody id="mainCageListBody"></tbody>
+  </table></div>
+</div></div>
+
+<div class="modal-bg" id="modal-branch-transfer-list"><div class="modal" style="width:640px;">
+  <button class="modal-close" onclick="closeModal('modal-branch-transfer-list')">×</button>
+  <h3 data-i18n="branchTransferListTitle"></h3>
+  <div class="table-wrap" style="margin-top:10px;"><table>
+    <thead><tr><th data-i18n="colDate"></th><th data-i18n="branchTransferFrom"></th><th data-i18n="branchTransferTo"></th><th data-i18n="amount"></th><th data-i18n="colStaff"></th><th data-i18n="ioRemark"></th></tr></thead>
+    <tbody id="branchTransferListBody"></tbody>
   </table></div>
 </div></div>
 
@@ -4312,10 +4336,14 @@ function subscribeLedgerCloud(){
    grouped[accId] = grouped[accId].slice().reverse();
    const acc = DB.accounts[accId];
    if(acc){
-    acc.balances = acc.balances||{};
-    new Set([...Object.keys(acc.balances), ...Object.keys(balByCasino)]).forEach(c=>{
-     acc.balances[c] = balByCasino[c]||0;
-    });
+    if(isMainAccount(accId)){
+     acc.balances = acc.balances||{};
+     new Set([...Object.keys(acc.balances), ...Object.keys(balByCasino)]).forEach(c=>{
+      acc.balances[c] = balByCasino[c]||0;
+     });
+    } else {
+     acc.balance = Object.values(balByCasino).reduce((a,b)=>a+(b||0),0);
+    }
    }
   });
   DB.ledger = grouped;
@@ -4344,8 +4372,12 @@ function writeLedgerEntry(opts){
   DB.ledger[accountId].unshift(entry);
   const acc = DB.accounts[accountId];
   if(acc){
-   acc.balances = acc.balances||{};
-   acc.balances[casino] = (acc.balances[casino]||0) + (type==='IN'?amount:-amount);
+   if(isMainAccount(accountId)){
+    acc.balances = acc.balances||{};
+    acc.balances[casino] = (acc.balances[casino]||0) + (type==='IN'?amount:-amount);
+   } else {
+    acc.balance = (acc.balance||0) + (type==='IN'?amount:-amount);
+   }
   }
   saveDB();
   return Promise.resolve(true);
@@ -4515,6 +4547,22 @@ function recordVisibleInBranch(accountId){
 // guest deposit/withdraw in that casino - MAIN-HANN, MAIN-NUSTAR, MAIN-ONLINE.
 function mainAccountIdForCasino(casino){ return 'MAIN-'+casino; }
 function isMainAccount(id){ return !!(DB.accounts[id] && DB.accounts[id].isMain); }
+// Guest accounts carry one unified balance usable from any branch; only MAIN-<branch> accounts
+// (each branch's own house float) stay siloed per-casino. Every money-movement/display site reads
+// a balance through one of these two instead of touching acc.balance(s) directly, so both account
+// shapes are handled consistently in one place.
+function accountBalanceFor(accountId, casino){
+ const acc = DB.accounts[accountId];
+ if(!acc) return 0;
+ if(isMainAccount(accountId)) return (acc.balances && acc.balances[casino]) || 0;
+ return acc.balance || 0;
+}
+function accountTotalBalance(accountId){
+ const acc = DB.accounts[accountId];
+ if(!acc) return 0;
+ if(isMainAccount(accountId)) return Object.values(acc.balances||{}).reduce((a,b)=>a+(b||0),0);
+ return acc.balance || 0;
+}
 function visibleGames(){ return (DB.games||[]).filter(g=>(g.branch||'HANN')===currentBranch()); }
 function visibleEndedGames(){ return (DB.endedGames||[]).filter(g=>(g.branch||'HANN')===currentBranch()); }
 function branchData(branch){
@@ -4659,6 +4707,74 @@ function writeMainCageEntry(type, amt, staff){
 function deleteMainCageEntry(id){
  if(!fbDb) return;
  fbDb.collection('mainCageLedger').doc(id).delete().catch(()=>{});
+}
+
+/* ---- Inter-branch transfers — cash moved between branches' own MAIN-<branch> house accounts.
+   Global (not per-branch) history, since a transfer inherently spans two branches. The actual
+   money movement rides on the normal ledger (two writeLedgerEntry calls, same as a guest
+   transfer) so MAIN-<branch> balances stay accurate; this collection is purely the dedicated
+   from/to audit log for the "지점간 이체 기록" list. ---- */
+let fbBranchTransferUnsub = null;
+function subscribeBranchTransfersCloud(){
+ if(!fbDb) return;
+ if(fbBranchTransferUnsub) fbBranchTransferUnsub();
+ fbBranchTransferUnsub = fbDb.collection('branchTransfers').orderBy('dt').onSnapshot(snap=>{
+  const rows = [];
+  snap.forEach(doc=>rows.push(doc.data()));
+  DB.branchTransferLog = rows.slice().reverse();
+  renderBranchTransferList();
+ }, ()=>{});
+}
+function writeBranchTransferEntry(fromBranch, toBranch, amount, staff, memo){
+ const id = 'btr_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
+ const entry = {id, dt:now, fromBranch, toBranch, amount, staff, memo};
+ if(fbDb){
+  return fbDb.collection('branchTransfers').doc(id).set(entry).then(()=>true).catch(()=>false);
+ } else {
+  DB.branchTransferLog = DB.branchTransferLog||[];
+  DB.branchTransferLog.unshift(entry);
+  saveDB();
+  return Promise.resolve(true);
+ }
+}
+function processBranchTransfer(){
+ const toBranch = document.getElementById('branchTransferTo').value;
+ const fromBranch = currentBranch();
+ const amt = unformatNum(document.getElementById('branchTransferAmt').value);
+ if(amt<=0) return;
+ if(toBranch===fromBranch){ toast(t('toastBranchTransferSameBranch')); return; }
+ requestPinAuth(()=>_doProcessBranchTransfer(fromBranch, toBranch, amt));
+}
+async function _doProcessBranchTransfer(fromBranch, toBranch, amt){
+ const memo = document.getElementById('branchTransferMemo').value.trim() || t('branchTransferTitle');
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const okOut = await writeLedgerEntry({accountId: mainAccountIdForCasino(fromBranch), casino:fromBranch, type:'OUT', amount:amt, staff:staffName, memo});
+ if(!okOut){ toast(t('toastStaffSyncFailed')); return; }
+ const okIn = await writeLedgerEntry({accountId: mainAccountIdForCasino(toBranch), casino:toBranch, type:'IN', amount:amt, staff:staffName, memo});
+ if(!okIn){
+  // The debit from the source branch's house account already landed - flag this loudly rather
+  // than silently leaving the transfer half-done, since the credit to the destination never made it.
+  toast(t('toastTransferHalfFailed'));
+  return;
+ }
+ await writeBranchTransferEntry(fromBranch, toBranch, amt, staffName, memo);
+ document.getElementById('branchTransferAmt').value = '';
+ document.getElementById('branchTransferMemo').value = '';
+ saveDB(); renderMemberCard(); renderBranchTransferList(); renderBalancingSummary();
+ pushNotification('notifBranchTransfer', `${fromBranch} → ${toBranch} · ${fmt(amt)}`);
+ toast(t('toastBranchTransferProcessed'));
+}
+function openBranchTransferList(){
+ renderBranchTransferList();
+ openModal('modal-branch-transfer-list');
+}
+function renderBranchTransferList(){
+ const body = document.getElementById('branchTransferListBody');
+ if(!body) return;
+ const rows = DB.branchTransferLog||[];
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
+  rows.map(r=>`<tr><td class="num">${esc(r.dt)}</td><td>${esc(r.fromBranch)}</td><td>${esc(r.toBranch)}</td><td class="num">${fmt(r.amount)}</td><td>${esc(r.staff)}</td><td>${esc(r.memo||'')}</td></tr>`).join('');
 }
 
 /* ---- Balancing shift counters (rollingCashShift, buyinRollingShift, etc.) — append-only per field, per branch ---- */
@@ -4828,6 +4944,8 @@ ko:{
  mainCageTitle:"메인 케이지", mainCageTypeLabel:"구분", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
  mainCageProcessBtn:"처리", toastMainCageProcessed:"메인 케이지 거래가 처리되었습니다.", notifMainCage:"메인 케이지 거래",
  mainCageListBtn:"기록", mainCageListTitle:"메인 케이지 거래 기록", cutoffListBtn:"기록", cutoffListTitle:"일일 정산 기록", balancingCheckListBtn:"기록", balancingCheckListTitle:"밸런싱 확인 기록",
+ branchTransferTitle:"지점간 이체", branchTransferListBtn:"기록", branchTransferListTitle:"지점간 이체 기록", branchTransferTo:"받을 지점", branchTransferFrom:"보낸 지점", branchTransferProcessBtn:"이체 처리",
+ toastBranchTransferProcessed:"지점간 이체가 처리되었습니다.", toastBranchTransferSameBranch:"같은 지점으로는 이체할 수 없습니다.", notifBranchTransfer:"지점간 이체",
  colDen:"권종", colPcs:"매수", colTotal:"합계", colCnt:"수량", colAmt:"금액",
  memberCompanyDiff:"회원-회사 차액", curDiffLabel:"현재 차액", lastCorrectionLabel:"최근 보정", correctDiffBtn:"차액 보정", correctionRecordBtn:"보정 기록", correctionListTitle:"차액 보정 기록", toastNoDiffToCorrect:"보정할 차액이 없습니다.", toastDiffCorrected:"차액이 보정되었습니다.",
  monthSettleTitle:"월 정산", branchRecord:"지점 기록", monthRecord:"월간 기록", monthSettleBtn:"월 정산", lastMonthSettleLabel:"최근 정산 일시", branchRecordTitle:"지점별 기록",
@@ -4963,6 +5081,8 @@ en:{
  mainCageTitle:"Main Cage", mainCageTypeLabel:"Type", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
  mainCageProcessBtn:"Process", toastMainCageProcessed:"Main cage transaction processed.", notifMainCage:"Main Cage Transaction",
  mainCageListBtn:"Records", mainCageListTitle:"Main Cage Transaction Records", cutoffListBtn:"Records", cutoffListTitle:"Daily Settlement Records", balancingCheckListBtn:"Records", balancingCheckListTitle:"Balancing Confirmation Records",
+ branchTransferTitle:"Inter-Branch Transfer", branchTransferListBtn:"Records", branchTransferListTitle:"Inter-Branch Transfer Records", branchTransferTo:"To Branch", branchTransferFrom:"From Branch", branchTransferProcessBtn:"Process Transfer",
+ toastBranchTransferProcessed:"Inter-branch transfer processed.", toastBranchTransferSameBranch:"Cannot transfer to the same branch.", notifBranchTransfer:"Inter-Branch Transfer",
  colDen:"Den.", colPcs:"Pcs.", colTotal:"Total", colCnt:"Count", colAmt:"Amount",
  memberCompanyDiff:"Member–Company Diff", curDiffLabel:"Current Diff", lastCorrectionLabel:"Last Correction", correctDiffBtn:"Correct Diff", correctionRecordBtn:"Correction Log", correctionListTitle:"Diff Correction Log", toastNoDiffToCorrect:"No diff to correct.", toastDiffCorrected:"Diff corrected.",
  monthSettleTitle:"Month Settlement", branchRecord:"Branch Record", monthRecord:"Monthly Record", monthSettleBtn:"Month Settlement", lastMonthSettleLabel:"Last Settlement", branchRecordTitle:"Records by Branch",
@@ -5099,6 +5219,8 @@ en:{
  mainCageTitle:"主碼房", mainCageTypeLabel:"類型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
  mainCageProcessBtn:"處理", toastMainCageProcessed:"主碼房交易已處理。", notifMainCage:"主碼房交易",
  mainCageListBtn:"紀錄", mainCageListTitle:"主碼房交易紀錄", cutoffListBtn:"紀錄", cutoffListTitle:"每日結算紀錄", balancingCheckListBtn:"紀錄", balancingCheckListTitle:"結餘確認紀錄",
+ branchTransferTitle:"分店間轉帳", branchTransferListBtn:"紀錄", branchTransferListTitle:"分店間轉帳紀錄", branchTransferTo:"轉入分店", branchTransferFrom:"轉出分店", branchTransferProcessBtn:"處理轉帳",
+ toastBranchTransferProcessed:"分店間轉帳已處理。", toastBranchTransferSameBranch:"無法轉帳至相同分店。", notifBranchTransfer:"分店間轉帳",
  colDen:"面額", colPcs:"張數", colTotal:"合計", colCnt:"數量", colAmt:"金額",
  memberCompanyDiff:"會員與公司差額", curDiffLabel:"目前差額", lastCorrectionLabel:"最近校正", correctDiffBtn:"差額校正", correctionRecordBtn:"校正紀錄", correctionListTitle:"差額校正紀錄", toastNoDiffToCorrect:"沒有需要校正的差額。", toastDiffCorrected:"差額已校正。",
  monthSettleTitle:"月結算", branchRecord:"分店紀錄", monthRecord:"月度紀錄", monthSettleBtn:"月結算", lastMonthSettleLabel:"最近結算時間", branchRecordTitle:"分店別紀錄",
@@ -5235,6 +5357,8 @@ en:{
  mainCageTitle:"主码房", mainCageTypeLabel:"类型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
  mainCageProcessBtn:"处理", toastMainCageProcessed:"主码房交易已处理。", notifMainCage:"主码房交易",
  mainCageListBtn:"记录", mainCageListTitle:"主码房交易记录", cutoffListBtn:"记录", cutoffListTitle:"每日结算记录", balancingCheckListBtn:"记录", balancingCheckListTitle:"结余确认记录",
+ branchTransferTitle:"分店间转账", branchTransferListBtn:"记录", branchTransferListTitle:"分店间转账记录", branchTransferTo:"转入分店", branchTransferFrom:"转出分店", branchTransferProcessBtn:"处理转账",
+ toastBranchTransferProcessed:"分店间转账已处理。", toastBranchTransferSameBranch:"无法转账至相同分店。", notifBranchTransfer:"分店间转账",
  colDen:"面额", colPcs:"张数", colTotal:"合计", colCnt:"数量", colAmt:"金额",
  memberCompanyDiff:"会员与公司差额", curDiffLabel:"当前差额", lastCorrectionLabel:"最近校正", correctDiffBtn:"差额校正", correctionRecordBtn:"校正记录", correctionListTitle:"差额校正记录", toastNoDiffToCorrect:"没有需要校正的差额。", toastDiffCorrected:"差额已校正。",
  monthSettleTitle:"月结算", branchRecord:"分店记录", monthRecord:"月度记录", monthSettleBtn:"月结算", lastMonthSettleLabel:"最近结算时间", branchRecordTitle:"分店别记录",
@@ -5415,14 +5539,14 @@ function seedDB(){
    "MAIN-HANN":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"HANN MAIN ACCOUNT", isMain:true, openedCasino:"HANN", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"HANN 지점 메인 어카운트"},
    "MAIN-NUSTAR":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,NUSTAR:50000000,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"NUSTAR MAIN ACCOUNT", isMain:true, openedCasino:"NUSTAR", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"NUSTAR 지점 메인 어카운트"},
    "MAIN-ONLINE":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"ONLINE MAIN ACCOUNT", isMain:true, openedCasino:"ONLINE", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"ONLINE 지점 메인 어카운트"},
-   "SE7419":{member:"52049817", phone:"+63 912 345 6789", rate:"1.45%", telegram:"@teddy_lee", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null,
+   "SE7419":{member:"52049817", phone:"+63 912 345 6789", rate:"1.45%", telegram:"@teddy_lee", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null,
     telegramLinks:[{id:"@Sevip888", dt:"2025-09-17 16:25:29"}], openedCasino:"NUSTAR", openedDt:"2025-09-17 16:20", currency:"PHP", remark:"VIP"},
-   "MK2201":{member:"63182047", phone:"+82 10 2233 4455", rate:"1.20%", telegram:"—", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2025-11-02 14:10", currency:"PHP", remark:""},
-   "PL0001":{member:"PL0001", phone:"+63 917 555 2210", rate:"1.35%", telegram:"@pl_member01", balances:{HANN:0,NUSTAR:5000000,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2025-12-10 10:05", currency:"PHP", remark:""},
-   "PL8888":{member:"PL8888", phone:"+63 917 555 8888", rate:"1.40%", telegram:"@pl8888", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-02-14 09:30", currency:"PHP", remark:""},
-   "PL9999":{member:"PL9999", phone:"+63 917 555 9999", rate:"1.40%", telegram:"@pl9999", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-02-14 09:35", currency:"PHP", remark:""},
-   "PL7777":{member:"PL7777", phone:"+63 917 555 7777", rate:"1.40%", telegram:"@pl7777", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-02-14 09:40", currency:"PHP", remark:""},
-   "PL9642":{member:"PL9642", phone:"+63 917 555 9642", rate:"1.45%", telegram:"@pl9642", balances:{HANN:5000000,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-03-01 11:15", currency:"PHP", remark:""},
+   "MK2201":{member:"63182047", phone:"+82 10 2233 4455", rate:"1.20%", telegram:"—", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2025-11-02 14:10", currency:"PHP", remark:""},
+   "PL0001":{member:"PL0001", phone:"+63 917 555 2210", rate:"1.35%", telegram:"@pl_member01", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2025-12-10 10:05", currency:"PHP", remark:""},
+   "PL8888":{member:"PL8888", phone:"+63 917 555 8888", rate:"1.40%", telegram:"@pl8888", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-02-14 09:30", currency:"PHP", remark:""},
+   "PL9999":{member:"PL9999", phone:"+63 917 555 9999", rate:"1.40%", telegram:"@pl9999", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-02-14 09:35", currency:"PHP", remark:""},
+   "PL7777":{member:"PL7777", phone:"+63 917 555 7777", rate:"1.40%", telegram:"@pl7777", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-02-14 09:40", currency:"PHP", remark:""},
+   "PL9642":{member:"PL9642", phone:"+63 917 555 9642", rate:"1.45%", telegram:"@pl9642", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-03-01 11:15", currency:"PHP", remark:""},
   },
   ledger:{},
   games:[
@@ -5450,6 +5574,9 @@ function seedDB(){
   pointsHistory:[
    {dt:"2026-07-01 10:00", account:"SE7419", reason:"Monthly rolling bonus", change:15000, balance:128500},
   ],
+  // Global (not per-branch) log of cash moved between branches' house accounts - see
+  // processBranchTransfer/writeBranchTransferEntry.
+  branchTransferLog:[],
   currentCasino:'HANN',
   // Fresh installs already seed PL0001/PL7777/PL8888/PL9999 directly above - mark the one-time
   // migrateDB() backfill for those as already done, so a later Reset (which legitimately deletes
@@ -5522,6 +5649,18 @@ function migrateDB(saved){
  saved.accounts = saved.accounts || {};
  saved.ledger = saved.ledger || {};
  saved.staff = saved.staff || fresh.staff;
+ saved.branchTransferLog = saved.branchTransferLog || [];
+ // Guest accounts used to carry three siloed per-branch balances (HANN/NUSTAR/ONLINE); they now
+ // carry one unified balance usable from any branch, so the guest's total funds are preserved
+ // exactly (summed) rather than reset. MAIN-<branch> accounts are untouched - each one is still
+ // that branch's own siloed house float.
+ Object.values(saved.accounts).forEach(acc=>{
+  if(acc.isMain) return;
+  if(typeof acc.balance !== 'number'){
+   acc.balance = acc.balances ? Object.values(acc.balances).reduce((a,b)=>a+(b||0),0) : 0;
+  }
+  delete acc.balances;
+ });
  // Older saves had one shared MAIN account - fold it into MAIN-NUSTAR (where its balance lived).
  if(saved.accounts.MAIN && !saved.accounts['MAIN-NUSTAR']){
   saved.accounts['MAIN-NUSTAR'] = {...saved.accounts.MAIN, isMain:true, openedCasino:'NUSTAR'};
@@ -5760,9 +5899,13 @@ function renderMemberCard(){
  const acc = id ? DB.accounts[id] : null;
  // DB.currentAccount can end up pointing at an id that no longer exists (e.g. a cloud-mode
  // re-render arriving mid-withdrawal, or any other async gap right after deletion) - treat that
- // exactly like no account being selected instead of crashing on acc.balances below.
+ // exactly like no account being selected instead of crashing below.
  if(!id || !acc){ box.innerHTML = `<p class="hint">${t('toastNoAcc')}</p>`; renderIdVerify(); return; }
- const total = Object.values(acc.balances).reduce((a,b)=>a+b,0);
+ const isMain = isMainAccount(id);
+ const total = accountTotalBalance(id);
+ // MAIN accounts are still each branch's own siloed house float, so their HANN/NUSTAR/ONLINE
+ // breakdown stays meaningful and is shown alongside the total. Guest accounts now carry one
+ // unified balance usable from any branch, so only the single total ticket applies to them.
  box.innerHTML = `
   <div class="member-card">
     <div class="member-id">${esc(id)}</div>
@@ -5774,11 +5917,12 @@ function renderMemberCard(){
     </div>
     <div class="balance-grid">
       <div class="ticket"><div class="lbl">${t('balanceTotal')}</div><div class="amt num">${fmt(total)}</div></div>
+      ${isMain ? `
       <div class="balance-sub-grid">
-        <div class="ticket-sm"><div class="lbl">${t('balanceHann')}</div><div class="amt num">${fmt(acc.balances.HANN||0)}</div></div>
-        <div class="ticket-sm"><div class="lbl">${t('balanceNustar')}</div><div class="amt num">${fmt(acc.balances.NUSTAR||0)}</div></div>
-        <div class="ticket-sm"><div class="lbl">${t('balanceOnline')}</div><div class="amt num">${fmt(acc.balances.ONLINE||0)}</div></div>
-      </div>
+        <div class="ticket-sm"><div class="lbl">${t('balanceHann')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.HANN)||0)}</div></div>
+        <div class="ticket-sm"><div class="lbl">${t('balanceNustar')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.NUSTAR)||0)}</div></div>
+        <div class="ticket-sm"><div class="lbl">${t('balanceOnline')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.ONLINE)||0)}</div></div>
+      </div>` : ''}
     </div>
   </div>`;
  fitTicketAmounts();
@@ -6234,7 +6378,14 @@ async function performBranchResetData(){
   DB.ledger[acc] = (DB.ledger[acc]||[]).filter(e=>(e.casino||'HANN')!==branch);
   if(!DB.ledger[acc].length) delete DB.ledger[acc];
  });
- Object.values(DB.accounts||{}).forEach(acc=>{ if(acc.balances) acc.balances[branch] = 0; });
+ // MAIN-<branch>'s own ledger is entirely casino===branch by construction, so it's fully wiped -
+ // zeroing it directly is equivalent to (and cheaper than) resumming its now-empty remainder.
+ // A guest's unified balance only loses this branch's slice, so it's resummed from whatever
+ // ledger entries (other branches' tags) survived the filter above, not reset to 0 outright.
+ Object.entries(DB.accounts||{}).forEach(([id,acc])=>{
+  if(isMainAccount(id)){ acc.balances = acc.balances||{}; acc.balances[branch] = 0; }
+  else acc.balance = (DB.ledger[id]||[]).reduce((s,e)=>s+(e.inn||0)-(e.out||0),0);
+ });
  if(fbDb){
   try{
    const snap = await fbDb.collection('ledger').where('casino','==',branch).get();
@@ -6322,19 +6473,14 @@ function processIo(){
  }
 }
 function hasSufficientBalance(accountId, casino, amount){
- const acc = DB.accounts[accountId];
- if(!acc) return false;
- const bal = (acc.balances && acc.balances[casino]) || 0;
- return bal >= amount;
+ return accountBalanceFor(accountId, casino) >= amount;
 }
-// Cash withdrawal draws against the account's balance across every branch (selected branch
-// first, spilling into the others if it alone isn't enough) - unlike transfers/buy-ins, which
-// stay strictly within the single selected casino via hasSufficientBalance above.
+// For a MAIN account (still siloed per-casino), cash withdrawal draws against its balance across
+// every branch key (selected branch first, spilling into the others if it alone isn't enough) -
+// unlike transfers/buy-ins, which stay strictly within the single selected casino via
+// hasSufficientBalance above. Guest accounts have one unified balance, so this is simply that.
 function hasSufficientTotalBalance(accountId, amount){
- const acc = DB.accounts[accountId];
- if(!acc) return false;
- const total = Object.values(acc.balances||{}).reduce((a,b)=>a+(b||0),0);
- return total >= amount;
+ return accountTotalBalance(accountId) >= amount;
 }
 // Deduct amt from acc's balance starting with casino, spilling any shortfall into the other
 // branches (fixed HANN/NUSTAR/ONLINE order) - one writeLedgerEntry per branch actually drawn
@@ -6364,10 +6510,10 @@ async function applyAccountTransaction(accountId, type, amount, memo){
  // "insufficient" and, had it gone through, would have wrongly drained the wrong branch's ledger.
  const casino = currentBranch();
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
- // Computed here (prior known balance ± amount) rather than read back from acc.balances after
+ // Computed here (prior known balance ± amount) rather than read back from the account after
  // writeLedgerEntry - in cloud-sync mode the local balance doesn't update synchronously, so a
  // post-call read would be stale for the notification message below.
- const priorBal = (acc.balances && acc.balances[casino]) || 0;
+ const priorBal = accountBalanceFor(accountId, casino);
  const newBal = priorBal + (type==='IN' ? amount : -amount);
  const ok = await writeLedgerEntry({accountId, casino, type, amount, staff:staffName, memo});
  if(!ok) return null;
@@ -6395,13 +6541,17 @@ async function _doProcessIo(amt){
  }
  let newBal;
  if(DB.ioType==='withdraw'){
-  const priorTotal = Object.values((acc&&acc.balances)||{}).reduce((a,b)=>a+(b||0),0);
+  const priorTotal = accountTotalBalance(DB.currentAccount);
   newBal = priorTotal - amt;
-  const ok = await withdrawAcrossBranches(DB.currentAccount, casino, amt, staffName, memo);
+  // Only a MAIN account is still siloed per-casino and needs the spill-across-branches path -
+  // a guest's unified balance is a single write against the selected casino's tag.
+  const ok = isMainAccount(DB.currentAccount)
+   ? await withdrawAcrossBranches(DB.currentAccount, casino, amt, staffName, memo)
+   : await writeLedgerEntry({accountId: DB.currentAccount, casino, type:'OUT', amount:amt, staff:staffName, memo});
   if(!ok){ toast(t('toastStaffSyncFailed')); return; }
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + amt;
  } else {
-  const priorBal = (acc && acc.balances && acc.balances[casino]) || 0;
+  const priorBal = accountBalanceFor(DB.currentAccount, casino);
   newBal = priorBal + amt;
   const ok = await writeLedgerEntry({accountId: DB.currentAccount, casino, type:'IN', amount:amt, staff:staffName, memo});
   if(!ok){ toast(t('toastStaffSyncFailed')); return; }
@@ -6464,8 +6614,8 @@ async function _doTransfer(amt){
  }
  const fromAcc = DB.accounts[DB.currentAccount];
  const toAcc = DB.accounts[transferTargetAcc];
- const fromPriorBal = (fromAcc && fromAcc.balances && fromAcc.balances[casino]) || 0;
- const toPriorBal = (toAcc && toAcc.balances && toAcc.balances[casino]) || 0;
+ const fromPriorBal = accountBalanceFor(DB.currentAccount, casino);
+ const toPriorBal = accountBalanceFor(transferTargetAcc, casino);
  const okOut = await writeLedgerEntry({accountId: DB.currentAccount, casino, type:'OUT', amount:amt, staff:staffName, memo:`→ ${transferTargetAcc}`});
  if(!okOut){ toast(t('toastStaffSyncFailed')); return; }
  const okIn = await writeLedgerEntry({accountId: transferTargetAcc, casino, type:'IN', amount:amt, staff:staffName, memo:`← ${DB.currentAccount}`});
@@ -6537,7 +6687,7 @@ function updateGameAccBalance(){
  const id = document.getElementById('gAccount').value.trim().toUpperCase();
  const el = document.getElementById('gAccBalance');
  const acc = DB.accounts[id];
- el.value = acc ? fmt(Object.values(acc.balances).reduce((a,b)=>a+b,0)) : '';
+ el.value = acc ? fmt(accountTotalBalance(id)) : '';
 }
 // Walk-in guests buy in with a simple sequential label (W1, W2, W3...) instead of a real
 // registered account - no account opening required. The counter is per-branch and reset by
@@ -7833,8 +7983,11 @@ function currentCageAssetSnapshot(){
  const holdRollingChips = unformatNum((document.getElementById('holdRollingChips')||{}).textContent||'0');
  const holdCashChips = unformatNum((document.getElementById('holdCashChips')||{}).textContent||'0');
  const cash = unformatNum((document.getElementById('combinedCash')||{}).textContent||'0');
- const userFunds = Object.entries(DB.accounts||{}).filter(([id])=>accountVisibleInBranch(id) && !isMainAccount(id))
-  .reduce((s,[,acc])=>s+((acc.balances&&acc.balances[branch])||0),0);
+ // Guest accounts no longer carry a per-branch balance field (one unified balance now covers
+ // every branch) - "funds attributable to this branch" is derived straight from the ledger's own
+ // casino tag instead, which preserves exactly what this figure meant before unification.
+ const userFunds = Object.keys(DB.accounts||{}).filter(id=>accountVisibleInBranch(id) && !isMainAccount(id))
+  .reduce((s,id)=>s+(DB.ledger[id]||[]).filter(e=>(e.casino||'HANN')===branch).reduce((s2,e)=>s2+(e.inn||0)-(e.out||0),0), 0);
  return {cageCash:holdCash, userFunds, cash, nn:holdRollingChips, cc:holdCashChips, nncc:holdRollingChips+holdCashChips};
 }
 function metricDeltaText(nowVal, baseVal, isPct){
@@ -8191,7 +8344,7 @@ function renderAccountList(){
  body.innerHTML = !ids.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   ids.map(id=>{
    const acc = DB.accounts[id];
-   const total = Object.values(acc.balances||{}).reduce((a,b)=>a+b,0);
+   const total = accountTotalBalance(id);
    return `<tr><td>${esc(acc.openedCasino)||'—'}</td><td class="num">${esc(acc.openedDt)||'—'}</td><td>${esc(id)}</td><td>${esc(acc.currency)||'—'}</td><td class="num">${fmt(total)}</td><td>${esc(acc.remark)}</td></tr>`;
   }).join('');
 }
@@ -8204,7 +8357,7 @@ function submitReg(){
  const wdPwConfirm = document.getElementById('regWdPwConfirm').value;
  if(wdPw && wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- DB.accounts[id] = {member:memberNo||"NEW", phone:"—", rate:"1.00%", telegram:"—", balances:{HANN:0,NUSTAR:0,ONLINE:0}, openedCasino:DB.currentCasino||'HANN', openedDt:now, currency:'PHP', remark:''};
+ DB.accounts[id] = {member:memberNo||"NEW", phone:"—", rate:"1.00%", telegram:"—", balance:0, openedCasino:DB.currentCasino||'HANN', openedDt:now, currency:'PHP', remark:''};
  const acc = DB.accounts[id];
  if(memberNo) acc.member = memberNo;
  if(wdPw) acc.withdrawPw = wdPw;
@@ -8975,6 +9128,7 @@ function startInactivityTimer(){
   subscribeRollingEventsCloud();
   await seedMainCageLedgerToCloudIfEmpty();
   subscribeMainCageLedgerCloud();
+  subscribeBranchTransfersCloud();
   await seedShiftEventsToCloudIfEmpty();
   subscribeShiftEventsCloud();
   await seedCageConfigToCloudIfEmpty();

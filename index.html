@@ -6014,6 +6014,9 @@ function saveAccountEdit(){
  acc.vip = document.getElementById('editVip').checked;
  acc.member = document.getElementById('editMember').value.trim();
  acc.rate = document.getElementById('editRate').value.trim();
+ // If this account is already sitting in the buy-in form, refresh its game-type default so a
+ // rate change is reflected immediately instead of only on the next time the account is looked up.
+ if(document.getElementById('gAccount').value.trim().toUpperCase() === id) applyAccountRateToGameType(id);
  acc.phone = document.getElementById('editPhone').value.trim();
  acc.telegram = document.getElementById('editTelegram').value.trim();
  acc.agentCode = document.getElementById('editAgentCode').value.trim();
@@ -6689,6 +6692,41 @@ function updateGameAccBalance(){
  const el = document.getElementById('gAccBalance');
  const acc = DB.accounts[id];
  el.value = acc ? fmt(accountTotalBalance(id)) : '';
+ applyAccountRateToGameType(id);
+}
+// The account's own rate (set on registration / edited later in "정보 수정") drives the buy-in
+// game-type selection, instead of staff manually matching a fixed preset to whatever rate the
+// account happens to carry. #gType's presets are hardcoded percentages, so a rate not already
+// matching one gets its own dynamically-inserted "Rolling X%" option (tagged data-auto-rate so it
+// can be replaced/removed rather than piling up a new option every time an account is looked up);
+// a rate that already matches a preset (e.g. 1.45%) just selects that preset directly. Staff can
+// still override the selection manually afterward (e.g. for a Share-based deal) - this only sets
+// the default.
+function applyAccountRateToGameType(id){
+ const sel = document.getElementById('gType');
+ if(!sel) return;
+ const acc = DB.accounts[id];
+ const autoOpt = sel.querySelector('option[data-auto-rate]');
+ const rateMatch = acc && acc.rate ? String(acc.rate).match(/[\d.]+/) : null;
+ if(!rateMatch){
+  if(autoOpt) autoOpt.remove();
+  return;
+ }
+ const label = `Rolling ${rateMatch[0]}%`;
+ const preset = [...sel.options].find(o=>o!==autoOpt && o.value===label);
+ if(preset){
+  if(autoOpt) autoOpt.remove();
+  sel.value = label;
+  return;
+ }
+ const opt = autoOpt || document.createElement('option');
+ if(!autoOpt){
+  opt.setAttribute('data-auto-rate', '');
+  sel.insertBefore(opt, sel.firstChild);
+ }
+ opt.value = label;
+ opt.textContent = label;
+ sel.value = label;
 }
 // Walk-in guests buy in with a simple sequential label (W1, W2, W3...) instead of a real
 // registered account - no account opening required. The counter is per-branch and reset by

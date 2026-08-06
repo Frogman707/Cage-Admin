@@ -4327,13 +4327,18 @@ function subscribeLedgerCloud(){
   if(dailyModal && dailyModal.classList.contains('open')) renderDailyIo();
  }, ()=>{});
 }
+// Returns a promise resolving true/false - a real money movement silently failing to reach
+// Firestore (flaky connection, blocked request) used to be indistinguishable from success: the
+// game/notification/toast all proceeded as if the cash had actually moved, with no way for staff
+// to know the ledger entry itself never landed. Local mode is unaffected (already synchronous/
+// reliable - the balance mutation there doesn't depend on any network round trip).
 function writeLedgerEntry(opts){
  const {accountId, casino, type, amount, staff, memo} = opts;
  const id = 'ldg_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const entry = {id, accountId, casino, dt:now, type, inn: type==='IN'?amount:0, out: type==='OUT'?amount:0, staff, memo};
  if(fbDb){
-  fbDb.collection('ledger').doc(id).set(entry).catch(()=>{});
+  return fbDb.collection('ledger').doc(id).set(entry).then(()=>true).catch(()=>false);
  } else {
   DB.ledger[accountId] = DB.ledger[accountId]||[];
   DB.ledger[accountId].unshift(entry);
@@ -4343,8 +4348,8 @@ function writeLedgerEntry(opts){
    acc.balances[casino] = (acc.balances[casino]||0) + (type==='IN'?amount:-amount);
   }
   saveDB();
+  return Promise.resolve(true);
  }
- return entry;
 }
 
 /* ---- Games (buy-in/rolling/settlement) — game metadata synced as a doc; rolling always derived from rollingEvents ---- */
@@ -4852,6 +4857,7 @@ ko:{
  toastProcessed:"처리되었습니다.", toastGameStarted:"게임이 시작되었습니다.", toastSettled:"정산이 완료되었습니다.",
  toastBlocked:"차단이 적용되었습니다.", toastCutoff:"마감 처리되었습니다.", toastRegistered:"신규 어카운트가 등록되었습니다.", toastPwMismatch:"비밀번호가 일치하지 않습니다.", toastAccIdExists:"이미 존재하는 어카운트 ID입니다.",
  toastNoAcc:"어카운트를 먼저 조회하세요.", toastTransfer:"이체가 완료되었습니다.", toastShift:"교대 처리되었습니다.",
+ toastTransferHalfFailed:"출금은 처리됐지만 입금이 실패했습니다! 다시 시도하지 말고 입출금 내역을 직접 확인해주세요.",
  toastInsufficientBalance:"잔액이 부족합니다.", notifInsufficientBalance:"잔액 부족", toastInsufficientPoints:"포인트 잔액이 부족합니다.",
 
  navConcierge:"컨시어지", navPoints:"포인트 · 이벤트",
@@ -4986,6 +4992,7 @@ en:{
  toastProcessed:"Transaction processed.", toastGameStarted:"Game started.", toastSettled:"Settlement confirmed.",
  toastBlocked:"Account blocked.", toastCutoff:"Cutoff completed.", toastRegistered:"New account registered.", toastPwMismatch:"Passwords do not match.", toastAccIdExists:"That account ID already exists.",
  toastNoAcc:"Look up an account first.", toastTransfer:"Transfer completed.", toastShift:"Shift updated.",
+ toastTransferHalfFailed:"The withdrawal went through but the deposit failed! Do not retry - check the ledger history directly.",
  toastInsufficientBalance:"Insufficient balance.", notifInsufficientBalance:"Insufficient Balance", toastInsufficientPoints:"Insufficient points balance.",
 
  navConcierge:"Concierge", navPoints:"Points & Event",
@@ -5121,6 +5128,7 @@ en:{
  toastProcessed:"交易已處理。", toastGameStarted:"賽局已開始。", toastSettled:"結算已完成。",
  toastBlocked:"已套用封鎖。", toastCutoff:"結帳已完成。", toastRegistered:"新帳戶已登記。", toastPwMismatch:"密碼不一致。", toastAccIdExists:"該帳戶 ID 已存在。",
  toastNoAcc:"請先查詢帳戶。", toastTransfer:"轉帳已完成。", toastShift:"交班已處理。",
+ toastTransferHalfFailed:"扣款已處理，但入帳失敗！請勿重試，請直接查看交易紀錄確認。",
  toastInsufficientBalance:"餘額不足。", notifInsufficientBalance:"餘額不足", toastInsufficientPoints:"點數餘額不足。",
 
  navConcierge:"禮賓服務", navPoints:"積分‧活動",
@@ -5256,6 +5264,7 @@ en:{
  toastProcessed:"交易已处理。", toastGameStarted:"赛局已开始。", toastSettled:"结算已完成。",
  toastBlocked:"已应用封锁。", toastCutoff:"结账已完成。", toastRegistered:"新账户已登记。", toastPwMismatch:"密码不一致。", toastAccIdExists:"该账户 ID 已存在。",
  toastNoAcc:"请先查询账户。", toastTransfer:"转账已完成。", toastShift:"交班已处理。",
+ toastTransferHalfFailed:"扣款已处理，但入账失败！请勿重试，请直接查看交易记录确认。",
  toastInsufficientBalance:"余额不足。", notifInsufficientBalance:"余额不足", toastInsufficientPoints:"点数余额不足。",
 
  navConcierge:"礼宾服务", navPoints:"积分‧活动",
@@ -6330,20 +6339,23 @@ function hasSufficientTotalBalance(accountId, amount){
 // Deduct amt from acc's balance starting with casino, spilling any shortfall into the other
 // branches (fixed HANN/NUSTAR/ONLINE order) - one writeLedgerEntry per branch actually drawn
 // from, since a single ledger entry can only carry one casino tag.
-function withdrawAcrossBranches(accountId, casino, amt, staffName, memo){
+async function withdrawAcrossBranches(accountId, casino, amt, staffName, memo){
  const acc = DB.accounts[accountId];
  const order = [casino, ...['HANN','NUSTAR','ONLINE'].filter(c=>c!==casino)];
  let remaining = amt;
- order.forEach(c=>{
-  if(remaining<=0) return;
+ let allOk = true;
+ for(const c of order){
+  if(remaining<=0) break;
   const avail = (acc.balances && acc.balances[c]) || 0;
   const take = Math.min(avail, remaining);
-  if(take<=0) return;
-  writeLedgerEntry({accountId, casino:c, type:'OUT', amount:take, staff:staffName, memo});
+  if(take<=0) continue;
+  const ok = await writeLedgerEntry({accountId, casino:c, type:'OUT', amount:take, staff:staffName, memo});
+  if(!ok) allOk = false;
   remaining -= take;
- });
+ }
+ return allOk;
 }
-function applyAccountTransaction(accountId, type, amount, memo){
+async function applyAccountTransaction(accountId, type, amount, memo){
  const acc = DB.accounts[accountId];
  if(!acc || !amount || amount<=0) return null;
  // Was hardcoded to always resolve to HANN whenever an account had a HANN key at all (true for
@@ -6357,7 +6369,8 @@ function applyAccountTransaction(accountId, type, amount, memo){
  // post-call read would be stale for the notification message below.
  const priorBal = (acc.balances && acc.balances[casino]) || 0;
  const newBal = priorBal + (type==='IN' ? amount : -amount);
- writeLedgerEntry({accountId, casino, type, amount, staff:staffName, memo});
+ const ok = await writeLedgerEntry({accountId, casino, type, amount, staff:staffName, memo});
+ if(!ok) return null;
  // 해당 카지노의 MAIN 어카운트(지점 메인 어카운트)와의 이체로 처리 — 손님 계좌와 반대 방향으로 동일
  // 금액을 기록해 전체 계좌 입출금 합계(케이지 합산금액 캐시)에는 영향이 없고, 게임 나간 금액 등 개별
  // 추적만 반영되게 함
@@ -6368,7 +6381,7 @@ function applyAccountTransaction(accountId, type, amount, memo){
  }
  return {casino, balance:newBal};
 }
-function _doProcessIo(amt){
+async function _doProcessIo(amt){
  const casino = document.getElementById('ioCasino').value;
  const memo = document.getElementById('ioMemo').value;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
@@ -6384,12 +6397,14 @@ function _doProcessIo(amt){
  if(DB.ioType==='withdraw'){
   const priorTotal = Object.values((acc&&acc.balances)||{}).reduce((a,b)=>a+(b||0),0);
   newBal = priorTotal - amt;
-  withdrawAcrossBranches(DB.currentAccount, casino, amt, staffName, memo);
+  const ok = await withdrawAcrossBranches(DB.currentAccount, casino, amt, staffName, memo);
+  if(!ok){ toast(t('toastStaffSyncFailed')); return; }
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + amt;
  } else {
   const priorBal = (acc && acc.balances && acc.balances[casino]) || 0;
   newBal = priorBal + amt;
-  writeLedgerEntry({accountId: DB.currentAccount, casino, type:'IN', amount:amt, staff:staffName, memo});
+  const ok = await writeLedgerEntry({accountId: DB.currentAccount, casino, type:'IN', amount:amt, staff:staffName, memo});
+  if(!ok){ toast(t('toastStaffSyncFailed')); return; }
  }
  document.getElementById('ioAmount').value=''; document.getElementById('ioMemo').value = DB.ioType==='deposit' ? 'Cash Deposit' : 'Cash Out';
  saveDB(); renderMemberCard(); renderLedger(); renderBalancingSummary();
@@ -6439,7 +6454,7 @@ function doTransfer(){
  }
  requestWithdrawAuth(DB.currentAccount, ()=>_doTransfer(amt));
 }
-function _doTransfer(amt){
+async function _doTransfer(amt){
  const casino = document.getElementById('transferCasino').value;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  if(!hasSufficientBalance(DB.currentAccount, casino, amt)){
@@ -6451,8 +6466,15 @@ function _doTransfer(amt){
  const toAcc = DB.accounts[transferTargetAcc];
  const fromPriorBal = (fromAcc && fromAcc.balances && fromAcc.balances[casino]) || 0;
  const toPriorBal = (toAcc && toAcc.balances && toAcc.balances[casino]) || 0;
- writeLedgerEntry({accountId: DB.currentAccount, casino, type:'OUT', amount:amt, staff:staffName, memo:`→ ${transferTargetAcc}`});
- writeLedgerEntry({accountId: transferTargetAcc, casino, type:'IN', amount:amt, staff:staffName, memo:`← ${DB.currentAccount}`});
+ const okOut = await writeLedgerEntry({accountId: DB.currentAccount, casino, type:'OUT', amount:amt, staff:staffName, memo:`→ ${transferTargetAcc}`});
+ if(!okOut){ toast(t('toastStaffSyncFailed')); return; }
+ const okIn = await writeLedgerEntry({accountId: transferTargetAcc, casino, type:'IN', amount:amt, staff:staffName, memo:`← ${DB.currentAccount}`});
+ if(!okIn){
+  // The debit from the source account already landed - flag this loudly rather than silently
+  // leaving the transfer half-done, since the credit to the destination never made it.
+  toast(t('toastTransferHalfFailed'));
+  return;
+ }
  const toAccId = transferTargetAcc;
  document.getElementById('transferAmt').value='';
  document.getElementById('transferAccSearch').value='';
@@ -6571,7 +6593,7 @@ function checkAccountBuyinBalance(account, buyin){
  }
  return true;
 }
-function _doAddBuyin(existing, buyin, workingChip){
+async function _doAddBuyin(existing, buyin, workingChip){
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  existing.buyin = (existing.buyin||0) + buyin;
  if(workingChip) existing.workingChip = (existing.workingChip||0) + workingChip;
@@ -6585,23 +6607,28 @@ function _doAddBuyin(existing, buyin, workingChip){
  if(workingChip) applyShift('workingChipRollingShift', workingChip, staffName);
  const {date, time} = nowDateTimeParts();
  const remarkNo = last3Digits(existing.gameId);
+ let acctWriteFailed = false;
  if(existing.startType === 'cash'){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + buyin;
   applyShift('cashBuyinShift', buyin, staffName);
   sendCageNotification(existing.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${existing.account}`, `GAME#: ${existing.gameId}`, `CURR.: ${existing.cur||'PHP'}`, `ADD B/I: (CASH) ${fmt(buyin)}`, `REMARKS: ADD B/I#${remarkNo}`]);
  } else if(existing.startType === 'account'){
-  const txn = applyAccountTransaction(existing.account, 'OUT', buyin, `${t('memoGameBuyin')} (${existing.gameId})`);
+  const txn = await applyAccountTransaction(existing.account, 'OUT', buyin, `${t('memoGameBuyin')} (${existing.gameId})`);
   renderMemberCard(); renderLedger();
   if(txn) sendCageNotification(existing.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${existing.account}`, `GAME#: ${existing.gameId}`, `CURR.: ${existing.cur||'PHP'}`, `ADD B/I: ${fmt(buyin)}`, `BAL: ${fmt(txn.balance)}`, `REMARKS: ADD B/I#${remarkNo}`]);
+  else acctWriteFailed = true;
  }
  if(fbDb) writeGameDoc(existing);
  document.getElementById('gBuyin').value = '';
  document.getElementById('gWorkingChip').value = '';
  saveDB(); renderInGame(); renderOngoing(); renderBalancingSummary();
  pushNotification('notifAddBuyin', `${existing.account} · ${existing.gameId} · +${fmt(buyin)}`);
- toast(t('toastAddBuyin'));
+ // The chips are already on the table (that part of the game record is left as-is - it reflects
+ // physical reality), but if the account side failed to save, say so clearly instead of the
+ // normal success toast - the ledger/balance did NOT actually reflect this buy-in.
+ toast(acctWriteFailed ? t('toastStaffSyncFailed') : t('toastAddBuyin'));
 }
-function _doStartGame(account, buyin, workingChip, enteredId){
+async function _doStartGame(account, buyin, workingChip, enteredId){
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  const table = document.getElementById('gTable').value;
  const cur = document.getElementById('gCurrency').value;
@@ -6628,7 +6655,7 @@ function _doStartGame(account, buyin, workingChip, enteredId){
   applyShift('cashBuyinShift', buyin, staffName);
   sendCageNotification(account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${account}`, `GAME#: ${gameId}`, `CURR.: ${cur||'PHP'}`, `B/I: (CASH) ${fmt(buyin)}`, `REMARKS: B/I #${remarkNo}`]);
  } else if(startType === 'account'){
-  const txn = applyAccountTransaction(account, 'OUT', buyin, `${t('memoGameBuyin')} (${gameId})`);
+  var txn = await applyAccountTransaction(account, 'OUT', buyin, `${t('memoGameBuyin')} (${gameId})`);
   renderMemberCard(); renderLedger();
   if(txn) sendCageNotification(account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${account}`, `GAME#: ${gameId}`, `CURR.: ${cur||'PHP'}`, `B/I: (D/P) ${fmt(buyin)}`, `BAL: ${fmt(txn.balance)}`, `REMARKS: B/I #${remarkNo}`]);
  }
@@ -6636,12 +6663,23 @@ function _doStartGame(account, buyin, workingChip, enteredId){
  saveDB(); renderInGame(); renderOngoing(); updateGameIdPreview(); renderBalancingSummary();
  document.getElementById('gWorkingChip').value = '';
  pushNotification('notifGameStart', `${account} · ${gameId} · ${table}`);
- toast(t('toastGameStarted'));
+ // The buy-in chips are already recorded on the game (that reflects physical reality at the
+ // table), but if the account-side ledger write failed, say so clearly instead of the normal
+ // success toast.
+ toast((startType === 'account' && !txn) ? t('toastStaffSyncFailed') : t('toastGameStarted'));
 }
-function cancelGame(gameId){
+async function cancelGame(gameId){
  const g = DB.games.find(x=>x.gameId===gameId);
  if(!g) return;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ if(g.startType === 'account' && g.buyin){
+  // Refund the account BEFORE touching any local/shift state below - if this fails, bail out
+  // entirely and leave the game exactly as it was, rather than deleting the game record (and
+  // reversing shift/rolling adjustments) while the customer's buy-in was never actually refunded.
+  const txn = await applyAccountTransaction(g.account, 'IN', g.buyin, `${t('memoGameCancelRefund')} (${g.gameId})`);
+  if(!txn){ toast(t('toastStaffSyncFailed')); return; }
+  renderMemberCard(); renderLedger();
+ }
  // 바이인·워킹칩·롤링으로 인한 캐시·롤링 영향을 전부 원상복구
  DB.gameNNAdjust = (DB.gameNNAdjust||0) + ((g.buyin||0) + (g.workingChip||0));
  applyShift('buyinRollingShift', -(g.buyin||0), staffName);
@@ -6653,14 +6691,9 @@ function cancelGame(gameId){
   bd().rollingDailyTotal = (bd().rollingDailyTotal||0) - g.rolling;
   applyShift('rollingCashShift', -g.rolling, staffName);
  }
- if(g.startType === 'cash'){
-  if(g.buyin){
-   DB.gameCashAdjust = (DB.gameCashAdjust||0) - g.buyin;
-   applyShift('cashBuyinShift', -g.buyin, staffName);
-  }
- } else if(g.startType === 'account' && g.buyin){
-  applyAccountTransaction(g.account, 'IN', g.buyin, `${t('memoGameCancelRefund')} (${g.gameId})`);
-  renderMemberCard(); renderLedger();
+ if(g.startType === 'cash' && g.buyin){
+  DB.gameCashAdjust = (DB.gameCashAdjust||0) - g.buyin;
+  applyShift('cashBuyinShift', -g.buyin, staffName);
  }
  if(fbDb) deleteGameDoc(gameId);
  DB.games = DB.games.filter(x=>x.gameId!==gameId);
@@ -6898,7 +6931,7 @@ function settleGame(){
  if(!g) return;
  requestPinAuth(_doSettleGame);
 }
-function _doSettleGame(){
+async function _doSettleGame(){
  const id = document.getElementById('settleGameId').value;
  const g = findSettleGame(id);
  if(!g) return;
@@ -6910,17 +6943,21 @@ function _doSettleGame(){
  const winLoss = isEnded ? g.winLoss : null;
  const dt = isEnded ? g.endDt : phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ // Credit the account BEFORE marking the game settled/ended below - if this fails, bail out
+ // entirely and leave the game exactly as it was (still selectable, still re-settleable) rather
+ // than recording a settlement whose payout never actually reached the customer's account.
+ let settleTxn = null;
+ if(result > 0){
+  settleTxn = await applyAccountTransaction(g.account, 'IN', result, `${t('memoRollingSettle')} (${g.gameId})`);
+  if(!settleTxn){ toast(t('toastStaffSyncFailed')); return; }
+  renderMemberCard(); renderLedger();
+ }
  if(isEnded){
   g.settled = true;
   if(fbDb) writeGameDoc(g, 'ended');
  }
  DB.settled = DB.settled||[];
  DB.settled.push({gameId:g.gameId, account:g.account, cur:g.cur, branch:g.branch||currentBranch(), dt, buyin:g.buyin, cashout, winLoss, rolling:g.rolling, commission, fb, result, staff:staffName});
- let settleTxn = null;
- if(result > 0){
-  settleTxn = applyAccountTransaction(g.account, 'IN', result, `${t('memoRollingSettle')} (${g.gameId})`);
-  renderMemberCard(); renderLedger();
- }
  if(settleTxn){
   const {date, time} = nowDateTimeParts();
   const remarkNo = last3Digits(g.gameId);
@@ -7018,7 +7055,7 @@ function confirmMidSettle(){
  if(!g){ toast(t('toastNoAcc')); return; }
  requestPinAuth(_doConfirmMidSettle);
 }
-function _doConfirmMidSettle(){
+async function _doConfirmMidSettle(){
  const id = document.getElementById('midGameId').value;
  const g = DB.games.find(x=>x.gameId===id);
  if(!g){ toast(t('toastNoAcc')); return; }
@@ -7076,12 +7113,15 @@ function _doConfirmMidSettle(){
   applyShift('ccMarkerShift', cc.marker, floorStaff);
  }
  const depositSum = cc.deposit + nn.deposit;
+ let depositFailed = false;
  if(depositSum > 0){
-  const txn = applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoMidSettleDeposit')} (${g.gameId})`);
+  const txn = await applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoMidSettleDeposit')} (${g.gameId})`);
   renderMemberCard(); renderLedger();
   if(txn){
    const {date, time} = nowDateTimeParts();
    sendCageNotification(g.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${g.account}`, `GAME#: ${g.gameId}`, `CURR.: ${g.cur||'PHP'}`, `DEP.: ${fmt(depositSum)}`, `BAL: ${fmt(txn.balance)}`, `REMARKS: ST D/P #${last3Digits(g.gameId)}`]);
+  } else {
+   depositFailed = true;
   }
  }
  ['midCcDeposit','midCcCashout','midCcMarker','midCcDealerTips','midCcHouseTips',
@@ -7090,7 +7130,10 @@ function _doConfirmMidSettle(){
  });
  saveDB(); loadMidSettleGame(); renderOngoing(); renderBalancingSummary();
  pushNotification('notifMidSettle', `${g.gameId} · ${g.account} · ${added>=0?'+':''}${fmt(added)}`);
- toast(t('toastMidSettled'));
+ // Chip/rolling tracking above already reflects the physical checkpoint regardless, but the
+ // account-side deposit specifically needs a clear failure signal instead of the normal success
+ // toast if it didn't actually reach the account's ledger.
+ toast(depositFailed ? t('toastStaffSyncFailed') : t('toastMidSettled'));
 }
 function renderMidHistory(g){
  const body = document.getElementById('midHistoryBody');
@@ -7211,7 +7254,7 @@ function confirmGameEnd(){
  if(!g){ toast(t('toastNoAcc')); return; }
  requestPinAuth(_doConfirmGameEnd);
 }
-function _doConfirmGameEnd(){
+async function _doConfirmGameEnd(){
  const id = document.getElementById('endGameId').value;
  const g = DB.games.find(x=>x.gameId===id);
  if(!g){ toast(t('toastNoAcc')); return; }
@@ -7274,17 +7317,23 @@ function _doConfirmGameEnd(){
   applyShift('ccMarkerShift', cc.marker, floorStaff);
  }
  const depositSum = cc.deposit + nn.deposit;
+ let depositFailed = false;
  if(depositSum > 0){
-  const txn = applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoGameEndDeposit')} (${g.gameId})`);
+  const txn = await applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoGameEndDeposit')} (${g.gameId})`);
   renderMemberCard(); renderLedger();
   if(txn){
    const {date, time} = nowDateTimeParts();
    sendCageNotification(g.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${g.account}`, `GAME#: ${g.gameId}`, `CURR.: ${g.cur||'PHP'}`, `B/I: ${fmt(g.buyin||0)}`, `DEP.: ${fmt(depositSum)}`, `TIP: 0`, `F/C: 0`, `BAL: ${fmt(txn.balance)}`, `REMARKS: F/G #${last3Digits(g.gameId)}`]);
+  } else {
+   depositFailed = true;
   }
  }
  saveDB(); renderInGame(); renderOngoing(); populateEndSelect(); renderEndedGames(); renderBalancingSummary();
  pushNotification('notifGameEnd', `${g.gameId} · ${g.account} · ${winLoss>=0?'+':''}${fmt(winLoss)}`);
- toast(t('toastGameEnded'));
+ // Rolling/chip tracking above already reflects the physical game-end checkpoint regardless, but
+ // the account-side deposit specifically needs a clear failure signal if it didn't actually reach
+ // the account's ledger, instead of the normal success toast.
+ toast(depositFailed ? t('toastStaffSyncFailed') : t('toastGameEnded'));
 }
 function renderEndedGames(){
  const body = document.getElementById('endedGamesBody');
@@ -8650,12 +8699,16 @@ function endEventNow(){
  renderEventToggle();
  toast(t('toastEventEnded'));
 }
-function payEventCommissionForSettle(account, rolling){
+async function payEventCommissionForSettle(account, rolling){
  if(!isEventActiveNow() || !rolling) return;
  const rate = Number(document.getElementById('eventRate').value||0);
  const amt = Math.round(rolling*rate/100);
  if(amt<=0) return;
- applyAccountTransaction(account, 'IN', amt, t('memoEventCommission'));
+ const txn = await applyAccountTransaction(account, 'IN', amt, t('memoEventCommission'));
+ // Don't log a bonus payout to history/notifications that never actually reached the account -
+ // this is a background bonus with no toast of its own either way, so a silent no-op on failure
+ // (rather than a misleading "paid" record) is the right amount of feedback here.
+ if(!txn) return;
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  DB.eventHistory = DB.eventHistory||[];

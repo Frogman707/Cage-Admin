@@ -248,6 +248,15 @@ tr:hover td{background:var(--panel-raised);}
    card surface instead of a stark white sheet, since this one never gets printed as-is (the
    settled popup and print output still render on white, matching an actual paper receipt). */
 #receiptBox{background:var(--panel);color:var(--ink);border-color:var(--line);}
+/* The settle tab's two cards default to top-aligned (each sized to its own content), leaving the
+   receipt card visibly shorter than the form beside it whenever the receipt is empty. Stretch
+   just this row's cards to match heights, and let the receipt box itself grow to fill whatever
+   space that leaves - centering the empty-state hint, while real receipt content still stacks
+   normally from the top. */
+#gtab-settle .grid-io{align-items:stretch;}
+#gtab-settle .grid-io>.card:last-child{display:flex;flex-direction:column;}
+#gtab-settle #receiptBox{flex:1;display:flex;flex-direction:column;}
+#gtab-settle #receiptBox:has(>.receipt-empty-hint){justify-content:center;}
 #receiptBox .receipt-empty-hint{color:var(--ink-dim);}
 #receiptBox .rline{border-bottom-color:var(--line);}
 #receiptBox .rmeta-label, #receiptBox .rmeta-value{color:var(--ink);}

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avatar · CAGE ADMIN 5.0</title>
+<link rel="stylesheet" href="../shared/cage-ui.css">
+<link rel="stylesheet" href="../shared/game-ui.css">
+<style>
+body{overflow:auto;}
+.shell-app{display:none;flex-direction:column;height:100%;}
+@media (max-width:980px){
+  .table-shell{flex-direction:column;height:auto;}
+  .table-side{width:100%;}
+}
+</style>
+</head>
+<body>
+
+<div id="login-gate">
+  <div class="login-card">
+    <div class="login-mark">CAGE ADMIN</div>
+    <div class="login-sub">AVATAR</div>
+    <div class="login-ver">v5.0</div>
+
+    <div id="pane-login">
+      <div class="field" style="margin-top:22px;"><label>아이디</label><input id="liId" autocomplete="off" placeholder="ID"></div>
+      <div class="field"><label>비밀번호</label><input id="liPw" type="password" placeholder="••••"></div>
+      <p class="login-error" id="liErr" style="display:none;"></p>
+      <button class="btn btn-gold btn-block" onclick="onLogin()">로그인</button>
+      <p class="login-switch">계정이 없으신가요? <a onclick="showPane('signup')">회원가입</a></p>
+      <p class="login-hint">데모 계정은 파트너 어드민에서 "데모 데이터 생성" 후 유저리스트의 ID (PW: 0000)로 로그인할 수 있습니다.</p>
+    </div>
+
+    <div id="pane-signup" style="display:none;">
+      <div class="field" style="margin-top:22px;"><label>아이디</label><input id="suId" autocomplete="off"></div>
+      <div class="field"><label>비밀번호</label><input id="suPw" type="password"></div>
+      <div class="field"><label>닉네임</label><input id="suNick"></div>
+      <div class="field"><label>전화번호</label><input id="suPhone"></div>
+      <div class="field"><label>카지노</label><select id="suCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select></div>
+      <div class="field"><label>추천인 코드 (선택)</label><input id="suAgent" placeholder="DIRECT"></div>
+      <p class="login-error" id="suErr" style="display:none;"></p>
+      <button class="btn btn-gold btn-block" onclick="onSignup()">가입하기</button>
+      <p class="login-switch">이미 계정이 있으신가요? <a onclick="showPane('login')">로그인</a></p>
+    </div>
+  </div>
+</div>
+
+<div class="shell-app" id="app" style="display:none;">
+  <div class="game-header">
+    <div class="brand"><span class="mark">CAGE ADMIN</span><span class="sub">AVATAR</span></div>
+    <div class="balance-ticket"><span class="lbl">보유금</span><span id="hdrBalance">0</span></div>
+    <div class="points-ticket"><span class="lbl">포인트</span><span id="hdrPoints">0</span></div>
+    <div class="game-header-right">
+      <span style="font-size:12px;color:var(--ink-dim);" id="hdrNick">—</span>
+      <button class="btn btn-sm" id="lobbyBtn" onclick="goLobby()" style="display:none;">로비</button>
+      <button class="btn btn-sm btn-ghost" onclick="onLogout()">로그아웃</button>
+    </div>
+  </div>
+  <div id="viewLobby"></div>
+  <div id="viewTable" style="display:none;"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="../shared/cage-ui.js"></script>
+<script src="../shared/game-engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

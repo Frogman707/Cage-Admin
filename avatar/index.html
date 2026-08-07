@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Avatar · CAGE ADMIN 5.0</title>
+<title>Game · CAGE ADMIN 5.0</title>
 <link rel="stylesheet" href="../shared/cage-ui.css">
 <link rel="stylesheet" href="../shared/game-ui.css">
 <style>
@@ -13,18 +13,55 @@ body{overflow:auto;}
   .table-shell{flex-direction:column;height:auto;}
   .table-side{width:100%;}
 }
+/* ---- game picker ---- */
+.picker-wrap{padding:60px 24px;max-width:760px;margin:0 auto;text-align:center;}
+.picker-title{font-weight:800;font-size:22px;color:var(--brass);margin:0 0 8px;}
+.picker-sub{font-size:12.5px;color:var(--ink-faint);margin:0 0 34px;}
+.picker-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media (max-width:640px){.picker-grid{grid-template-columns:1fr;}}
+.picker-card{background:linear-gradient(155deg,var(--panel-hi),var(--panel) 70%);border:1px solid var(--line);border-radius:14px;padding:30px 22px;cursor:pointer;transition:.2s;text-align:center;}
+.picker-card:hover{border-color:var(--brass-dim);transform:translateY(-3px);box-shadow:0 20px 40px -18px rgba(0,0,0,.6);}
+.picker-card .ic{width:52px;height:52px;margin:0 auto 14px;border-radius:50%;background:var(--void);border:1px solid var(--brass-dim);display:flex;align-items:center;justify-content:center;}
+.picker-card .ic svg{width:26px;height:26px;color:var(--brass);}
+.picker-card .name{font-weight:800;font-size:17px;color:var(--ink);letter-spacing:.5px;}
+.picker-card .desc{font-size:12px;color:var(--ink-faint);margin-top:6px;line-height:1.5;}
+/* speed lobby's fixed bottom chip tray - only shown while playing speed */
+.chip-tray-fixed{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--brass-dim);padding:10px 20px;display:flex;justify-content:center;}
+.speed-wrap{padding:16px 20px 100px;max-width:1500px;margin:0 auto;}
+.speed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+.speed-tile{background:var(--panel);border:2px solid var(--line);border-radius:10px;padding:12px 14px;position:relative;}
+.speed-tile .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.speed-tile .head .name{font-weight:700;font-size:13px;color:var(--ink);}
+.speed-tile .head .shoe{font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);}
+.speed-mini-stage{position:relative;height:64px;border-radius:8px;background:radial-gradient(ellipse at 50% 20%, #103a2c 0%, #05140e 80%);display:flex;align-items:center;justify-content:center;margin-bottom:8px;overflow:hidden;}
+.speed-mini-stage .phase-txt{font-size:11px;font-weight:700;color:var(--brass);}
+.speed-mini-stage .score-txt{font-family:var(--mono);font-weight:800;font-size:15px;color:var(--ink);}
+.speed-timer{position:absolute;top:6px;right:8px;font-family:var(--mono);font-weight:800;font-size:13px;color:var(--brass);background:rgba(0,0,0,.5);border-radius:10px;padding:1px 7px;}
+.speed-bets{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;}
+.speed-bets .bet-spot{padding:8px 4px;}
+.speed-bets .bet-spot .label{font-size:12.5px;}
+.speed-mini-road{display:flex;gap:1px;overflow-x:hidden;margin-bottom:8px;}
+.speed-mini-road .br-col{gap:1px;}
+.speed-mini-road .br-cell{width:7px;height:7px;}
+.speed-mini-road .br-cell.tie-only{width:5px;height:5px;}
+.speed-mini-road .br-tie{border-width:1px;}
+.speed-tile-stats{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-faint);font-family:var(--mono);margin-bottom:2px;}
+.speed-tile-stats b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
+.speed-hot-badge{position:absolute;top:6px;left:8px;background:linear-gradient(135deg,#F0DBA8,#B8863A);color:#071120;font-size:9px;font-weight:800;padding:2px 7px;border-radius:9px;z-index:2;}
+.speed-mybets{margin-top:18px;}
+.speed-mybets .bet-history-mini{max-height:200px;overflow-y:auto;}
 </style>
 </head>
 <body>
 
 <div id="login-gate">
   <div class="login-card">
-    <div class="login-mark">AVATAR</div>
+    <div class="login-mark">GAME</div>
     <div class="login-ver">v5.0</div>
 
     <div id="pane-login">
       <div class="field" style="margin-top:22px;"><label>아이디</label><input id="liId" autocomplete="off" placeholder="ID"></div>
-      <div class="field"><label>비밀번호</label><input id="liPw" type="password" placeholder="••••"></div>
+      <div class="field"><label>비밀번호</label><input id="liPw" type="password" placeholder="••••" autocomplete="off"></div>
       <p class="login-error" id="liErr" style="display:none;"></p>
       <button class="btn btn-gold btn-block" onclick="onLogin()">로그인</button>
       <p class="login-switch">계정이 없으신가요? <a onclick="showPane('signup')">회원가입</a></p>
@@ -33,7 +70,7 @@ body{overflow:auto;}
 
     <div id="pane-signup" style="display:none;">
       <div class="field" style="margin-top:22px;"><label>아이디</label><input id="suId" autocomplete="off"></div>
-      <div class="field"><label>비밀번호</label><input id="suPw" type="password"></div>
+      <div class="field"><label>비밀번호</label><input id="suPw" type="password" autocomplete="off"></div>
       <div class="field"><label>닉네임</label><input id="suNick"></div>
       <div class="field"><label>전화번호</label><input id="suPhone"></div>
       <div class="field"><label>카지노</label><select id="suCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select></div>
@@ -47,17 +84,47 @@ body{overflow:auto;}
 
 <div class="shell-app" id="app" style="display:none;">
   <div class="game-header">
-    <div class="brand"><span class="mark">AVATAR</span></div>
+    <div class="brand"><span class="mark" id="hdrBrand">GAME</span></div>
     <div class="balance-ticket"><span class="lbl">보유금</span><span id="hdrBalance">0</span></div>
     <div class="points-ticket"><span class="lbl">포인트</span><span id="hdrPoints">0</span></div>
     <div class="game-header-right">
       <span style="font-size:12px;color:var(--ink-dim);" id="hdrNick">—</span>
-      <button class="btn btn-sm" id="lobbyBtn" onclick="goLobby()" style="display:none;">로비</button>
+      <button class="btn btn-sm" id="avatarLobbyBtn" onclick="backToAvatarLobby()" style="display:none;">테이블 목록</button>
+      <button class="btn btn-sm" id="changeGameBtn" onclick="showPicker()" style="display:none;">게임 변경</button>
       <button class="btn btn-sm btn-ghost" onclick="onLogout()">로그아웃</button>
     </div>
   </div>
-  <div id="viewLobby"></div>
-  <div id="viewTable" style="display:none;"></div>
+
+  <div id="viewPicker">
+    <div class="picker-wrap">
+      <div class="picker-title">게임을 선택하세요</div>
+      <p class="picker-sub">아바타와 스피드는 같은 계정, 같은 보유금으로 언제든 자유롭게 오갈 수 있습니다.</p>
+      <div class="picker-grid">
+        <div class="picker-card" onclick="chooseAvatar()">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M8 10.5h.01M16 10.5h.01M8 15c1.2 1 2.6 1.5 4 1.5s2.8-.5 4-1.5"/></svg></div>
+          <div class="name">아바타 (AVATAR)</div>
+          <div class="desc">몰입형 단일 테이블 · 페어 배팅 · 실시간 채팅</div>
+        </div>
+        <div class="picker-card" onclick="chooseSpeed()">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div>
+          <div class="name">스피드 (SPEED)</div>
+          <div class="desc">여러 테이블 동시 베팅 · 빠른 라운드</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="viewAvatarLobby" style="display:none;"></div>
+  <div id="viewAvatarTable" style="display:none;"></div>
+
+  <div id="viewSpeedLobby" style="display:none;">
+    <div class="speed-wrap">
+      <div class="lobby-title">스피드 테이블 <span style="font-size:11px;color:var(--ink-faint);font-weight:400;">— 여러 테이블을 동시에 베팅할 수 있습니다</span></div>
+      <div class="speed-grid" id="speedGrid"><div class="spin"></div></div>
+      <div class="card speed-mybets"><h3>내 베팅내역</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
+    </div>
+  </div>
+  <div class="chip-tray-fixed" id="chipTray" style="display:none;"></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>

@@ -190,6 +190,9 @@ function doLogout(){
   document.getElementById('login-gate').style.display='flex';
   document.getElementById('topbar').style.display='none';
   document.getElementById('shell').style.display='none';
+  document.getElementById('loginId').value = '';
+  document.getElementById('loginPw').value = '';
+  document.getElementById('loginErr').style.display = 'none';
 }
 /* ---------------- view dispatch ---------------- */
 async function switchView(viewId){

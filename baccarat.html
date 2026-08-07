@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark" data-board="classic">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>SKYEAGLES VIP CLUB · Baccarat</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+/* ============ THEME TOKENS ============ */
+:root{
+  --bg:#070d16;
+  --bg-radial:radial-gradient(ellipse 1400px 800px at 50% -10%,#122036 0%,#070d16 55%);
+  --panel:#0d1826;
+  --panel-2:#122236;
+  --panel-3:#17304a;
+  --line:#20344a;
+  --text:#eef3f9;
+  --text-dim:#8ea0b3;
+  --text-faint:#5a6c7e;
+  --gold:#e9c274;
+  --gold-2:#c99a45;
+  --gold-ink:#241505;
+  --blue:#2f7dfb;
+  --blue-dim:#173a68;
+  --blue-soft:rgba(47,125,251,.14);
+  --red:#ef5148;
+  --red-dim:#6e2420;
+  --red-soft:rgba(239,81,72,.14);
+  --green:#22b573;
+  --green-dim:#134a34;
+  --green-soft:rgba(34,181,115,.14);
+  --felt:#0b4e38;
+  --felt-2:#083b2a;
+  --felt-line:#e3c26e;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+  --radius:12px;
+  --radius-sm:7px;
+  --sans:'Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+:root[data-theme="light"]{
+  --bg:#eef1f6;
+  --bg-radial:radial-gradient(ellipse 1400px 800px at 50% -10%,#ffffff 0%,#eef1f6 60%);
+  --panel:#ffffff;
+  --panel-2:#f4f6f9;
+  --panel-3:#e9edf3;
+  --line:#dbe1e9;
+  --text:#131c26;
+  --text-dim:#5c6b7a;
+  --text-faint:#8e99a6;
+  --gold:#b17f21;
+  --gold-2:#96691a;
+  --gold-ink:#fff8ea;
+  --blue-dim:#dbe8ff;
+  --blue-soft:rgba(47,125,251,.10);
+  --red-dim:#ffe0dd;
+  --red-soft:rgba(239,81,72,.10);
+  --green-dim:#d8f3e6;
+  --green-soft:rgba(34,181,115,.10);
+  --shadow:0 8px 22px rgba(30,40,60,.12);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);}
+body{
+  font-family:var(--sans);color:var(--text);background:var(--bg-radial);
+  min-height:100vh;-webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer;background:none;border:none;color:inherit;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--panel-3);border-radius:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+img,svg{display:block;}
+
+/* ============ SITE TOPBAR (desktop chrome) ============ */
+.sitebar{
+  display:flex;align-items:center;gap:18px;padding:10px 20px;
+  background:var(--panel);border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.brand .crest{width:26px;height:26px;flex-shrink:0;}
+.brand .name{font-weight:800;font-size:16px;letter-spacing:.5px;
+  background:linear-gradient(135deg,#f4e2ad,var(--gold) 45%,#9c7530);
+  -webkit-background-clip:text;background-clip:text;color:transparent;}
+.userchip{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:999px;font-size:13px;flex-shrink:0;}
+.userchip .av{width:20px;height:20px;border-radius:50%;background:var(--panel-3);display:flex;align-items:center;justify-content:center;font-size:11px;}
+.userchip .pt{color:var(--gold);font-weight:700;}
+.notice{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:999px;font-size:12.5px;color:var(--text-dim);overflow:hidden;}
+.notice b{color:var(--gold);flex-shrink:0;font-size:11px;border:1px solid var(--gold-2);border-radius:4px;padding:1px 6px;}
+.notice span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.icontools{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.icontools button{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  color:var(--text-dim);transition:.15s;}
+.icontools button:hover{background:var(--panel-2);color:var(--gold);}
+.icontools button svg{width:17px;height:17px;}
+.icontools .dot{position:relative;}
+.icontools .dot::after{content:'';position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--green);}
+
+/* Settings dropdown */
+.settings-pop{position:absolute;top:56px;right:20px;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;width:240px;z-index:80;display:none;}
+.settings-pop.open{display:block;}
+.settings-pop h4{margin:0 0 10px;font-size:12px;color:var(--text-faint);font-weight:700;letter-spacing:.4px;text-transform:uppercase;}
+.settings-pop .row{margin-bottom:14px;}
+.settings-pop .row:last-child{margin-bottom:0;}
+.seg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:3px;gap:3px;}
+.seg button{flex:1;padding:7px 0;border-radius:999px;font-size:12.5px;font-weight:600;color:var(--text-dim);transition:.15s;}
+.seg button.active{background:var(--gold);color:var(--gold-ink);}
+
+/* ============ GAME HEADER (mobile in-frame chrome) ============ */
+.gameheader{display:none;align-items:center;justify-content:space-between;padding:10px 14px;
+  background:var(--panel);border-bottom:1px solid var(--line);}
+.gameheader .hn{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;letter-spacing:.5px;}
+.gameheader .hn .sq{width:16px;height:16px;background:var(--gold);border-radius:2px;}
+.gameheader .meta{display:flex;gap:16px;font-size:11px;color:var(--text-faint);}
+.gameheader .meta b{color:var(--text);font-family:var(--mono);font-weight:700;}
+.gameheader .x{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--text-dim);}
+
+/* ============ MAIN LAYOUT ============ */
+.wrap{max-width:1680px;margin:0 auto;padding:16px;}
+.bc-main{display:grid;grid-template-columns:1fr 400px;gap:14px;align-items:start;}
+
+/* ----- video column ----- */
+.video-col{display:flex;flex-direction:column;gap:10px;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+.video-wrap{position:relative;width:100%;aspect-ratio:16/10;background:#04150e;overflow:hidden;}
+.video-wrap svg.felt{position:absolute;inset:0;width:100%;height:100%;}
+.badge-table{position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:8px;z-index:5;}
+.badge-speed{background:linear-gradient(135deg,#3ea6ff,#1d6fd6);color:#fff;font-size:10.5px;font-weight:800;
+  padding:4px 9px;border-radius:999px;letter-spacing:.5px;box-shadow:0 2px 6px rgba(0,0,0,.4);}
+.badge-code{background:rgba(0,0,0,.55);backdrop-filter:blur(3px);color:#fff;font-size:12.5px;font-weight:700;padding:4px 10px;border-radius:6px;}
+.badge-limit{background:rgba(0,0,0,.55);backdrop-filter:blur(3px);color:#f5d78b;font-size:12px;font-weight:700;padding:4px 10px;border-radius:6px;font-family:var(--mono);}
+.video-toolbar{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:8px;z-index:5;}
+.video-toolbar button{width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);
+  color:#fff;display:flex;align-items:center;justify-content:center;transition:.15s;}
+.video-toolbar button:hover{background:rgba(0,0,0,.75);}
+.video-toolbar svg{width:16px;height:16px;}
+.msg-overlay{position:absolute;top:14%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);
+  backdrop-filter:blur(3px);color:#fff;font-size:15px;font-weight:700;padding:9px 22px;border-radius:8px;z-index:5;
+  letter-spacing:.3px;transition:opacity .25s;}
+.timer{position:absolute;bottom:14px;right:14px;width:66px;height:66px;z-index:5;}
+.timer svg{width:100%;height:100%;transform:rotate(-90deg);}
+.timer .track{fill:none;stroke:rgba(255,255,255,.15);stroke-width:6;}
+.timer .prog{fill:none;stroke:var(--green);stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 1s linear,stroke .2s;}
+.timer .num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+  font-weight:700;font-size:20px;color:#fff;background:rgba(0,0,0,.35);border-radius:50%;margin:6px;}
+.demo-badge{position:absolute;bottom:14px;left:14px;background:rgba(0,0,0,.55);color:var(--gold);font-size:10px;
+  font-weight:800;padding:3px 9px;border-radius:999px;letter-spacing:1px;z-index:5;}
+
+/* chip rail */
+.chiprail{display:flex;align-items:center;gap:8px;padding:10px 12px;overflow-x:auto;flex-wrap:nowrap;}
+.chip-btn{width:52px;height:52px;flex-shrink:0;border-radius:50%;position:relative;display:flex;align-items:center;
+  justify-content:center;font-family:var(--mono);font-weight:700;font-size:11px;color:#fff;
+  border:3px dashed rgba(255,255,255,.55);box-shadow:0 3px 8px rgba(0,0,0,.35);transition:.15s;}
+.chip-btn::after{content:'';position:absolute;inset:5px;border-radius:50%;border:1px solid rgba(255,255,255,.25);}
+.chip-btn span{position:relative;z-index:1;}
+.chip-btn.selected{outline:3px solid var(--gold);outline-offset:2px;transform:translateY(-3px);}
+.chip-btn[data-v="25"]{background:radial-gradient(circle at 35% 30%,#9aa6ad,#4b5a63);}
+.chip-btn[data-v="100"]{background:radial-gradient(circle at 35% 30%,#3f8bff,#0d3f8f);}
+.chip-btn[data-v="500"]{background:radial-gradient(circle at 35% 30%,#a56cff,#5a1fa0);}
+.chip-btn[data-v="1000"]{background:radial-gradient(circle at 35% 30%,#4fd0e8,#0d7c94);}
+.chip-btn[data-v="10000"]{background:radial-gradient(circle at 35% 30%,#3f6bff,#122d8f);}
+.chip-btn[data-v="100000"]{background:radial-gradient(circle at 35% 30%,#ff6b8b,#a30d33);}
+.chip-btn[data-v="500000"]{background:radial-gradient(circle at 35% 30%,#f4f6f9,#a7b0ba);color:#20242b;}
+.chip-btn[data-v="1000000"]{background:radial-gradient(circle at 35% 30%,#ffe08a,#b8862f);color:#3a2600;}
+.act-btn{flex-shrink:0;height:40px;padding:0 16px;border-radius:999px;font-size:12.5px;font-weight:700;
+  border:1px solid var(--line);color:var(--text-dim);background:var(--panel-2);transition:.15s;}
+.act-btn:hover{color:var(--text);border-color:var(--gold-2);}
+.act-btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.act-btn.primary:hover{background:#1d6fe8;}
+.railspacer{flex:1;min-width:4px;}
+.bet-total{flex-shrink:0;font-family:var(--mono);font-size:13px;color:var(--gold);font-weight:700;padding:0 4px;white-space:nowrap;}
+
+/* ----- side column: tally + board + roadmaps ----- */
+.side-col{display:flex;flex-direction:column;gap:10px;}
+.tally{display:flex;gap:14px;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);}
+.tally .item{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;}
+.tally .dot{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:9px;color:#fff;font-weight:800;}
+.tally .dot.P{background:var(--blue);} .tally .dot.B{background:var(--red);} .tally .dot.T{background:var(--green);}
+
+.board{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px;box-shadow:var(--shadow);}
+.board-top{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;}
+.board-bottom{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.bet-zone{position:relative;border-radius:var(--radius-sm);cursor:pointer;user-select:none;overflow:hidden;
+  transition:transform .12s,box-shadow .12s;border:1px solid var(--line);}
+.bet-zone:active{transform:scale(.97);}
+.bet-zone.armed{box-shadow:0 0 0 2px var(--gold) inset;}
+.bet-zone .stack{position:absolute;bottom:6px;right:8px;font-family:var(--mono);font-weight:800;font-size:12px;
+  background:rgba(0,0,0,.4);color:var(--gold);padding:2px 7px;border-radius:999px;display:none;}
+.bet-zone .stack.show{display:block;}
+
+/* classic board look */
+[data-board="classic"] .board-top .bet-zone{background:var(--panel-2);padding:10px 8px 8px;min-height:78px;}
+[data-board="classic"] .zone-pp{border-top:3px solid var(--blue);}
+[data-board="classic"] .zone-tie{border-top:3px solid var(--green);}
+[data-board="classic"] .zone-bp{border-top:3px solid var(--red);}
+[data-board="classic"] .zone-top .odds{font-family:var(--mono);font-size:11px;color:var(--text-faint);}
+[data-board="classic"] .zone-top .pct{font-size:19px;font-weight:800;font-family:var(--mono);}
+[data-board="classic"] .zone-pp .pct{color:var(--blue);} [data-board="classic"] .zone-tie .pct{color:var(--green);} [data-board="classic"] .zone-bp .pct{color:var(--red);}
+[data-board="classic"] .zone-top .lbl{font-size:12px;font-weight:700;color:var(--text-dim);margin-top:2px;}
+[data-board="classic"] .zone-top .cnt{position:absolute;top:8px;right:8px;font-size:10px;color:var(--text-faint);}
+[data-board="classic"] .board-bottom .bet-zone{min-height:96px;display:flex;flex-direction:column;justify-content:center;
+  align-items:center;gap:4px;}
+[data-board="classic"] .zone-player{background:linear-gradient(160deg,var(--blue-soft),transparent);border:1px solid var(--blue-dim);}
+[data-board="classic"] .zone-banker{background:linear-gradient(160deg,var(--red-soft),transparent);border:1px solid var(--red-dim);}
+[data-board="classic"] .zone-player .big{color:var(--blue);} [data-board="classic"] .zone-banker .big{color:var(--red);}
+[data-board="classic"] .bet-zone .big{font-size:22px;font-weight:800;letter-spacing:1px;}
+[data-board="classic"] .bet-zone .odds-b{font-family:var(--mono);font-size:12px;color:var(--text-faint);}
+[data-board="classic"] .bet-zone .subcnt{font-size:10px;color:var(--text-faint);}
+
+/* modern board look: flat, minimal, bold */
+[data-board="modern"] .board-top{grid-template-columns:1fr 1fr 1fr;}
+[data-board="modern"] .bet-zone{background:var(--panel-2);min-height:64px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;border-radius:8px;border:none;}
+[data-board="modern"] .zone-pp{background:var(--blue-soft);}
+[data-board="modern"] .zone-tie{background:var(--green-soft);}
+[data-board="modern"] .zone-bp{background:var(--red-soft);}
+[data-board="modern"] .zone-top .lbl{font-size:13.5px;font-weight:800;color:var(--text);}
+[data-board="modern"] .zone-pp .lbl{color:var(--blue);} [data-board="modern"] .zone-tie .lbl{color:var(--green);} [data-board="modern"] .zone-bp .lbl{color:var(--red);}
+[data-board="modern"] .zone-top .cnt{font-size:10px;color:var(--text-faint);margin-top:3px;}
+[data-board="modern"] .zone-top .pct,[data-board="modern"] .zone-top .odds{display:none;}
+[data-board="modern"] .board-bottom .bet-zone{min-height:120px;}
+[data-board="modern"] .zone-player{background:var(--blue);}
+[data-board="modern"] .zone-banker{background:var(--red);}
+[data-board="modern"] .zone-player .big,[data-board="modern"] .zone-banker .big{color:#fff;font-size:24px;font-weight:800;}
+[data-board="modern"] .zone-player .odds-b,[data-board="modern"] .zone-banker .odds-b{color:rgba(255,255,255,.75);}
+[data-board="modern"] .zone-player .subcnt,[data-board="modern"] .zone-banker .subcnt{color:rgba(255,255,255,.6);}
+
+/* roadmaps */
+.roadmaps{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px;box-shadow:var(--shadow);}
+.rm-row{display:flex;gap:8px;}
+.rm-panel{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-sm);overflow:auto;}
+.beadplate{flex:0 0 34%;height:132px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(6,1fr);
+  grid-auto-columns:20px;padding:3px;gap:2px;}
+.bigroad{flex:1;height:132px;position:relative;padding:3px;display:grid;grid-template-rows:repeat(6,1fr);
+  grid-auto-flow:column;grid-auto-columns:20px;gap:2px;}
+.cell{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;}
+.bead-mark{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:800;color:#fff;}
+.bead-mark.P{background:var(--blue);} .bead-mark.B{background:var(--red);} .bead-mark.T{background:var(--green);}
+.big-mark{width:16px;height:16px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;}
+.big-mark.P{border-color:var(--blue);color:var(--blue);} .big-mark.B{border-color:var(--red);color:var(--red);}
+.big-mark .tie-slash{position:absolute;width:130%;height:2px;background:var(--green);transform:rotate(-45deg);}
+.derived-row{display:flex;gap:8px;margin-top:8px;}
+.derived-panel{flex:1;height:46px;display:grid;grid-template-rows:repeat(3,1fr);grid-auto-flow:column;
+  grid-auto-columns:11px;gap:1px;padding:2px;}
+.dmark{width:8px;height:8px;border-radius:50%;margin:auto;}
+.dmark.r{background:var(--red);} .dmark.b{background:var(--blue);}
+.derived-label{font-size:9.5px;color:var(--text-faint);text-align:center;padding-top:2px;}
+.rm-labels{display:flex;gap:8px;margin-top:2px;}
+.rm-labels .beadplate-lbl{flex:0 0 34%;} .rm-labels .bigroad-lbl{flex:1;}
+.rm-labels div{font-size:10px;color:var(--text-faint);text-align:center;}
+
+/* ----- footer bars ----- */
+.gamefooter{display:flex;align-items:center;gap:18px;padding:9px 16px;background:var(--panel);
+  border-top:1px solid var(--line);font-size:12px;color:var(--text-dim);}
+.gamefooter .hn{display:flex;align-items:center;gap:6px;font-weight:800;color:var(--text);}
+.gamefooter .hn .sq{width:14px;height:14px;background:var(--gold);border-radius:2px;}
+.gamefooter b{color:var(--text);font-family:var(--mono);}
+.gamefooter .sp{flex:1;}
+.gamefooter .ic{width:30px;height:30px;border-radius:50%;background:var(--panel-2);display:flex;align-items:center;justify-content:center;}
+.gamefooter .ic svg{width:15px;height:15px;color:var(--text-dim);}
+
+.userfooter{display:none;align-items:center;justify-content:space-between;padding:9px 16px;background:var(--panel);
+  border-top:1px solid var(--line);}
+.userfooter .who{display:flex;align-items:center;gap:8px;font-size:12px;}
+.userfooter .av{width:26px;height:26px;border-radius:50%;background:var(--panel-3);display:flex;align-items:center;justify-content:center;font-size:12px;}
+.userfooter .pt{color:var(--gold);font-weight:700;font-family:var(--mono);}
+.userfooter .actions{display:flex;gap:8px;}
+.userfooter .ic{width:32px;height:32px;border-radius:50%;background:var(--panel-2);display:flex;align-items:center;justify-content:center;}
+.userfooter .ic svg{width:15px;height:15px;color:var(--text-dim);}
+
+/* icon svg default */
+.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:960px){
+  .sitebar{display:none;}
+  .gameheader{display:flex;}
+  .wrap{padding:0;}
+  .bc-main{grid-template-columns:1fr;gap:0;}
+  .video-col{border-radius:0;border-left:none;border-right:none;}
+  .side-col{gap:0;}
+  .tally{border-radius:0;border-left:none;border-right:none;border-top:none;}
+  .board{border-radius:0;border-left:none;border-right:none;border-top:none;}
+  .roadmaps{border-radius:0;border-left:none;border-right:none;border-top:none;}
+  .gamefooter{display:none;}
+  .userfooter{display:flex;}
+  .chiprail{position:sticky;bottom:0;background:var(--panel);z-index:10;border-top:1px solid var(--line);}
+  .video-wrap{aspect-ratio:4/3;}
+  [data-board="classic"] .board-bottom .bet-zone{min-height:76px;}
+  [data-board="modern"] .board-bottom .bet-zone{min-height:90px;}
+}
+@media (max-width:420px){
+  .chip-btn{width:44px;height:44px;font-size:10px;}
+  .act-btn{padding:0 12px;font-size:11.5px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Desktop site chrome ===== -->
+<div class="sitebar">
+  <div class="brand">
+    <svg class="crest" viewBox="0 0 24 24"><path fill="#e9c274" d="M12 2l3 5 5 .8-3.6 3.6.9 5.6L12 14.8 6.7 17l.9-5.6L4 7.8 9 7z"/></svg>
+    <span class="name">SKYEAGLES</span>
+  </div>
+  <div class="userchip"><span class="av">👤</span><span>opstest</span><span class="pt" id="ptBalanceTop">P 0</span></div>
+  <div class="notice"><b>공지</b><span id="noticeText">안녕하세요 SKYEAGLES VIP CLUB에 오신것을 환영합니다.</span></div>
+  <div class="icontools">
+    <button title="연결 상태"><svg class="i" viewBox="0 0 24 24"><path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0"/><circle cx="12" cy="19" r="1" fill="currentColor" stroke="none"/></svg></button>
+    <button title="공지" class="dot"><svg class="i" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8a4 4 0 0 1 0 8"/></svg></button>
+    <button title="배팅내역"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></button>
+    <button title="도움말"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.2 1.7-2.5 3.3"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></svg></button>
+    <button title="고객센터"><svg class="i" viewBox="0 0 24 24"><path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="3" y="13" width="4" height="6" rx="1.5"/><rect x="17" y="13" width="4" height="6" rx="1.5"/></svg></button>
+    <button title="설정" id="btnSettings"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    <button title="통계"><svg class="i" viewBox="0 0 24 24"><path d="M4 20V10M11 20V4M18 20v-7"/></svg></button>
+    <button title="로그아웃"><svg class="i" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></button>
+  </div>
+</div>
+
+<div class="settings-pop" id="settingsPop">
+  <div class="row">
+    <h4>테마</h4>
+    <div class="seg" id="segTheme">
+      <button data-v="dark" class="active">다크</button>
+      <button data-v="light">화이트</button>
+    </div>
+  </div>
+  <div class="row">
+    <h4>베팅보드 타입</h4>
+    <div class="seg" id="segBoard">
+      <button data-v="classic" class="active">클래식</button>
+      <button data-v="modern">모던</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Mobile in-game chrome ===== -->
+<div class="gameheader">
+  <div class="hn"><span class="sq"></span>HANN</div>
+  <div class="meta"><span>라운드 번호 <b id="roundNoM">122</b></span><span>슈 번호 <b id="shoeNoM">1</b></span></div>
+  <button class="x" onclick="history.back()">✕</button>
+</div>
+
+<div class="wrap">
+  <div class="bc-main">
+
+    <!-- ===== VIDEO + CHIP RAIL ===== -->
+    <div class="video-col">
+      <div class="video-wrap" id="videoWrap">
+        <svg class="felt" viewBox="0 0 800 460" preserveAspectRatio="xMidYMid slice">
+          <rect width="800" height="460" fill="#04150e"/>
+          <path d="M40 60 A360 360 0 0 1 760 60 L760 300 A360 380 0 0 1 40 300 Z" fill="#0b4e38" stroke="#e3c26e" stroke-width="2"/>
+          <path d="M90 90 A310 310 0 0 1 710 90" fill="none" stroke="#d9b25a" stroke-width="1.5" opacity=".6"/>
+          <text x="230" y="110" fill="#d9b25a" font-size="26" font-weight="800" font-family="sans-serif" opacity=".8">PLAYER</text>
+          <text x="520" y="110" fill="#d9b25a" font-size="26" font-weight="800" font-family="sans-serif" opacity=".8">BANKER</text>
+          <line x1="400" y1="70" x2="400" y2="290" stroke="#d9b25a" stroke-width="1" opacity=".35"/>
+          <rect x="185" y="150" width="150" height="46" rx="6" fill="#0d5a40" stroke="#e3c26e" opacity=".9"/>
+          <text x="260" y="178" fill="#f2e3b5" font-size="13" font-weight="700" text-anchor="middle" font-family="sans-serif">PLAYER PAIR 11:1</text>
+          <rect x="345" y="150" width="110" height="46" rx="6" fill="#0d5a40" stroke="#e3c26e" opacity=".9"/>
+          <text x="400" y="178" fill="#f2e3b5" font-size="13" font-weight="700" text-anchor="middle" font-family="sans-serif">TIE 8:1</text>
+          <rect x="465" y="150" width="150" height="46" rx="6" fill="#0d5a40" stroke="#e3c26e" opacity=".9"/>
+          <text x="540" y="178" fill="#f2e3b5" font-size="13" font-weight="700" text-anchor="middle" font-family="sans-serif">BANKER PAIR 11:1</text>
+          <rect x="60" y="240" width="330" height="50" rx="8" fill="none" stroke="#3f8bff" stroke-width="2" opacity=".8"/>
+          <text x="225" y="272" fill="#3f8bff" font-size="20" font-weight="800" text-anchor="middle" font-family="sans-serif">PLAYER</text>
+          <rect x="410" y="240" width="330" height="50" rx="8" fill="none" stroke="#ef5148" stroke-width="2" opacity=".8"/>
+          <text x="575" y="272" fill="#ef5148" font-size="20" font-weight="800" text-anchor="middle" font-family="sans-serif">BANKER</text>
+        </svg>
+        <div class="badge-table">
+          <span class="badge-speed">SPEED</span>
+          <span class="badge-code" id="tableCode">HN007</span>
+          <span class="badge-limit">5,000 ~ 3,000,000</span>
+        </div>
+        <div class="video-toolbar">
+          <button title="전체화면" onclick="toggleFullscreen()"><svg class="i" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+          <button title="음소거" id="btnMute"><svg class="i" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9a5 5 0 0 1 0 6M19 6a9 9 0 0 1 0 12"/></svg></button>
+          <button title="시야각"><svg class="i" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button title="팁"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg></button>
+        </div>
+        <div class="msg-overlay" id="msgOverlay">베팅하세요.</div>
+        <div class="demo-badge">DEMO TABLE</div>
+        <div class="timer" id="timerWrap">
+          <svg viewBox="0 0 66 66">
+            <circle class="track" cx="33" cy="33" r="27"/>
+            <circle class="prog" id="timerProg" cx="33" cy="33" r="27" stroke-dasharray="169.6" stroke-dashoffset="0"/>
+          </svg>
+          <div class="num" id="timerNum">30</div>
+        </div>
+      </div>
+
+      <div class="chiprail" id="chipRail">
+        <button class="act-btn" id="btnClear">취소</button>
+        <button class="chip-btn" data-v="25"><span>25</span></button>
+        <button class="chip-btn" data-v="100"><span>100</span></button>
+        <button class="chip-btn" data-v="500"><span>500</span></button>
+        <button class="chip-btn" data-v="1000"><span>1K</span></button>
+        <button class="chip-btn" data-v="10000"><span>10K</span></button>
+        <button class="chip-btn selected" data-v="100000"><span>100K</span></button>
+        <button class="chip-btn" data-v="500000"><span>500K</span></button>
+        <button class="chip-btn" data-v="1000000"><span>1M</span></button>
+        <div class="bet-total" id="betTotal">배팅액 0</div>
+        <button class="act-btn primary" id="btnConfirm">베팅완료</button>
+        <button class="act-btn" id="btnRepeat">반복</button>
+      </div>
+    </div>
+
+    <!-- ===== SIDE: TALLY + BOARD + ROADMAPS ===== -->
+    <div class="side-col">
+      <div class="tally">
+        <div class="item"><span class="dot P">P</span><span id="tallyP">0</span></div>
+        <div class="item"><span class="dot B">B</span><span id="tallyB">0</span></div>
+        <div class="item"><span class="dot T">T</span><span id="tallyT">0</span></div>
+        <div style="flex:1"></div>
+        <div style="font-size:12px;color:var(--text-dim)">보유 포인트 <b class="num" style="color:var(--gold)" id="ptBalance">1,000,000</b></div>
+      </div>
+
+      <div class="board" id="board">
+        <div class="board-top">
+          <div class="bet-zone zone-top zone-pp" data-zone="playerpair" data-odds="11" data-payout="11:1">
+            <div class="cnt">👤 0</div>
+            <div class="pct">0%</div>
+            <div class="lbl">플레이어 페어</div>
+            <div class="odds">11:1</div>
+            <div class="stack">0</div>
+          </div>
+          <div class="bet-zone zone-top zone-tie" data-zone="tie" data-odds="8" data-payout="8:1">
+            <div class="cnt">👤 0</div>
+            <div class="pct">0%</div>
+            <div class="lbl">타이</div>
+            <div class="odds">8:1</div>
+            <div class="stack">0</div>
+          </div>
+          <div class="bet-zone zone-top zone-bp" data-zone="bankerpair" data-odds="11" data-payout="11:1">
+            <div class="cnt">👤 0</div>
+            <div class="pct">0%</div>
+            <div class="lbl">뱅커 페어</div>
+            <div class="odds">11:1</div>
+            <div class="stack">0</div>
+          </div>
+        </div>
+        <div class="board-bottom">
+          <div class="bet-zone zone-player" data-zone="player" data-odds="1" data-payout="1:1">
+            <div class="big">플레이어</div>
+            <div class="odds-b">1:1</div>
+            <div class="subcnt">👤 0</div>
+            <div class="stack">0</div>
+          </div>
+          <div class="bet-zone zone-banker" data-zone="banker" data-odds="0.95" data-payout="0.95:1">
+            <div class="big">뱅커</div>
+            <div class="odds-b">0.95:1</div>
+            <div class="subcnt">👤 0</div>
+            <div class="stack">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="roadmaps">
+        <div class="rm-row">
+          <div class="rm-panel beadplate" id="beadplate"></div>
+          <div class="rm-panel bigroad" id="bigroad"></div>
+        </div>
+        <div class="rm-labels"><div class="beadplate-lbl">구슬판</div><div class="bigroad-lbl">빅로드</div></div>
+        <div class="derived-row">
+          <div class="rm-panel derived-panel" id="eyeRoad"></div>
+          <div class="rm-panel derived-panel" id="smallRoad"></div>
+          <div class="rm-panel derived-panel" id="roachRoad"></div>
+        </div>
+        <div class="rm-labels">
+          <div style="flex:1">빅 아이 보이</div><div style="flex:1">스몰 로드</div><div style="flex:1">칵로치 로드</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Desktop game footer ===== -->
+<div class="gamefooter">
+  <div class="hn"><span class="sq"></span>HANN</div>
+  <span>라운드 번호 : <b id="roundNo">122</b></span>
+  <span>슈 번호 : <b id="shoeNo">1</b></span>
+  <div class="sp"></div>
+  <button class="ic" title="히스토리"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></button>
+  <button class="ic" title="채팅"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 21l3-3"/></svg></button>
+</div>
+
+<!-- ===== Mobile user footer ===== -->
+<div class="userfooter">
+  <div class="who"><span class="av">👤</span><span>opstest</span><span class="pt" id="ptBalanceMobile">P 0</span></div>
+  <div class="actions">
+    <button class="ic" title="히스토리"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></button>
+    <button class="ic" title="메뉴"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var html = document.documentElement;
+
+  /* ---------- theme / board persistence ---------- */
+  var savedTheme = localStorage.getItem('bc-theme') || 'dark';
+  var savedBoard = localStorage.getItem('bc-board') || 'classic';
+  html.setAttribute('data-theme', savedTheme);
+  html.setAttribute('data-board', savedBoard);
+
+  function setActiveSeg(seg, val){
+    seg.querySelectorAll('button').forEach(function(b){ b.classList.toggle('active', b.dataset.v === val); });
+  }
+  var segTheme = document.getElementById('segTheme');
+  var segBoard = document.getElementById('segBoard');
+  setActiveSeg(segTheme, savedTheme);
+  setActiveSeg(segBoard, savedBoard);
+
+  segTheme.addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    html.setAttribute('data-theme', b.dataset.v);
+    localStorage.setItem('bc-theme', b.dataset.v);
+    setActiveSeg(segTheme, b.dataset.v);
+  });
+  segBoard.addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    html.setAttribute('data-board', b.dataset.v);
+    localStorage.setItem('bc-board', b.dataset.v);
+    setActiveSeg(segBoard, b.dataset.v);
+  });
+
+  var settingsPop = document.getElementById('settingsPop');
+  document.getElementById('btnSettings').addEventListener('click', function(e){
+    e.stopPropagation();
+    settingsPop.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e){
+    if(!settingsPop.contains(e.target)) settingsPop.classList.remove('open');
+  });
+
+  /* ---------- fullscreen / mute ---------- */
+  window.toggleFullscreen = function(){
+    var el = document.getElementById('videoWrap');
+    if(!document.fullscreenElement){ el.requestFullscreen && el.requestFullscreen(); }
+    else{ document.exitFullscreen && document.exitFullscreen(); }
+  };
+  document.getElementById('btnMute').addEventListener('click', function(){
+    this.classList.toggle('muted');
+  });
+
+  /* ---------- balance / chips / bets ---------- */
+  var balance = parseInt(localStorage.getItem('bc-balance') || '1000000', 10);
+  var selectedChip = 100000;
+  var pendingBets = {};   // zone -> amount (this round, unconfirmed)
+  var confirmedBets = {}; // zone -> amount (locked in)
+  var lastConfirmed = {};
+  var locked = false;
+
+  var fmt = function(n){ return n.toLocaleString('en-US'); };
+
+  function renderBalance(){
+    document.getElementById('ptBalance').textContent = fmt(balance);
+    document.getElementById('ptBalanceTop').textContent = 'P ' + fmt(balance);
+    document.getElementById('ptBalanceMobile').textContent = 'P ' + fmt(balance);
+    localStorage.setItem('bc-balance', balance);
+  }
+  renderBalance();
+
+  document.querySelectorAll('.chip-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.chip-btn').forEach(function(c){ c.classList.remove('selected'); });
+      btn.classList.add('selected');
+      selectedChip = parseInt(btn.dataset.v, 10);
+    });
+  });
+
+  function renderStacks(){
+    document.querySelectorAll('.bet-zone').forEach(function(z){
+      var zone = z.dataset.zone;
+      var amt = (pendingBets[zone]||0) + (confirmedBets[zone]||0);
+      var stackEl = z.querySelector('.stack');
+      z.classList.toggle('armed', !!pendingBets[zone]);
+      if(amt>0){ stackEl.textContent = fmt(amt); stackEl.classList.add('show'); }
+      else { stackEl.classList.remove('show'); }
+    });
+    var total = 0;
+    Object.keys(pendingBets).forEach(function(k){ total += pendingBets[k]; });
+    document.getElementById('betTotal').textContent = '배팅액 ' + fmt(total);
+  }
+
+  document.querySelectorAll('.bet-zone').forEach(function(z){
+    z.addEventListener('click', function(){
+      if(locked) return;
+      var zone = z.dataset.zone;
+      if(selectedChip > balance) return;
+      pendingBets[zone] = (pendingBets[zone]||0) + selectedChip;
+      balance -= selectedChip;
+      renderBalance();
+      renderStacks();
+    });
+  });
+
+  document.getElementById('btnClear').addEventListener('click', function(){
+    if(locked) return;
+    var refund = 0;
+    Object.keys(pendingBets).forEach(function(k){ refund += pendingBets[k]; });
+    balance += refund;
+    pendingBets = {};
+    renderBalance();
+    renderStacks();
+  });
+
+  document.getElementById('btnConfirm').addEventListener('click', function(){
+    if(locked) return;
+    Object.keys(pendingBets).forEach(function(k){
+      confirmedBets[k] = (confirmedBets[k]||0) + pendingBets[k];
+    });
+    lastConfirmed = Object.assign({}, confirmedBets);
+    pendingBets = {};
+    renderStacks();
+  });
+
+  document.getElementById('btnRepeat').addEventListener('click', function(){
+    if(locked) return;
+    var cost = 0;
+    Object.keys(lastConfirmed).forEach(function(k){ cost += lastConfirmed[k]; });
+    if(cost > balance || cost === 0) return;
+    Object.keys(lastConfirmed).forEach(function(k){
+      confirmedBets[k] = (confirmedBets[k]||0) + lastConfirmed[k];
+    });
+    balance -= cost;
+    renderBalance();
+    renderStacks();
+  });
+
+  /* ---------- road map data + rendering ---------- */
+  var history = [];          // sequence of 'P'/'B'/'T'
+  var bigRoadCols = [];       // array of columns; each col: array of {res:'P'|'B', ties:0}
+  var counts = {P:0,B:0,T:0};
+
+  function renderBeadPlate(){
+    var el = document.getElementById('beadplate');
+    el.innerHTML = '';
+    history.forEach(function(r){
+      var cell = document.createElement('div'); cell.className = 'cell';
+      var m = document.createElement('div'); m.className = 'bead-mark ' + r; m.textContent = r;
+      cell.appendChild(m); el.appendChild(cell);
+    });
+    el.scrollLeft = el.scrollWidth;
+  }
+
+  function renderBigRoad(){
+    var el = document.getElementById('bigroad');
+    el.innerHTML = '';
+    var maxRow = 6;
+    bigRoadCols.forEach(function(col, ci){
+      col.forEach(function(entry, ri){
+        var cell = document.createElement('div'); cell.className = 'cell';
+        cell.style.gridColumn = (ci+1); cell.style.gridRow = (ri % maxRow)+1;
+        var m = document.createElement('div'); m.className = 'big-mark ' + entry.res; m.textContent='';
+        if(entry.ties>0){ var s=document.createElement('div'); s.className='tie-slash'; m.appendChild(s); }
+        cell.appendChild(m); el.appendChild(cell);
+      });
+    });
+    el.scrollLeft = el.scrollWidth;
+  }
+
+  function pushBigRoad(res){
+    if(bigRoadCols.length === 0){ bigRoadCols.push([{res:res,ties:0}]); return; }
+    var lastCol = bigRoadCols[bigRoadCols.length-1];
+    var lastEntry = lastCol[lastCol.length-1];
+    if(lastEntry.res === res){
+      if(lastCol.length < 6){ lastCol.push({res:res,ties:0}); }
+      else { bigRoadCols.push([{res:res,ties:0}]); }
+    } else {
+      bigRoadCols.push([{res:res,ties:0}]);
+    }
+  }
+  function tieOnBigRoad(){
+    if(bigRoadCols.length===0) return;
+    var lastCol = bigRoadCols[bigRoadCols.length-1];
+    lastCol[lastCol.length-1].ties++;
+  }
+
+  /* simplified derived-road visualization (decorative approximation, not casino-exact) */
+  var derivedState = {eye:[], small:[], roach:[]};
+  function pushDerived(){
+    if(bigRoadCols.length < 2) return;
+    var lastCol = bigRoadCols[bigRoadCols.length-1];
+    var prevCol = bigRoadCols[bigRoadCols.length-2];
+    var match = lastCol.length === prevCol.length;
+    derivedState.eye.push(match ? 'r' : 'b');
+    if(bigRoadCols.length >= 3){
+      var prev2 = bigRoadCols[bigRoadCols.length-3];
+      derivedState.small.push(prevCol.length === prev2.length ? 'r' : 'b');
+    }
+    if(bigRoadCols.length >= 4){
+      var prev3 = bigRoadCols[bigRoadCols.length-4];
+      derivedState.roach.push(bigRoadCols[bigRoadCols.length-3].length === prev3.length ? 'r' : 'b');
+    }
+  }
+  function renderDerived(id, arr){
+    var el = document.getElementById(id); el.innerHTML='';
+    arr.forEach(function(v){
+      var cell = document.createElement('div'); cell.className='cell';
+      var m = document.createElement('div'); m.className = 'dmark ' + v;
+      cell.appendChild(m); el.appendChild(cell);
+    });
+    el.scrollLeft = el.scrollWidth;
+  }
+
+  function settleBets(result){
+    var payoutMap = {player:1, banker:0.95, tie:8, playerpair:11, bankerpair:11};
+    var winZones = [];
+    if(result.res==='P') winZones.push('player');
+    if(result.res==='B') winZones.push('banker');
+    if(result.res==='T') winZones.push('tie');
+    if(result.pPair) winZones.push('playerpair');
+    if(result.bPair) winZones.push('bankerpair');
+    var winnings = 0;
+    Object.keys(confirmedBets).forEach(function(zone){
+      var amt = confirmedBets[zone];
+      if(!amt) return;
+      var isTie = result.res === 'T';
+      if(winZones.indexOf(zone) !== -1){
+        winnings += amt + Math.round(amt * payoutMap[zone]);
+      } else if(isTie && (zone==='player'||zone==='banker')){
+        winnings += amt; // push on tie for player/banker main bets
+      }
+    });
+    balance += winnings;
+    confirmedBets = {};
+    renderBalance();
+    renderStacks();
+  }
+
+  function updateOddsUI(){
+    document.getElementById('tallyP').textContent = counts.P;
+    document.getElementById('tallyB').textContent = counts.B;
+    document.getElementById('tallyT').textContent = counts.T;
+  }
+
+  function recordResult(res, pPair, bPair){
+    history.push(res);
+    counts[res]++;
+    renderBeadPlate();
+    if(res==='T'){ tieOnBigRoad(); } else { pushBigRoad(res); }
+    renderBigRoad();
+    pushDerived();
+    renderDerived('eyeRoad', derivedState.eye);
+    renderDerived('smallRoad', derivedState.small);
+    renderDerived('roachRoad', derivedState.roach);
+    updateOddsUI();
+    settleBets({res:res, pPair:pPair, bPair:bPair});
+  }
+
+  /* ---------- round / timer cycle ---------- */
+  var TOTAL = 30;
+  var timeLeft = TOTAL;
+  var timerProg = document.getElementById('timerProg');
+  var timerNum = document.getElementById('timerNum');
+  var msgOverlay = document.getElementById('msgOverlay');
+  var CIRC = 169.6;
+  var roundNo = 122, shoeNo = 1;
+
+  function setRoundLabels(){
+    document.getElementById('roundNo').textContent = roundNo;
+    document.getElementById('roundNoM').textContent = roundNo;
+    document.getElementById('shoeNo').textContent = shoeNo;
+    document.getElementById('shoeNoM').textContent = shoeNo;
+  }
+  setRoundLabels();
+
+  function weightedResult(){
+    var r = Math.random();
+    var res = r < 0.4462 ? 'P' : (r < 0.4462+0.4585 ? 'B' : 'T');
+    var pPair = Math.random() < 0.0745;
+    var bPair = Math.random() < 0.0745;
+    return {res:res, pPair:pPair, bPair:bPair};
+  }
+
+  function tick(){
+    timeLeft--;
+    if(timeLeft <= 5 && timeLeft > 0){
+      msgOverlay.textContent = '곧 베팅이 마감됩니다.';
+      timerProg.style.stroke = 'var(--red)';
+    }
+    if(timeLeft <= 0){
+      locked = true;
+      msgOverlay.textContent = '카드를 나눕니다...';
+      timerNum.textContent = '';
+      setTimeout(function(){
+        var r = weightedResult();
+        recordResult(r.res, r.pPair, r.bPair);
+        if(history.length % 60 === 0){ shoeNo++; history.length=0; bigRoadCols=[]; counts={P:0,B:0,T:0};
+          derivedState={eye:[],small:[],roach:[]}; renderBeadPlate(); renderBigRoad();
+          renderDerived('eyeRoad',[]); renderDerived('smallRoad',[]); renderDerived('roachRoad',[]); }
+        roundNo++;
+        setRoundLabels();
+        locked = false;
+        timeLeft = TOTAL;
+        msgOverlay.textContent = '베팅하세요.';
+        timerProg.style.stroke = 'var(--green)';
+      }, 2200);
+      return;
+    }
+    timerNum.textContent = timeLeft;
+    var offset = CIRC * (1 - timeLeft/TOTAL);
+    timerProg.style.strokeDashoffset = offset;
+  }
+  setInterval(tick, 1000);
+
+  /* seed a bit of demo history so roadmaps aren't empty on load */
+  (function seed(){
+    var seedSeq = ['B','P','B','P','P','T','P','T','P','P','B','B','B','P','B','P','P','B','T','B'];
+    seedSeq.forEach(function(r){
+      history.push(r); counts[r]++;
+      if(r==='T'){ tieOnBigRoad(); } else { pushBigRoad(r); }
+      pushDerived();
+    });
+    renderBeadPlate(); renderBigRoad();
+    renderDerived('eyeRoad', derivedState.eye);
+    renderDerived('smallRoad', derivedState.small);
+    renderDerived('roachRoad', derivedState.roach);
+    updateOddsUI();
+  })();
+
+  renderStacks();
+})();
+</script>
+</body>
+</html>

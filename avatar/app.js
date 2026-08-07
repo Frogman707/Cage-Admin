@@ -16,7 +16,10 @@ let STATE = {
   selectedChip: CHIP_VALUES[0],
   history: [], // 'player'|'banker'|'tie' oldest..newest
   currentRoundId: null, timerHandle: null, chatUnsub: null,
+  myBetLog: [], // {roundNo, bets:{type:amt}, result, payout} newest first
 };
+const BET_LABEL = {player:'플레이어', banker:'뱅커', tie:'타이', playerPair:'플레이어 페어', bankerPair:'뱅커 페어'};
+let LOBBY_DATA = null;
 
 window.addEventListener('DOMContentLoaded', ()=>{
   db = cageInitFirebase();
@@ -87,40 +90,92 @@ async function goLobby(){
   document.getElementById('viewTable').style.display = 'none';
   const lobby = document.getElementById('viewLobby');
   lobby.style.display = 'block';
-  lobby.innerHTML = `<div class="lobby-wrap"><div class="lobby-title">아바타 테이블</div><div class="lobby-grid" id="lobbyGrid"><div class="spin"></div></div></div>`;
-  const snap = await db.collection('tables').where('type','==',TABLE_TYPE).get();
-  const tables = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(t=>t.status==='open');
+  lobby.innerHTML = `
+    <div class="lobby-wrap">
+      <div class="lobby-title">아바타 테이블</div>
+      <div class="lobby-toolbar">
+        <label class="hint" style="margin:0;">정렬</label>
+        <select id="lobbySort" onchange="renderLobbyGrid(this.value)">
+          <option value="popular">인기순 (베팅총액)</option>
+          <option value="today">오늘 베팅액순</option>
+          <option value="hot">좋은 흐름순</option>
+          <option value="name">테이블명순</option>
+        </select>
+      </div>
+      <div class="lobby-grid" id="lobbyGrid"><div class="spin"></div></div>
+    </div>`;
+  const [tableSnap, roundsSnap, betSnap] = await Promise.all([
+    db.collection('tables').where('type','==',TABLE_TYPE).get(),
+    db.collection('rounds').where('tableType','==',TABLE_TYPE).get(),
+    db.collection('memberLedger').where('category','==','bet').get(), // single equality filter only - no composite index needed
+  ]);
+  const tables = tableSnap.docs.map(d=>({id:d.id, ...d.data()})).filter(t=>t.status==='open');
+  LOBBY_DATA = {
+    tables,
+    rounds: roundsSnap.docs.map(d=>d.data()),
+    bets: betSnap.docs.map(d=>d.data()),
+  };
+  if (!tables.length){ document.getElementById('lobbyGrid').innerHTML = `<p class="hint">열려있는 아바타 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.</p>`; return; }
+  renderLobbyGrid('popular');
+}
+function renderLobbyGrid(sortMode){
+  if (!LOBBY_DATA) return;
   const grid = document.getElementById('lobbyGrid');
-  if (!tables.length){ grid.innerHTML = `<p class="hint">열려있는 아바타 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.</p>`; return; }
-  const roundsSnap = await db.collection('rounds').where('tableType','==',TABLE_TYPE).get();
-  const allRounds = roundsSnap.docs.map(d=>d.data());
-  grid.innerHTML = tables.map(t=>{
-    const recent = allRounds.filter(r=>r.tableId===t.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt)).slice(-12);
+  const rows = LOBBY_DATA.tables.map(t=>{
+    const tableRounds = LOBBY_DATA.rounds.filter(r=>r.tableId===t.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+    const results = tableRounds.map(r=>r.result);
+    const tableBets = LOBBY_DATA.bets.filter(b=>b.relatedTableId===t.id);
+    const wins = tableWinCounts(results);
+    const streak = trailingStreak(results);
+    const volume = tableBetVolume(tableBets);
+    return {t, results, wins, streak, volume};
+  });
+  const sorted = rows.slice().sort((a,b)=>{
+    if (sortMode==='today') return b.volume.today - a.volume.today;
+    if (sortMode==='hot') return b.streak.len - a.streak.len;
+    if (sortMode==='name') return a.t.name.localeCompare(b.t.name);
+    return b.volume.total - a.volume.total; // popular (default)
+  });
+  grid.innerHTML = sorted.map(({t, results, wins, streak, volume})=>{
+    const cols = buildBigRoad(results.slice(-40));
+    const isHot = streak.len >= 3;
     return `
     <div class="lobby-card" onclick="enterTable('${t.id}')">
-      <div class="thumb"><div class="live-dot"><span></span>LIVE</div><div class="badge-type">AVATAR</div><div class="felt"></div></div>
+      <div class="thumb">
+        <div class="live-dot"><span></span>LIVE</div>
+        <div class="badge-type">AVATAR</div>
+        <div class="felt"></div>
+        ${isHot ? `<div class="hot-badge">🔥 ${streak.len}연속 ${streak.side==='player'?'플레이어':'뱅커'}</div>` : ''}
+      </div>
       <div class="info"><div class="name">${escapeHtml(t.name)}</div><div class="limits">${t.casino} · ${fmtNum(t.betMin)} ~ ${fmtNum(t.betMax)}</div></div>
-      <div class="mini-road">${recent.map(r=>`<span class="${r.result}"></span>`).join('') || '<span class="hint" style="font-size:10px;">기록 없음</span>'}</div>
+      <div class="mini-road br-grid">${renderBigRoad(cols, 4) || '<span class="hint" style="font-size:10px;">기록 없음</span>'}</div>
+      <div class="stat-row"><span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>오늘 <b>${fmtNum(volume.today)}</b></span></div>
     </div>`;
   }).join('');
 }
 
 /* ---------------- table ---------------- */
 async function enterTable(tableId){
+  document.getElementById('viewLobby').style.display = 'none';
+  document.getElementById('lobbyBtn').style.display = 'inline-block';
+  const view = document.getElementById('viewTable');
+  view.style.display = 'block';
+  // unified loading transition regardless of casino/table, per vendor feedback that
+  // loading screens previously looked different across HANN/NUSTAR tables.
+  view.innerHTML = `<div class="table-loading"><div class="spin-lg"></div><div>테이블에 연결 중입니다...</div></div>`;
+
   const doc = await db.collection('tables').doc(tableId).get();
   STATE.table = {id:tableId, ...doc.data()};
   const roundsSnap = await db.collection('rounds').where('tableId','==',tableId).get();
   const rounds = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
   STATE.history = rounds.map(r=>r.result);
   STATE.roundNo = (Math.max(0, ...rounds.map(r=>r.roundNo||0)) || 0) + 1;
+  STATE.myBetLog = [];
 
-  document.getElementById('viewLobby').style.display = 'none';
-  document.getElementById('lobbyBtn').style.display = 'inline-block';
-  const view = document.getElementById('viewTable');
-  view.style.display = 'block';
   view.innerHTML = tableShellHtml();
   renderRoadmap();
   renderRecentResults();
+  renderMyBetHistory();
   mountChat(tableId);
   startRoundLoop();
 }
@@ -166,6 +221,7 @@ function tableShellHtml(){
         <div class="roadmap-legend"><span><i style="background:#4A9FD8;"></i>PLAYER</span><span><i style="background:var(--danger);"></i>BANKER</span><span><i style="background:var(--jade);"></i>TIE</span></div>
       </div>
       <div class="card"><h3>최근 결과</h3><div class="recent-results" id="recentResults"></div></div>
+      <div class="card"><h3>내 베팅내역</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
       <div class="card chat-panel"><h3>채팅</h3>
         <div class="chat-log" id="chatLog"></div>
         <div class="chat-input-row"><input id="chatInput" placeholder="메시지 입력..." onkeydown="if(event.key==='Enter')sendChat()"><button class="btn btn-sm btn-gold" onclick="sendChat()">전송</button></div>
@@ -283,10 +339,12 @@ async function beginResultPhase(){
 
   // settle
   let totalPayout = 0;
+  const myBetsThisRound = {};
   for (const [betType, amount] of Object.entries(STATE.bets)){
     if (amount <= 0) continue;
     const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId:STATE.table.id, roundId:STATE.currentRoundId, betType, amount, resultInfo:sim});
     totalPayout += payout;
+    myBetsThisRound[betType] = {amount, payout};
   }
   if (totalPayout > 0){ STATE.balance += totalPayout; toast(`+${fmtNum(totalPayout)} 획득!`); }
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
@@ -294,9 +352,26 @@ async function beginResultPhase(){
 
   await writeRoundDoc(db, {tableId:STATE.table.id, tableType:TABLE_TYPE, roundNo:STATE.roundNo, shoeNo:STATE.table.shoeNo||1, sim, startedAt:new Date(Date.now()-(BETTING_SECONDS+DEALING_SECONDS)*1000).toISOString()});
   STATE.history.push(sim.result);
+  if (Object.keys(myBetsThisRound).length){
+    STATE.myBetLog.unshift({roundNo:STATE.roundNo, bets:myBetsThisRound, result:sim.result});
+    STATE.myBetLog = STATE.myBetLog.slice(0, 15);
+    renderMyBetHistory();
+  }
   STATE.roundNo++;
   renderRoadmap();
   renderRecentResults();
+}
+function renderMyBetHistory(){
+  const el = document.getElementById('myBetHistory'); if (!el) return;
+  if (!STATE.myBetLog.length){ el.innerHTML = `<span class="hint">아직 베팅 내역이 없습니다</span>`; return; }
+  el.innerHTML = STATE.myBetLog.map(entry=>{
+    const lines = Object.entries(entry.bets).map(([type,info])=>{
+      const net = info.payout - info.amount;
+      const cls = net > 0 ? 'pos' : net < 0 ? 'neg' : '';
+      return `<div class="row"><span>#${entry.roundNo} ${BET_LABEL[type]} ${fmtNum(info.amount)}</span><span class="${cls}">${net===0 ? '푸시' : fmtSigned(net)}</span></div>`;
+    }).join('');
+    return lines;
+  }).join('');
 }
 async function refreshPointsQuiet(){
   const b = await getPlayerBalance(db, PLAYER.id);

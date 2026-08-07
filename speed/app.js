@@ -13,6 +13,9 @@ let selectedChip = CHIP_VALUES[0];
 let TABLES = {}; // tableId -> table meta
 let TSTATE = {}; // tableId -> round state
 let GLOBAL_TICK = null;
+let ALL_BETS = []; // memberLedger bet rows across all speed tables, refreshed on load
+const BET_LABEL = {player:'플레이어', banker:'뱅커', tie:'타이'};
+let MY_BET_LOG = []; // {tableName, roundNo, betType, amount, payout} newest first
 
 window.addEventListener('DOMContentLoaded', ()=>{
   db = cageInitFirebase();
@@ -66,6 +69,7 @@ async function enterApp(){
   await refreshBalance();
   renderChipTray();
   await loadTables();
+  renderMyBetHistory();
   GLOBAL_TICK = setInterval(tickAll, 1000);
 }
 async function refreshBalance(){
@@ -91,12 +95,17 @@ function selectChip(v){ selectedChip = v; document.querySelectorAll('#chipTray .
 
 /* ---------------- load speed tables & init per-table state ---------------- */
 async function loadTables(){
-  const snap = await db.collection('tables').where('type','==',TABLE_TYPE).get();
-  const tables = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(t=>t.status==='open');
   const grid = document.getElementById('speedGrid');
+  grid.innerHTML = `<div class="table-loading" style="grid-column:1/-1;height:200px;"><div class="spin-lg"></div><div>테이블에 연결 중입니다...</div></div>`;
+  const [tableSnap, roundsSnap, betSnap] = await Promise.all([
+    db.collection('tables').where('type','==',TABLE_TYPE).get(),
+    db.collection('rounds').where('tableType','==',TABLE_TYPE).get(),
+    db.collection('memberLedger').where('category','==','bet').get(), // single equality filter only - no composite index needed
+  ]);
+  const tables = tableSnap.docs.map(d=>({id:d.id, ...d.data()})).filter(t=>t.status==='open');
   if (!tables.length){ grid.innerHTML = `<p class="hint">열려있는 스피드 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.</p>`; return; }
-  const roundsSnap = await db.collection('rounds').where('tableType','==',TABLE_TYPE).get();
   const allRounds = roundsSnap.docs.map(d=>d.data());
+  ALL_BETS = betSnap.docs.map(d=>d.data());
 
   grid.innerHTML = tables.map(t=>speedTileHtml(t)).join('');
   tables.forEach(t=>{
@@ -110,12 +119,14 @@ async function loadTables(){
     };
     renderTileMiniRoad(t.id);
     renderTileBets(t.id);
+    renderTileStats(t.id);
   });
 }
 function speedTileHtml(t){
   return `
-  <div class="speed-tile" id="tile-${t.id}">
+  <div class="speed-tile" id="tile-${t.id}" style="position:relative;">
     <div class="head"><span class="name">${escapeHtml(t.name)}</span><span class="shoe">SHOE #${t.shoeNo||1} · ${t.casino}</span></div>
+    <div id="hotbadge-${t.id}"></div>
     <div class="speed-mini-stage" id="stage-${t.id}"><div class="phase-txt" id="phase-${t.id}">베팅하세요</div><div class="speed-timer" id="timer-${t.id}">15</div></div>
     <div class="speed-bets">
       <div class="bet-spot player" id="spot-${t.id}-player" onclick="placeBetSpot('${t.id}','player')"><div class="label">P</div><div class="odds">1:1</div><div class="my-bet" id="mybet-${t.id}-player"></div></div>
@@ -123,12 +134,24 @@ function speedTileHtml(t){
       <div class="bet-spot banker" id="spot-${t.id}-banker" onclick="placeBetSpot('${t.id}','banker')"><div class="label">B</div><div class="odds">.95:1</div><div class="my-bet" id="mybet-${t.id}-banker"></div></div>
     </div>
     <div class="speed-mini-road" id="road-${t.id}"></div>
+    <div class="speed-tile-stats" id="stats-${t.id}"></div>
   </div>`;
 }
 function renderTileMiniRoad(tableId){
   const el = document.getElementById('road-'+tableId); if (!el) return;
-  const recent = TSTATE[tableId].history.slice(-24);
-  el.innerHTML = recent.map(r=>`<span class="${r}"></span>`).join('') || `<span class="hint" style="font-size:9px;">기록 없음</span>`;
+  const results = TSTATE[tableId].history;
+  const cols = buildBigRoad(results.slice(-40));
+  el.innerHTML = renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">기록 없음</span>`;
+}
+function renderTileStats(tableId){
+  const results = TSTATE[tableId].history;
+  const wins = tableWinCounts(results);
+  const streak = trailingStreak(results);
+  const volume = tableBetVolume(ALL_BETS.filter(b=>b.relatedTableId===tableId));
+  const statsEl = document.getElementById('stats-'+tableId);
+  if (statsEl) statsEl.innerHTML = `<span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>오늘 <b>${fmtNum(volume.today)}</b></span>`;
+  const badgeEl = document.getElementById('hotbadge-'+tableId);
+  if (badgeEl) badgeEl.innerHTML = streak.len >= 3 ? `<div class="speed-hot-badge">🔥 ${streak.len}연속</div>` : '';
 }
 function renderTileBets(tableId){
   const s = TSTATE[tableId];
@@ -204,7 +227,10 @@ async function beginResult(tableId){
     if (amount <= 0) continue;
     const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, resultInfo:sim});
     totalPayout += payout;
+    MY_BET_LOG.unshift({tableName:t.name, roundNo:s.roundNo, betType, amount, payout});
+    ALL_BETS.push({relatedTableId:tableId, amount:-amount, category:'bet', createdAt:new Date().toISOString()});
   }
+  if (MY_BET_LOG.length){ MY_BET_LOG = MY_BET_LOG.slice(0, 20); renderMyBetHistory(); }
   if (totalPayout > 0){ window.PLAYER_BALANCE += totalPayout; toast(`[${t.name}] +${fmtNum(totalPayout)} 획득!`); }
   document.getElementById('hdrBalance').textContent = fmtNum(window.PLAYER_BALANCE);
 
@@ -212,4 +238,14 @@ async function beginResult(tableId){
   s.history.push(sim.result);
   s.roundNo++;
   renderTileMiniRoad(tableId);
+  renderTileStats(tableId);
+}
+function renderMyBetHistory(){
+  const el = document.getElementById('myBetHistory'); if (!el) return;
+  if (!MY_BET_LOG.length){ el.innerHTML = `<span class="hint">아직 베팅 내역이 없습니다</span>`; return; }
+  el.innerHTML = MY_BET_LOG.map(b=>{
+    const net = b.payout - b.amount;
+    const cls = net > 0 ? 'pos' : net < 0 ? 'neg' : '';
+    return `<div class="row"><span>[${escapeHtml(b.tableName)}] #${b.roundNo} ${BET_LABEL[b.betType]} ${fmtNum(b.amount)}</span><span class="${cls}">${net===0 ? '푸시' : fmtSigned(net)}</span></div>`;
+  }).join('');
 }

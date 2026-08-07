@@ -29,11 +29,19 @@
 .lobby-card .info{padding:12px 14px;}
 .lobby-card .info .name{font-weight:700;font-size:14px;color:var(--ink);}
 .lobby-card .info .limits{font-size:11px;color:var(--ink-faint);margin-top:4px;font-family:var(--mono);}
-.lobby-card .mini-road{display:flex;gap:2px;padding:8px 14px 12px;flex-wrap:wrap;}
-.lobby-card .mini-road span{width:8px;height:8px;border-radius:50%;}
-.lobby-card .mini-road span.player{background:#4A9FD8;}
-.lobby-card .mini-road span.banker{background:var(--danger);}
-.lobby-card .mini-road span.tie{background:var(--jade);}
+.lobby-card .mini-road{display:flex;gap:1px;padding:8px 14px 4px;overflow-x:hidden;}
+.lobby-card .mini-road .br-col{gap:1px;}
+.lobby-card .mini-road .br-cell{width:8px;height:8px;}
+.lobby-card .mini-road .br-cell.tie-only{width:6px;height:6px;}
+.lobby-card .mini-road .br-tie{border-width:1px;}
+.lobby-card .stat-row{display:flex;justify-content:space-between;padding:2px 14px 10px;font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);}
+.lobby-card .stat-row b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
+.hot-badge{position:absolute;bottom:8px;right:8px;background:linear-gradient(135deg,#F0DBA8,#B8863A);color:#071120;font-size:9.5px;font-weight:800;padding:3px 8px;border-radius:10px;display:flex;align-items:center;gap:3px;}
+.lobby-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.lobby-toolbar select{background:var(--panel-raised);color:var(--ink);border:1px solid var(--line);padding:7px 10px;border-radius:var(--radius);font-size:12.5px;}
+.table-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:14px;color:var(--ink-dim);font-size:13px;}
+.table-loading .spin-lg{width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--brass);border-radius:50%;animation:sp .7s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
 
 /* ---- table stage ---- */
 .table-shell{display:flex;gap:14px;padding:16px;height:calc(100vh - 58px);box-sizing:border-box;}

@@ -22,12 +22,18 @@ body{overflow:auto;}
 .speed-bets{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;}
 .speed-bets .bet-spot{padding:8px 4px;}
 .speed-bets .bet-spot .label{font-size:12.5px;}
-.speed-mini-road{display:flex;gap:2px;flex-wrap:wrap;}
-.speed-mini-road span{width:9px;height:9px;border-radius:50%;}
-.speed-mini-road span.player{background:#4A9FD8;}
-.speed-mini-road span.banker{background:var(--danger);}
-.speed-mini-road span.tie{background:var(--jade);}
+/* unified Big Road grid style (same as /avatar) instead of a plain dot row, per vendor feedback */
+.speed-mini-road{display:flex;gap:1px;overflow-x:hidden;margin-bottom:8px;}
+.speed-mini-road .br-col{gap:1px;}
+.speed-mini-road .br-cell{width:7px;height:7px;}
+.speed-mini-road .br-cell.tie-only{width:5px;height:5px;}
+.speed-mini-road .br-tie{border-width:1px;}
+.speed-tile-stats{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-faint);font-family:var(--mono);margin-bottom:2px;}
+.speed-tile-stats b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
+.speed-hot-badge{position:absolute;top:6px;left:8px;background:linear-gradient(135deg,#F0DBA8,#B8863A);color:#071120;font-size:9px;font-weight:800;padding:2px 7px;border-radius:9px;z-index:2;}
 .chip-tray-fixed{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--brass-dim);padding:10px 20px;display:flex;justify-content:center;}
+.speed-mybets{margin-top:18px;}
+.speed-mybets .bet-history-mini{max-height:200px;overflow-y:auto;}
 </style>
 </head>
 <body>
@@ -71,6 +77,7 @@ body{overflow:auto;}
   <div class="speed-wrap">
     <div class="lobby-title">스피드 테이블 <span style="font-size:11px;color:var(--ink-faint);font-weight:400;">— 여러 테이블을 동시에 베팅할 수 있습니다</span></div>
     <div class="speed-grid" id="speedGrid"><div class="spin"></div></div>
+    <div class="card speed-mybets"><h3>내 베팅내역</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
   </div>
   <div class="chip-tray-fixed" id="chipTray"></div>
 </div>

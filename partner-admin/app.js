@@ -1025,9 +1025,14 @@ function openAvatarDetailSettings(){
 }
 async function renderRoundEdit(){
   return mountListView({
-    title:'게임라운드수정', coll:'rounds', search:true, searchFields:['tableId'], searchPh:'테이블ID 검색',
-    columns:[{key:'startedAt', label:'시간', type:'dt'}, {key:'tableId', label:'테이블'}, {key:'roundNo', label:'라운드'}, {key:'result', label:'결과', render:r=>pill(r.result==='player'?'플레이어':r.result==='banker'?'뱅커':'타이',{플레이어:'ok',뱅커:'bad',타이:'warn'})}],
-    rowActions: r => `<button class="btn btn-xs" onclick="openRoundEditModal('${r.id}','${r.result}')">결과 수정</button>`,
+    title:'게임라운드수정', sub:'특수 케이스(오배당, 엔젤아이 인식오류, 셔플로 인한 결과 미반영 등)는 라운드 취소로 베팅을 전액 환불 처리합니다.',
+    coll:'rounds', search:true, searchFields:['tableId'], searchPh:'테이블ID 검색',
+    columns:[
+      {key:'startedAt', label:'시간', type:'dt'}, {key:'tableId', label:'테이블'}, {key:'roundNo', label:'라운드'},
+      {key:'result', label:'결과', render:r=>pill(r.result==='player'?'플레이어':r.result==='banker'?'뱅커':'타이',{플레이어:'ok',뱅커:'bad',타이:'warn'})},
+      {key:'cancelled', label:'상태', render:r=>r.cancelled ? pill('취소됨',{'취소됨':'bad'}) : pill('정상',{정상:'ok'})},
+    ],
+    rowActions: r => r.cancelled ? `<span class="hint">환불완료</span>` : `<button class="btn btn-xs" onclick="openRoundEditModal('${r.id}','${r.result}')">결과 수정</button> <button class="btn btn-xs btn-danger" onclick="openRoundCancelModal('${r.id}','${r.tableId}')">라운드 취소</button>`,
     sortKey:'startedAt', sortDir:'desc',
   });
 }
@@ -1043,6 +1048,47 @@ function openRoundEditModal(id, cur){
     closeModal('modal-form'); toast('수정되었습니다'); switchView(CURRENT_VIEW);
   };
   openModal('modal-form');
+}
+function openRoundCancelModal(roundId, tableId){
+  document.getElementById('formModalTitle').textContent = `라운드 취소 · ${roundId.slice(0,8)}`;
+  document.getElementById('formModalBody').innerHTML = `
+    <p class="hint">이 라운드에 걸린 모든 베팅을 전액 환불하고(지급된 페이아웃은 회수), 라운드를 취소 상태로 표시합니다.</p>
+    <div class="field"><label>취소 사유</label><select id="rcReason">
+      <option value="딜링 오류 (카드 뒤집힘/오배당)">딜링 오류 (카드 뒤집힘/오배당)</option>
+      <option value="엔젤아이 인식 오류">엔젤아이 인식 오류</option>
+      <option value="장비 이상으로 인한 재셔플">장비 이상으로 인한 재셔플</option>
+      <option value="기타">기타</option>
+    </select></div>
+    <div class="checkbox-row" style="margin-top:10px;"><input type="checkbox" id="rcNotice" checked> 해당 테이블에 인게임공지 등록</div>
+  `;
+  document.getElementById('formModalSubmitBtn').onclick = async ()=>{ await submitRoundCancel(roundId, tableId); };
+  openModal('modal-form');
+}
+async function submitRoundCancel(roundId, tableId){
+  const reason = document.getElementById('rcReason').value;
+  const pushNotice = document.getElementById('rcNotice').checked;
+  // single equality filter (relatedRoundId) only - avoids needing a composite Firestore index
+  const snap = await db.collection('memberLedger').where('relatedRoundId','==',roundId).get();
+  let refunded = 0, clawedBack = 0;
+  for (const d of snap.docs){
+    const r = d.data();
+    if (r.category==='bet'){
+      await db.collection('memberLedger').doc(uuidv4()).set({memberId:r.memberId, casino:r.casino, amount:Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 환불 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:new Date().toISOString()});
+      refunded += Math.abs(r.amount);
+    } else if (r.category==='payout'){
+      await db.collection('memberLedger').doc(uuidv4()).set({memberId:r.memberId, casino:r.casino, amount:-Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 페이아웃 회수 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:new Date().toISOString()});
+      clawedBack += Math.abs(r.amount);
+    }
+  }
+  await db.collection('rounds').doc(roundId).set({cancelled:true, cancelReason:reason, cancelledBy:CURRENT_STAFF?.id||'—', cancelledAt:new Date().toISOString()}, {merge:true});
+  if (pushNotice){
+    await db.collection('inGameNotices').doc(uuidv4()).set({text:`[${tableId}] 라운드 취소 안내: ${reason}로 인해 해당 라운드가 취소되어 베팅이 전액 환불되었습니다.`, tableType:'all', active:true, dt:new Date().toISOString()});
+  }
+  await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:`라운드 취소 (환불 ${fmtNum(refunded)}, 회수 ${fmtNum(clawedBack)})`, target:roundId, dt:new Date().toISOString()});
+  closeModal('modal-form');
+  toast('라운드가 취소되고 베팅이 환불되었습니다');
+  invalidateCaches();
+  switchView(CURRENT_VIEW);
 }
 async function renderChatLog(){
   return mountListView({

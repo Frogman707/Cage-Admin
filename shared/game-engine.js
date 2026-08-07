@@ -150,3 +150,29 @@ function renderBigRoad(cols, maxRows){
   });
   return cells.join('');
 }
+
+/* ---------------- table-list stats (vendor feedback: 오늘/총 베팅액, P/B/T 승수, 좋은 흐름) ---------------- */
+function tableWinCounts(results){
+  const c = {player:0, banker:0, tie:0};
+  results.forEach(r=> c[r] = (c[r]||0)+1);
+  return c;
+}
+function trailingStreak(results){
+  // results oldest..newest. Ties don't break a streak but don't extend it either.
+  const nonTie = results.filter(r=>r!=='tie');
+  if (!nonTie.length) return {side:null, len:0};
+  const last = nonTie[nonTie.length-1];
+  let len = 0;
+  for (let i=nonTie.length-1;i>=0;i--){ if (nonTie[i]===last) len++; else break; }
+  return {side:last, len};
+}
+function tableBetVolume(betLedgerRows){
+  const todayStr = new Date().toISOString().slice(0,10);
+  let total = 0, today = 0;
+  betLedgerRows.forEach(b=>{
+    const amt = Math.abs(Number(b.amount)||0);
+    total += amt;
+    if ((b.createdAt||'').slice(0,10)===todayStr) today += amt;
+  });
+  return {total, today};
+}

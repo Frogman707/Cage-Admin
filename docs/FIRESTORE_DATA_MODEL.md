@@ -155,7 +155,8 @@ rounds/{uuid}
   phase: "betting"|"dealing"|"result",
   playerCards, bankerCards, playerScore, bankerScore,
   result: "player"|"banker"|"tie", playerPair, bankerPair,
-  startedAt, resultAt, editedBy, editedReason   // 게임라운드수정 화면에서 사후 수정 시 기록
+  startedAt, resultAt, editedBy, editedReason,   // 게임라운드수정 화면에서 사후 수정 시 기록
+  cancelled, cancelReason, cancelledBy, cancelledAt   // 라운드 취소 시 기록 (베팅은 memberLedger에 category:"correction"으로 환불/회수 - 아래 참조)
 ```
 
 ### `bettingLimits` / 뱅커절삭베팅내역 등은 `memberLedger`(category:"bet") + `rounds`를 조인해서 파생 — 별도 저장 없음.

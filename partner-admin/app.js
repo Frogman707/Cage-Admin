@@ -153,7 +153,18 @@ window.addEventListener('DOMContentLoaded', ()=>{
   setInterval(()=>{ document.getElementById('clockTxt').textContent = fmtDt(new Date()); }, 1000);
   ensureDefaultStaff();
   document.getElementById('loginPw').addEventListener('keydown', e=>{ if (e.key==='Enter') doLogin(); });
+  clearLoginInputs();
+  // Browsers autofill saved passwords asynchronously, after the page has already painted -
+  // clearing once on load isn't enough. Nuke it again shortly after, and once more if the
+  // page is restored from bfcache (browser back/forward), which skips DOMContentLoaded.
+  setTimeout(clearLoginInputs, 350);
 });
+window.addEventListener('pageshow', clearLoginInputs);
+function clearLoginInputs(){
+  document.getElementById('loginId').value = '';
+  document.getElementById('loginPw').value = '';
+  document.getElementById('loginErr').style.display = 'none';
+}
 
 async function ensureDefaultStaff(){
   try{
@@ -190,9 +201,7 @@ function doLogout(){
   document.getElementById('login-gate').style.display='flex';
   document.getElementById('topbar').style.display='none';
   document.getElementById('shell').style.display='none';
-  document.getElementById('loginId').value = '';
-  document.getElementById('loginPw').value = '';
-  document.getElementById('loginErr').style.display = 'none';
+  clearLoginInputs();
 }
 /* ---------------- view dispatch ---------------- */
 async function switchView(viewId){

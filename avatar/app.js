@@ -21,7 +21,14 @@ let STATE = { balance: 0, points: 0, selectedChip: CHIP_VALUES[0] };
 window.addEventListener('DOMContentLoaded', ()=>{
   db = cageInitFirebase();
   document.getElementById('liPw').addEventListener('keydown', e=>{ if (e.key==='Enter') onLogin(); });
+  clearLoginFields();
+  // Browsers autofill saved passwords asynchronously, after the page has already painted -
+  // clearing once on load isn't enough since the browser can still fill the field a moment
+  // later. Nuke it again shortly after, and once more if the page is restored from bfcache
+  // (browser back/forward), which re-applies autofill without re-running DOMContentLoaded.
+  setTimeout(clearLoginFields, 350);
 });
+window.addEventListener('pageshow', clearLoginFields);
 
 function showPane(name){
   document.getElementById('pane-login').style.display = name==='login' ? 'block' : 'none';
@@ -124,7 +131,6 @@ function showView(name){
   document.getElementById('changeGameBtn').style.display = name==='viewPicker' ? 'none' : 'inline-block';
   document.getElementById('avatarLobbyBtn').style.display = name==='viewAvatarTable' ? 'inline-block' : 'none';
   document.getElementById('chipTray').style.display = name==='viewSpeedLobby' ? 'flex' : 'none';
-  document.getElementById('hdrBrand').textContent = name==='viewPicker' ? 'GAME' : (MODE==='speed' ? 'SPEED' : 'AVATAR');
 }
 function showPicker(){
   stopAllLoops();

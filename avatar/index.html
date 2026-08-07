@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Game · CAGE ADMIN 5.0</title>
+<title>Avatar Speed · CAGE ADMIN 5.0</title>
 <link rel="stylesheet" href="../shared/cage-ui.css">
 <link rel="stylesheet" href="../shared/game-ui.css">
 <style>
@@ -56,12 +56,12 @@ body{overflow:auto;}
 
 <div id="login-gate">
   <div class="login-card">
-    <div class="login-mark">GAME</div>
+    <div class="login-mark">AVATAR SPEED</div>
     <div class="login-ver">v5.0</div>
 
     <div id="pane-login">
       <div class="field" style="margin-top:22px;"><label>아이디</label><input id="liId" autocomplete="off" placeholder="ID"></div>
-      <div class="field"><label>비밀번호</label><input id="liPw" type="password" placeholder="••••" autocomplete="off"></div>
+      <div class="field"><label>비밀번호</label><input id="liPw" type="password" placeholder="••••" autocomplete="new-password"></div>
       <p class="login-error" id="liErr" style="display:none;"></p>
       <button class="btn btn-gold btn-block" onclick="onLogin()">로그인</button>
       <p class="login-switch">계정이 없으신가요? <a onclick="showPane('signup')">회원가입</a></p>
@@ -70,7 +70,7 @@ body{overflow:auto;}
 
     <div id="pane-signup" style="display:none;">
       <div class="field" style="margin-top:22px;"><label>아이디</label><input id="suId" autocomplete="off"></div>
-      <div class="field"><label>비밀번호</label><input id="suPw" type="password" autocomplete="off"></div>
+      <div class="field"><label>비밀번호</label><input id="suPw" type="password" autocomplete="new-password"></div>
       <div class="field"><label>닉네임</label><input id="suNick"></div>
       <div class="field"><label>전화번호</label><input id="suPhone"></div>
       <div class="field"><label>카지노</label><select id="suCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select></div>
@@ -84,7 +84,7 @@ body{overflow:auto;}
 
 <div class="shell-app" id="app" style="display:none;">
   <div class="game-header">
-    <div class="brand"><span class="mark" id="hdrBrand">GAME</span></div>
+    <div class="brand"><span class="mark">AVATAR SPEED</span></div>
     <div class="balance-ticket"><span class="lbl">보유금</span><span id="hdrBalance">0</span></div>
     <div class="points-ticket"><span class="lbl">포인트</span><span id="hdrPoints">0</span></div>
     <div class="game-header-right">

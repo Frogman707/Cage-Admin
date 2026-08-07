@@ -626,9 +626,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <button class="toggle" id="ioTypeWithdraw" onclick="setIoType('withdraw')" data-i18n="ioTypeWithdraw"></button>
           </div>
           <div class="field"><label data-i18n="amount"></label><input id="ioAmount" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this)"></div>
-          <div class="field"><label data-i18n="targetCasino"></label>
-            <select id="ioCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select>
-          </div>
           <div class="field"><label data-i18n="ioRemark"></label><textarea id="ioMemo" data-i18n-ph="ioMemoPh"></textarea></div>
           <button class="btn btn-gold btn-block" onclick="processIo()" data-i18n="processBtn"></button>
         </div>
@@ -641,9 +638,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <div class="transfer-acc-results" id="transferAccResults"></div>
           </div>
           <div class="field"><label data-i18n="regEngName"></label><input id="transferEngName" disabled></div>
-          <div class="field"><label data-i18n="targetCasino"></label>
-            <select id="transferCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select>
-          </div>
           <div class="field"><label data-i18n="amount"></label><input id="transferAmt" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this)"></div>
           <button class="btn btn-block" onclick="doTransfer()" data-i18n="transferBtn"></button>
         </div>
@@ -6473,7 +6467,7 @@ function processIo(){
  const amt = unformatNum(document.getElementById('ioAmount').value);
  if(amt<=0) return;
  if(DB.ioType==='withdraw'){
-  const casino = document.getElementById('ioCasino').value;
+  const casino = currentBranch();
   if(!hasSufficientTotalBalance(DB.currentAccount, amt)){
    toast(t('toastInsufficientBalance'));
    pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
@@ -6540,7 +6534,7 @@ async function applyAccountTransaction(accountId, type, amount, memo){
  return {casino, balance:newBal};
 }
 async function _doProcessIo(amt){
- const casino = document.getElementById('ioCasino').value;
+ const casino = currentBranch();
  const memo = document.getElementById('ioMemo').value;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  const acc = DB.accounts[DB.currentAccount];
@@ -6608,7 +6602,7 @@ function doTransfer(){
  if(!transferTargetAcc || !DB.accounts[transferTargetAcc]){ toast(t('transferPickAcc')); return; }
  const amt = unformatNum(document.getElementById('transferAmt').value);
  if(amt<=0) return;
- const casino = document.getElementById('transferCasino').value;
+ const casino = currentBranch();
  if(!hasSufficientBalance(DB.currentAccount, casino, amt)){
   toast(t('toastInsufficientBalance'));
   pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
@@ -6617,7 +6611,7 @@ function doTransfer(){
  requestWithdrawAuth(DB.currentAccount, ()=>_doTransfer(amt));
 }
 async function _doTransfer(amt){
- const casino = document.getElementById('transferCasino').value;
+ const casino = currentBranch();
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  if(!hasSufficientBalance(DB.currentAccount, casino, amt)){
   toast(t('toastInsufficientBalance'));

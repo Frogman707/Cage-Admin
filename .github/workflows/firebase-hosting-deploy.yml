@@ -9,6 +9,10 @@ on:
       - "index.html"
       - "firebase.json"
       - ".firebaserc"
+      - "partner-admin/**"
+      - "avatar/**"
+      - "speed/**"
+      - "shared/**"
       - ".github/workflows/firebase-hosting-deploy.yml"
 
 jobs:

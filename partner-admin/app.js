@@ -191,11 +191,6 @@ function doLogout(){
   document.getElementById('topbar').style.display='none';
   document.getElementById('shell').style.display='none';
 }
-function onCasinoChange(){
-  CASINO_FILTER = document.getElementById('casinoSel').value;
-  switchView(CURRENT_VIEW);
-}
-
 /* ---------------- view dispatch ---------------- */
 async function switchView(viewId){
   CURRENT_VIEW = viewId;

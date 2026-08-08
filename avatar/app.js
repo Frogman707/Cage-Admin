@@ -435,7 +435,9 @@ function avatarTableShellHtml(){
         <div class="table-id-badge">${escapeHtml(tb.name)}</div>
         <div class="table-shoe-badge">SHOE #${tb.shoeNo||1} · ${t('roundInfo')} ${AVATAR.roundNo}</div>
         <div class="phase-banner" id="phaseBanner">${t('phaseBetting')}</div>
+        <div class="deal-shoe"></div>
         <div class="table-felt">
+          ${feltMarkingsSvg()}
           <div class="cards-area" id="cardsArea">
             <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCards"></div><div class="score" id="playerScore"></div></div>
             <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCards"></div><div class="score" id="bankerScore"></div></div>
@@ -805,9 +807,13 @@ function speedDetailShellHtml(tableId){
         <div class="table-id-badge">${escapeHtml(tb.name)}</div>
         <div class="table-shoe-badge">SHOE #${tb.shoeNo||1}</div>
         <div class="phase-banner" id="phase-detail">${t('phaseBetting')}</div>
-        <div class="cards-area">
-          <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCardsDetail"></div><div class="score" id="playerScoreDetail"></div></div>
-          <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCardsDetail"></div><div class="score" id="bankerScoreDetail"></div></div>
+        <div class="deal-shoe"></div>
+        <div class="table-felt">
+          ${feltMarkingsSvg()}
+          <div class="cards-area">
+            <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCardsDetail"></div><div class="score" id="playerScoreDetail"></div></div>
+            <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCardsDetail"></div><div class="score" id="bankerScoreDetail"></div></div>
+          </div>
         </div>
         <div class="timer-ring-wrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle cx="32" cy="32" r="27" stroke="var(--brass)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-detail">15</div></div>
       </div>

@@ -59,7 +59,7 @@
   background:
     radial-gradient(ellipse 120% 90% at 50% -10%, rgba(217,178,106,.14) 0%, transparent 55%),
     linear-gradient(180deg, rgba(5,20,14,.1) 0%, rgba(5,20,14,.5) 100%),
-    url('assets/table-live.jpg') center/cover no-repeat;
+    url('assets/table-live.jpg') 22% 35%/cover no-repeat;
   display:flex;align-items:center;justify-content:center;
 }
 .lobby-card .thumb .felt{
@@ -120,7 +120,7 @@
   border:13px solid transparent;
   background:
     linear-gradient(rgba(0,0,0,.1), rgba(0,0,0,.32)) padding-box,
-    url('assets/table-live.jpg') center 30%/cover no-repeat padding-box,
+    url('assets/table-live.jpg') 22% 32%/cover no-repeat padding-box,
     repeating-linear-gradient(95deg, rgba(0,0,0,.16) 0 2px, transparent 2px 6px) border-box,
     linear-gradient(160deg, #8a5a34 0%, #4a2f18 32%, #9c6b3e 52%, #2c1a0d 82%, #7a4f2c 100%) border-box;
   box-shadow:inset 0 0 70px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.35), 0 20px 50px -20px rgba(0,0,0,.7), 0 0 0 2px rgba(217,178,106,.22);
@@ -248,9 +248,17 @@
 .chip.c10000{background:radial-gradient(circle at 35% 30%, #e2665c, #a8291f 70%);color:#3a0e0a;}
 .chip.c50000{background:radial-gradient(circle at 35% 30%, #4fc6a4, #16594a 70%);color:#06251d;}
 .chip.c100000{background:radial-gradient(circle at 35% 30%, #3a3a3a, #0d0d0d 70%);color:#999;}
-.chip.c500000{background:radial-gradient(circle at 35% 30%, #a05fd1, #522072 70%);color:#2a0d3d;}
-.chip.c1000000{background:radial-gradient(circle at 35% 30%, #FFF3D4, #C89A4E 70%);color:#5c3e14;}
-.chip.c1000000 span.cv{color:#3a2408;text-shadow:0 1px 1px rgba(255,255,255,.4);}
+/* 500K+ render as flat rectangular cash plaques instead of round chips, matching
+   how real tables (and the reference screenshots) present high denominations. */
+.chip.c500000,.chip.c1000000{width:66px;height:42px;border-radius:7px;}
+.chip.c500000::before,.chip.c1000000::before{display:none;}
+.chip.c500000::after,.chip.c1000000::after{border-radius:5px;}
+.chip.c500000{background:linear-gradient(160deg,#f7f6f1,#dcd7c8 55%,#b7ae96);border:2px solid #8a6d2e;color:#3a2f1a;}
+.chip.c1000000{background:linear-gradient(160deg,#f9ecc0,#dcb35f 55%,#93641f);border:2px solid #6b4a12;color:#3a2408;}
+.chip.c500000 span.cv,.chip.c1000000 span.cv{color:inherit;text-shadow:none;font-size:12px;}
+@media (max-width:860px){
+  .chip.c500000,.chip.c1000000{width:54px;height:34px;}
+}
 .bet-controls{margin-left:auto;display:flex;gap:8px;flex-shrink:0;align-items:center;}
 .current-bet-total{font-family:var(--mono);font-weight:800;color:var(--brass);font-size:16px;}
 

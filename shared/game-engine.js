@@ -55,10 +55,10 @@ async function playerSignup(db, data){
   const existing = await db.collection('members').doc(id).get();
   if (existing.exists) return {ok:false, reason:'dup'};
   const member = {
-    id, loginId:id, pw:data.pw, nickname:data.nickname, phone:data.phone,
+    id, loginId:id, pw:data.pw, nickname:data.nickname, phone:data.phone, telegram:data.telegram||null,
     casino:data.casino, agentCode:data.agentCode||'DIRECT', parentAgent:data.agentCode||'DIRECT',
     memberType:'준회원', status:'정상', vip:false, betMax:1000000, betMin:5000,
-    withdrawPw:data.pw, smsVerified:false, source:'online',
+    withdrawPw:data.pw, smsVerified:!!data.smsVerified, source:'online',
     createdAt:new Date().toISOString(), lastLoginAt:new Date().toISOString(),
   };
   await db.collection('members').doc(id).set(member);

@@ -78,26 +78,48 @@ body{overflow:auto;}
   <div class="login-card">
     <div class="login-mark">AVATAR SPEED</div>
     <div class="login-ver">v5.0</div>
+    <div class="login-lang-row" id="loginLangRow"></div>
 
     <div id="pane-login">
-      <div class="field" style="margin-top:22px;"><label>아이디</label><input id="liId" autocomplete="off" placeholder="ID"></div>
-      <div class="field"><label>비밀번호</label><input id="liPw" type="password" placeholder="••••" autocomplete="new-password"></div>
+      <div class="field" style="margin-top:22px;"><label data-i18n="loginId">아이디</label><input id="liId" autocomplete="off" placeholder="ID"></div>
+      <div class="field"><label data-i18n="loginPw">비밀번호</label><input id="liPw" type="password" placeholder="••••" autocomplete="new-password"></div>
       <p class="login-error" id="liErr" style="display:none;"></p>
-      <button class="btn btn-gold btn-block" onclick="onLogin()">로그인</button>
-      <p class="login-switch">계정이 없으신가요? <a onclick="showPane('signup')">회원가입</a></p>
-      <p class="login-hint">데모 계정은 파트너 어드민에서 "데모 데이터 생성" 후 유저리스트의 ID (PW: 0000)로 로그인할 수 있습니다.</p>
+      <button class="btn btn-gold btn-block" data-i18n="loginBtn" onclick="onLogin()">로그인</button>
+      <p class="login-switch"><span data-i18n="noAccountQ">계정이 없으신가요?</span> <a data-i18n="signupLink" onclick="showPane('signup')">회원가입</a></p>
+      <p class="login-hint" data-i18n="demoHint">데모 계정은 파트너 어드민에서 "데모 데이터 생성" 후 유저리스트의 ID (PW: 0000)로 로그인할 수 있습니다.</p>
     </div>
 
     <div id="pane-signup" style="display:none;">
-      <div class="field" style="margin-top:22px;"><label>아이디</label><input id="suId" autocomplete="off"></div>
-      <div class="field"><label>비밀번호</label><input id="suPw" type="password" autocomplete="new-password"></div>
-      <div class="field"><label>닉네임</label><input id="suNick"></div>
-      <div class="field"><label>전화번호</label><input id="suPhone"></div>
-      <div class="field"><label>카지노</label><select id="suCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select></div>
-      <div class="field"><label>추천인 코드 (선택)</label><input id="suAgent" placeholder="DIRECT"></div>
+      <div class="field" style="margin-top:20px;">
+        <label data-i18n="loginId">아이디</label>
+        <div class="row" style="gap:8px;">
+          <input id="suId" readonly data-i18n-ph="suIdPh" style="flex:1;">
+          <button type="button" class="btn btn-sm" style="flex:0 0 auto;" data-i18n="suGenId" onclick="genSignupId()">신규 ID 생성</button>
+        </div>
+      </div>
+      <div class="field"><label data-i18n="loginPw">비밀번호</label><input id="suPw" readonly data-i18n-ph="suPwGenerated"></div>
+      <div class="field"><label data-i18n="suNick">닉네임</label><input id="suNick" data-i18n-ph="suNickPh"></div>
+      <div class="field"><label data-i18n="suTelegram">텔레그램 ID</label><input id="suTelegram" placeholder="@" data-i18n-ph="suTelegramPh"></div>
+      <div class="field">
+        <label data-i18n="suPhone">전화번호</label>
+        <div class="row" style="gap:8px;">
+          <input id="suPhone" placeholder="010-0000-0000" style="flex:1;">
+          <button type="button" class="btn btn-sm" style="flex:0 0 auto;" data-i18n="suSendCode" onclick="sendSignupCode()">인증번호 발송</button>
+        </div>
+      </div>
+      <div class="field">
+        <label data-i18n="suCode">인증번호 입력</label>
+        <div class="row" style="gap:8px;">
+          <input id="suCode" data-i18n-ph="suCodePh" style="flex:1;">
+          <button type="button" class="btn btn-sm" style="flex:0 0 auto;" data-i18n="suVerifyCode" onclick="verifySignupCode()">인증번호 확인</button>
+        </div>
+        <p class="hint" id="suCodeStatus"></p>
+      </div>
+      <div class="field"><label data-i18n="suCasino">카지노</label><select id="suCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select></div>
+      <div class="field"><label data-i18n="suAgent">추천인 코드 (선택)</label><input id="suAgent" placeholder="DIRECT"></div>
       <p class="login-error" id="suErr" style="display:none;"></p>
-      <button class="btn btn-gold btn-block" onclick="onSignup()">가입하기</button>
-      <p class="login-switch">이미 계정이 있으신가요? <a onclick="showPane('login')">로그인</a></p>
+      <button class="btn btn-gold btn-block" data-i18n="suSubmit" onclick="onSignup()">가입하기</button>
+      <p class="login-switch"><span data-i18n="haveAccountQ">이미 계정이 있으신가요?</span> <a data-i18n="loginBtn" onclick="showPane('login')">로그인</a></p>
     </div>
   </div>
 </div>
@@ -105,31 +127,32 @@ body{overflow:auto;}
 <div class="shell-app" id="app" style="display:none;">
   <div class="game-header">
     <div class="brand"><span class="mark">AVATAR SPEED</span></div>
-    <div class="balance-ticket"><span class="lbl">보유금</span><span id="hdrBalance">0</span></div>
-    <div class="points-ticket"><span class="lbl">포인트</span><span id="hdrPoints">0</span></div>
+    <div class="balance-ticket"><span class="lbl" data-i18n="balance">보유금</span><span id="hdrBalance">0</span></div>
+    <div class="points-ticket"><span class="lbl" data-i18n="points">포인트</span><span id="hdrPoints">0</span></div>
     <div class="game-header-right">
-      <button class="icon-btn" onclick="openGameHistory()" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
+      <span class="hdr-lang" id="hdrLangRow"></span>
+      <button class="icon-btn" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
       <span class="hdr-nick" style="font-size:12px;color:var(--ink-dim);" id="hdrNick">—</span>
-      <button class="btn btn-sm hdr-action-btn" id="avatarLobbyBtn" onclick="backToAvatarLobby()" style="display:none;" title="테이블 목록"><svg class="hdr-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg><span class="hdr-lbl">테이블 목록</span></button>
-      <button class="btn btn-sm hdr-action-btn" id="changeGameBtn" onclick="showPicker()" style="display:none;" title="게임 변경"><svg class="hdr-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span class="hdr-lbl">게임 변경</span></button>
-      <button class="btn btn-sm btn-ghost hdr-action-btn" onclick="onLogout()" title="로그아웃"><svg class="hdr-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span class="hdr-lbl">로그아웃</span></button>
+      <button class="btn btn-sm hdr-action-btn" id="avatarLobbyBtn" onclick="backToAvatarLobby()" style="display:none;" data-i18n-title="tableList" title="테이블 목록"><svg class="hdr-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg><span class="hdr-lbl" data-i18n="tableList">테이블 목록</span></button>
+      <button class="btn btn-sm hdr-action-btn" id="changeGameBtn" onclick="showPicker()" style="display:none;" data-i18n-title="changeGame" title="게임 변경"><svg class="hdr-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span class="hdr-lbl" data-i18n="changeGame">게임 변경</span></button>
+      <button class="btn btn-sm btn-ghost hdr-action-btn" onclick="onLogout()" data-i18n-title="logout" title="로그아웃"><svg class="hdr-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span class="hdr-lbl" data-i18n="logout">로그아웃</span></button>
     </div>
   </div>
 
   <div id="viewPicker">
     <div class="picker-wrap">
-      <div class="picker-title">게임을 선택하세요</div>
-      <p class="picker-sub">아바타와 스피드는 같은 계정, 같은 보유금으로 언제든 자유롭게 오갈 수 있습니다.</p>
+      <div class="picker-title" data-i18n="pickerTitle">게임을 선택하세요</div>
+      <p class="picker-sub" data-i18n="pickerSub">아바타와 스피드는 같은 계정, 같은 보유금으로 언제든 자유롭게 오갈 수 있습니다.</p>
       <div class="picker-grid">
         <div class="picker-card" onclick="chooseAvatar()">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M8 10.5h.01M16 10.5h.01M8 15c1.2 1 2.6 1.5 4 1.5s2.8-.5 4-1.5"/></svg></div>
-          <div class="name">아바타 (AVATAR)</div>
-          <div class="desc">몰입형 단일 테이블 · 페어 배팅 · 실시간 채팅</div>
+          <div class="name" data-i18n="pickerAvatarName">아바타 (AVATAR)</div>
+          <div class="desc" data-i18n="pickerAvatarDesc">전담 딜러가 대신 베팅해주는 대리 배팅 서비스</div>
         </div>
         <div class="picker-card" onclick="chooseSpeed()">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div>
-          <div class="name">스피드 (SPEED)</div>
-          <div class="desc">여러 테이블 동시 베팅 · 빠른 라운드</div>
+          <div class="name" data-i18n="pickerSpeedName">스피드 (SPEED)</div>
+          <div class="desc" data-i18n="pickerSpeedDesc">여러 테이블 동시 베팅 · 빠른 라운드</div>
         </div>
       </div>
     </div>
@@ -140,9 +163,9 @@ body{overflow:auto;}
 
   <div id="viewSpeedLobby" style="display:none;">
     <div class="speed-wrap">
-      <div class="lobby-title">스피드 테이블 <span style="font-size:11px;color:var(--ink-faint);font-weight:400;">— 여러 테이블을 동시에 베팅할 수 있습니다</span></div>
+      <div class="lobby-title"><span data-i18n="speedLobbyTitle">스피드 테이블</span> <span style="font-size:11px;color:var(--ink-faint);font-weight:400;">— <span data-i18n="speedLobbySub">여러 테이블을 동시에 베팅할 수 있습니다</span></span></div>
       <div class="speed-grid" id="speedGrid"><div class="spin"></div></div>
-      <div class="card speed-mybets"><h3>내 베팅내역</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
+      <div class="card speed-mybets"><h3 data-i18n="myBetHistory">내 베팅내역</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
     </div>
   </div>
   <div class="chip-tray-fixed" id="chipTray" style="display:none;"></div>
@@ -150,17 +173,49 @@ body{overflow:auto;}
 
 <div class="modal-bg" id="modal-history"><div class="modal modal-sheet">
   <button class="modal-close" onclick="closeModal('modal-history')">×</button>
-  <h3>게임기록</h3>
+  <h3 data-i18n="gameHistory">게임기록</h3>
   <div class="tabs-mini" id="historyTabs">
-    <button class="active" onclick="renderGameHistory(this,'speed')">스피드 베팅</button>
-    <button onclick="renderGameHistory(this,'avatar')">아바타 베팅</button>
+    <button class="active" data-i18n="historyTabSpeed" onclick="renderGameHistory(this,'speed')">스피드 베팅</button>
+    <button data-i18n="historyTabAvatar" onclick="renderGameHistory(this,'avatar')">아바타 베팅</button>
   </div>
   <div id="historyBody"></div>
+</div></div>
+
+<!-- avatar request modal -->
+<div class="modal-bg" id="modal-avatar-request"><div class="modal">
+  <button class="modal-close" onclick="closeModal('modal-avatar-request')">×</button>
+  <h3 data-i18n="requestModalTitle">아바타 대리베팅 신청</h3>
+  <p class="hint" data-i18n="requestModalDesc">전담 아바타가 아래 지시에 따라 라운드마다 대신 베팅합니다. 보유금에서 실시간으로 차감/지급됩니다.</p>
+  <div class="field"><label data-i18n="buyinLabel">바이인 금액</label><input id="reqBuyin" type="text" inputmode="numeric" placeholder="100,000" oninput="formatNumInput(this)"></div>
+  <div class="field"><label data-i18n="betInstructionLabel">라운드당 베팅 지시</label>
+    <select id="reqSide">
+      <option value="player" data-i18n="player">플레이어</option>
+      <option value="banker" data-i18n="banker">뱅커</option>
+      <option value="tie" data-i18n="tie">타이</option>
+    </select>
+  </div>
+  <div class="field"><label data-i18n="betAmountLabel">라운드당 베팅액</label><input id="reqAmount" type="text" inputmode="numeric" placeholder="10,000" oninput="formatNumInput(this)"></div>
+  <button class="btn btn-gold btn-block" data-i18n="submitRequest" onclick="submitAvatarRequest()">신청하기</button>
+</div></div>
+
+<!-- tip modal -->
+<div class="modal-bg" id="modal-tip"><div class="modal" style="width:380px;">
+  <button class="modal-close" onclick="closeModal('modal-tip')">×</button>
+  <h3 data-i18n="tipModalTitle">팁 지급</h3>
+  <div class="field"><label data-i18n="tipTargetLabel">지급 대상</label>
+    <select id="tipTarget">
+      <option value="avatar" data-i18n="tipTargetAvatar">아바타</option>
+      <option value="dealer" data-i18n="tipTargetDealer">딜러</option>
+    </select>
+  </div>
+  <div class="field"><label data-i18n="tipAmountLabel">팁 금액</label><input id="tipAmount" type="text" inputmode="numeric" placeholder="1,000" oninput="formatNumInput(this)"></div>
+  <button class="btn btn-gold btn-block" data-i18n="giveTip" onclick="submitTip()">팁 지급</button>
 </div></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="../shared/cage-ui.js"></script>
+<script src="../shared/i18n.js"></script>
 <script src="../shared/game-engine.js"></script>
 <script src="app.js"></script>
 </body>

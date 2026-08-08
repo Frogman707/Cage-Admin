@@ -152,6 +152,12 @@ function renderMyBetHistory(){
 function toggleHeaderFavorite(){
   document.getElementById('favoriteBtn')?.classList.toggle('active');
 }
+function toggleStageFullscreen(btn){
+  const stage = btn.closest('.sd-stage,.table-stage');
+  if (!stage) return;
+  if (!document.fullscreenElement) stage.requestFullscreen?.().catch(()=>{});
+  else document.exitFullscreen?.();
+}
 
 /* ---------------- game history bottom sheet (mobile-style, grouped by day) ---------------- */
 function toggleRoadmapCollapse(){
@@ -789,6 +795,7 @@ async function loadSpeedTables(){
       roundNo: (Math.max(0, ...rounds.map(r=>r.roundNo||0))||0)+1,
       bets:{player:0, banker:0, tie:0, playerPair:0, bankerPair:0}, currentRoundId: uuidv4(),
       history: rounds.map(r=>r.result),
+      pairFlags: rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair})),
     };
     renderSpeedTileRoad(tb.id);
     renderSpeedTileBets(tb.id);
@@ -837,12 +844,17 @@ function renderSpeedDetailRoad(tableId){
 function renderSpeedDetailTally(tableId){
   const el = document.getElementById('tally-detail'); if (!el) return;
   const history = SPEED.tstate[tableId].history;
+  const pairFlags = SPEED.tstate[tableId].pairFlags || [];
   const wins = tableWinCounts(history);
   const streak = trailingStreak(history);
+  const playerPairs = pairFlags.filter(p=>p.playerPair).length;
+  const bankerPairs = pairFlags.filter(p=>p.bankerPair).length;
   el.innerHTML = `
     <span class="cnt player"><i></i>P <b>${wins.player}</b></span>
     <span class="cnt banker"><i></i>B <b>${wins.banker}</b></span>
     <span class="cnt tie"><i></i>T <b>${wins.tie}</b></span>
+    <span class="cnt pair"><i></i>${t('playerPair')} <b>${playerPairs}</b></span>
+    <span class="cnt pair"><i></i>${t('bankerPair')} <b>${bankerPairs}</b></span>
     ${streak.len>=2 ? `<span class="streak">🔥 ${betLabel(streak.side)} ${streak.len}${t('streakLabel')}</span>` : ''}
   `;
 }
@@ -907,16 +919,21 @@ function speedDetailShellHtml(tableId){
   const tb = SPEED.tables[tableId];
   return `
   <div class="speed-detail-wrap">
-    <div class="speed-detail-head">
-      <span class="name">${escapeHtml(tb.name)}</span>
-      <span class="meta">SHOE #${tb.shoeNo||1} · ${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</span>
-      <button class="icon-btn speed-detail-close" onclick="closeSpeedTableDetail()" data-i18n-title="backToList" title="목록으로">✕</button>
-    </div>
     <div class="speed-detail-grid">
       <div class="sd-stage">
-        <div class="sd-type-badge">SPEED</div>
+        <button class="icon-btn speed-detail-close" onclick="closeSpeedTableDetail()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
+        <div class="sd-type-badge" style="left:56px;">SPEED</div>
         <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
         <div class="phase-banner" id="phase-detail">${t('phaseBetting')}</div>
+        <div class="sd-stage-icons">
+          <button onclick="toggleStageFullscreen(this)" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+          <button onclick="this.classList.toggle('muted')" data-i18n-title="mute" title="음소거">
+            <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a9 9 0 0 1 0 12"/></svg>
+            <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/></svg>
+          </button>
+          <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button onclick="toast(t('tipComingSoon'))" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
+        </div>
         <div class="table-felt">
           <div class="cards-area">
             <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCardsDetail"></div><div class="score" id="playerScoreDetail"></div></div>
@@ -938,22 +955,29 @@ function speedDetailShellHtml(tableId){
       </div>
       <div class="sd-bets">
         <div class="pair-row">
-          <div class="bet-spot pair" id="spot-detail-playerPair" onclick="placeSpeedBet('${tableId}','playerPair')"><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="label" data-i18n="playerPair">플레이어 페어</div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-playerPair"></div></div>
-          <div class="bet-spot tie" id="spot-detail-tie" onclick="placeSpeedBet('${tableId}','tie')"><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="label" data-i18n="tie">타이</div><div class="odds">8:1</div><div class="my-bet" id="mybet-detail-tie"></div></div>
-          <div class="bet-spot pair" id="spot-detail-bankerPair" onclick="placeSpeedBet('${tableId}','bankerPair')"><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="label" data-i18n="bankerPair">뱅커 페어</div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-bankerPair"></div></div>
+          <div class="bet-spot pair" id="spot-detail-playerPair" onclick="placeSpeedBet('${tableId}','playerPair')"><div class="label" data-i18n="playerPair">플레이어 페어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-playerPair"></div></div>
+          <div class="bet-spot tie" id="spot-detail-tie" onclick="placeSpeedBet('${tableId}','tie')"><div class="label" data-i18n="tie">타이</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">8:1</div><div class="my-bet" id="mybet-detail-tie"></div></div>
+          <div class="bet-spot pair" id="spot-detail-bankerPair" onclick="placeSpeedBet('${tableId}','bankerPair')"><div class="label" data-i18n="bankerPair">뱅커 페어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-bankerPair"></div></div>
         </div>
         <div class="bet-rail two-up" style="margin-top:0;">
-          <div class="bet-spot player" id="spot-detail-player" onclick="placeSpeedBet('${tableId}','player')"><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="label" data-i18n="player">플레이어</div><div class="odds">1:1</div><div class="my-bet" id="mybet-detail-player"></div></div>
-          <div class="bet-spot banker" id="spot-detail-banker" onclick="placeSpeedBet('${tableId}','banker')"><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="label" data-i18n="banker">뱅커</div><div class="odds">0.95:1</div><div class="my-bet" id="mybet-detail-banker"></div></div>
+          <div class="bet-spot player" id="spot-detail-player" onclick="placeSpeedBet('${tableId}','player')"><div class="label" data-i18n="player">플레이어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">1:1</div><div class="my-bet" id="mybet-detail-player"></div></div>
+          <div class="bet-spot banker" id="spot-detail-banker" onclick="placeSpeedBet('${tableId}','banker')"><div class="label" data-i18n="banker">뱅커</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">0.95:1</div><div class="my-bet" id="mybet-detail-banker"></div></div>
         </div>
       </div>
-      <div class="sd-tray sd-chip-tray">
-        <div class="sd-round-info"><div class="mark">${escapeHtml((tb.casino||'').slice(0,2))}</div><div class="txt"><b>${escapeHtml(tb.casino)}</b><br>${t('roundInfo')} ${SPEED.tstate[tableId]?.roundNo||1} · SHOE #${tb.shoeNo||1}</div></div>
-        <button class="btn btn-sm" onclick="clearSpeedDetailBets('${tableId}')" data-i18n="cancelBet">취소</button>
-        ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})"><span class="cv">${chipLabel(v)}</span></div>`).join('')}
-        <span class="spacer"></span>
-        <button class="btn btn-sm btn-gold" onclick="confirmSpeedBetDetail()" data-i18n="betComplete">베팅완료</button>
-        <button class="btn btn-sm" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n="repeatBet">반복</button>
+      <div class="sd-tray">
+        <div class="sd-chip-tray">
+          <button class="btn btn-sm" onclick="clearSpeedDetailBets('${tableId}')" data-i18n="cancelBet">취소</button>
+          ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})"><span class="cv">${chipLabel(v)}</span></div>`).join('')}
+          <span class="spacer"></span>
+          <button class="btn btn-sm btn-gold" onclick="confirmSpeedBetDetail()" data-i18n="betComplete">베팅완료</button>
+          <button class="btn btn-sm" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n="repeatBet">반복</button>
+        </div>
+        <div class="sd-info-bar">
+          <div class="sd-round-info"><div class="mark">${escapeHtml((tb.casino||'').slice(0,2))}</div><div class="txt">${t('roundInfo')} : ${SPEED.tstate[tableId]?.roundNo||1} &nbsp;&nbsp; SHOE #${tb.shoeNo||1}</div></div>
+          <span class="spacer"></span>
+          <button class="icon-btn" onclick="openGameHistory()" data-i18n-title="gameHistory" title="기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
+          <button class="icon-btn" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n-title="repeatBet" title="반복"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button>
+        </div>
       </div>
     </div>
   </div>`;
@@ -1081,6 +1105,7 @@ async function beginSpeedResult(tableId){
 
   await writeRoundDoc(db, {tableId, tableType:'speed', roundNo:s.roundNo, shoeNo:tb.shoeNo||1, sim, startedAt:new Date(Date.now()-(SPEED_BETTING_SECONDS+SPEED_DEALING_SECONDS)*1000).toISOString()});
   s.history.push(sim.result);
+  s.pairFlags.push({playerPair:!!sim.playerPair, bankerPair:!!sim.bankerPair});
   s.roundNo++;
   renderSpeedTileRoad(tableId);
   renderSpeedTileStats(tableId);

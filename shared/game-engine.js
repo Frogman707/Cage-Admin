@@ -210,27 +210,6 @@ function renderDerivedRoad(marks){
   return marks.map(m=>`<div class="dr-cell ${m}"></div>`).join('');
 }
 
-/* ---------------- printed felt markings (arced PLAYER/BANKER/TIE + pair labels), drawn with
-   SVG textPath so the table surface reads as an actual etched baccarat layout instead of a
-   plain gradient oval. Purely vector/generated — no photographic assets. ---------------- */
-function feltMarkingsSvg(){
-  return `
-  <svg class="felt-markings" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid meet">
-    <defs>
-      <path id="arcPlayer" d="M 44,232 Q 190,54 298,50" fill="none"/>
-      <path id="arcBanker" d="M 302,50 Q 410,54 556,232" fill="none"/>
-      <path id="arcPlayerPair" d="M 96,182 Q 176,108 262,98" fill="none"/>
-      <path id="arcBankerPair" d="M 338,98 Q 424,108 504,182" fill="none"/>
-    </defs>
-    <path d="M 40,236 Q 300,6 560,236" fill="none" stroke="rgba(217,178,106,.32)" stroke-width="1.4"/>
-    <path d="M 92,196 Q 300,66 508,196" fill="none" stroke="rgba(217,178,106,.2)" stroke-width="1"/>
-    <text font-size="20" font-weight="800" letter-spacing="2.5" fill="rgba(127,191,234,.5)"><textPath href="#arcPlayer" startOffset="50%" text-anchor="middle">PLAYER</textPath></text>
-    <text font-size="20" font-weight="800" letter-spacing="2.5" fill="rgba(232,146,134,.5)"><textPath href="#arcBanker" startOffset="50%" text-anchor="middle">BANKER</textPath></text>
-    <text font-size="9.5" font-weight="700" letter-spacing="1" fill="rgba(217,178,106,.38)"><textPath href="#arcPlayerPair" startOffset="50%" text-anchor="middle">PLAYER PAIR 11 TO 1</textPath></text>
-    <text font-size="9.5" font-weight="700" letter-spacing="1" fill="rgba(217,178,106,.38)"><textPath href="#arcBankerPair" startOffset="50%" text-anchor="middle">BANKER PAIR 11 TO 1</textPath></text>
-    <text x="300" y="42" font-size="12.5" font-weight="800" letter-spacing="1.8" fill="rgba(47,169,140,.5)" text-anchor="middle">TIE 8 TO 1</text>
-  </svg>`;
-}
 
 /* ---------------- chip-stack decomposition for the felt "chips in the betting spot" visual ---------------- */
 function decomposeChipStack(amount, maxDiscs){

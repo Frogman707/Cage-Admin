@@ -89,6 +89,26 @@ document.addEventListener('click', e=>{
   if (e.target.classList && e.target.classList.contains('modal-bg')) e.target.classList.remove('open');
 });
 
+/* ---- tiny dependency-free SVG donut chart ---- */
+function svgDonutChart(el, segments, opts={}){
+  const size = opts.size || 180, r = size*0.36, cx = size/2, cy = size/2, sw = opts.strokeWidth || r*0.55;
+  const total = segments.reduce((s,x)=>s+x.value,0);
+  if (!total){ el.innerHTML = `<svg viewBox="0 0 ${size} ${size}" width="100%" height="${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${sw}"/></svg>`; return; }
+  const circ = 2*Math.PI*r;
+  let offset = 0, arcs = '', labelEls = '';
+  segments.forEach(seg=>{
+    const frac = seg.value/total;
+    const len = frac*circ;
+    arcs += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${sw}" stroke-dasharray="${len.toFixed(2)} ${(circ-len).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    const midAngle = (offset + len/2)/circ * 2*Math.PI - Math.PI/2;
+    const lx = cx + Math.cos(midAngle)*(r);
+    const ly = cy + Math.sin(midAngle)*(r);
+    if (frac > 0.03) labelEls += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="10.5" fill="#fff" text-anchor="middle" dominant-baseline="middle" style="paint-order:stroke;stroke:#000;stroke-width:2.5px;">${seg.label} : ${(frac*100).toFixed(1)}%</text>`;
+    offset += len;
+  });
+  el.innerHTML = `<svg viewBox="0 0 ${size} ${size}" width="100%" height="${size}">${arcs}${labelEls}</svg>`;
+}
+
 /* ---- tiny dependency-free SVG bar/line chart ---- */
 function svgBarChart(el, labels, series, opts={}){
   const w = el.clientWidth || 560, h = opts.height || 200, pad = 28;

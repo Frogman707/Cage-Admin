@@ -413,56 +413,69 @@ async function renderDashboard(){
   const balances = await getBalances(true);
   const ledger = await fetchAll('memberLedger');
   const rounds = await fetchAll('rounds');
+  const partners = await fetchAll('partners');
   const totalMembers = members.length;
   const todayStr = fmtDate(new Date());
   const todaySignups = members.filter(m=> fmtDate(m.createdAt)===todayStr).length;
   const byType = {정회원:0,준회원:0,관리회원:0,멀티회원:0};
   members.forEach(m=> byType[m.memberType] = (byType[m.memberType]||0)+1);
-  const normalMembers = members.filter(m=>m.status==='정상').length;
-  const suspended = members.filter(m=>m.status!=='정상').length;
   const totalBalance = Object.values(balances).reduce((s,b)=>s+b.balance,0);
   const totalPoints = Object.values(balances).reduce((s,b)=>s+b.points,0);
-  const totalDeposit = ledger.filter(l=>l.category==='deposit').reduce((s,l)=>s+l.amount,0);
-  const totalWithdraw = ledger.filter(l=>l.category==='withdraw').reduce((s,l)=>s-l.amount,0);
-  const totalBet = -ledger.filter(l=>l.category==='bet').reduce((s,l)=>s+l.amount,0);
-  const totalPayout = ledger.filter(l=>l.category==='payout').reduce((s,l)=>s+l.amount,0);
-  const winLoss = totalBet - totalPayout;
+  const totalComp = Object.values(balances).reduce((s,b)=>s+(b.comp||0),0);
+  const isToday = d => fmtDate(d)===todayStr;
+  const balanceDeltaToday = ledger.filter(l=>isToday(l.createdAt) && ['deposit','withdraw','bet','payout'].includes(l.category)).reduce((s,l)=>s+l.amount,0);
+  const pointsDeltaToday = ledger.filter(l=>isToday(l.createdAt) && ['point_earn','point_convert'].includes(l.category)).reduce((s,l)=>s+l.amount,0);
 
-  // last 14 days signup + activity series
-  const days = [...Array(14)].map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(13-i)); return fmtDate(d); });
-  const signupSeries = days.map(d => members.filter(m=>fmtDate(m.createdAt)===d).length);
-  const betSeries = days.map(d => -ledger.filter(l=>l.category==='bet' && fmtDate(l.createdAt)===d).reduce((s,l)=>s+l.amount,0));
-  const uniqueUserSeries = days.map(d => new Set(ledger.filter(l=>fmtDate(l.createdAt)===d).map(l=>l.memberId)).size);
+  // last 16 days signup series, split by member type (matches reference's two paired signup charts)
+  const days = [...Array(16)].map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(15-i)); return fmtDate(d); });
+  const dayLabels = days.map(d=>d.slice(5));
+  const seriesFor = type => days.map(d => members.filter(m=>m.memberType===type && fmtDate(m.createdAt)===d).length);
+
+  // today's hourly activity series (00~23h)
+  const hours = [...Array(24)].map((_,h)=>String(h).padStart(2,'0')+':00');
+  const todayLedger = ledger.filter(l=>isToday(l.createdAt));
+  const uniqueByHour = hours.map((_,h)=> new Set(todayLedger.filter(l=>new Date(l.createdAt).getHours()===h).map(l=>l.memberId)).size);
+  const betCountByHour = hours.map((_,h)=> todayLedger.filter(l=>l.category==='bet' && new Date(l.createdAt).getHours()===h).length);
+  const betAmountByHour = hours.map((_,h)=> -todayLedger.filter(l=>l.category==='bet' && new Date(l.createdAt).getHours()===h).reduce((s,l)=>s+l.amount,0)/1000);
 
   setTimeout(()=>{
-    const c1 = document.getElementById('dashSignupChart'); if (c1) svgBarChart(c1, days.map(d=>d.slice(5)), [{data:signupSeries, color:'var(--brass)'}]);
-    const c2 = document.getElementById('dashActivityChart'); if (c2) svgLineChart(c2, days.map(d=>d.slice(5)), [{data:uniqueUserSeries,color:'#4A9FD8'},{data:betSeries.map(v=>v/1000),color:'var(--jade)'}]);
+    const c1 = document.getElementById('dashSignup1'); if (c1) svgBarChart(c1, dayLabels, [{data:seriesFor('정회원'), color:'var(--danger)'},{data:seriesFor('준회원'), color:'#4A9FD8'}]);
+    const c2 = document.getElementById('dashSignup2'); if (c2) svgBarChart(c2, dayLabels, [{data:seriesFor('관리회원'), color:'var(--jade)'},{data:seriesFor('멀티회원'), color:'var(--ink-faint)'}]);
+    const c3 = document.getElementById('dashActivityDaily'); if (c3) svgLineChart(c3, dayLabels, [{data:days.map(d=>new Set(ledger.filter(l=>fmtDate(l.createdAt)===d).map(l=>l.memberId)).size),color:'#4A9FD8'},{data:days.map(d=>ledger.filter(l=>l.category==='bet'&&fmtDate(l.createdAt)===d).length),color:'var(--brass)'},{data:days.map(d=>-ledger.filter(l=>l.category==='bet'&&fmtDate(l.createdAt)===d).reduce((s,l)=>s+l.amount,0)/1000),color:'var(--jade)'}]);
+    const c4 = document.getElementById('dashActivityHourly'); if (c4) svgLineChart(c4, hours, [{data:uniqueByHour,color:'#4A9FD8'},{data:betCountByHour,color:'var(--brass)'},{data:betAmountByHour,color:'var(--jade)'}]);
   }, 0);
+
+  const metric = (label, val) => `<div class="dash-metric"><div class="lbl">${label}</div><div class="val">${fmtNum(val)}</div><div class="mini-bar"></div></div>`;
+  const legend = `<div style="display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--ink-dim);"><span><span style="color:#4A9FD8;">●</span> 유니크유저</span><span><span style="color:var(--brass);">●</span> 베팅건수</span><span><span style="color:var(--jade);">●</span> 베팅금액</span></div>`;
 
   return `
     ${pageHead('대시보드', '파트너 전체 현황 요약 · '+ fmtDt(new Date()))}
-    <div class="dash-section-title" style="border-bottom:1px solid var(--line);padding-bottom:8px;margin:0 0 10px;font-weight:700;color:var(--ink);">회원 현황</div>
-    <div class="grid grid-6" style="margin-bottom:18px;">
-      <div class="stat-card"><div class="lbl">총회원</div><div class="val">${fmtNum(totalMembers)}</div><div class="delta pos">오늘 가입 ${todaySignups}</div></div>
-      <div class="stat-card"><div class="lbl">정회원</div><div class="val">${fmtNum(byType.정회원)}</div></div>
-      <div class="stat-card"><div class="lbl">준회원</div><div class="val">${fmtNum(byType.준회원)}</div></div>
-      <div class="stat-card"><div class="lbl">관리회원</div><div class="val">${fmtNum(byType.관리회원)}</div></div>
-      <div class="stat-card"><div class="lbl">정상회원</div><div class="val">${fmtNum(normalMembers)}</div></div>
-      <div class="stat-card danger"><div class="lbl">정지회원</div><div class="val">${fmtNum(suspended)}</div></div>
-    </div>
-    <div class="dash-section-title" style="border-bottom:1px solid var(--line);padding-bottom:8px;margin:0 0 10px;font-weight:700;color:var(--ink);">자금 현황</div>
-    <div class="grid grid-5" style="margin-bottom:18px;">
-      <div class="stat-card"><div class="lbl">총 보유금</div><div class="val">${fmtNum(totalBalance)}</div></div>
-      <div class="stat-card"><div class="lbl">총 보유포인트</div><div class="val">${fmtNum(totalPoints)}</div></div>
-      <div class="stat-card"><div class="lbl">누적 입금</div><div class="val">${fmtNum(totalDeposit)}</div></div>
-      <div class="stat-card"><div class="lbl">누적 출금</div><div class="val">${fmtNum(totalWithdraw)}</div></div>
-      <div class="stat-card ${winLoss>=0?'':'danger'}"><div class="lbl">하우스 윈로스</div><div class="val">${fmtSigned(winLoss)}</div></div>
+    <div class="grid grid-2" style="margin-bottom:18px;">
+      <div class="card dash-summary-card">
+        <h3>총회원</h3>
+        <div class="dash-big-val">${fmtNum(totalMembers)}</div>
+        <div class="hint">오늘 가입한 회원 ${todaySignups}</div>
+        <div class="dash-metric-row">
+          ${metric('정회원', byType.정회원)}${metric('준회원', byType.준회원)}${metric('관리회원', byType.관리회원)}${metric('멀티회원', byType.멀티회원)}${metric('파트너', partners.length)}
+        </div>
+      </div>
+      <div class="card dash-summary-card">
+        <h3>총 보유금</h3>
+        <div class="dash-big-val">PHP ${fmtNum(totalBalance)} <span class="delta ${balanceDeltaToday>=0?'pos':'neg'}">(${balanceDeltaToday>=0?'▲':'▼'}${fmtNum(Math.abs(balanceDeltaToday))})</span></div>
+        <div class="hint">어제 수치와 비교</div>
+        <div class="dash-metric-row">
+          <div class="dash-metric"><div class="lbl">총 포인트</div><div class="val">${fmtNum(totalPoints)} <span class="delta ${pointsDeltaToday>=0?'pos':'neg'}">(${pointsDeltaToday>=0?'▲':'▼'}${fmtNum(Math.abs(pointsDeltaToday))})</span></div><div class="mini-bar"></div></div>
+          <div class="dash-metric"><div class="lbl">총 쿱프</div><div class="val">${fmtNum(totalComp)}</div><div class="mini-bar"></div></div>
+        </div>
+      </div>
     </div>
     <div class="grid grid-2">
-      <div class="card"><h3>일별 회원가입 현황 (14일)</h3><div id="dashSignupChart"></div></div>
-      <div class="card"><h3>유저활동 / 베팅규모 (14일)</h3><div id="dashActivityChart"></div>
-        <div style="display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--ink-dim);"><span><span style="color:#4A9FD8;">●</span> 유니크유저</span><span><span style="color:var(--jade);">●</span> 베팅액(천)</span></div>
-      </div>
+      <div class="card"><h3>회원가입현황(정회원,준회원)</h3><div class="hint">${dayLabels[0]} ~ ${dayLabels[dayLabels.length-1]}</div><div id="dashSignup1"></div></div>
+      <div class="card"><h3>회원가입현황(관리회원,멀티회원)</h3><div class="hint">${dayLabels[0]} ~ ${dayLabels[dayLabels.length-1]}</div><div id="dashSignup2"></div></div>
+    </div>
+    <div class="grid grid-2" style="margin-top:14px;">
+      <div class="card"><h3>유저활동 (날짜별)</h3><div class="hint">${dayLabels[0]} ~ ${dayLabels[dayLabels.length-1]}</div><div id="dashActivityDaily"></div>${legend}</div>
+      <div class="card"><h3>유저활동 (시간별)</h3><div class="hint">${todayStr} 00:00 ~ 23:00</div><div id="dashActivityHourly"></div>${legend}</div>
     </div>
     <div class="grid grid-2" style="margin-top:14px;">
       <div class="card"><h3>테이블 현황</h3>
@@ -634,16 +647,30 @@ async function renderUserList(){
   return mountListView({
     title:'유저리스트', sub:'전체 회원 목록',
     coll:'members', casinoField:'casino', search:true, searchFields:['id','nickname','phone'], searchPh:'ID/닉네임/전화번호 검색',
-    filters:[{key:'memberType', label:'회원유형', options:['정회원','준회원','관리회원','멀티회원']}, {key:'status', label:'상태', options:['정상','정지','블랙리스트']}],
+    filters:[
+      {key:'parentAgent', label:'에이전트', options:['SEVIP88','nustarms']},
+      {key:'memberType', label:'회원유형', options:['정회원','준회원','관리회원','멀티회원']},
+      {key:'status', label:'로그인상태', options:['정상','정지','블랙리스트']},
+    ],
     onCreate:'openCreateMemberForm()',
     columns:[
-      {key:'id', label:'ID'}, {key:'casino', label:'CASINO'}, {key:'nickname', label:'닉네임'},
-      {key:'phone', label:'전화번호', type:'phone'}, {key:'memberType', label:'회원유형'}, {key:'parentAgent', label:'상위에이전트'},
-      {key:'balance', label:'보유금', type:'money'}, {key:'points', label:'보유포인트', type:'money'},
+      {key:'id', label:'ID'}, {key:'casino', label:'CASINO'}, {key:'id', label:'어카운트'}, {key:'nickname', label:'닉네임'},
+      {key:'phone', label:'헨드폰번호', type:'phone'}, {key:'telegram', label:'텔레그램주소', render:r=>r.telegram||'—'},
+      {key:'memberType', label:'회원유형'}, {key:'parentAgent', label:'상위어카운트'},
+      {key:'winLoss', label:'윈로스', type:'money'}, {key:'balance', label:'보유금', type:'money'},
+      {key:'rolling', label:'롤링', type:'money'}, {key:'rollingComm', label:'롤링커미션', type:'money'},
+      {key:'netRevenue', label:'내 수익금', type:'money'}, {key:'points', label:'보유포인트', type:'money'},
+      {key:'depositPhp', label:'입금 PHP', type:'money'}, {key:'withdrawPhp', label:'출금 PHP', type:'money'},
       {key:'status', label:'상태', type:'pill', pillMap:{정상:'ok', 정지:'bad', 블랙리스트:'bad'}},
       {key:'createdAt', label:'가입일', type:'date'},
     ],
-    mapRow: m => ({...m, balance: balances[m.id]?.balance||0, points: balances[m.id]?.points||0}),
+    mapRow: m => {
+      const b = balances[m.id] || {balance:0, points:0, deposit:0, withdraw:0, bet:0, payout:0};
+      const rolling = -b.bet;
+      const rollingComm = rolling * 0.015;
+      const winLoss = b.payout + b.bet;
+      return {...m, balance:b.balance, points:b.points, rolling, rollingComm, winLoss, netRevenue:-winLoss, depositPhp:b.deposit, withdrawPhp:-b.withdraw};
+    },
     rowClick: 'openMemberDetail',
     sortKey:'createdAt', sortDir:'desc',
     stats: rs => [
@@ -651,6 +678,7 @@ async function renderUserList(){
       {label:'정회원', value: fmtNum(rs.filter(r=>r.memberType==='정회원').length)},
       {label:'준회원', value: fmtNum(rs.filter(r=>r.memberType==='준회원').length)},
       {label:'관리회원', value: fmtNum(rs.filter(r=>r.memberType==='관리회원').length)},
+      {label:'멀티회원', value: fmtNum(rs.filter(r=>r.memberType==='멀티회원').length)},
       {label:'정상회원', value: fmtNum(rs.filter(r=>r.status==='정상').length)},
       {label:'정지회원', value: fmtNum(rs.filter(r=>r.status!=='정상').length), danger:true},
     ],
@@ -891,15 +919,43 @@ async function renderStatsBody(tabId){
   const rounds = await fetchAll('rounds');
   let html = '';
   if (tabId==='marketRatio'){
-    const p = rounds.filter(r=>r.result==='player').length, b = rounds.filter(r=>r.result==='banker').length, t = rounds.filter(r=>r.result==='tie').length;
-    const total = Math.max(1,p+b+t);
-    html = `<div class="grid grid-3">
-      <div class="stat-card"><div class="lbl">플레이어 승률</div><div class="val">${(p/total*100).toFixed(1)}%</div></div>
-      <div class="stat-card"><div class="lbl">뱅커 승률</div><div class="val">${(b/total*100).toFixed(1)}%</div></div>
-      <div class="stat-card"><div class="lbl">타이 비율</div><div class="val">${(t/total*100).toFixed(1)}%</div></div>
+    const tables = await getTables();
+    const tableType = {}; tables.forEach(t=>tableType[t.id]=t.type);
+    const scopes = [{key:'all', label:'전체게임'}, {key:'speed', label:'스피드'}, {key:'avatar', label:'아바타'}, {key:'live', label:'라이브'}, {key:'highpay', label:'하이피'}];
+    const outcomes = ['player','banker','tie'];
+    const outcomeLabel = {player:'플레이어', banker:'뱅커', tie:'타이'};
+    const scopeRoundResults = scopes.map(sc => {
+      const rs = rounds.filter(r => sc.key==='all' ? true : tableType[r.tableId]===sc.key);
+      const counts = outcomes.map(o => rs.filter(r=>r.result===o).length);
+      return {sc, rs, segments: outcomes.map((o,i)=>({label:outcomeLabel[o], value:counts[i], color: o==='player'?'#4A9FD8':o==='banker'?'var(--danger)':'var(--jade)'}))};
+    });
+    html = `<div class="grid" style="grid-template-columns:repeat(5,1fr);gap:14px;">
+      ${scopeRoundResults.map(({sc,segments})=>`<div class="card"><h3>${sc.label}</h3><div id="donut-${sc.key}"></div></div>`).join('')}
     </div>
-    <div class="card" style="margin-top:14px;"><h3>결과 분포</h3><div id="marketChart"></div></div>`;
-    setTimeout(()=>{ const el=document.getElementById('marketChart'); if(el) svgBarChart(el, ['PLAYER','BANKER','TIE'], [{data:[p,b,t], color:'var(--brass)'}]); },0);
+    <div class="table-wrap" style="margin-top:14px;"><table><thead><tr><th>종목</th>
+      ${outcomes.map(o=>`<th colspan="4" style="text-align:center;">${outcomeLabel[o]}</th>`).join('')}
+      </tr><tr><th></th>${outcomes.map(()=>`<th>베팅금액</th><th>베팅건수</th><th>수익</th><th>환수율</th>`).join('')}</tr></thead><tbody>
+      ${scopes.map(sc=>{
+        const betsInScope = ledger.filter(l=>l.category==='bet' && (sc.key==='all' || tableType[l.relatedTableId]===sc.key));
+        const cells = outcomes.map(o=>{
+          const bets = betsInScope.filter(l=>l.betType===o);
+          const betAmt = -bets.reduce((s,l)=>s+l.amount,0);
+          const betCnt = bets.length;
+          const rMap = {}; rounds.forEach(r=>rMap[r.id]=r);
+          const grossReturn = bets.reduce((s,l)=>{
+            const r = rMap[l.relatedRoundId];
+            if (!r || r.result!==o) return s;
+            const amt = -l.amount;
+            return s + (o==='tie' ? amt*9 : Math.round(amt*1.95));
+          },0);
+          const profit = betAmt - grossReturn;
+          const rtp = betAmt ? (profit/betAmt*100) : 0;
+          return `<td class="num">${fmtNum(betAmt)}</td><td class="num">${fmtNum(betCnt)}</td><td class="num ${profit>=0?'pos':'neg'}">${fmtSigned(profit)}</td><td class="num ${rtp>=0?'pos':'neg'}">${rtp.toFixed(2)}%</td>`;
+        }).join('');
+        return `<tr><td>${sc.label}</td>${cells}</tr>`;
+      }).join('')}
+      </tbody></table></div>`;
+    setTimeout(()=>{ scopeRoundResults.forEach(({sc,segments})=>{ const el=document.getElementById('donut-'+sc.key); if (el) svgDonutChart(el, segments); }); },0);
   } else if (tabId==='depositWithdrawStats'){
     const dep = ledger.filter(l=>l.category==='deposit').reduce((s,l)=>s+l.amount,0);
     const wd = -ledger.filter(l=>l.category==='withdraw').reduce((s,l)=>s+l.amount,0);
@@ -924,10 +980,40 @@ async function renderStatsBody(tabId){
     const bigBets = ledger.filter(l=>l.category==='bet').sort((a,b)=>a.amount-b.amount).slice(0,20);
     html = simpleTable(['시간','회원ID','테이블','베팅액'], bigBets.map(l=>[fmtDt(l.createdAt), l.memberId, l.relatedTableId||'—', `<span class="num neg">${fmtNum(-l.amount)}</span>`]));
   } else if (tabId==='leaderboard'){
-    const byMember = {};
-    ledger.forEach(l=>{ if (l.category==='bet') byMember[l.memberId] = (byMember[l.memberId]||0) - l.amount; });
-    const top = Object.entries(byMember).sort((a,b)=>b[1]-a[1]).slice(0,10);
-    html = simpleTable(['순위','회원ID','누적베팅액'], top.map(([id,v],i)=>[i+1, id, `<span class="num">${fmtNum(v)}</span>`]));
+    const memberByAgent = {};
+    members.forEach(m=>{ memberByAgent[m.parentAgent] = (memberByAgent[m.parentAgent]||0)+1; });
+    const byAgent = key => {
+      const acc = {};
+      ledger.filter(l=>l.category===key).forEach(l=>{
+        const m = members.find(x=>x.id===l.memberId);
+        const agent = m ? m.parentAgent : null;
+        if (!agent) return;
+        acc[agent] = (acc[agent]||0) + Math.abs(l.amount);
+      });
+      return Object.entries(acc).sort((a,b)=>b[1]-a[1]).slice(0,15);
+    };
+    const rollingByAgent = () => {
+      const acc = {};
+      ledger.filter(l=>l.category==='bet').forEach(l=>{
+        const m = members.find(x=>x.id===l.memberId);
+        const agent = m ? m.parentAgent : null;
+        if (!agent) return;
+        acc[agent] = (acc[agent]||0) + Math.abs(l.amount)*0.015;
+      });
+      return Object.entries(acc).sort((a,b)=>b[1]-a[1]).slice(0,15);
+    };
+    const panel = (title, headers, rows) => `<div class="card"><h3>${title}</h3><input class="search-inline" placeholder="검색" style="margin-bottom:8px;">
+      <div class="table-wrap" style="max-height:280px;"><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>
+      ${rows.length ? rows.map((r,i)=>`<tr><td>${i+1}</td>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('') : `<tr class="empty-row"><td colspan="${headers.length}">데이터 없음</td></tr>`}
+      </tbody></table></div></div>`;
+    html = `<div class="grid grid-2">
+      ${panel('회원모집', ['파트너','직속회원'], Object.entries(memberByAgent).sort((a,b)=>b[1]-a[1]).map(([a,c])=>[a, fmtNum(c)]))}
+      ${panel('입금금액', ['파트너','입금금액'], byAgent('deposit').map(([a,v])=>[a, fmtNum(v)]))}
+    </div>
+    <div class="grid grid-2" style="margin-top:14px;">
+      ${panel('베팅금액', ['파트너','베팅금액'], byAgent('bet').map(([a,v])=>[a, fmtNum(v)]))}
+      ${panel('롤링', ['파트너','롤링'], rollingByAgent().map(([a,v])=>[a, fmtNum(v)]))}
+    </div>`;
   } else if (tabId==='memberActivity'){
     const days = [...Array(14)].map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(13-i)); return fmtDate(d); });
     const series = days.map(d=>new Set(ledger.filter(l=>fmtDate(l.createdAt)===d).map(l=>l.memberId)).size);

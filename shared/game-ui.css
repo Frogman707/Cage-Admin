@@ -442,7 +442,7 @@
   grid-template-areas:
     "stage bets"
     "tally bets"
-    "road  bets"
+    "road  road"
     "tray  tray";
 }
 .sd-stage{grid-area:stage;position:relative;border-radius:16px;min-height:300px;display:flex;align-items:center;justify-content:center;overflow:hidden;
@@ -460,10 +460,14 @@
 .sd-tally.tally-bar .cnt.player{color:#2f7fbf;}
 .sd-tally.tally-bar .cnt.banker{color:var(--danger);}
 .sd-tally.tally-bar .cnt.tie{color:#1c8a6f;}
-.sd-road{grid-area:road;background:#fff;border:1px solid #e4e4e4;border-radius:12px;padding:12px 14px;color:#1a1a1a;}
+.sd-road{grid-area:road;background:#fff;border:1px solid #e4e4e4;border-radius:12px;padding:12px 16px;color:#1a1a1a;}
 .sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;padding-bottom:6px;}
 .sd-road .derived-road-title{color:#8a8a8a;border-top-color:#e4e4e4;}
 .sd-road .bd-cell.overflow,.sd-road .br-cell.overflow{color:#8a8a8a;}
+.sd-road-mini-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:2px;}
+.sd-road-mini .derived-road-title{margin:12px 0 6px;}
+.sd-road-mini .derived-road-grid{grid-template-columns:repeat(auto-fill,9px);grid-template-rows:repeat(6,9px);}
+.sd-road-mini .derived-road-grid .dr-cell{width:9px;height:9px;}
 .sd-bets{grid-area:bets;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 .sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
 .sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}
@@ -476,8 +480,8 @@
 .sd-bets .bet-spot::before{display:none;}
 .sd-bets .bet-spot:hover{transform:none;background:rgba(255,255,255,.03);}
 .sd-bets .pair-row .bet-spot:last-child,.sd-bets .bet-rail .bet-spot:last-child{border-right:none;}
-.sd-bets .bet-rail .bet-spot{border-bottom:none;padding:28px 8px;}
-.sd-bets .bet-rail .bet-spot .label{font-size:22px;}
+.sd-bets .bet-rail .bet-spot{border-bottom:none;padding:14px 8px;}
+.sd-bets .bet-rail .bet-spot .label{font-size:20px;}
 .sd-bets .bet-spot.selected{background:rgba(217,178,106,.08);box-shadow:inset 0 0 0 2px var(--brass);}
 .sd-bets .bet-spot .meta-row{position:absolute;top:9px;left:10px;right:10px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--ink-faint);font-family:var(--mono);}
 .sd-chip-tray{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));border:1px solid var(--line);border-radius:14px;}
@@ -489,5 +493,6 @@
 .sd-round-info .txt b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
 @media (max-width:860px){
   .speed-detail-grid{grid-template-columns:1fr;grid-template-areas:"stage" "tally" "bets" "road" "tray";}
-  .sd-bets .bet-rail .bet-spot{padding:20px 8px;}
+  .sd-bets .bet-rail .bet-spot{padding:14px 8px;}
+  .sd-road-mini-row{gap:8px;}
 }

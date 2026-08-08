@@ -821,11 +821,15 @@ function renderSpeedTileRoad(tableId){
 }
 function renderSpeedDetailRoad(tableId){
   const history = SPEED.tstate[tableId].history;
+  const cols = buildBigRoad(history.slice(-90));
   const bigRoadEl = document.getElementById('road-detail');
-  if (bigRoadEl){
-    const cols = buildBigRoad(history.slice(-60));
-    bigRoadEl.innerHTML = renderBigRoad(cols, 6) || `<span class="hint">${t('noRecord')}</span>`;
-  }
+  if (bigRoadEl) bigRoadEl.innerHTML = renderBigRoad(cols, 6) || `<span class="hint">${t('noRecord')}</span>`;
+  const bigeyeEl = document.getElementById('bigeye-detail');
+  if (bigeyeEl) bigeyeEl.innerHTML = renderDerivedRoad(deriveBigEyeBoy(cols)) || `<span class="hint">${t('noRecord')}</span>`;
+  const smallEl = document.getElementById('smallroad-detail');
+  if (smallEl) smallEl.innerHTML = renderDerivedRoad(deriveSmallRoad(cols)) || `<span class="hint">${t('noRecord')}</span>`;
+  const cockroachEl = document.getElementById('cockroach-detail');
+  if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols)) || `<span class="hint">${t('noRecord')}</span>`;
   const beadEl = document.getElementById('beadroad-detail');
   if (beadEl) beadEl.innerHTML = renderBeadRoad(history.slice(-36)) || `<span class="hint">${t('noRecord')}</span>`;
   renderSpeedDetailTally(tableId);
@@ -925,7 +929,12 @@ function speedDetailShellHtml(tableId){
       <div class="sd-road">
         <div class="derived-road-title" style="margin-top:0;">${t('bigRoad')}</div>
         <div class="br-grid" id="road-detail"></div>
-        <div class="bead-road-wrap"><div class="derived-road-title">진주 로드</div><div class="bead-road" id="beadroad-detail"></div></div>
+        <div class="sd-road-mini-row">
+          <div class="sd-road-mini"><div class="derived-road-title">${t('bigEyeBoy')}</div><div class="derived-road-grid" id="bigeye-detail"></div></div>
+          <div class="sd-road-mini"><div class="derived-road-title">${t('smallRoad')}</div><div class="derived-road-grid" id="smallroad-detail"></div></div>
+          <div class="sd-road-mini"><div class="derived-road-title">${t('cockroachRoad')}</div><div class="derived-road-grid" id="cockroach-detail"></div></div>
+        </div>
+        <div class="bead-road-wrap"><div class="derived-road-title">${t('beadPlate')}</div><div class="bead-road" id="beadroad-detail"></div></div>
       </div>
       <div class="sd-bets">
         <div class="pair-row">

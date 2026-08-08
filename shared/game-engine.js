@@ -185,27 +185,32 @@ function tableBetVolume(betLedgerRows){
   return {total, today};
 }
 
-/* ---------------- derived road (Big Eye Boy) - decorative, simplified approximation
-   of the standard rule: compares each new Big Road cell's column depth against the
-   previous column to mark red (matching pattern) / blue (breaking pattern). ---------------- */
-function deriveBigEyeBoy(cols){
+/* ---------------- derived roads (Big Eye Boy / Small Road / Cockroach Road) -
+   decorative, simplified approximation of the standard rule: each one compares
+   a Big Road column against the column `offset` steps further back to mark red
+   (matching pattern) / blue (breaking pattern). offset 1/2/3 = Big Eye Boy/
+   Small Road/Cockroach Road respectively - same comparison, deeper look-back. */
+function deriveRoad(cols, offset){
   const out = [];
-  for (let i=1;i<cols.length;i++){
+  for (let i=offset;i<cols.length;i++){
     const col = cols[i];
     if (!col.side) continue;
     for (let j=0;j<col.items.length;j++){
       let mark;
       if (j===0){
-        if (i<2) continue;
-        mark = cols[i-1].items.length === cols[i-2].items.length ? 'red' : 'blue';
+        if (i<offset+1) continue;
+        mark = cols[i-offset].items.length === cols[i-offset-1].items.length ? 'red' : 'blue';
       } else {
-        mark = cols[i-1].items.length > j ? 'red' : 'blue';
+        mark = cols[i-offset].items.length > j ? 'red' : 'blue';
       }
       out.push(mark);
     }
   }
   return out;
 }
+function deriveBigEyeBoy(cols){ return deriveRoad(cols, 1); }
+function deriveSmallRoad(cols){ return deriveRoad(cols, 2); }
+function deriveCockroachRoad(cols){ return deriveRoad(cols, 3); }
 function renderDerivedRoad(marks){
   return marks.map(m=>`<div class="dr-cell ${m}"></div>`).join('');
 }

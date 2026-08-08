@@ -64,6 +64,7 @@ const NAV_GROUPS = [
   ]},
   {id:'avatarGame', label:'아바타게임관리', icon:'gamepad', children:[
     {id:'avatarGameList', label:'아바타게임관리'},
+    {id:'avatarRequests', label:'아바타대리베팅신청'},
     {id:'roundEdit', label:'게임라운드수정'},
     {id:'chatLog', label:'채팅내역'},
     {id:'bankerCutBets', label:'뱅커절삭베팅내역'},
@@ -1035,6 +1036,56 @@ function openAvatarDetailSettings(){
   document.getElementById('formModalSubmitBtn').onclick = ()=>{ closeModal('modal-form'); toast('저장되었습니다'); };
   openModal('modal-form');
 }
+function betSideLabel(side){ return side==='player'?'플레이어':side==='banker'?'뱅커':'타이'; }
+async function renderAvatarRequests(){
+  const tables = await getTables();
+  const tableMap = {}; tables.forEach(t=>tableMap[t.id]=t);
+  return mountListView({
+    title:'아바타대리베팅신청', sub:'회원이 신청한 대리베팅을 승인(담당 아바타 배정)하면, 승인 기간 동안 매 라운드 지정된 베팅이 자동으로 집행됩니다.',
+    coll:'avatarRequests', search:true, searchFields:['memberId','tableId'], searchPh:'회원ID/테이블ID 검색',
+    filters:[{key:'status', label:'상태', options:['대기','진행중','종료']}],
+    columns:[
+      {key:'requestedAt', label:'신청시간', type:'dt'},
+      {key:'memberId', label:'회원ID'},
+      {key:'tableId', label:'테이블', render:r=>tableMap[r.tableId]?.name || r.tableId},
+      {key:'casino', label:'카지노'},
+      {key:'buyin', label:'바이인', type:'money'},
+      {key:'betSide', label:'베팅지시', render:r=>`${betSideLabel(r.betSide)} ${fmtNum(r.betAmount)}`},
+      {key:'avatarStaffId', label:'담당아바타', render:r=>r.avatarStaffId || '—'},
+      {key:'status', label:'상태', type:'pill', pillMap:{'대기':'warn','진행중':'ok','종료':'mute'}},
+    ],
+    rowActions: r => {
+      if (r.status==='대기') return `<button class="btn btn-xs btn-gold" onclick="openApproveAvatarRequestModal('${r.id}')">승인</button> <button class="btn btn-xs btn-danger" onclick="rejectAvatarRequest('${r.id}')">거절</button>`;
+      if (r.status==='진행중') return `<button class="btn btn-xs btn-danger" onclick="endAvatarRequestByAdmin('${r.id}')">강제 종료</button>`;
+      return `<span class="hint">종료됨</span>`;
+    },
+    sortKey:'requestedAt', sortDir:'desc',
+  });
+}
+function openApproveAvatarRequestModal(id){
+  document.getElementById('formModalTitle').textContent = '아바타 대리베팅 승인';
+  document.getElementById('formModalBody').innerHTML = `
+    <p class="hint">담당 아바타(직원) ID를 입력하면 신청을 승인하고 대리베팅을 시작합니다.</p>
+    <div class="field"><label>담당 아바타 ID</label><input id="apStaffId" placeholder="${CURRENT_STAFF?.id||'STAFF01'}" value="${CURRENT_STAFF?.id||''}"></div>
+  `;
+  document.getElementById('formModalSubmitBtn').onclick = async ()=>{
+    const staffId = document.getElementById('apStaffId').value.trim() || CURRENT_STAFF?.id || 'STAFF';
+    await db.collection('avatarRequests').doc(id).set({status:'진행중', avatarStaffId:staffId, approvedAt:new Date().toISOString()}, {merge:true});
+    await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:`아바타 대리베팅 승인 (담당:${staffId})`, target:id, dt:new Date().toISOString()});
+    closeModal('modal-form'); toast('승인되었습니다'); switchView(CURRENT_VIEW);
+  };
+  openModal('modal-form');
+}
+async function rejectAvatarRequest(id){
+  await db.collection('avatarRequests').doc(id).set({status:'종료', endedAt:new Date().toISOString()}, {merge:true});
+  await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:'아바타 대리베팅 거절', target:id, dt:new Date().toISOString()});
+  toast('거절되었습니다'); switchView(CURRENT_VIEW);
+}
+async function endAvatarRequestByAdmin(id){
+  await db.collection('avatarRequests').doc(id).set({status:'종료', endedAt:new Date().toISOString()}, {merge:true});
+  await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:'아바타 대리베팅 강제 종료', target:id, dt:new Date().toISOString()});
+  toast('종료되었습니다'); switchView(CURRENT_VIEW);
+}
 async function renderRoundEdit(){
   return mountListView({
     title:'게임라운드수정', sub:'특수 케이스(오배당, 엔젤아이 인식오류, 셔플로 인한 결과 미반영 등)는 라운드 취소로 베팅을 전액 환불 처리합니다.',
@@ -1468,7 +1519,7 @@ const VIEW_RENDERERS = {
   marketRatio: renderStatsTab, depositWithdrawStats: renderStatsTab, performanceCompare: renderStatsTab, realtimeRisk: renderStatsTab, highBet: renderStatsTab,
   leaderboard: renderStatsTab, memberActivity: renderStatsTab, signupStatus: renderStatsTab, bettingStatus: renderStatsTab,
   tableList: renderTableList, tableBetHistory: renderTableBetHistory,
-  avatarGameList: renderAvatarGameList, roundEdit: renderRoundEdit, chatLog: renderChatLog, bankerCutBets: renderBankerCutBets, avatarMissFix: renderAvatarMissFix, tableVideo: renderTableVideo, roundEditSettle: renderRoundEditSettle,
+  avatarGameList: renderAvatarGameList, avatarRequests: renderAvatarRequests, roundEdit: renderRoundEdit, chatLog: renderChatLog, bankerCutBets: renderBankerCutBets, avatarMissFix: renderAvatarMissFix, tableVideo: renderTableVideo, roundEditSettle: renderRoundEditSettle,
   depositWithdrawList: renderDepositWithdrawList, walletTransferList: renderWalletTransferList, walletConversionList: renderWalletConversionList,
   tickerNotice: renderTickerNotice, notice: renderNotice, guide: renderGuide, bannedWords: renderBannedWords, inquiry1on1: renderInquiry1on1, inGameNotice: renderInGameNotice, csContact: renderCsContact,
   moveAffiliation: renderMoveAffiliation, fullMemberConversion: renderFullMemberConversion, signupSmsVerify: renderSignupSmsVerify, blacklist: renderBlacklist, memberActionLog: renderMemberActionLog, adminLog: renderAdminLog, sharePartnerMgmt: renderSharePartnerMgmt, subJunketMgmt: renderSubJunketMgmt, eventMgmt: renderEventMgmt, fieldSignupList: renderFieldSignupList,

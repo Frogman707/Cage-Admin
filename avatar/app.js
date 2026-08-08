@@ -1,10 +1,14 @@
 /* ============================================================
    Game site (Avatar + Speed, integrated) — CAGE ADMIN 5.0
    One login/session/balance shared across both game modes.
-   Avatar = immersive single-table baccarat. Speed = several
-   tables running simultaneously with a faster round cadence.
-   Both persist every round/bet/payout to Firestore via the
-   shared engine in /shared/game-engine.js.
+   Avatar = proxy/대리 betting: a member requests a dedicated
+   avatar (staff, approved in Partner Admin) who places bets on
+   their behalf each round per a saved instruction, tipped
+   separately for avatar/dealer. Speed = several tables running
+   simultaneously with a faster round cadence, self-service.
+   Both persist every round/bet/payout/tip to Firestore via the
+   shared engine in /shared/game-engine.js. UI text is driven by
+   /shared/i18n.js (ko/zh/en/ja/vi).
    ============================================================ */
 
 let db = null;
@@ -12,8 +16,8 @@ let MODE = null; // 'avatar' | 'speed' | null (picker)
 const AVATAR_BETTING_SECONDS = 30, AVATAR_DEALING_SECONDS = 4, AVATAR_RESULT_SECONDS = 5;
 const SPEED_BETTING_SECONDS = 15, SPEED_DEALING_SECONDS = 3, SPEED_RESULT_SECONDS = 3;
 
-const BET_LABEL = {player:'플레이어', banker:'뱅커', tie:'타이', playerPair:'플레이어 페어', bankerPair:'뱅커 페어'};
-let MY_BET_LOG = []; // {tableName, roundNo, betType, amount, payout} newest first, shared across both modes
+function betLabel(type){ return t(type); } // BET_LABEL keys (player/banker/tie/playerPair/bankerPair) match i18n dict keys 1:1
+let MY_BET_LOG = []; // {tableName, roundNo, betType, amount, payout, mode, dt} newest first, shared across both modes
 
 let STATE = { balance: 0, points: 0, selectedChip: CHIP_VALUES[0] };
 
@@ -21,6 +25,7 @@ let STATE = { balance: 0, points: 0, selectedChip: CHIP_VALUES[0] };
 window.addEventListener('DOMContentLoaded', ()=>{
   db = cageInitFirebase();
   document.getElementById('liPw').addEventListener('keydown', e=>{ if (e.key==='Enter') onLogin(); });
+  document.getElementById('loginLangRow').innerHTML = langSwitcherHtml('loginLangSwitch');
   clearLoginFields();
   // Browsers autofill saved passwords asynchronously, after the page has already painted -
   // clearing once on load isn't enough since the browser can still fill the field a moment
@@ -35,9 +40,7 @@ function showPane(name){
   document.getElementById('pane-signup').style.display = name==='signup' ? 'block' : 'none';
 }
 function clearLoginFields(){
-  ['liId','liPw','suId','suPw','suNick','suPhone','suAgent'].forEach(id=>{
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
+  ['liId','liPw'].forEach(id=>{ const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('liErr').style.display = 'none';
   document.getElementById('suErr').style.display = 'none';
 }
@@ -46,31 +49,63 @@ async function onLogin(){
   const id = document.getElementById('liId').value.trim();
   const pw = document.getElementById('liPw').value.trim();
   const err = document.getElementById('liErr');
-  if (!id || !pw){ err.textContent = 'ID/비밀번호를 입력하세요.'; err.style.display='block'; return; }
+  if (!id || !pw){ err.textContent = t('loginErrRequired'); err.style.display='block'; return; }
   const res = await playerLogin(db, id, pw);
   if (!res.ok){
-    err.textContent = res.reason==='notfound' ? '존재하지 않는 계정입니다.' : res.reason==='blocked' ? '이용이 제한된 계정입니다.' : '비밀번호가 일치하지 않습니다.';
+    err.textContent = res.reason==='notfound' ? t('loginErrNotfound') : res.reason==='blocked' ? t('loginErrBlocked') : t('loginErrBadPw');
     err.style.display='block';
     return;
   }
   err.style.display='none';
   enterApp();
 }
+
+/* ---------------- signup: ID/PW auto-generation + Telegram + SMS verify ---------------- */
+let SIGNUP_CODE = null;
+let SIGNUP_VERIFIED = false;
+function genSignupId(){
+  const id = 'SE' + Math.floor(100000 + Math.random()*900000);
+  const pw = Math.random().toString(36).slice(2, 8).toUpperCase();
+  document.getElementById('suId').value = id;
+  document.getElementById('suPw').value = pw;
+}
+function sendSignupCode(){
+  const phone = document.getElementById('suPhone').value.trim();
+  if (!phone){ toast(t('suErrRequired'), true); return; }
+  SIGNUP_CODE = String(Math.floor(100000 + Math.random()*900000));
+  SIGNUP_VERIFIED = false;
+  document.getElementById('suCodeStatus').textContent = t('suCodeSent', {code: SIGNUP_CODE});
+  toast(t('suCodeSent', {code: SIGNUP_CODE}));
+}
+function verifySignupCode(){
+  const code = document.getElementById('suCode').value.trim();
+  if (SIGNUP_CODE && code === SIGNUP_CODE){
+    SIGNUP_VERIFIED = true;
+    document.getElementById('suCodeStatus').textContent = '✓ ' + t('suCodeOk');
+    toast(t('suCodeOk'));
+  } else {
+    toast(t('suCodeBad'), true);
+  }
+}
 async function onSignup(){
   const id = document.getElementById('suId').value.trim();
   const pw = document.getElementById('suPw').value.trim();
   const nickname = document.getElementById('suNick').value.trim();
+  const telegram = document.getElementById('suTelegram').value.trim();
   const phone = document.getElementById('suPhone').value.trim();
   const casino = document.getElementById('suCasino').value;
   const agentCode = document.getElementById('suAgent').value.trim() || 'DIRECT';
   const err = document.getElementById('suErr');
-  if (!id || !pw || !nickname){ err.textContent = '필수 항목을 입력하세요.'; err.style.display='block'; return; }
-  const res = await playerSignup(db, {id, pw, nickname, phone, casino, agentCode});
-  if (!res.ok){ err.textContent = '이미 존재하는 아이디입니다.'; err.style.display='block'; return; }
+  if (!id || !pw){ err.textContent = t('suErrGenId'); err.style.display='block'; return; }
+  if (!SIGNUP_VERIFIED){ err.textContent = t('suErrVerify'); err.style.display='block'; return; }
+  if (!nickname || !telegram){ err.textContent = t('suErrRequired'); err.style.display='block'; return; }
+  const res = await playerSignup(db, {id, pw, nickname, telegram, phone, casino, agentCode, smsVerified:true});
+  if (!res.ok){ err.textContent = t('suErrDup'); err.style.display='block'; return; }
   err.style.display='none';
-  toast('회원가입이 완료되었습니다. 가입 축하 포인트 100,000이 지급되었습니다.');
+  toast(t('suSignupDone'));
   enterApp();
 }
+
 function onLogout(){
   stopAllLoops();
   PLAYER = null;
@@ -84,6 +119,7 @@ function onLogout(){
 async function enterApp(){
   document.getElementById('login-gate').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
+  document.getElementById('hdrLangRow').innerHTML = langSwitcherHtml('hdrLangSwitch');
   document.getElementById('hdrNick').textContent = `${PLAYER.nickname} (${PLAYER.id})`;
   clearLoginFields();
   await refreshBalance();
@@ -105,11 +141,11 @@ function selectChip(v){
 }
 function renderMyBetHistory(){
   const el = document.getElementById('myBetHistory'); if (!el) return;
-  if (!MY_BET_LOG.length){ el.innerHTML = `<span class="hint">아직 베팅 내역이 없습니다</span>`; return; }
+  if (!MY_BET_LOG.length){ el.innerHTML = `<span class="hint">${t('noBetsYet')}</span>`; return; }
   el.innerHTML = MY_BET_LOG.slice(0, 20).map(b=>{
     const net = b.payout - b.amount;
     const cls = net > 0 ? 'pos' : net < 0 ? 'neg' : '';
-    return `<div class="row"><span>[${escapeHtml(b.tableName)}] #${b.roundNo} ${BET_LABEL[b.betType]} ${fmtNum(b.amount)}</span><span class="${cls}">${net===0 ? '푸시' : fmtSigned(net)}</span></div>`;
+    return `<div class="row"><span>[${escapeHtml(b.tableName)}] #${b.roundNo} ${betLabel(b.betType)} ${fmtNum(b.amount)}</span><span class="${cls}">${net===0 ? t('push') : fmtSigned(net)}</span></div>`;
   }).join('');
 }
 
@@ -130,7 +166,7 @@ function renderGameHistory(btn, mode){
   }
   const body = document.getElementById('historyBody');
   const rows = MY_BET_LOG.filter(b=>b.mode===mode);
-  if (!rows.length){ body.innerHTML = `<p class="hint" style="padding:20px 0;text-align:center;">베팅 내역이 없습니다</p>`; return; }
+  if (!rows.length){ body.innerHTML = `<p class="hint" style="padding:20px 0;text-align:center;">${t('noHistory')}</p>`; return; }
   const byDay = {};
   rows.forEach(b=>{
     const day = fmtDate(b.dt);
@@ -144,13 +180,13 @@ function renderGameHistory(btn, mode){
       const cls = net > 0 ? 'pos' : net < 0 ? 'neg' : '';
       return `<div class="history-row">
         <span class="t">${fmtDt(b.dt).slice(11)}</span>
-        <span class="g">${escapeHtml(b.tableName)} · ${BET_LABEL[b.betType]}</span>
+        <span class="g">${escapeHtml(b.tableName)} · ${betLabel(b.betType)}</span>
         <span class="amt">${fmtNum(b.amount)}</span>
-        <span class="wl ${cls}">${net===0?'푸시':fmtSigned(net)}</span>
+        <span class="wl ${cls}">${net===0?t('push'):fmtSigned(net)}</span>
       </div>`;
     }).join('');
     return `<div class="history-day">
-      <div class="history-day-head"><span>${day}</span><span>베팅 ${fmtNum(totalBet)} · <b class="${totalNet>=0?'pos':'neg'}">${fmtSigned(totalNet)}</b></span></div>
+      <div class="history-day-head"><span>${day}</span><span>${t('betLabel')} ${fmtNum(totalBet)} · <b class="${totalNet>=0?'pos':'neg'}">${fmtSigned(totalNet)}</b></span></div>
       ${rowsHtml}
     </div>`;
   }).join('');
@@ -196,17 +232,39 @@ async function chooseSpeed(){
   SPEED.tick = setInterval(tickAllSpeedTables, 1000);
 }
 function backToAvatarLobby(){
+  stopAvatarRoundLoop();
+  if (AVATAR.chatUnsub){ AVATAR.chatUnsub(); AVATAR.chatUnsub = null; }
   goAvatarLobby();
+}
+function onLangChange(){
+  // re-render whichever screen is currently visible so JS-generated text updates immediately
+  if (MODE==='avatar'){
+    if (document.getElementById('viewAvatarTable').style.display !== 'none' && AVATAR.table){
+      document.getElementById('viewAvatarTable').innerHTML = avatarTableShellHtml();
+      renderAvatarRoadmap(); renderAvatarRecentResults(); renderMyBetHistory(); updateAvatarStatusPanel();
+    } else if (AVATAR.lobbyData){
+      renderAvatarLobbyGrid(document.getElementById('lobbySort')?.value || 'popular');
+    }
+  } else if (MODE==='speed'){
+    renderChipTray();
+    Object.keys(SPEED.tables||{}).forEach(id=>{ renderSpeedTileStats(id); setSpeedTilePhaseText(id, SPEED.tstate[id].phase==='betting'?t('phaseBetting'):SPEED.tstate[id].phase==='dealing'?t('phaseDealing'):''); });
+  }
 }
 
 /* ============================================================
-   AVATAR MODE — immersive single-table baccarat
+   AVATAR MODE — proxy/대리 betting
+   A member requests a dedicated avatar for a table; once a staff
+   member approves the request in Partner Admin, this client
+   auto-places one bet per round per the member's saved
+   instruction (still using the same round/settle engine as
+   before), and shows a status panel (assigned avatar, tip
+   totals) instead of a manual betting rail.
    ============================================================ */
 let AVATAR = {
   table: null, phase: 'idle', secondsLeft: 0, roundNo: 1,
   bets: {player:0, banker:0, tie:0, playerPair:0, bankerPair:0},
   history: [], currentRoundId: null, timerHandle: null, chatUnsub: null,
-  lobbyData: null,
+  lobbyData: null, myRequests: [], request: null, tipTotals: {avatar:0, dealer:0},
 };
 
 async function goAvatarLobby(){
@@ -216,27 +274,48 @@ async function goAvatarLobby(){
   const lobby = document.getElementById('viewAvatarLobby');
   lobby.innerHTML = `
     <div class="lobby-wrap">
-      <div class="lobby-title">아바타 테이블</div>
+      <div class="lobby-title" data-i18n="avatarLobbyTitle">아바타 테이블</div>
       <div class="lobby-toolbar">
-        <label class="hint" style="margin:0;">정렬</label>
+        <label class="hint" style="margin:0;" data-i18n="sortLabel">정렬</label>
         <select id="lobbySort" onchange="renderAvatarLobbyGrid(this.value)">
-          <option value="popular">인기순 (베팅총액)</option>
-          <option value="today">오늘 베팅액순</option>
-          <option value="hot">좋은 흐름순</option>
-          <option value="name">테이블명순</option>
+          <option value="popular" data-i18n="sortPopular">인기순 (베팅총액)</option>
+          <option value="today" data-i18n="sortToday">오늘 베팅액순</option>
+          <option value="hot" data-i18n="sortHot">좋은 흐름순</option>
+          <option value="name" data-i18n="sortName">테이블명순</option>
         </select>
       </div>
       <div class="lobby-grid" id="lobbyGrid"><div class="spin"></div></div>
     </div>`;
-  const [tableSnap, roundsSnap, betSnap] = await Promise.all([
+  applyI18n(lobby);
+  const [tableSnap, roundsSnap, betSnap, reqSnap] = await Promise.all([
     db.collection('tables').where('type','==','avatar').get(),
     db.collection('rounds').where('tableType','==','avatar').get(),
     db.collection('memberLedger').where('category','==','bet').get(), // single equality filter only - no composite index needed
+    db.collection('avatarRequests').where('memberId','==',PLAYER.id).get(),
   ]);
   const tables = tableSnap.docs.map(d=>({id:d.id, ...d.data()})).filter(t=>t.status==='open');
   AVATAR.lobbyData = { tables, rounds: roundsSnap.docs.map(d=>d.data()), bets: betSnap.docs.map(d=>d.data()) };
-  if (!tables.length){ document.getElementById('lobbyGrid').innerHTML = `<p class="hint">열려있는 아바타 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.</p>`; return; }
+  AVATAR.myRequests = reqSnap.docs.map(d=>({id:d.id, ...d.data()}));
+  if (!tables.length){ document.getElementById('lobbyGrid').innerHTML = `<p class="hint">${t('noAvatarTables')}</p>`; return; }
   renderAvatarLobbyGrid('popular');
+}
+function avatarRequestStateForTable(tableId){
+  const todayStr = fmtDate(new Date());
+  const reqs = AVATAR.myRequests.filter(r=>r.tableId===tableId).sort((a,b)=>new Date(b.requestedAt)-new Date(a.requestedAt));
+  const active = reqs.find(r=>r.status==='진행중');
+  if (active) return {state:'active', req:active};
+  const pending = reqs.find(r=>r.status==='대기');
+  if (pending) return {state:'pending', req:pending};
+  const endedToday = reqs.find(r=>r.status==='종료' && fmtDate(r.requestedAt)===todayStr);
+  if (endedToday) return {state:'full', req:endedToday};
+  return {state:'none', req:null};
+}
+function avatarActionButtonHtml(tableId){
+  const {state} = avatarRequestStateForTable(tableId);
+  if (state==='active') return `<button class="btn btn-jade btn-sm btn-block" onclick="event.stopPropagation();enterAvatarSession('${tableId}')">${t('btnReenter')}</button>`;
+  if (state==='pending') return `<button class="btn btn-sm btn-block" disabled style="opacity:.6;">${t('btnPending')}</button>`;
+  if (state==='full') return `<button class="btn btn-sm btn-block" disabled style="opacity:.5;">${t('btnFullToday')}</button>`;
+  return `<button class="btn btn-gold btn-sm btn-block" onclick="event.stopPropagation();openAvatarRequestModal('${tableId}')">${t('btnRequestAvatar')}</button>`;
 }
 function renderAvatarLobbyGrid(sortMode){
   if (!AVATAR.lobbyData) return;
@@ -253,29 +332,59 @@ function renderAvatarLobbyGrid(sortMode){
     if (sortMode==='name') return a.t.name.localeCompare(b.t.name);
     return b.volume.total - a.volume.total; // popular (default)
   });
-  grid.innerHTML = sorted.map(({t, results, wins, streak, volume})=>{
+  grid.innerHTML = sorted.map(({t:tb, results, wins, streak, volume})=>{
     const cols = buildBigRoad(results.slice(-40));
     const isHot = streak.len >= 3;
     return `
-    <div class="lobby-card" onclick="enterAvatarTable('${t.id}')">
+    <div class="lobby-card">
       <div class="thumb">
-        <div class="live-dot"><span></span>LIVE</div>
+        <div class="live-dot"><span></span>${t('live')}</div>
         <div class="badge-type">AVATAR</div>
         <div class="felt"></div>
-        ${isHot ? `<div class="hot-badge">🔥 ${streak.len}연속 ${streak.side==='player'?'플레이어':'뱅커'}</div>` : ''}
+        ${isHot ? `<div class="hot-badge">🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}</div>` : ''}
       </div>
-      <div class="info"><div class="name">${escapeHtml(t.name)}</div><div class="limits">${t.casino} · ${fmtNum(t.betMin)} ~ ${fmtNum(t.betMax)}</div></div>
-      <div class="mini-road br-grid">${renderBigRoad(cols, 4) || '<span class="hint" style="font-size:10px;">기록 없음</span>'}</div>
-      <div class="stat-row"><span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>오늘 <b>${fmtNum(volume.today)}</b></span></div>
+      <div class="info"><div class="name">${escapeHtml(tb.name)}</div><div class="limits">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div></div>
+      <div class="mini-road br-grid">${renderBigRoad(cols, 4) || `<span class="hint" style="font-size:10px;">${t('noRecord')}</span>`}</div>
+      <div class="stat-row"><span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>${t('todayLabel')} <b>${fmtNum(volume.today)}</b></span></div>
+      <div style="padding:0 15px 14px;">${avatarActionButtonHtml(tb.id)}</div>
     </div>`;
   }).join('');
 }
 
-async function enterAvatarTable(tableId){
+/* ---------------- avatar request modal ---------------- */
+let AVATAR_PENDING_TABLE = null;
+function openAvatarRequestModal(tableId){
+  AVATAR_PENDING_TABLE = tableId;
+  document.getElementById('reqBuyin').value = '';
+  document.getElementById('reqAmount').value = '';
+  document.getElementById('reqSide').value = 'banker';
+  openModal('modal-avatar-request');
+}
+async function submitAvatarRequest(){
+  const buyin = rawNum(document.getElementById('reqBuyin').value);
+  const betSide = document.getElementById('reqSide').value;
+  const betAmount = rawNum(document.getElementById('reqAmount').value);
+  if (!buyin || !betAmount){ toast(t('suErrRequired'), true); return; }
+  const tbl = AVATAR.lobbyData.tables.find(x=>x.id===AVATAR_PENDING_TABLE);
+  await db.collection('avatarRequests').doc(uuidv4()).set({
+    memberId: PLAYER.id, tableId: AVATAR_PENDING_TABLE, casino: tbl?.casino || PLAYER.casino,
+    buyin, betSide, betAmount, status:'대기', avatarStaffId:null,
+    requestedAt: new Date().toISOString(), approvedAt:null, endedAt:null,
+  });
+  closeModal('modal-avatar-request');
+  toast(t('requestSubmitted'));
+  goAvatarLobby();
+}
+
+/* ---------------- avatar session (approved, proxy-betting in progress) ---------------- */
+async function enterAvatarSession(tableId){
+  const {req} = avatarRequestStateForTable(tableId);
+  if (!req){ toast(t('btnPending'), true); return; }
+  AVATAR.request = req;
+
   showView('viewAvatarTable');
   const view = document.getElementById('viewAvatarTable');
-  // unified loading transition regardless of casino/table
-  view.innerHTML = `<div class="table-loading"><div class="spin-lg"></div><div>테이블에 연결 중입니다...</div></div>`;
+  view.innerHTML = `<div class="table-loading"><div class="spin-lg"></div><div>${t('connectingTable')}</div></div>`;
 
   const doc = await db.collection('tables').doc(tableId).get();
   AVATAR.table = {id:tableId, ...doc.data()};
@@ -283,23 +392,46 @@ async function enterAvatarTable(tableId){
   const rounds = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
   AVATAR.history = rounds.map(r=>r.result);
   AVATAR.roundNo = (Math.max(0, ...rounds.map(r=>r.roundNo||0)) || 0) + 1;
+  await refreshTipTotals();
 
   view.innerHTML = avatarTableShellHtml();
   renderAvatarRoadmap();
   renderAvatarRecentResults();
   renderMyBetHistory();
+  updateAvatarStatusPanel();
   mountAvatarChat(tableId);
   startAvatarRoundLoop();
 }
+async function refreshTipTotals(){
+  const snap = await db.collection('memberLedger').where('memberId','==',PLAYER.id).get(); // single equality
+  let avatarTip = 0, dealerTip = 0;
+  snap.forEach(d=>{
+    const r = d.data();
+    if (r.relatedRequestId !== AVATAR.request.id) return;
+    if (r.category==='avatar_tip') avatarTip += Math.abs(r.amount);
+    if (r.category==='dealer_tip') dealerTip += Math.abs(r.amount);
+  });
+  AVATAR.tipTotals = {avatar:avatarTip, dealer:dealerTip};
+}
+function updateAvatarStatusPanel(){
+  const el = document.getElementById('avatarStatusGrid'); if (!el) return;
+  const r = AVATAR.request;
+  el.innerHTML = `
+    <span>${t('assignedAvatar')}</span><b>${r.avatarStaffId ? escapeHtml(r.avatarStaffId) : t('unassigned')}</b>
+    <span>${t('myInstruction')}</span><b>${betLabel(r.betSide)} ${fmtNum(r.betAmount)}</b>
+    <span>${t('avatarTipTotal')}</span><b class="num">${fmtNum(AVATAR.tipTotals.avatar)}</b>
+    <span>${t('dealerTipTotal')}</span><b class="num">${fmtNum(AVATAR.tipTotals.dealer)}</b>
+  `;
+}
 function avatarTableShellHtml(){
-  const t = AVATAR.table;
+  const tb = AVATAR.table;
   return `
   <div class="table-shell">
     <div class="table-main">
       <div class="table-stage">
-        <div class="table-id-badge">${t.name}</div>
-        <div class="table-shoe-badge">SHOE #${t.shoeNo||1} · ROUND ${AVATAR.roundNo}</div>
-        <div class="phase-banner" id="phaseBanner">베팅하세요</div>
+        <div class="table-id-badge">${escapeHtml(tb.name)}</div>
+        <div class="table-shoe-badge">SHOE #${tb.shoeNo||1} · ${t('roundInfo')} ${AVATAR.roundNo}</div>
+        <div class="phase-banner" id="phaseBanner">${t('phaseBetting')}</div>
         <div class="table-felt">
           <div class="cards-area" id="cardsArea">
             <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCards"></div><div class="score" id="playerScore"></div></div>
@@ -309,66 +441,71 @@ function avatarTableShellHtml(){
         <div class="timer-ring-wrap" id="timerRingWrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArc" cx="32" cy="32" r="27" stroke="var(--brass)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timerTxt">30</div></div>
         <div class="result-flash" id="resultFlash"><div class="txt" id="resultFlashTxt"></div></div>
       </div>
-      <div class="bet-rail with-pairs">
-        <div class="bet-spot player" id="spot-player" onclick="placeAvatarBet('player')"><div class="label">PLAYER</div><div class="odds">1 : 1</div><div class="my-bet" id="mybet-player"></div><div class="chip-stack" id="chipstack-player"></div></div>
-        <div>
-          <div class="bet-spot tie" id="spot-tie" onclick="placeAvatarBet('tie')"><div class="label">TIE</div><div class="odds">8 : 1</div><div class="my-bet" id="mybet-tie"></div><div class="chip-stack" id="chipstack-tie"></div></div>
-          <div class="pair-row">
-            <div class="bet-spot pair" id="spot-playerPair" onclick="placeAvatarBet('playerPair')"><div class="label">P PAIR</div><div class="odds">11:1</div><div class="my-bet" id="mybet-playerPair"></div><div class="chip-stack" id="chipstack-playerPair"></div></div>
-            <div class="bet-spot pair" id="spot-bankerPair" onclick="placeAvatarBet('bankerPair')"><div class="label">B PAIR</div><div class="odds">11:1</div><div class="my-bet" id="mybet-bankerPair"></div><div class="chip-stack" id="chipstack-bankerPair"></div></div>
-          </div>
-        </div>
-        <div class="bet-spot banker" id="spot-banker" onclick="placeAvatarBet('banker')"><div class="label">BANKER</div><div class="odds">0.95 : 1</div><div class="my-bet" id="mybet-banker"></div><div class="chip-stack" id="chipstack-banker"></div></div>
-      </div>
-      <div class="chip-tray">
-        ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})"><span class="cv">${chipLabel(v)}</span></div>`).join('')}
-        <div class="bet-controls">
-          <span class="current-bet-total" id="betTotalTxt">총 0</span>
-          <button class="btn btn-sm" onclick="clearAvatarBets()">취소</button>
+      <div class="card avatar-status-card">
+        <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
+        <div class="kv-grid" id="avatarStatusGrid"></div>
+        <div class="row" style="gap:8px;margin-top:14px;">
+          <button class="btn btn-gold btn-sm" onclick="openTipModal()">${t('giveTip')}</button>
+          <button class="btn btn-sm" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
+          <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
         </div>
       </div>
     </div>
     <div class="table-side">
-      <div class="card roadmap-card" id="roadmapCard"><h3><span>빅로드</span><button class="roadmap-toggle" onclick="toggleRoadmapCollapse()">▾</button></h3><div class="br-grid" id="bigRoadGrid"></div>
-        <div class="roadmap-legend"><span><i style="background:#4A9FD8;"></i>PLAYER</span><span><i style="background:var(--danger);"></i>BANKER</span><span><i style="background:var(--jade);"></i>TIE</span></div>
-        <div class="derived-road-title">빅아이보이</div>
+      <div class="card roadmap-card" id="roadmapCard"><h3><span>${t('bigRoad')}</span><button class="roadmap-toggle" onclick="toggleRoadmapCollapse()">▾</button></h3><div class="br-grid" id="bigRoadGrid"></div>
+        <div class="roadmap-legend"><span><i style="background:#4A9FD8;"></i>${t('player')}</span><span><i style="background:var(--danger);"></i>${t('banker')}</span><span><i style="background:var(--jade);"></i>${t('tie')}</span></div>
+        <div class="derived-road-title">${t('bigEyeBoy')}</div>
         <div class="derived-road-grid" id="derivedRoadGrid"></div>
       </div>
-      <div class="card"><h3>최근 결과</h3><div class="recent-results" id="recentResults"></div></div>
-      <div class="card"><h3>내 베팅내역</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
-      <div class="card chat-panel"><h3>채팅</h3>
+      <div class="card"><h3>${t('recentResults')}</h3><div class="recent-results" id="recentResults"></div></div>
+      <div class="card"><h3>${t('myBetHistory')}</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
+      <div class="card chat-panel"><h3>${t('chat')}</h3>
         <div class="chat-log" id="chatLog"></div>
-        <div class="chat-input-row"><input id="chatInput" placeholder="메시지 입력..." onkeydown="if(event.key==='Enter')sendAvatarChat()"><button class="btn btn-sm btn-gold" onclick="sendAvatarChat()">전송</button></div>
+        <div class="chat-input-row"><input id="chatInput" placeholder="${t('chatPh')}" onkeydown="if(event.key==='Enter')sendAvatarChat()"><button class="btn btn-sm btn-gold" onclick="sendAvatarChat()">${t('send')}</button></div>
       </div>
     </div>
   </div>`;
 }
-function placeAvatarBet(type){
-  if (AVATAR.phase !== 'betting'){ toast('베팅 시간이 아닙니다', true); return; }
-  if (STATE.balance < STATE.selectedChip + avatarTotalBet()){ toast('보유금이 부족합니다', true); return; }
-  AVATAR.bets[type] += STATE.selectedChip;
-  document.getElementById('spot-'+type).classList.add('selected');
-  updateAvatarBetUi();
+
+/* ---------------- tip / shoe-change / end-session ---------------- */
+function openTipModal(){
+  document.getElementById('tipAmount').value = '';
+  document.getElementById('tipTarget').value = 'avatar';
+  openModal('modal-tip');
 }
-function avatarTotalBet(){ return Object.values(AVATAR.bets).reduce((a,b)=>a+b,0); }
-function updateAvatarBetUi(){
-  Object.keys(AVATAR.bets).forEach(k=>{
-    const el = document.getElementById('mybet-'+k);
-    if (el) el.textContent = AVATAR.bets[k] ? fmtNum(AVATAR.bets[k]) : '';
-    const stackEl = document.getElementById('chipstack-'+k);
-    if (stackEl) stackEl.innerHTML = chipStackHtml(AVATAR.bets[k]);
+async function submitTip(){
+  const target = document.getElementById('tipTarget').value;
+  const amount = rawNum(document.getElementById('tipAmount').value);
+  if (!amount){ toast(t('suErrRequired'), true); return; }
+  if (amount > STATE.balance){ toast(t('insufficientBalance'), true); return; }
+  await db.collection('memberLedger').doc(uuidv4()).set({
+    memberId: PLAYER.id, casino: PLAYER.casino, amount: -amount,
+    category: target==='avatar' ? 'avatar_tip' : 'dealer_tip',
+    relatedRequestId: AVATAR.request.id, relatedTableId: AVATAR.table.id,
+    staff: 'member', createdAt: new Date().toISOString(),
   });
-  const totalEl = document.getElementById('betTotalTxt');
-  if (totalEl) totalEl.textContent = '총 ' + fmtNum(avatarTotalBet());
-  document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance - avatarTotalBet());
-}
-function clearAvatarBets(){
-  AVATAR.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
-  document.querySelectorAll('.bet-spot').forEach(s=>s.classList.remove('selected'));
-  updateAvatarBetUi();
+  STATE.balance -= amount;
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
+  await refreshTipTotals();
+  updateAvatarStatusPanel();
+  closeModal('modal-tip');
+  toast(t('tipSent'));
+}
+async function requestShoeChange(){
+  await db.collection('avatarServiceRequests').doc(uuidv4()).set({
+    requestId: AVATAR.request.id, tableId: AVATAR.table.id, memberId: PLAYER.id,
+    type: 'shoe_change', dt: new Date().toISOString(),
+  });
+  toast(t('shoeChangeSent'));
+}
+async function endAvatarSession(){
+  await db.collection('avatarRequests').doc(AVATAR.request.id).set({status:'종료', endedAt:new Date().toISOString()}, {merge:true});
+  toast(t('sessionEnded'));
+  backToAvatarLobby();
 }
 
+/* ---------------- round loop (auto-bets the member's saved instruction each round) ---------------- */
+function avatarTotalBet(){ return Object.values(AVATAR.bets).reduce((a,b)=>a+b,0); }
 function stopAvatarRoundLoop(){ if (AVATAR.timerHandle){ clearInterval(AVATAR.timerHandle); AVATAR.timerHandle = null; } }
 function startAvatarRoundLoop(){
   stopAvatarRoundLoop();
@@ -379,9 +516,9 @@ function beginAvatarBettingPhase(){
   AVATAR.phase = 'betting';
   AVATAR.secondsLeft = AVATAR_BETTING_SECONDS;
   AVATAR.currentRoundId = uuidv4();
-  clearAvatarBets();
-  setAvatarPhaseBanner('베팅하세요', AVATAR_BETTING_SECONDS);
-  document.querySelectorAll('.bet-spot').forEach(s=>s.classList.remove('locked'));
+  AVATAR.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
+  AVATAR.bets[AVATAR.request.betSide] = AVATAR.request.betAmount;
+  setAvatarPhaseBanner(t('phaseBetting'), AVATAR_BETTING_SECONDS);
   const flash = document.getElementById('resultFlash'); if (flash) flash.classList.remove('show');
   document.getElementById('playerCards').innerHTML = ''; document.getElementById('bankerCards').innerHTML = '';
   document.getElementById('playerScore').textContent = ''; document.getElementById('bankerScore').textContent = '';
@@ -412,12 +549,15 @@ async function avatarTick(){
 async function beginAvatarDealingPhase(){
   AVATAR.phase = 'dealing';
   AVATAR.secondsLeft = AVATAR_DEALING_SECONDS;
-  document.querySelectorAll('.bet-spot').forEach(s=>s.classList.add('locked'));
-  setAvatarPhaseBanner('카드를 배분합니다', AVATAR_DEALING_SECONDS);
+  setAvatarPhaseBanner(t('phaseDealing'), AVATAR_DEALING_SECONDS);
   for (const [betType, amount] of Object.entries(AVATAR.bets)){
-    if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId:AVATAR.table.id, roundId:AVATAR.currentRoundId, betType, amount, staff:'system'});
+    if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId:AVATAR.table.id, roundId:AVATAR.currentRoundId, betType, amount, staff:'avatar'});
   }
-  if (avatarTotalBet() > 0){ STATE.balance -= avatarTotalBet(); }
+  if (avatarTotalBet() > 0){
+    STATE.balance -= avatarTotalBet();
+    document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
+    toast(t('avatarPlacedBet', {side: betLabel(AVATAR.request.betSide), amount: fmtNum(AVATAR.request.betAmount)}));
+  }
   AVATAR._sim = simulateRound();
   await revealAvatarCards(AVATAR._sim);
 }
@@ -439,7 +579,7 @@ async function beginAvatarResultPhase(){
   AVATAR.phase = 'result';
   AVATAR.secondsLeft = AVATAR_RESULT_SECONDS;
   const sim = AVATAR._sim;
-  setAvatarPhaseBanner(sim.result==='player' ? '플레이어 승리' : sim.result==='banker' ? '뱅커 승리' : '타이', AVATAR_RESULT_SECONDS);
+  setAvatarPhaseBanner(sim.result==='player' ? t('phasePlayerWin') : sim.result==='banker' ? t('phaseBankerWin') : t('phaseTie'), AVATAR_RESULT_SECONDS);
 
   const flash = document.getElementById('resultFlash');
   const flashTxt = document.getElementById('resultFlashTxt');
@@ -454,7 +594,7 @@ async function beginAvatarResultPhase(){
     totalPayout += payout;
     MY_BET_LOG.unshift({tableName:AVATAR.table.name, roundNo:AVATAR.roundNo, betType, amount, payout, mode:'avatar', dt:new Date().toISOString()});
   }
-  if (totalPayout > 0){ STATE.balance += totalPayout; toast(`+${fmtNum(totalPayout)} 획득!`); }
+  if (totalPayout > 0){ STATE.balance += totalPayout; toast(t('wonAmount', {amount: fmtNum(totalPayout)})); }
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
   refreshPointsQuiet();
 
@@ -484,7 +624,7 @@ function renderAvatarRoadmap(){
 function renderAvatarRecentResults(){
   const el = document.getElementById('recentResults'); if (!el) return;
   const recent = AVATAR.history.slice(-20);
-  el.innerHTML = recent.map(r=>`<div class="rr ${r}">${r==='player'?'P':r==='banker'?'B':'T'}</div>`).join('') || `<span class="hint">기록 없음</span>`;
+  el.innerHTML = recent.map(r=>`<div class="rr ${r}">${r==='player'?'P':r==='banker'?'B':'T'}</div>`).join('') || `<span class="hint">${t('noRecord')}</span>`;
 }
 function mountAvatarChat(tableId){
   const log = document.getElementById('chatLog');
@@ -493,9 +633,9 @@ function mountAvatarChat(tableId){
   AVATAR.chatUnsub = db.collection('chatMessages').where('tableId','==',tableId).limit(200)
     .onSnapshot(snap=>{
       const msgs = snap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.dt)-new Date(b.dt)).slice(-30);
-      log.innerHTML = msgs.map(m=>`<div class="msg"><b>${escapeHtml(m.nickname)}:</b> ${escapeHtml(m.text)}</div>`).join('') || `<span class="hint">채팅이 없습니다</span>`;
+      log.innerHTML = msgs.map(m=>`<div class="msg"><b>${escapeHtml(m.nickname)}:</b> ${escapeHtml(m.text)}</div>`).join('') || `<span class="hint">${t('noChat')}</span>`;
       log.scrollTop = log.scrollHeight;
-    }, err=>{ log.innerHTML = `<span class="hint">채팅을 불러올 수 없습니다</span>`; });
+    }, err=>{ log.innerHTML = `<span class="hint">${t('noChat')}</span>`; });
 }
 async function sendAvatarChat(){
   const input = document.getElementById('chatInput');
@@ -506,7 +646,7 @@ async function sendAvatarChat(){
 }
 
 /* ============================================================
-   SPEED MODE — several tables running simultaneously
+   SPEED MODE — several tables running simultaneously, self-service
    ============================================================ */
 let SPEED = { tables:{}, tstate:{}, allBets:[], tick:null };
 
@@ -518,52 +658,52 @@ function renderChipTray(){
 }
 async function loadSpeedTables(){
   const grid = document.getElementById('speedGrid');
-  grid.innerHTML = `<div class="table-loading" style="grid-column:1/-1;height:200px;"><div class="spin-lg"></div><div>테이블에 연결 중입니다...</div></div>`;
+  grid.innerHTML = `<div class="table-loading" style="grid-column:1/-1;height:200px;"><div class="spin-lg"></div><div>${t('connectingTable')}</div></div>`;
   const [tableSnap, roundsSnap, betSnap] = await Promise.all([
     db.collection('tables').where('type','==','speed').get(),
     db.collection('rounds').where('tableType','==','speed').get(),
     db.collection('memberLedger').where('category','==','bet').get(),
   ]);
   const tables = tableSnap.docs.map(d=>({id:d.id, ...d.data()})).filter(t=>t.status==='open');
-  if (!tables.length){ grid.innerHTML = `<p class="hint">열려있는 스피드 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.</p>`; return; }
+  if (!tables.length){ grid.innerHTML = `<p class="hint">${t('noSpeedTables')}</p>`; return; }
   const allRounds = roundsSnap.docs.map(d=>d.data());
   SPEED.allBets = betSnap.docs.map(d=>d.data());
   SPEED.tables = {}; SPEED.tstate = {};
 
-  grid.innerHTML = tables.map(t=>speedTileHtml(t)).join('');
-  tables.forEach(t=>{
-    SPEED.tables[t.id] = t;
-    const rounds = allRounds.filter(r=>r.tableId===t.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
-    SPEED.tstate[t.id] = {
+  grid.innerHTML = tables.map(tb=>speedTileHtml(tb)).join('');
+  tables.forEach(tb=>{
+    SPEED.tables[tb.id] = tb;
+    const rounds = allRounds.filter(r=>r.tableId===tb.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+    SPEED.tstate[tb.id] = {
       phase:'betting', secondsLeft: SPEED_BETTING_SECONDS - (Object.keys(SPEED.tstate).length*3)%SPEED_BETTING_SECONDS,
       roundNo: (Math.max(0, ...rounds.map(r=>r.roundNo||0))||0)+1,
       bets:{player:0, banker:0, tie:0}, currentRoundId: uuidv4(),
       history: rounds.map(r=>r.result),
     };
-    renderSpeedTileRoad(t.id);
-    renderSpeedTileBets(t.id);
-    renderSpeedTileStats(t.id);
+    renderSpeedTileRoad(tb.id);
+    renderSpeedTileBets(tb.id);
+    renderSpeedTileStats(tb.id);
   });
 }
-function speedTileHtml(t){
+function speedTileHtml(tb){
   return `
-  <div class="speed-tile" id="tile-${t.id}">
-    <div class="head"><span class="name">${escapeHtml(t.name)}</span><span class="shoe">SHOE #${t.shoeNo||1} · ${t.casino}</span></div>
-    <div id="hotbadge-${t.id}"></div>
-    <div class="speed-mini-stage" id="stage-${t.id}"><div class="phase-txt" id="phase-${t.id}">베팅하세요</div><div class="speed-timer" id="timer-${t.id}">15</div></div>
+  <div class="speed-tile" id="tile-${tb.id}">
+    <div class="head"><span class="name">${escapeHtml(tb.name)}</span><span class="shoe">SHOE #${tb.shoeNo||1} · ${tb.casino}</span></div>
+    <div id="hotbadge-${tb.id}"></div>
+    <div class="speed-mini-stage" id="stage-${tb.id}"><div class="phase-txt" id="phase-${tb.id}">${t('phaseBetting')}</div><div class="speed-timer" id="timer-${tb.id}">15</div></div>
     <div class="speed-bets">
-      <div class="bet-spot player" id="spot-${t.id}-player" onclick="placeSpeedBet('${t.id}','player')"><div class="label">P</div><div class="odds">1:1</div><div class="my-bet" id="mybet-${t.id}-player"></div></div>
-      <div class="bet-spot tie" id="spot-${t.id}-tie" onclick="placeSpeedBet('${t.id}','tie')"><div class="label">T</div><div class="odds">8:1</div><div class="my-bet" id="mybet-${t.id}-tie"></div></div>
-      <div class="bet-spot banker" id="spot-${t.id}-banker" onclick="placeSpeedBet('${t.id}','banker')"><div class="label">B</div><div class="odds">.95:1</div><div class="my-bet" id="mybet-${t.id}-banker"></div></div>
+      <div class="bet-spot player" id="spot-${tb.id}-player" onclick="placeSpeedBet('${tb.id}','player')"><div class="label">P</div><div class="odds">1:1</div><div class="my-bet" id="mybet-${tb.id}-player"></div></div>
+      <div class="bet-spot tie" id="spot-${tb.id}-tie" onclick="placeSpeedBet('${tb.id}','tie')"><div class="label">T</div><div class="odds">8:1</div><div class="my-bet" id="mybet-${tb.id}-tie"></div></div>
+      <div class="bet-spot banker" id="spot-${tb.id}-banker" onclick="placeSpeedBet('${tb.id}','banker')"><div class="label">B</div><div class="odds">.95:1</div><div class="my-bet" id="mybet-${tb.id}-banker"></div></div>
     </div>
-    <div class="speed-mini-road" id="road-${t.id}"></div>
-    <div class="speed-tile-stats" id="stats-${t.id}"></div>
+    <div class="speed-mini-road" id="road-${tb.id}"></div>
+    <div class="speed-tile-stats" id="stats-${tb.id}"></div>
   </div>`;
 }
 function renderSpeedTileRoad(tableId){
   const el = document.getElementById('road-'+tableId); if (!el) return;
   const cols = buildBigRoad(SPEED.tstate[tableId].history.slice(-40));
-  el.innerHTML = renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">기록 없음</span>`;
+  el.innerHTML = renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`;
 }
 function renderSpeedTileStats(tableId){
   const results = SPEED.tstate[tableId].history;
@@ -571,7 +711,7 @@ function renderSpeedTileStats(tableId){
   const streak = trailingStreak(results);
   const volume = tableBetVolume(SPEED.allBets.filter(b=>b.relatedTableId===tableId));
   const statsEl = document.getElementById('stats-'+tableId);
-  if (statsEl) statsEl.innerHTML = `<span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>오늘 <b>${fmtNum(volume.today)}</b></span>`;
+  if (statsEl) statsEl.innerHTML = `<span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>${t('todayLabel')} <b>${fmtNum(volume.today)}</b></span>`;
   const badgeEl = document.getElementById('hotbadge-'+tableId);
   if (badgeEl) badgeEl.innerHTML = streak.len >= 3 ? `<div class="speed-hot-badge">🔥 ${streak.len}연속</div>` : '';
 }
@@ -584,9 +724,9 @@ function renderSpeedTileBets(tableId){
 }
 function placeSpeedBet(tableId, type){
   const s = SPEED.tstate[tableId];
-  if (!s || s.phase !== 'betting'){ toast('베팅 시간이 아닙니다', true); return; }
+  if (!s || s.phase !== 'betting'){ toast(t('notBettingTime'), true); return; }
   let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
-  if (STATE.balance - locked < STATE.selectedChip){ toast('보유금이 부족합니다', true); return; }
+  if (STATE.balance - locked < STATE.selectedChip){ toast(t('insufficientBalance'), true); return; }
   s.bets[type] += STATE.selectedChip;
   document.getElementById(`spot-${tableId}-${type}`).classList.add('selected');
   renderSpeedTileBets(tableId);
@@ -613,13 +753,13 @@ async function tickAllSpeedTables(){
   }
 }
 function setSpeedTileTimer(tableId, v){ const el = document.getElementById('timer-'+tableId); if (el) el.textContent = v; }
-function setSpeedTilePhaseText(tableId, txt){ const el = document.getElementById('phase-'+tableId); if (el) el.textContent = txt; }
+function setSpeedTilePhaseText(tableId, txt){ const el = document.getElementById('phase-'+tableId); if (el && txt) el.textContent = txt; }
 function beginSpeedBetting(tableId){
   const s = SPEED.tstate[tableId];
   s.phase = 'betting'; s.secondsLeft = SPEED_BETTING_SECONDS; s.bets = {player:0, banker:0, tie:0}; s.currentRoundId = uuidv4();
   ['player','tie','banker'].forEach(k=> document.getElementById(`spot-${tableId}-${k}`)?.classList.remove('selected','locked'));
   renderSpeedTileBets(tableId);
-  setSpeedTilePhaseText(tableId, '베팅하세요');
+  setSpeedTilePhaseText(tableId, t('phaseBetting'));
   const stage = document.getElementById('stage-'+tableId);
   const scoreTxt = stage?.querySelector('.score-txt'); if (scoreTxt) scoreTxt.remove();
 }
@@ -627,7 +767,7 @@ async function beginSpeedDealing(tableId){
   const s = SPEED.tstate[tableId];
   s.phase = 'dealing'; s.secondsLeft = SPEED_DEALING_SECONDS;
   ['player','tie','banker'].forEach(k=> document.getElementById(`spot-${tableId}-${k}`)?.classList.add('locked'));
-  setSpeedTilePhaseText(tableId, '카드 배분중...');
+  setSpeedTilePhaseText(tableId, t('phaseDealing'));
   for (const [betType, amount] of Object.entries(s.bets)){
     if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, staff:'system'});
   }
@@ -639,7 +779,7 @@ async function beginSpeedResult(tableId){
   const s = SPEED.tstate[tableId];
   s.phase = 'result'; s.secondsLeft = SPEED_RESULT_SECONDS;
   const sim = s._sim;
-  const t = SPEED.tables[tableId];
+  const tb = SPEED.tables[tableId];
   setSpeedTilePhaseText(tableId, sim.result==='player' ? 'PLAYER WIN' : sim.result==='banker' ? 'BANKER WIN' : 'TIE');
   const stage = document.getElementById('stage-'+tableId);
   if (stage && !stage.querySelector('.score-txt')){
@@ -651,14 +791,14 @@ async function beginSpeedResult(tableId){
     if (amount <= 0) continue;
     const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, resultInfo:sim});
     totalPayout += payout;
-    MY_BET_LOG.unshift({tableName:t.name, roundNo:s.roundNo, betType, amount, payout, mode:'speed', dt:new Date().toISOString()});
+    MY_BET_LOG.unshift({tableName:tb.name, roundNo:s.roundNo, betType, amount, payout, mode:'speed', dt:new Date().toISOString()});
     SPEED.allBets.push({relatedTableId:tableId, amount:-amount, category:'bet', createdAt:new Date().toISOString()});
   }
   if (MY_BET_LOG.length) renderMyBetHistory();
-  if (totalPayout > 0){ STATE.balance += totalPayout; toast(`[${t.name}] +${fmtNum(totalPayout)} 획득!`); }
+  if (totalPayout > 0){ STATE.balance += totalPayout; toast(`[${tb.name}] ${t('wonAmount', {amount: fmtNum(totalPayout)})}`); }
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
 
-  await writeRoundDoc(db, {tableId, tableType:'speed', roundNo:s.roundNo, shoeNo:t.shoeNo||1, sim, startedAt:new Date(Date.now()-(SPEED_BETTING_SECONDS+SPEED_DEALING_SECONDS)*1000).toISOString()});
+  await writeRoundDoc(db, {tableId, tableType:'speed', roundNo:s.roundNo, shoeNo:tb.shoeNo||1, sim, startedAt:new Date(Date.now()-(SPEED_BETTING_SECONDS+SPEED_DEALING_SECONDS)*1000).toISOString()});
   s.history.push(sim.result);
   s.roundNo++;
   renderSpeedTileRoad(tableId);

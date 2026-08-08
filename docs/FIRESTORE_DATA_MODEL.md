@@ -177,6 +177,15 @@ depositRequests/{uuid}     { memberId, amount, method, status:"대기"|"승인"|
 paymentRequests/{uuid}     { memberId, amount, type:"입금"|"출금", status, dt, staff }             // 결제처리리스트
 events/{uuid}              { title, body, startDt, endDt, active }
 avatarMissCorrections/{uuid} { roundId, before, after, staff, dt, reason }  // 아바타미스수정
+avatarRequests/{uuid}      { memberId, tableId, casino, buyin, betSide, betAmount,
+                              status:"대기"|"진행중"|"종료", avatarStaffId,
+                              requestedAt, approvedAt, endedAt }
+                              // 아바타(대리베팅) 신청 — 회원이 신청하면 파트너 어드민에서
+                              // 승인(담당 아바타 배정 → 진행중)하고, 승인된 동안은 매 라운드
+                              // 클라이언트가 betSide/betAmount로 자동 베팅한다. 팁은 memberLedger에
+                              // category:"avatar_tip"|"dealer_tip" + relatedRequestId로 기록.
+avatarServiceRequests/{uuid} { requestId, tableId, memberId, type:"shoe_change", dt }
+                              // 아바타 세션 중 슈체인지 등 서비스 요청 로그
 ```
 
 ### 잔액·집계 파생값 (저장하지 않고 항상 계산)

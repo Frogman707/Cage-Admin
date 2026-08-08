@@ -348,3 +348,25 @@
   .picker-wrap{padding:36px 16px;}
   .picker-grid{grid-template-columns:1fr;gap:14px;}
 }
+
+/* ---- language switcher (login card + header) ---- */
+.lang-switcher{position:relative;display:inline-block;}
+.lang-current{background:var(--panel-raised);border:1px solid var(--line);color:var(--ink-dim);border-radius:20px;padding:6px 12px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
+.lang-current:hover{border-color:var(--brass-dim);color:var(--ink);}
+.lang-drop{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--panel);border:1px solid var(--brass-dim);border-radius:8px;box-shadow:0 14px 30px -10px rgba(0,0,0,.6);z-index:50;min-width:130px;overflow:hidden;}
+.lang-drop.open{display:block;}
+.lang-opt{display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:12px;color:var(--ink-dim);cursor:pointer;white-space:nowrap;}
+.lang-opt:hover{background:var(--panel-raised);color:var(--ink);}
+.login-lang-row{display:flex;justify-content:center;margin-top:14px;}
+.hdr-lang{margin-right:2px;}
+@media (max-width:860px){
+  .lang-current span:last-child{display:none;}
+  .lang-current{padding:6px 8px;}
+}
+
+/* ---- avatar proxy-betting status panel ---- */
+.avatar-status-card{margin-top:12px;}
+.kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;font-size:12.5px;align-items:center;}
+.kv-grid span{color:var(--ink-faint);}
+.kv-grid b{color:var(--ink);font-weight:600;}
+.kv-grid b.num{color:var(--brass);font-variant-numeric:tabular-nums;}

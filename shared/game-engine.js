@@ -176,3 +176,45 @@ function tableBetVolume(betLedgerRows){
   });
   return {total, today};
 }
+
+/* ---------------- derived road (Big Eye Boy) - decorative, simplified approximation
+   of the standard rule: compares each new Big Road cell's column depth against the
+   previous column to mark red (matching pattern) / blue (breaking pattern). ---------------- */
+function deriveBigEyeBoy(cols){
+  const out = [];
+  for (let i=1;i<cols.length;i++){
+    const col = cols[i];
+    if (!col.side) continue;
+    for (let j=0;j<col.items.length;j++){
+      let mark;
+      if (j===0){
+        if (i<2) continue;
+        mark = cols[i-1].items.length === cols[i-2].items.length ? 'red' : 'blue';
+      } else {
+        mark = cols[i-1].items.length > j ? 'red' : 'blue';
+      }
+      out.push(mark);
+    }
+  }
+  return out;
+}
+function renderDerivedRoad(marks){
+  return marks.map(m=>`<div class="dr-cell ${m}"></div>`).join('');
+}
+
+/* ---------------- chip-stack decomposition for the felt "chips in the betting spot" visual ---------------- */
+function decomposeChipStack(amount, maxDiscs){
+  maxDiscs = maxDiscs || 4;
+  const denominations = [...CHIP_VALUES].sort((a,b)=>b-a);
+  const discs = [];
+  let remaining = amount;
+  for (const v of denominations){
+    while (remaining >= v && discs.length < maxDiscs){ discs.push(v); remaining -= v; }
+  }
+  if (!discs.length && amount > 0) discs.push(CHIP_VALUES[0]);
+  return discs;
+}
+function chipStackHtml(amount){
+  if (!amount) return '';
+  return decomposeChipStack(amount).map(v=>`<div class="cs-chip c${v}"></div>`).join('');
+}

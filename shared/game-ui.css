@@ -106,7 +106,7 @@
 .table-shell{display:flex;gap:14px;padding:16px;height:calc(100vh - 58px);box-sizing:border-box;}
 .table-main{flex:1;display:flex;flex-direction:column;gap:12px;min-width:0;}
 .table-stage{
-  position:relative;border-radius:16px;flex:1;min-height:280px;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  position:relative;border-radius:16px;flex:1;min-height:280px;max-height:480px;display:flex;align-items:center;justify-content:center;overflow:hidden;
   border:1px solid var(--line);
   background:radial-gradient(ellipse 60% 42% at 50% 6%, rgba(255,244,214,.11) 0%, transparent 62%),
              radial-gradient(ellipse 140% 100% at 50% -20%, rgba(217,178,106,.10) 0%, transparent 45%),
@@ -115,20 +115,15 @@
 }
 .table-stage::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(115deg, rgba(217,178,106,.035) 0 2px, transparent 2px 10px);pointer-events:none;}
 .table-stage::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 90% 70% at 50% 100%, rgba(0,0,0,.45), transparent 60%), radial-gradient(ellipse 130% 100% at 50% 50%, transparent 62%, rgba(0,0,0,.4) 100%);pointer-events:none;}
+/* Reference shows the table photo as a plain full-bleed video panel -
+   the "oval table" look comes entirely from the photography itself, not
+   from a decorative CSS oval clip/frame. Fill the whole stage instead of
+   floating a smaller framed oval inside it. */
 .table-felt{
-  position:relative;width:88%;max-width:660px;aspect-ratio:16/9;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  border:13px solid transparent;
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   background:
-    linear-gradient(rgba(0,0,0,.1), rgba(0,0,0,.32)) padding-box,
-    url('assets/table-live.jpg') 22% 32%/cover no-repeat padding-box,
-    repeating-linear-gradient(95deg, rgba(0,0,0,.16) 0 2px, transparent 2px 6px) border-box,
-    linear-gradient(160deg, #8a5a34 0%, #4a2f18 32%, #9c6b3e 52%, #2c1a0d 82%, #7a4f2c 100%) border-box;
-  box-shadow:inset 0 0 70px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.35), 0 20px 50px -20px rgba(0,0,0,.7), 0 0 0 2px rgba(217,178,106,.22);
-}
-.table-felt::before{content:'';position:absolute;inset:9px;border:1px solid rgba(217,178,106,.28);border-radius:50%;pointer-events:none;}
-.table-felt::after{
-  content:'';position:absolute;left:50%;top:50%;width:120px;height:120px;transform:translate(-50%,-50%);
-  border:1px solid rgba(217,178,106,.14);border-radius:50%;pointer-events:none;
+    linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.26)),
+    url('assets/table-live.jpg') 22% 32%/cover no-repeat;
 }
 .table-id-badge{position:absolute;top:14px;left:14px;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);border:1px solid var(--brass-dim);border-radius:8px;padding:6px 13px;font-family:var(--mono);font-size:12px;color:var(--brass);letter-spacing:.3px;}
 .table-shoe-badge{position:absolute;top:14px;right:14px;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);border:1px solid var(--line);border-radius:8px;padding:6px 13px;font-size:11px;color:var(--ink-dim);}
@@ -356,7 +351,6 @@
 
   .table-shell{flex-direction:column;height:auto;padding:8px;gap:10px;padding-bottom:100px;}
   .table-stage{min-height:220px;border-radius:12px;}
-  .table-felt{width:94%;}
   .table-id-badge,.table-shoe-badge{font-size:10.5px;padding:4px 9px;}
   .cards-area{gap:22px;}
   .playing-card{width:36px;height:52px;font-size:14px;}

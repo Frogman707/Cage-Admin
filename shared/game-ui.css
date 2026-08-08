@@ -304,6 +304,11 @@
 .derived-road-grid .dr-cell{width:7px;height:7px;border-radius:50%;background:var(--line);}
 .derived-road-grid .dr-cell.red{background:var(--danger);}
 .derived-road-grid .dr-cell.blue{background:#4A9FD8;}
+/* Cockroach Road is conventionally a diagonal tick, not a dot. */
+.derived-road-grid .dr-cell.diagonal{background:none;border-radius:0;position:relative;}
+.derived-road-grid .dr-cell.diagonal::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-38deg);}
+.derived-road-grid .dr-cell.diagonal.red{color:var(--danger);}
+.derived-road-grid .dr-cell.diagonal.blue{color:#4A9FD8;}
 .recent-results{display:flex;gap:4px;flex-wrap:wrap;}
 .recent-results .rr{width:21px;height:21px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);}
 .recent-results .rr.player{background:radial-gradient(circle at 35% 30%,#8fd0ff,#2f7fbf 75%);}
@@ -436,15 +441,6 @@
 .seg-btn.active{background:var(--grad-gold);color:#071120;box-shadow:0 3px 10px -3px rgba(217,178,106,.5);}
 
 /* ---- P/B/T tally bar + bead road (single-table detail screens) ---- */
-.tally-bar{display:flex;align-items:center;gap:16px;padding:11px 16px;background:var(--panel-raised);border:1px solid var(--line);border-radius:12px;font-size:13px;}
-.tally-bar .cnt{display:flex;align-items:center;gap:6px;font-weight:800;font-family:var(--mono);}
-.tally-bar .cnt i{width:9px;height:9px;border-radius:50%;display:inline-block;}
-.tally-bar .cnt.player i{background:radial-gradient(circle at 35% 30%,#8fd0ff,#2f7fbf 75%);}
-.tally-bar .cnt.banker i{background:radial-gradient(circle at 35% 30%,#f5a89c,var(--danger) 75%);}
-.tally-bar .cnt.tie i{background:radial-gradient(circle at 35% 30%,#8fe8cf,var(--jade) 75%);}
-.tally-bar .cnt.pair i{background:radial-gradient(circle at 35% 30%,#d8d8d8,#8a8a8a 75%);}
-.tally-bar .cnt.pair{font-weight:700;font-size:12px;}
-.tally-bar .streak{margin-left:auto;font-size:11.5px;color:var(--brass);font-weight:700;}
 .bead-road-wrap{margin-top:10px;}
 .bead-road{display:grid;grid-auto-flow:column;grid-template-rows:repeat(6,14px);gap:3px;overflow-x:auto;padding-bottom:4px;}
 .bead-road .bd-cell{width:14px;height:14px;border-radius:50%;align-self:center;box-shadow:0 1px 2px rgba(0,0,0,.35), inset 0 1px 1px rgba(255,255,255,.25);}
@@ -465,8 +461,7 @@
   display:grid;gap:12px;grid-template-columns:1.35fr 1fr;
   grid-template-areas:
     "stage bets"
-    "tally bets"
-    "road  road"
+    "road  bets"
     "tray  tray";
 }
 .sd-stage{grid-area:stage;position:relative;border-radius:16px;min-height:300px;display:flex;align-items:center;justify-content:center;overflow:hidden;
@@ -475,16 +470,10 @@
              radial-gradient(ellipse at 50% 22%, #123c2f 0%, #07130e 78%);
   box-shadow:inset 0 0 90px rgba(0,0,0,.6);
 }
-/* the reference shows the scoreboard (tally + road maps) on a plain white
-   card, contrasting with the dark felt above and dark board to the right -
-   scoped to just these two areas rather than the shared dark .tally-bar/
-   .roadmap-card used elsewhere (avatar sidebar, lobby mini-road). */
-.sd-tally.tally-bar{grid-area:tally;background:#fff;border-color:#e4e4e4;color:#1a1a1a;}
-.sd-tally.tally-bar .cnt{color:#1a1a1a;}
-.sd-tally.tally-bar .cnt.player{color:#2f7fbf;}
-.sd-tally.tally-bar .cnt.banker{color:var(--danger);}
-.sd-tally.tally-bar .cnt.tie{color:#1c8a6f;}
-.sd-tally.tally-bar .cnt.pair{color:#6a6a6a;}
+/* the reference shows the scoreboard (road maps) on a plain white card,
+   contrasting with the dark felt above and dark board to the right -
+   scoped to just this area rather than the shared dark .roadmap-card
+   used elsewhere (avatar sidebar, lobby mini-road). */
 .sd-road{grid-area:road;background:#fff;border:1px solid #e4e4e4;border-radius:12px;padding:12px 16px;color:#1a1a1a;}
 .sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;padding-bottom:6px;}
 .sd-road .derived-road-title{color:#8a8a8a;border-top-color:#e4e4e4;}
@@ -492,6 +481,39 @@
 .sd-road-mini-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:2px;}
 .sd-road-mini .derived-road-title{margin:12px 0 6px;}
 .sd-road-mini .derived-road-grid{grid-template-columns:repeat(auto-fill,9px);grid-template-rows:repeat(6,9px);}
+/* real-scoreboard header strip: bilingual game title + min/max bet boxes + table id */
+.sd-road-head{display:flex;align-items:stretch;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.sd-road-title-block{display:flex;flex-direction:column;justify-content:center;gap:1px;min-width:80px;}
+.sd-road-title-block b{font-size:15px;}
+.sd-road-title-block span{font-size:10.5px;color:#8a8a8a;}
+.sd-road-bet-box{flex:1;min-width:120px;border-radius:8px;padding:7px 12px;color:#fff;display:flex;flex-direction:column;justify-content:center;}
+.sd-road-bet-box span{font-size:10px;opacity:.85;}
+.sd-road-bet-box b{font-size:15px;font-family:var(--mono);}
+.sd-road-bet-box.min{background:#2f8fd8;}
+.sd-road-bet-box.max{background:#1c5fa8;}
+.sd-road-table-id{font-size:9.5px;color:#8a8a8a;text-align:right;flex-shrink:0;}
+.sd-road-table-id b{display:block;font-size:13px;color:#1a1a1a;font-family:var(--mono);}
+/* legend table (뱅커/플레이어/타이/페어 counts) + next-game-trend widget */
+.sd-legend-row{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-top:14px;}
+.sd-legend-table{border:1px solid #e4e4e4;border-radius:8px;overflow:hidden;}
+.sd-legend-table .lg-head{background:#f4f4f4;padding:7px 12px;font-size:10.5px;font-weight:700;color:#666;display:flex;justify-content:space-between;}
+.sd-legend-table .lg-row{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;border-top:1px solid #eee;}
+.sd-legend-table .lg-row i{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.sd-legend-table .lg-row .en{color:#999;font-size:10px;margin-left:3px;}
+.sd-legend-table .lg-row b{margin-left:auto;font-family:var(--mono);}
+.sd-next-trend{border:1px solid #e4e4e4;border-radius:8px;padding:10px 12px;}
+.sd-next-trend .nt-title{font-size:9.5px;color:#8a8a8a;margin-bottom:8px;}
+.sd-next-trend .nt-title .en{font-size:8.5px;}
+.sd-next-trend .nt-row{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;padding:4px 0;}
+.sd-next-trend .nt-row .dot{width:12px;height:12px;border-radius:50%;border:2px solid #ccc;}
+.sd-next-trend .nt-row.hot .dot{background:currentColor;border-color:currentColor;}
+.sd-next-trend .nt-row.banker{color:var(--danger);}
+.sd-next-trend .nt-row.player{color:#2f7fbf;}
+.sd-road-disclaimer{margin-top:10px;font-size:9.5px;color:#aaa;text-align:center;}
+@media (max-width:860px){
+  .sd-legend-row{grid-template-columns:1fr;}
+  .sd-road-head{flex-direction:column;}
+}
 .sd-road-mini .derived-road-grid .dr-cell{width:9px;height:9px;}
 .sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 .sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
@@ -522,7 +544,7 @@
 .sd-info-bar .icon-btn{width:28px;height:28px;background:none;border:none;}
 .sd-info-bar .icon-btn:hover{color:var(--brass);}
 @media (max-width:860px){
-  .speed-detail-grid{grid-template-columns:1fr;grid-template-areas:"stage" "tally" "bets" "road" "tray";}
+  .speed-detail-grid{grid-template-columns:1fr;grid-template-areas:"stage" "bets" "road" "tray";}
   .sd-bets .bet-rail .bet-spot{padding:14px 8px;}
   .sd-road-mini-row{gap:8px;}
 }

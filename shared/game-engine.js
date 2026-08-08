@@ -211,8 +211,10 @@ function deriveRoad(cols, offset){
 function deriveBigEyeBoy(cols){ return deriveRoad(cols, 1); }
 function deriveSmallRoad(cols){ return deriveRoad(cols, 2); }
 function deriveCockroachRoad(cols){ return deriveRoad(cols, 3); }
-function renderDerivedRoad(marks){
-  return marks.map(m=>`<div class="dr-cell ${m}"></div>`).join('');
+function renderDerivedRoad(marks, style){
+  // Cockroach Road is conventionally drawn as diagonal ticks rather than dots,
+  // distinguishing it at a glance from Big Eye Boy / Small Road on a real board.
+  return marks.map(m=>`<div class="dr-cell ${m}${style?' '+style:''}"></div>`).join('');
 }
 
 

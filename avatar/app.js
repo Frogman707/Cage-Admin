@@ -874,27 +874,44 @@ function renderSpeedDetailRoad(tableId){
   const smallEl = document.getElementById('smallroad-detail');
   if (smallEl) smallEl.innerHTML = renderDerivedRoad(deriveSmallRoad(cols)) || `<span class="hint">${t('noRecord')}</span>`;
   const cockroachEl = document.getElementById('cockroach-detail');
-  if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols)) || `<span class="hint">${t('noRecord')}</span>`;
+  if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`;
   const beadEl = document.getElementById('beadroad-detail');
   if (beadEl) beadEl.innerHTML = renderBeadRoad(history.slice(-36)) || `<span class="hint">${t('noRecord')}</span>`;
   renderSpeedDetailTally(tableId);
 }
 function renderSpeedDetailTally(tableId){
-  const el = document.getElementById('tally-detail'); if (!el) return;
+  const legendEl = document.getElementById('legend-detail');
+  const trendEl = document.getElementById('trend-detail');
+  if (!legendEl && !trendEl) return;
   const history = SPEED.tstate[tableId].history;
   const pairFlags = SPEED.tstate[tableId].pairFlags || [];
   const wins = tableWinCounts(history);
   const streak = trailingStreak(history);
   const playerPairs = pairFlags.filter(p=>p.playerPair).length;
   const bankerPairs = pairFlags.filter(p=>p.bankerPair).length;
-  el.innerHTML = `
-    <span class="cnt player"><i></i>P <b>${wins.player}</b></span>
-    <span class="cnt banker"><i></i>B <b>${wins.banker}</b></span>
-    <span class="cnt tie"><i></i>T <b>${wins.tie}</b></span>
-    <span class="cnt pair"><i></i>${t('playerPair')} <b>${playerPairs}</b></span>
-    <span class="cnt pair"><i></i>${t('bankerPair')} <b>${bankerPairs}</b></span>
-    ${streak.len>=2 ? `<span class="streak">🔥 ${betLabel(streak.side)} ${streak.len}${t('streakLabel')}</span>` : ''}
-  `;
+  const roundNo = SPEED.tstate[tableId]?.roundNo || 1;
+  if (legendEl){
+    const row = (colorClass, ko, en, val) => `<div class="lg-row"><i class="${colorClass}" style="background:${colorClass==='banker'?'var(--danger)':colorClass==='player'?'#2f7fbf':colorClass==='tie'?'var(--jade)':'#999'};"></i>${ko}<span class="en">${en}</span><b>${fmtNum(val)}</b></div>`;
+    legendEl.innerHTML = `
+      <div class="lg-head"><span>${t('dealsLabel')}</span><span>#${roundNo}</span></div>
+      ${row('banker','뱅커','BANKER',wins.banker)}
+      ${row('player','플레이어','PLAYER',wins.player)}
+      ${row('tie','타이','TIE',wins.tie)}
+      ${row('pair','뱅커페어','BANKER PAIR',bankerPairs)}
+      ${row('pair','플레이어페어','PLAYER PAIR',playerPairs)}
+    `;
+  }
+  if (trendEl){
+    // Decorative "next game trend" indicator (real boards infer this from proprietary
+    // pattern analysis) - approximated here from the trailing streak direction.
+    const bankerHot = streak.side==='banker' && streak.len>=1;
+    const playerHot = streak.side==='player' && streak.len>=1;
+    trendEl.innerHTML = `
+      <div class="nt-title">${t('nextGameTrend')} <span class="en">NEXT GAME TREND</span></div>
+      <div class="nt-row banker ${bankerHot?'hot':''}"><span class="dot"></span>BANKER</div>
+      <div class="nt-row player ${playerHot?'hot':''}"><span class="dot"></span>PLAYER</div>
+    `;
+  }
 }
 function renderSpeedTileStats(tableId){
   const results = SPEED.tstate[tableId].history;
@@ -980,8 +997,13 @@ function speedDetailShellHtml(tableId){
         </div>
         <div class="timer-ring-wrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle cx="32" cy="32" r="27" stroke="var(--brass)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-detail">15</div></div>
       </div>
-      <div class="sd-tally tally-bar" id="tally-detail"></div>
       <div class="sd-road">
+        <div class="sd-road-head">
+          <div class="sd-road-title-block"><b>百家樂</b><span>바카라</span><span>BACCARAT</span></div>
+          <div class="sd-road-bet-box min"><span>최소 배팅</span><b>PHP ${fmtNum(tb.betMin)}</b></div>
+          <div class="sd-road-bet-box max"><span>최대 배팅</span><b>PHP ${fmtNum(tb.betMax)}</b></div>
+          <div class="sd-road-table-id">TABLE<br><b>${escapeHtml(tb.name)}</b></div>
+        </div>
         <div class="derived-road-title" style="margin-top:0;">${t('bigRoad')}</div>
         <div class="br-grid" id="road-detail"></div>
         <div class="sd-road-mini-row">
@@ -989,7 +1011,12 @@ function speedDetailShellHtml(tableId){
           <div class="sd-road-mini"><div class="derived-road-title">${t('smallRoad')}</div><div class="derived-road-grid" id="smallroad-detail"></div></div>
           <div class="sd-road-mini"><div class="derived-road-title">${t('cockroachRoad')}</div><div class="derived-road-grid" id="cockroach-detail"></div></div>
         </div>
+        <div class="sd-legend-row">
+          <div class="sd-legend-table" id="legend-detail"></div>
+          <div class="sd-next-trend" id="trend-detail"></div>
+        </div>
         <div class="bead-road-wrap"><div class="derived-road-title">${t('beadPlate')}</div><div class="bead-road" id="beadroad-detail"></div></div>
+        <div class="sd-road-disclaimer">${t('roadDisclaimer')}</div>
       </div>
       <div class="sd-bets">
         <div class="pair-row">

@@ -29,6 +29,8 @@
   box-shadow:0 0 0 2px rgba(47,169,140,.25), inset 0 0 0 1px rgba(0,0,0,.2);}
 .balance-ticket .lbl,.points-ticket .lbl{font-family:var(--sans);font-weight:600;color:var(--ink-faint);font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-right:1px;}
 .game-header-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.hdr-action-btn{display:inline-flex;align-items:center;gap:6px;}
+.hdr-ic{display:none;width:15px;height:15px;flex-shrink:0;}
 .icon-btn{background:var(--panel-raised);border:1px solid var(--line);color:var(--ink-dim);border-radius:var(--radius);width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;}
 .icon-btn:hover{border-color:var(--brass-dim);color:var(--brass);}
 .icon-btn svg{width:16px;height:16px;}
@@ -261,3 +263,88 @@
 .chat-log .msg b{color:var(--brass);}
 .chat-input-row{display:flex;gap:6px;margin-top:8px;}
 .chat-input-row input{flex:1;background:var(--void);border:1px solid var(--line);color:var(--ink);padding:8px 10px;border-radius:20px;font-size:12px;}
+
+/* ---- collapsible roadmap (mobile needs to reclaim vertical space) ---- */
+.roadmap-toggle{background:var(--panel-raised);border:1px solid var(--line);border-radius:50%;width:26px;height:26px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-dim);transition:transform .2s ease;margin-left:8px;cursor:pointer;}
+.roadmap-card.collapsed .roadmap-toggle{transform:rotate(180deg);}
+.roadmap-card.collapsed .br-grid,.roadmap-card.collapsed .roadmap-legend,.roadmap-card.collapsed .derived-road-title,.roadmap-card.collapsed .derived-road-grid{display:none;}
+
+/* ---- game history bottom sheet ---- */
+.history-day{margin-bottom:14px;}
+.history-day-head{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-dim);font-weight:700;padding:6px 2px;border-bottom:1px solid var(--line);margin-bottom:4px;}
+.history-day-head b.pos{color:var(--jade);}
+.history-day-head b.neg{color:var(--danger);}
+.history-row{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:7px 2px;font-size:12px;border-bottom:1px solid #1a2c4a;}
+.history-row .t{color:var(--ink-faint);font-family:var(--mono);font-size:11px;}
+.history-row .g{color:var(--ink-dim);}
+.history-row .amt{font-family:var(--mono);text-align:right;color:var(--ink-dim);}
+.history-row .wl{font-family:var(--mono);text-align:right;font-weight:700;}
+.history-row .wl.pos{color:var(--jade);}
+.history-row .wl.neg{color:var(--danger);}
+
+/* ================= MOBILE ================= */
+@media (max-width:860px){
+  /* Header: nowrap + flex-shrink:0 on every child stops buttons/text from breaking mid-word;
+     overflow-x:auto is the safety net on very narrow phones instead of visually breaking. */
+  .game-header{padding:8px 10px;gap:8px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;}
+  .game-header::-webkit-scrollbar{display:none;}
+  .game-header .brand,.balance-ticket,.points-ticket,.icon-btn,.game-header-right{flex-shrink:0;}
+  .game-header .brand .mark{font-size:14px;white-space:nowrap;}
+  .balance-ticket,.points-ticket{padding:5px 10px 5px 5px;font-size:11px;white-space:nowrap;}
+  .balance-ticket .lbl,.points-ticket .lbl{display:none;}
+  .balance-ticket::before,.points-ticket::before{width:15px;height:15px;}
+  .hdr-nick{display:none;}
+  .game-header-right{gap:6px;}
+  .game-header-right .btn{white-space:nowrap;flex-shrink:0;}
+  .icon-btn{width:30px;height:30px;}
+  /* header action buttons collapse to icon-only squares - saves the ~165px of button-label
+     text that otherwise pushed the header past a 390px phone's width. */
+  .hdr-action-btn{padding:0;width:30px;height:30px;justify-content:center;border-radius:var(--radius);}
+  .hdr-ic{display:block;}
+  .hdr-lbl{display:none;}
+
+  .lobby-wrap{padding:14px 12px 50px;}
+  .lobby-title{font-size:17px;margin-bottom:10px;}
+  .lobby-toolbar{position:sticky;top:0;z-index:15;background:var(--void);padding:8px 0;margin:0 0 10px;}
+  .lobby-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+  .lobby-card .info{padding:9px 10px 2px;}
+  .lobby-card .info .name{font-size:12.5px;}
+  .lobby-card .info .limits{font-size:9.5px;}
+  .lobby-card .mini-road{padding:7px 10px 2px;}
+  .lobby-card .mini-road .br-cell{width:6px;height:6px;}
+  .lobby-card .stat-row{font-size:9px;padding:3px 10px 9px;}
+  .hot-badge{font-size:8.5px;padding:3px 7px;}
+
+  .table-shell{flex-direction:column;height:auto;padding:8px;gap:10px;padding-bottom:100px;}
+  .table-stage{min-height:220px;border-radius:12px;}
+  .table-felt{width:94%;}
+  .table-id-badge,.table-shoe-badge{font-size:10.5px;padding:4px 9px;}
+  .cards-area{gap:22px;}
+  .playing-card{width:36px;height:52px;font-size:14px;}
+  .hand .score{min-width:28px;height:28px;font-size:15px;}
+  .timer-ring-wrap{width:52px;height:52px;bottom:10px;right:10px;}
+  .timer-ring-wrap .txt{font-size:15px;}
+  .result-flash .txt{font-size:32px;}
+  .bet-rail{gap:8px;}
+  .bet-rail.with-pairs{grid-template-columns:1fr 1.15fr 1fr;}
+  .bet-spot{padding:10px 6px;border-radius:11px;}
+  .bet-spot .label{font-size:13.5px;}
+  .pair-row{gap:6px;}
+  .table-main .chip-tray{position:fixed;left:8px;right:8px;bottom:8px;z-index:25;box-shadow:0 12px 30px -10px rgba(0,0,0,.65);}
+  .chip{width:44px;height:44px;}
+  .chip span.cv{font-size:9.5px;}
+  .table-side{width:100%;}
+
+  .modal-sheet{
+    position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;max-width:100%;
+    border-radius:16px 16px 0 0;max-height:82vh;overflow-y:auto;
+    transform:translateY(100%);transition:transform .22s ease;margin:0;
+  }
+  .modal-bg:has(.modal-sheet){align-items:flex-end;padding:0;}
+  .modal-bg.open .modal-sheet{transform:translateY(0);}
+
+  .speed-grid{grid-template-columns:1fr 1fr;gap:10px;}
+  .speed-tile{padding:10px 11px;}
+  .picker-wrap{padding:36px 16px;}
+  .picker-grid{grid-template-columns:1fr;gap:14px;}
+}

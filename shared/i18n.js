@@ -67,6 +67,8 @@ const I18N_DICT = {
   avatarLobbyTitle:{ko:'아바타 테이블',zh:'代打桌台',en:'Avatar Tables',ja:'アバターテーブル',vi:'Bàn Avatar'},
   speedLobbyTitle:{ko:'스피드 테이블',zh:'极速桌台',en:'Speed Tables',ja:'スピードテーブル',vi:'Bàn Speed'},
   speedLobbySub:{ko:'여러 테이블을 동시에 베팅할 수 있습니다',zh:'可同时在多张桌台下注',en:'Bet on several tables at once',ja:'複数のテーブルで同時にベットできます',vi:'Có thể đặt cược nhiều bàn cùng lúc'},
+  allCasinos:{ko:'전체 게임',zh:'全部游戏',en:'All Games',ja:'全ゲーム',vi:'Tất cả'},
+  searchTablePh:{ko:'찾기',zh:'搜索',en:'Search',ja:'検索',vi:'Tìm kiếm'},
   sortLabel:{ko:'정렬',zh:'排序',en:'Sort',ja:'並び替え',vi:'Sắp xếp'},
   sortPopular:{ko:'인기순 (베팅총액)',zh:'热门（投注总额）',en:'Popular (total volume)',ja:'人気順（ベット総額）',vi:'Phổ biến (tổng cược)'},
   sortToday:{ko:'오늘 베팅액순',zh:'今日投注额',en:"Today's volume",ja:'本日ベット額順',vi:'Cược hôm nay'},

@@ -151,6 +151,14 @@ function renderBigRoad(cols, maxRows){
   return cells.join('');
 }
 
+/* ---------------- Bead Road (진주로드) — plain chronological grid, top-to-bottom then
+   next column, unlike Big Road which groups consecutive same-side runs into one column. ---------------- */
+function renderBeadRoad(results){
+  // grid-auto-flow:column with a fixed row count (see .bead-road CSS) wraps into a new
+  // column automatically, so this just emits one cell per result in chronological order.
+  return results.map(r=>`<div class="bd-cell ${r}"></div>`).join('');
+}
+
 /* ---------------- table-list stats (vendor feedback: 오늘/총 베팅액, P/B/T 승수, 좋은 흐름) ---------------- */
 function tableWinCounts(results){
   const c = {player:0, banker:0, tie:0};

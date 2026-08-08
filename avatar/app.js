@@ -198,13 +198,15 @@ function renderGameHistory(btn, mode){
 function stopAllLoops(){
   stopAvatarRoundLoop();
   if (SPEED.tick){ clearInterval(SPEED.tick); SPEED.tick = null; }
+  SPEED.detailTableId = null;
   if (AVATAR.chatUnsub){ AVATAR.chatUnsub(); AVATAR.chatUnsub = null; }
   // #viewAvatarTable holds a dynamically-built #myBetHistory / chip-tray that would otherwise
   // collide with the static ids reused inside #viewSpeedLobby once both are simultaneously in the DOM.
   const avTable = document.getElementById('viewAvatarTable'); if (avTable) avTable.innerHTML = '';
+  const spTable = document.getElementById('viewSpeedTable'); if (spTable) spTable.innerHTML = '';
 }
 function showView(name){
-  ['viewPicker','viewAvatarLobby','viewAvatarTable','viewSpeedLobby'].forEach(id=>{
+  ['viewPicker','viewAvatarLobby','viewAvatarTable','viewSpeedLobby','viewSpeedTable'].forEach(id=>{
     document.getElementById(id).style.display = (id===name) ? 'block' : 'none';
   });
   document.getElementById('changeGameBtn').style.display = name==='viewPicker' ? 'none' : 'inline-block';
@@ -248,6 +250,7 @@ function onLangChange(){
   } else if (MODE==='speed'){
     renderChipTray();
     Object.keys(SPEED.tables||{}).forEach(id=>{ renderSpeedTileStats(id); setSpeedTilePhaseText(id, SPEED.tstate[id].phase==='betting'?t('phaseBetting'):SPEED.tstate[id].phase==='dealing'?t('phaseDealing'):''); });
+    if (SPEED.detailTableId) openSpeedTableDetail(SPEED.detailTableId, true);
   }
 }
 
@@ -648,7 +651,7 @@ async function sendAvatarChat(){
 /* ============================================================
    SPEED MODE — several tables running simultaneously, self-service
    ============================================================ */
-let SPEED = { tables:{}, tstate:{}, allBets:[], tick:null };
+let SPEED = { tables:{}, tstate:{}, allBets:[], tick:null, detailTableId:null };
 
 function renderChipTray(){
   document.getElementById('chipTray').innerHTML = `
@@ -677,7 +680,7 @@ async function loadSpeedTables(){
     SPEED.tstate[tb.id] = {
       phase:'betting', secondsLeft: SPEED_BETTING_SECONDS - (Object.keys(SPEED.tstate).length*3)%SPEED_BETTING_SECONDS,
       roundNo: (Math.max(0, ...rounds.map(r=>r.roundNo||0))||0)+1,
-      bets:{player:0, banker:0, tie:0}, currentRoundId: uuidv4(),
+      bets:{player:0, banker:0, tie:0, playerPair:0, bankerPair:0}, currentRoundId: uuidv4(),
       history: rounds.map(r=>r.result),
     };
     renderSpeedTileRoad(tb.id);
@@ -688,7 +691,7 @@ async function loadSpeedTables(){
 function speedTileHtml(tb){
   return `
   <div class="speed-tile" id="tile-${tb.id}">
-    <div class="head"><span class="name">${escapeHtml(tb.name)}</span><span class="shoe">SHOE #${tb.shoeNo||1} · ${tb.casino}</span></div>
+    <div class="head" style="cursor:pointer;" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}"><span class="name">${escapeHtml(tb.name)}</span><span class="shoe">SHOE #${tb.shoeNo||1} · ${tb.casino}</span></div>
     <div id="hotbadge-${tb.id}"></div>
     <div class="speed-mini-stage" id="stage-${tb.id}"><div class="phase-txt" id="phase-${tb.id}">${t('phaseBetting')}</div><div class="speed-timer" id="timer-${tb.id}">15</div></div>
     <div class="speed-bets">
@@ -701,9 +704,35 @@ function speedTileHtml(tb){
   </div>`;
 }
 function renderSpeedTileRoad(tableId){
-  const el = document.getElementById('road-'+tableId); if (!el) return;
-  const cols = buildBigRoad(SPEED.tstate[tableId].history.slice(-40));
-  el.innerHTML = renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`;
+  const el = document.getElementById('road-'+tableId);
+  if (el){
+    const cols = buildBigRoad(SPEED.tstate[tableId].history.slice(-40));
+    el.innerHTML = renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`;
+  }
+  if (SPEED.detailTableId===tableId) renderSpeedDetailRoad(tableId);
+}
+function renderSpeedDetailRoad(tableId){
+  const history = SPEED.tstate[tableId].history;
+  const bigRoadEl = document.getElementById('road-detail');
+  if (bigRoadEl){
+    const cols = buildBigRoad(history.slice(-60));
+    bigRoadEl.innerHTML = renderBigRoad(cols, 6) || `<span class="hint">${t('noRecord')}</span>`;
+  }
+  const beadEl = document.getElementById('beadroad-detail');
+  if (beadEl) beadEl.innerHTML = renderBeadRoad(history.slice(-36)) || `<span class="hint">${t('noRecord')}</span>`;
+  renderSpeedDetailTally(tableId);
+}
+function renderSpeedDetailTally(tableId){
+  const el = document.getElementById('tally-detail'); if (!el) return;
+  const history = SPEED.tstate[tableId].history;
+  const wins = tableWinCounts(history);
+  const streak = trailingStreak(history);
+  el.innerHTML = `
+    <span class="cnt player"><i></i>P <b>${wins.player}</b></span>
+    <span class="cnt banker"><i></i>B <b>${wins.banker}</b></span>
+    <span class="cnt tie"><i></i>T <b>${wins.tie}</b></span>
+    ${streak.len>=2 ? `<span class="streak">🔥 ${betLabel(streak.side)} ${streak.len}${t('streakLabel')}</span>` : ''}
+  `;
 }
 function renderSpeedTileStats(tableId){
   const results = SPEED.tstate[tableId].history;
@@ -721,6 +750,12 @@ function renderSpeedTileBets(tableId){
     const el = document.getElementById(`mybet-${tableId}-${k}`);
     if (el) el.textContent = s.bets[k] ? fmtNum(s.bets[k]) : '';
   });
+  if (SPEED.detailTableId===tableId){
+    ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+      const del = document.getElementById(`mybet-detail-${k}`);
+      if (del) del.textContent = s.bets[k] ? fmtNum(s.bets[k]) : '';
+    });
+  }
 }
 function placeSpeedBet(tableId, type){
   const s = SPEED.tstate[tableId];
@@ -728,7 +763,117 @@ function placeSpeedBet(tableId, type){
   let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
   if (STATE.balance - locked < STATE.selectedChip){ toast(t('insufficientBalance'), true); return; }
   s.bets[type] += STATE.selectedChip;
-  document.getElementById(`spot-${tableId}-${type}`).classList.add('selected');
+  document.getElementById(`spot-${tableId}-${type}`)?.classList.add('selected');
+  if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${type}`)?.classList.add('selected');
+  renderSpeedTileBets(tableId);
+  projectSpeedBalance();
+}
+
+/* ---------------- speed single-table detail screen (opened from a tile) ---------------- */
+function openSpeedTableDetail(tableId, preserveScroll){
+  const s = SPEED.tstate[tableId], tb = SPEED.tables[tableId];
+  if (!s || !tb) return;
+  SPEED.detailTableId = tableId;
+  showView('viewSpeedTable');
+  document.getElementById('viewSpeedTable').innerHTML = speedDetailShellHtml(tableId);
+  renderSpeedTileBets(tableId);
+  renderSpeedDetailRoad(tableId);
+  setSpeedTilePhaseText(tableId, s.phase==='betting'?t('phaseBetting'):s.phase==='dealing'?t('phaseDealing'):'');
+  setSpeedTileTimer(tableId, Math.max(0, s.secondsLeft));
+  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+    const spot = document.getElementById(`spot-detail-${k}`);
+    if (spot){ spot.classList.toggle('selected', s.bets[k]>0); spot.classList.toggle('locked', s.phase!=='betting'); }
+  });
+  if (s.phase==='result' && s._sim) revealSpeedDetailCards(s._sim, true);
+}
+function closeSpeedTableDetail(){
+  SPEED.detailTableId = null;
+  document.getElementById('viewSpeedTable').innerHTML = '';
+  showView('viewSpeedLobby');
+}
+function speedDetailShellHtml(tableId){
+  const tb = SPEED.tables[tableId];
+  return `
+  <div class="speed-detail-wrap">
+    <div class="speed-detail-head">
+      <span class="name">${escapeHtml(tb.name)}</span>
+      <span class="meta">SHOE #${tb.shoeNo||1} · ${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</span>
+      <button class="icon-btn speed-detail-close" onclick="closeSpeedTableDetail()" data-i18n-title="backToList" title="목록으로">✕</button>
+    </div>
+    <div class="speed-detail-grid">
+      <div class="sd-stage">
+        <div class="table-id-badge">${escapeHtml(tb.name)}</div>
+        <div class="table-shoe-badge">SHOE #${tb.shoeNo||1}</div>
+        <div class="phase-banner" id="phase-detail">${t('phaseBetting')}</div>
+        <div class="cards-area">
+          <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCardsDetail"></div><div class="score" id="playerScoreDetail"></div></div>
+          <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCardsDetail"></div><div class="score" id="bankerScoreDetail"></div></div>
+        </div>
+        <div class="timer-ring-wrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle cx="32" cy="32" r="27" stroke="var(--brass)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-detail">15</div></div>
+      </div>
+      <div class="sd-tally tally-bar" id="tally-detail"></div>
+      <div class="sd-road">
+        <div class="derived-road-title" style="margin-top:0;">${t('bigRoad')}</div>
+        <div class="br-grid" id="road-detail"></div>
+        <div class="bead-road-wrap"><div class="derived-road-title">진주 로드</div><div class="bead-road" id="beadroad-detail"></div></div>
+      </div>
+      <div class="sd-bets">
+        <div class="pair-row">
+          <div class="bet-spot pair" id="spot-detail-playerPair" onclick="placeSpeedBet('${tableId}','playerPair')"><div class="label" data-i18n="playerPair">플레이어 페어</div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-playerPair"></div></div>
+          <div class="bet-spot tie" id="spot-detail-tie" onclick="placeSpeedBet('${tableId}','tie')"><div class="label" data-i18n="tie">타이</div><div class="odds">8:1</div><div class="my-bet" id="mybet-detail-tie"></div></div>
+          <div class="bet-spot pair" id="spot-detail-bankerPair" onclick="placeSpeedBet('${tableId}','bankerPair')"><div class="label" data-i18n="bankerPair">뱅커 페어</div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-bankerPair"></div></div>
+        </div>
+        <div class="bet-rail two-up" style="margin-top:8px;">
+          <div class="bet-spot player" id="spot-detail-player" onclick="placeSpeedBet('${tableId}','player')"><div class="label" data-i18n="player">플레이어</div><div class="odds">1:1</div><div class="my-bet" id="mybet-detail-player"></div></div>
+          <div class="bet-spot banker" id="spot-detail-banker" onclick="placeSpeedBet('${tableId}','banker')"><div class="label" data-i18n="banker">뱅커</div><div class="odds">0.95:1</div><div class="my-bet" id="mybet-detail-banker"></div></div>
+        </div>
+      </div>
+      <div class="sd-tray sd-chip-tray">
+        <button class="btn btn-sm" onclick="clearSpeedDetailBets('${tableId}')" data-i18n="cancelBet">취소</button>
+        ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})"><span class="cv">${chipLabel(v)}</span></div>`).join('')}
+        <span class="spacer"></span>
+        <button class="btn btn-sm btn-gold" onclick="confirmSpeedBetDetail()" data-i18n="betComplete">베팅완료</button>
+        <button class="btn btn-sm" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n="repeatBet">반복</button>
+      </div>
+    </div>
+  </div>`;
+}
+function clearSpeedDetailCards(){
+  const p = document.getElementById('playerCardsDetail'), b = document.getElementById('bankerCardsDetail');
+  if (p) p.innerHTML = ''; if (b) b.innerHTML = '';
+  const ps = document.getElementById('playerScoreDetail'), bs = document.getElementById('bankerScoreDetail');
+  if (ps) ps.textContent = ''; if (bs) bs.textContent = '';
+}
+async function revealSpeedDetailCards(sim, instant){
+  const pEl = document.getElementById('playerCardsDetail'), bEl = document.getElementById('bankerCardsDetail');
+  if (!pEl || !bEl) return;
+  pEl.innerHTML = ''; bEl.innerHTML = '';
+  const seq = [[pEl,sim.player.cards[0]],[bEl,sim.banker.cards[0]],[pEl,sim.player.cards[1]],[bEl,sim.banker.cards[1]]];
+  for (const [el,card] of seq){
+    el.insertAdjacentHTML('beforeend', cardHtml(card));
+    if (!instant) await new Promise(r=>setTimeout(r, 260));
+  }
+  document.getElementById('playerScoreDetail').textContent = sim.player.score;
+  document.getElementById('bankerScoreDetail').textContent = sim.banker.score;
+}
+function clearSpeedDetailBets(tableId){
+  const s = SPEED.tstate[tableId]; if (!s || s.phase!=='betting') return;
+  s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
+  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+    document.getElementById(`spot-detail-${k}`)?.classList.remove('selected');
+    document.getElementById(`spot-${tableId}-${k}`)?.classList.remove('selected');
+  });
+  renderSpeedTileBets(tableId);
+  projectSpeedBalance();
+}
+function confirmSpeedBetDetail(){ toast(t('betCompleteToast')); }
+function repeatLastSpeedBetDetail(tableId){
+  const s = SPEED.tstate[tableId]; if (!s || s.phase!=='betting') return;
+  if (!s.lastBets || !Object.values(s.lastBets).some(v=>v>0)){ toast(t('repeatNoPrev'), true); return; }
+  let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
+  const need = Object.values(s.lastBets).reduce((a,b)=>a+b,0);
+  if (STATE.balance - locked < need){ toast(t('insufficientBalance'), true); return; }
+  Object.entries(s.lastBets).forEach(([k,v])=>{ if (v>0){ s.bets[k] = (s.bets[k]||0) + v; document.getElementById(`spot-detail-${k}`)?.classList.add('selected'); document.getElementById(`spot-${tableId}-${k}`)?.classList.add('selected'); } });
   renderSpeedTileBets(tableId);
   projectSpeedBalance();
 }
@@ -752,21 +897,36 @@ async function tickAllSpeedTables(){
     }
   }
 }
-function setSpeedTileTimer(tableId, v){ const el = document.getElementById('timer-'+tableId); if (el) el.textContent = v; }
-function setSpeedTilePhaseText(tableId, txt){ const el = document.getElementById('phase-'+tableId); if (el && txt) el.textContent = txt; }
+function setSpeedTileTimer(tableId, v){
+  const el = document.getElementById('timer-'+tableId); if (el) el.textContent = v;
+  if (SPEED.detailTableId===tableId){ const d = document.getElementById('timer-detail'); if (d) d.textContent = v; }
+}
+function setSpeedTilePhaseText(tableId, txt){
+  const el = document.getElementById('phase-'+tableId); if (el && txt) el.textContent = txt;
+  if (SPEED.detailTableId===tableId){ const d = document.getElementById('phase-detail'); if (d && txt) d.textContent = txt; }
+}
 function beginSpeedBetting(tableId){
   const s = SPEED.tstate[tableId];
-  s.phase = 'betting'; s.secondsLeft = SPEED_BETTING_SECONDS; s.bets = {player:0, banker:0, tie:0}; s.currentRoundId = uuidv4();
-  ['player','tie','banker'].forEach(k=> document.getElementById(`spot-${tableId}-${k}`)?.classList.remove('selected','locked'));
+  const hadBets = Object.values(s.bets).some(v=>v>0);
+  if (hadBets) s.lastBets = {...s.bets};
+  s.phase = 'betting'; s.secondsLeft = SPEED_BETTING_SECONDS; s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0}; s.currentRoundId = uuidv4();
+  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+    document.getElementById(`spot-${tableId}-${k}`)?.classList.remove('selected','locked');
+    if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${k}`)?.classList.remove('selected','locked');
+  });
   renderSpeedTileBets(tableId);
   setSpeedTilePhaseText(tableId, t('phaseBetting'));
   const stage = document.getElementById('stage-'+tableId);
   const scoreTxt = stage?.querySelector('.score-txt'); if (scoreTxt) scoreTxt.remove();
+  if (SPEED.detailTableId===tableId) clearSpeedDetailCards();
 }
 async function beginSpeedDealing(tableId){
   const s = SPEED.tstate[tableId];
   s.phase = 'dealing'; s.secondsLeft = SPEED_DEALING_SECONDS;
   ['player','tie','banker'].forEach(k=> document.getElementById(`spot-${tableId}-${k}`)?.classList.add('locked'));
+  if (SPEED.detailTableId===tableId){
+    ['player','tie','banker','playerPair','bankerPair'].forEach(k=> document.getElementById(`spot-detail-${k}`)?.classList.add('locked'));
+  }
   setSpeedTilePhaseText(tableId, t('phaseDealing'));
   for (const [betType, amount] of Object.entries(s.bets)){
     if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, staff:'system'});
@@ -774,6 +934,7 @@ async function beginSpeedDealing(tableId){
   const totalBet = Object.values(s.bets).reduce((a,b)=>a+b,0);
   if (totalBet > 0){ STATE.balance -= totalBet; }
   s._sim = simulateRound();
+  if (SPEED.detailTableId===tableId) await revealSpeedDetailCards(s._sim);
 }
 async function beginSpeedResult(tableId){
   const s = SPEED.tstate[tableId];

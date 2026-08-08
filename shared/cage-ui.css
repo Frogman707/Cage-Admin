@@ -26,6 +26,26 @@
   --sans:'Noto Sans','Noto Sans KR',-apple-system,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,monospace;
   --grad-gold:linear-gradient(135deg,#F0DBA8 0%,#D9B26A 38%,#B8863A 78%,#9C7530 100%);
+  color-scheme:dark;
+}
+/* ---- light theme (opt-in via data-theme="light" on <html>, see shared/theme.js) ---- */
+:root[data-theme="light"]{
+  --void:#EEE9DB;
+  --panel:#FFFFFF;
+  --panel-raised:#F5F0E3;
+  --panel-hi:#FFFFFF;
+  --brass:#B8863A;
+  --brass-dim:#D9B26A;
+  --jade:#1C8E73;
+  --jade-dim:#57C6A8;
+  --ink:#211E14;
+  --ink-dim:#5C5546;
+  --ink-faint:#918A78;
+  --line:#E1D8C0;
+  --danger:#C0392B;
+  --danger-dim:#E8877A;
+  --info:#2E6DA4;
+  color-scheme:light;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;height:100%;color:var(--ink);font-family:var(--sans);}
@@ -34,6 +54,11 @@ body{
   background-image:
     repeating-linear-gradient(135deg, rgba(217,178,106,.028) 0px, rgba(217,178,106,.028) 1px, transparent 1px, transparent 7px),
     radial-gradient(ellipse 1500px 900px at 50% -8%, #14315A 0%, var(--void) 55%);
+}
+:root[data-theme="light"] body{
+  background-image:
+    repeating-linear-gradient(135deg, rgba(184,134,58,.05) 0px, rgba(184,134,58,.05) 1px, transparent 1px, transparent 7px),
+    radial-gradient(ellipse 1500px 900px at 50% -8%, #FFFDF6 0%, var(--void) 55%);
 }
 @media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms !important;transition-duration:.001ms !important;} }
 ::-webkit-scrollbar{width:8px;height:8px;}
@@ -117,7 +142,7 @@ h2.page-title{font-weight:800;font-size:22px;color:var(--brass);margin:0 0 4px;l
 
 .field{margin-bottom:12px;}
 .field label{display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;font-weight:500;}
-.field input,.field select,.field textarea{width:100%;background:var(--void);border:1px solid var(--line);color:var(--ink);padding:8px 10px;border-radius:var(--radius);font-size:13px;transition:.15s;color-scheme:dark;}
+.field input,.field select,.field textarea{width:100%;background:var(--void);border:1px solid var(--line);color:var(--ink);padding:8px 10px;border-radius:var(--radius);font-size:13px;transition:.15s;}
 .field textarea{resize:vertical;min-height:56px;}
 .field input:hover,.field select:hover,.field textarea:hover{border-color:var(--brass-dim);}
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(217,178,106,.12);}

@@ -259,26 +259,26 @@ function avatarTableShellHtml(){
         <div class="phase-banner" id="phaseBanner">베팅하세요</div>
         <div class="table-felt">
           <div class="cards-area" id="cardsArea">
-            <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCards"></div><div class="score" id="playerScore">&nbsp;</div></div>
-            <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCards"></div><div class="score" id="bankerScore">&nbsp;</div></div>
+            <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCards"></div><div class="score" id="playerScore"></div></div>
+            <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCards"></div><div class="score" id="bankerScore"></div></div>
           </div>
         </div>
-        <div class="timer-ring-wrap"><svg width="56" height="56"><circle cx="28" cy="28" r="24" stroke="var(--line)" stroke-width="4" fill="none"/><circle id="timerArc" cx="28" cy="28" r="24" stroke="var(--brass)" stroke-width="4" fill="none" stroke-dasharray="150.8" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timerTxt">30</div></div>
+        <div class="timer-ring-wrap" id="timerRingWrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArc" cx="32" cy="32" r="27" stroke="var(--brass)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timerTxt">30</div></div>
         <div class="result-flash" id="resultFlash"><div class="txt" id="resultFlashTxt"></div></div>
       </div>
       <div class="bet-rail with-pairs">
-        <div class="bet-spot player" id="spot-player" onclick="placeAvatarBet('player')"><div class="label">PLAYER</div><div class="odds">1 : 1</div><div class="my-bet" id="mybet-player"></div></div>
+        <div class="bet-spot player" id="spot-player" onclick="placeAvatarBet('player')"><div class="label">PLAYER</div><div class="odds">1 : 1</div><div class="my-bet" id="mybet-player"></div><div class="chip-stack" id="chipstack-player"></div></div>
         <div>
-          <div class="bet-spot tie" id="spot-tie" onclick="placeAvatarBet('tie')"><div class="label">TIE</div><div class="odds">8 : 1</div><div class="my-bet" id="mybet-tie"></div></div>
+          <div class="bet-spot tie" id="spot-tie" onclick="placeAvatarBet('tie')"><div class="label">TIE</div><div class="odds">8 : 1</div><div class="my-bet" id="mybet-tie"></div><div class="chip-stack" id="chipstack-tie"></div></div>
           <div class="pair-row">
-            <div class="bet-spot pair" id="spot-playerPair" onclick="placeAvatarBet('playerPair')"><div class="label">P PAIR</div><div class="odds">11:1</div><div class="my-bet" id="mybet-playerPair"></div></div>
-            <div class="bet-spot pair" id="spot-bankerPair" onclick="placeAvatarBet('bankerPair')"><div class="label">B PAIR</div><div class="odds">11:1</div><div class="my-bet" id="mybet-bankerPair"></div></div>
+            <div class="bet-spot pair" id="spot-playerPair" onclick="placeAvatarBet('playerPair')"><div class="label">P PAIR</div><div class="odds">11:1</div><div class="my-bet" id="mybet-playerPair"></div><div class="chip-stack" id="chipstack-playerPair"></div></div>
+            <div class="bet-spot pair" id="spot-bankerPair" onclick="placeAvatarBet('bankerPair')"><div class="label">B PAIR</div><div class="odds">11:1</div><div class="my-bet" id="mybet-bankerPair"></div><div class="chip-stack" id="chipstack-bankerPair"></div></div>
           </div>
         </div>
-        <div class="bet-spot banker" id="spot-banker" onclick="placeAvatarBet('banker')"><div class="label">BANKER</div><div class="odds">0.95 : 1</div><div class="my-bet" id="mybet-banker"></div></div>
+        <div class="bet-spot banker" id="spot-banker" onclick="placeAvatarBet('banker')"><div class="label">BANKER</div><div class="odds">0.95 : 1</div><div class="my-bet" id="mybet-banker"></div><div class="chip-stack" id="chipstack-banker"></div></div>
       </div>
       <div class="chip-tray">
-        ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})">${chipLabel(v)}</div>`).join('')}
+        ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})"><span class="cv">${chipLabel(v)}</span></div>`).join('')}
         <div class="bet-controls">
           <span class="current-bet-total" id="betTotalTxt">총 0</span>
           <button class="btn btn-sm" onclick="clearAvatarBets()">취소</button>
@@ -288,6 +288,8 @@ function avatarTableShellHtml(){
     <div class="table-side">
       <div class="card roadmap-card"><h3>빅로드</h3><div class="br-grid" id="bigRoadGrid"></div>
         <div class="roadmap-legend"><span><i style="background:#4A9FD8;"></i>PLAYER</span><span><i style="background:var(--danger);"></i>BANKER</span><span><i style="background:var(--jade);"></i>TIE</span></div>
+        <div class="derived-road-title">빅아이보이</div>
+        <div class="derived-road-grid" id="derivedRoadGrid"></div>
       </div>
       <div class="card"><h3>최근 결과</h3><div class="recent-results" id="recentResults"></div></div>
       <div class="card"><h3>내 베팅내역</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
@@ -310,6 +312,8 @@ function updateAvatarBetUi(){
   Object.keys(AVATAR.bets).forEach(k=>{
     const el = document.getElementById('mybet-'+k);
     if (el) el.textContent = AVATAR.bets[k] ? fmtNum(AVATAR.bets[k]) : '';
+    const stackEl = document.getElementById('chipstack-'+k);
+    if (stackEl) stackEl.innerHTML = chipStackHtml(AVATAR.bets[k]);
   });
   const totalEl = document.getElementById('betTotalTxt');
   if (totalEl) totalEl.textContent = '총 ' + fmtNum(avatarTotalBet());
@@ -337,7 +341,7 @@ function beginAvatarBettingPhase(){
   document.querySelectorAll('.bet-spot').forEach(s=>s.classList.remove('locked'));
   const flash = document.getElementById('resultFlash'); if (flash) flash.classList.remove('show');
   document.getElementById('playerCards').innerHTML = ''; document.getElementById('bankerCards').innerHTML = '';
-  document.getElementById('playerScore').textContent = ' '; document.getElementById('bankerScore').textContent = ' ';
+  document.getElementById('playerScore').textContent = ''; document.getElementById('bankerScore').textContent = '';
 }
 function setAvatarPhaseBanner(text, secs){
   const el = document.getElementById('phaseBanner'); if (el) el.textContent = text;
@@ -346,7 +350,9 @@ function setAvatarPhaseBanner(text, secs){
 function updateAvatarTimerRing(secLeft, secTotal){
   const txt = document.getElementById('timerTxt'); if (txt) txt.textContent = secLeft;
   const arc = document.getElementById('timerArc');
-  if (arc){ const c = 150.8; arc.style.strokeDashoffset = c * (1 - secLeft/secTotal); }
+  if (arc){ const c = 169.6; arc.style.strokeDashoffset = c * (1 - secLeft/secTotal); }
+  const wrap = document.getElementById('timerRingWrap');
+  if (wrap) wrap.classList.toggle('urgent', secLeft <= 5 && secLeft > 0);
 }
 async function avatarTick(){
   AVATAR.secondsLeft--;
@@ -374,7 +380,7 @@ async function beginAvatarDealingPhase(){
 }
 function cardHtml(card){
   const red = card.suit==='♥' || card.suit==='♦';
-  return `<div class="playing-card ${red?'red':'black'}">${card.rank}${card.suit}</div>`;
+  return `<div class="playing-card ${red?'red':'black'}" data-rank="${card.rank}${card.suit}">${card.suit}</div>`;
 }
 async function revealAvatarCards(sim){
   const pEl = document.getElementById('playerCards'), bEl = document.getElementById('bankerCards');
@@ -426,6 +432,11 @@ function renderAvatarRoadmap(){
   const cols = buildBigRoad(AVATAR.history.slice(-90));
   el.innerHTML = renderBigRoad(cols, 6);
   el.scrollLeft = el.scrollWidth;
+  const derivedEl = document.getElementById('derivedRoadGrid');
+  if (derivedEl){
+    derivedEl.innerHTML = renderDerivedRoad(deriveBigEyeBoy(cols));
+    derivedEl.scrollLeft = derivedEl.scrollWidth;
+  }
 }
 function renderAvatarRecentResults(){
   const el = document.getElementById('recentResults'); if (!el) return;
@@ -459,7 +470,7 @@ let SPEED = { tables:{}, tstate:{}, allBets:[], tick:null };
 function renderChipTray(){
   document.getElementById('chipTray').innerHTML = `
     <div class="chip-tray" style="border:none;background:none;">
-      ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})">${chipLabel(v)}</div>`).join('')}
+      ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})"><span class="cv">${chipLabel(v)}</span></div>`).join('')}
     </div>`;
 }
 async function loadSpeedTables(){

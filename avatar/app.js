@@ -695,11 +695,12 @@ function speedTileHtml(tb){
   <div class="speed-tile" id="tile-${tb.id}">
     <div class="head" style="cursor:pointer;" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}"><span class="name">${escapeHtml(tb.name)}</span><span class="shoe">SHOE #${tb.shoeNo||1} · ${tb.casino}</span></div>
     <div id="hotbadge-${tb.id}"></div>
-    <div class="speed-mini-stage" id="stage-${tb.id}"><div class="phase-txt" id="phase-${tb.id}">${t('phaseBetting')}</div><div class="speed-timer" id="timer-${tb.id}">15</div></div>
+    <div class="speed-mini-stage" id="stage-${tb.id}" style="cursor:pointer;" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}"><div class="phase-txt" id="phase-${tb.id}">${t('phaseBetting')}</div><div class="speed-timer" id="timer-${tb.id}">15</div></div>
+    <button class="btn btn-gold btn-sm btn-block" style="margin-bottom:9px;" onclick="openSpeedTableDetail('${tb.id}')" data-i18n="openTable">${t('openTable')}</button>
     <div class="speed-bets">
-      <div class="bet-spot player" id="spot-${tb.id}-player" onclick="placeSpeedBet('${tb.id}','player')"><div class="label">P</div><div class="odds">1:1</div><div class="my-bet" id="mybet-${tb.id}-player"></div></div>
-      <div class="bet-spot tie" id="spot-${tb.id}-tie" onclick="placeSpeedBet('${tb.id}','tie')"><div class="label">T</div><div class="odds">8:1</div><div class="my-bet" id="mybet-${tb.id}-tie"></div></div>
-      <div class="bet-spot banker" id="spot-${tb.id}-banker" onclick="placeSpeedBet('${tb.id}','banker')"><div class="label">B</div><div class="odds">.95:1</div><div class="my-bet" id="mybet-${tb.id}-banker"></div></div>
+      <div class="bet-spot player" id="spot-${tb.id}-player" onclick="event.stopPropagation();placeSpeedBet('${tb.id}','player')"><div class="label">P</div><div class="odds">1:1</div><div class="my-bet" id="mybet-${tb.id}-player"></div></div>
+      <div class="bet-spot tie" id="spot-${tb.id}-tie" onclick="event.stopPropagation();placeSpeedBet('${tb.id}','tie')"><div class="label">T</div><div class="odds">8:1</div><div class="my-bet" id="mybet-${tb.id}-tie"></div></div>
+      <div class="bet-spot banker" id="spot-${tb.id}-banker" onclick="event.stopPropagation();placeSpeedBet('${tb.id}','banker')"><div class="label">B</div><div class="odds">.95:1</div><div class="my-bet" id="mybet-${tb.id}-banker"></div></div>
     </div>
     <div class="speed-mini-road" id="road-${tb.id}"></div>
     <div class="speed-tile-stats" id="stats-${tb.id}"></div>

@@ -152,6 +152,9 @@ function renderMyBetHistory(){
 function toggleHeaderFavorite(){
   document.getElementById('favoriteBtn')?.classList.toggle('active');
 }
+function toggleCardFavorite(btn){
+  btn.classList.toggle('active');
+}
 function toggleStageFullscreen(btn){
   const stage = btn.closest('.sd-stage,.table-stage');
   if (!stage) return;
@@ -246,8 +249,8 @@ async function chooseSpeed(){
   SPEED.tick = setInterval(tickAllSpeedTables, 1000);
 }
 
-/* ---------------- lobby casino tabs + search (shared by avatar/speed) ---------------- */
-const LOBBY_CASINOS = ['HANN','NUSTAR'];
+/* ---------------- lobby casino tabs + game-type filter + search (shared by avatar/speed) ---------------- */
+const LOBBY_CASINOS = ['HANN','NUSTAR','SOLAIRE'];
 let LOBBY_CASINO_FILTER = 'ALL';
 let LOBBY_SEARCH = '';
 function casinoTabsHtml(){
@@ -255,6 +258,24 @@ function casinoTabsHtml(){
     <button class="casino-tab ${LOBBY_CASINO_FILTER==='ALL'?'active':''}" data-c="ALL" onclick="setLobbyCasinoFilter('ALL')">✦ ${t('allCasinos')}</button>
     ${LOBBY_CASINOS.map(c=>`<button class="casino-tab ${LOBBY_CASINO_FILTER===c?'active':''}" data-c="${c}" onclick="setLobbyCasinoFilter('${c}')">${c}</button>`).join('')}
   </div>`;
+}
+const GAME_TYPE_TABS = [
+  {id:'all', label:'allGameTypes'},
+  {id:'avatar', label:'gameTypeAvatar'},
+  {id:'speed', label:'gameTypeSpeed'},
+  {id:'hyper', label:'gameTypeHyper'},
+  {id:'dragontiger', label:'gameTypeDragonTiger'},
+];
+function gameTypeTabsHtml(activeType){
+  return `<div class="game-type-tabs">
+    ${GAME_TYPE_TABS.map(ty=>`<button class="game-type-tab ${activeType===ty.id?'active':''}" data-t="${ty.id}" onclick="setGameTypeFilter('${ty.id}')">${t(ty.label)}</button>`).join('')}
+  </div>`;
+}
+function setGameTypeFilter(id){
+  document.querySelectorAll('.game-type-tab').forEach(b=>b.classList.toggle('active', b.dataset.t===id));
+  if (id==='avatar' && MODE!=='avatar') chooseAvatar();
+  else if (id==='speed' && MODE!=='speed') chooseSpeed();
+  else if (id==='hyper' || id==='dragontiger') toast(t('gameComingSoon'));
 }
 function lobbySearchHtml(){
   return `<div class="lobby-search-wrap">
@@ -296,7 +317,7 @@ function onLangChange(){
   } else if (MODE==='speed'){
     renderChipTray();
     const toolbar = document.getElementById('speedToolbar');
-    if (toolbar && document.getElementById('viewSpeedLobby').style.display !== 'none') toolbar.innerHTML = casinoTabsHtml() + `<div class="lobby-toolbar">${lobbySearchHtml()}</div>`;
+    if (toolbar && document.getElementById('viewSpeedLobby').style.display !== 'none') toolbar.innerHTML = casinoTabsHtml() + gameTypeTabsHtml('speed') + `<div class="lobby-toolbar">${lobbySearchHtml()}</div>`;
     Object.keys(SPEED.tables||{}).forEach(id=>{ renderSpeedTileStats(id); setSpeedTilePhaseText(id, SPEED.tstate[id].phase==='betting'?t('phaseBetting'):SPEED.tstate[id].phase==='dealing'?t('phaseDealing'):''); });
     if (SPEED.detailTableId) openSpeedTableDetail(SPEED.detailTableId, true);
   }
@@ -327,6 +348,7 @@ async function goAvatarLobby(){
     <div class="lobby-wrap">
       <div class="lobby-title" data-i18n="avatarLobbyTitle">아바타 테이블</div>
       ${casinoTabsHtml()}
+      ${gameTypeTabsHtml('avatar')}
       <div class="lobby-toolbar">
         ${lobbySearchHtml()}
         <label class="hint" style="margin:0 0 0 auto;" data-i18n="sortLabel">정렬</label>
@@ -340,15 +362,17 @@ async function goAvatarLobby(){
       <div class="lobby-grid" id="lobbyGrid"><div class="spin"></div></div>
     </div>`;
   applyI18n(lobby);
-  const [tableSnap, roundsSnap, betSnap, reqSnap] = await Promise.all([
+  const [tableSnap, roundsSnap, betSnap, reqSnap, allReqSnap] = await Promise.all([
     db.collection('tables').where('type','==','avatar').get(),
     db.collection('rounds').where('tableType','==','avatar').get(),
     db.collection('memberLedger').where('category','==','bet').get(), // single equality filter only - no composite index needed
     db.collection('avatarRequests').where('memberId','==',PLAYER.id).get(),
+    db.collection('avatarRequests').get(),
   ]);
   const tables = tableSnap.docs.map(d=>({id:d.id, ...d.data()})).filter(t=>t.status==='open');
   AVATAR.lobbyData = { tables, rounds: roundsSnap.docs.map(d=>d.data()), bets: betSnap.docs.map(d=>d.data()) };
   AVATAR.myRequests = reqSnap.docs.map(d=>({id:d.id, ...d.data()}));
+  AVATAR.allRequests = allReqSnap.docs.map(d=>({id:d.id, ...d.data()}));
   if (!tables.length){ document.getElementById('lobbyGrid').innerHTML = `<p class="hint">${t('noAvatarTables')}</p>`; return; }
   renderAvatarLobbyGrid('popular');
 }
@@ -363,6 +387,15 @@ function avatarRequestStateForTable(tableId){
   if (endedToday) return {state:'full', req:endedToday};
   return {state:'none', req:null};
 }
+// Table-wide occupancy (everyone's requests, not just mine) - drives the
+// 관전/금일 예약 완료 states shown on the lobby card overlay.
+function avatarTableOccupancy(tableId){
+  const todayStr = fmtDate(new Date());
+  const all = (AVATAR.allRequests||[]).filter(r=>r.tableId===tableId);
+  const activeOther = all.some(r=>r.status==='진행중' && r.memberId!==PLAYER.id);
+  const todayCount = all.filter(r=>fmtDate(r.requestedAt)===todayStr && (r.status==='진행중'||r.status==='종료')).length;
+  return {activeOther, todayCount};
+}
 // Clicking anywhere on the card opens the full-screen table view. With an active
 // (approved) session that's the live proxy-betting session; otherwise it's a
 // read-only preview of the table, with the 아바타 신청 action living inside it.
@@ -371,11 +404,16 @@ function handleAvatarCardClick(tableId){
   if (state==='active') enterAvatarSession(tableId);
   else openAvatarTablePreview(tableId, state);
 }
-function avatarStatusBadgeHtml(tableId){
+// Centered pill (or bottom bar, when fully reserved) overlaid on the table
+// thumbnail showing the table's current availability at a glance.
+function avatarThumbOverlayHtml(tableId){
   const {state} = avatarRequestStateForTable(tableId);
-  if (state==='active') return `<div class="hot-badge" style="bottom:auto;top:9px;right:auto;left:9px;">${t('btnReenter')}</div>`;
-  if (state==='pending') return `<div class="badge-type" style="top:auto;bottom:9px;background:var(--ink-faint);">${t('btnPending')}</div>`;
-  return '';
+  if (state==='active') return `<div class="thumb-overlay-btn reenter">↩ ${t('btnReenter')}</div>`;
+  if (state==='pending') return `<div class="thumb-overlay-btn pending">⏳ ${t('btnPending')}</div>`;
+  const occ = avatarTableOccupancy(tableId);
+  if (occ.todayCount >= 3) return `<div class="thumb-overlay-bar">✏️ ${t('btnFullToday')}</div>`;
+  if (occ.activeOther) return `<div class="thumb-overlay-btn spectate">🎥 ${t('btnSpectate')}</div>`;
+  return `<div class="thumb-overlay-btn request">🎭 ${t('btnRequestAvatar')}</div>`;
 }
 function renderAvatarLobbyGrid(sortMode){
   if (!AVATAR.lobbyData) return;
@@ -398,10 +436,10 @@ function renderAvatarLobbyGrid(sortMode){
     return `
     <div class="lobby-card" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="handleAvatarCardClick('${tb.id}')" title="${t('openTable')}">
       <div class="thumb">
-        <div class="live-dot"><span></span>${t('live')}</div>
         <div class="badge-type">AVATAR</div>
+        <button class="card-favorite" onclick="event.stopPropagation();toggleCardFavorite(this)" title="${t('favorites')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
         <div class="felt"></div>
-        ${avatarStatusBadgeHtml(tb.id)}
+        ${avatarThumbOverlayHtml(tb.id)}
         ${isHot ? `<div class="hot-badge">🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}</div>` : ''}
       </div>
       <div class="info"><div class="name">${escapeHtml(tb.name)}</div><div class="limits">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div></div>
@@ -772,7 +810,7 @@ function renderChipTray(){
 async function loadSpeedTables(){
   const grid = document.getElementById('speedGrid');
   const toolbar = document.getElementById('speedToolbar');
-  if (toolbar) toolbar.innerHTML = casinoTabsHtml() + `<div class="lobby-toolbar">${lobbySearchHtml()}</div>`;
+  if (toolbar) toolbar.innerHTML = casinoTabsHtml() + gameTypeTabsHtml('speed') + `<div class="lobby-toolbar">${lobbySearchHtml()}</div>`;
   grid.innerHTML = `<div class="table-loading" style="grid-column:1/-1;height:200px;"><div class="spin-lg"></div><div>${t('connectingTable')}</div></div>`;
   const [tableSnap, roundsSnap, betSnap] = await Promise.all([
     db.collection('tables').where('type','==','speed').get(),

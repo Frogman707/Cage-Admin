@@ -320,6 +320,15 @@ function avatarActionButtonHtml(tableId){
   if (state==='full') return `<button class="btn btn-sm btn-block" disabled style="opacity:.5;">${t('btnFullToday')}</button>`;
   return `<button class="btn btn-gold btn-sm btn-block" onclick="event.stopPropagation();openAvatarRequestModal('${tableId}')">${t('btnRequestAvatar')}</button>`;
 }
+// Clicking anywhere on the card (not just the small action button) should do the
+// same thing the button does: resume an active session, or start a new request.
+function handleAvatarCardClick(tableId){
+  const {state} = avatarRequestStateForTable(tableId);
+  if (state==='active') enterAvatarSession(tableId);
+  else if (state==='pending') toast(t('btnPending'));
+  else if (state==='full') toast(t('btnFullToday'));
+  else openAvatarRequestModal(tableId);
+}
 function renderAvatarLobbyGrid(sortMode){
   if (!AVATAR.lobbyData) return;
   const grid = document.getElementById('lobbyGrid');
@@ -339,7 +348,7 @@ function renderAvatarLobbyGrid(sortMode){
     const cols = buildBigRoad(results.slice(-40));
     const isHot = streak.len >= 3;
     return `
-    <div class="lobby-card">
+    <div class="lobby-card" onclick="handleAvatarCardClick('${tb.id}')" title="${t('openTable')}">
       <div class="thumb">
         <div class="live-dot"><span></span>${t('live')}</div>
         <div class="badge-type">AVATAR</div>
@@ -692,11 +701,11 @@ async function loadSpeedTables(){
 }
 function speedTileHtml(tb){
   return `
-  <div class="speed-tile" id="tile-${tb.id}">
-    <div class="head" style="cursor:pointer;" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}"><span class="name">${escapeHtml(tb.name)}</span><span class="shoe">SHOE #${tb.shoeNo||1} · ${tb.casino}</span></div>
+  <div class="speed-tile" id="tile-${tb.id}" style="cursor:pointer;" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}">
+    <div class="head"><span class="name">${escapeHtml(tb.name)}</span><span class="shoe">SHOE #${tb.shoeNo||1} · ${tb.casino}</span></div>
     <div id="hotbadge-${tb.id}"></div>
-    <div class="speed-mini-stage" id="stage-${tb.id}" style="cursor:pointer;" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}"><div class="phase-txt" id="phase-${tb.id}">${t('phaseBetting')}</div><div class="speed-timer" id="timer-${tb.id}">15</div></div>
-    <button class="btn btn-gold btn-sm btn-block" style="margin-bottom:9px;" onclick="openSpeedTableDetail('${tb.id}')" data-i18n="openTable">${t('openTable')}</button>
+    <div class="speed-mini-stage" id="stage-${tb.id}"><div class="phase-txt" id="phase-${tb.id}">${t('phaseBetting')}</div><div class="speed-timer" id="timer-${tb.id}">15</div></div>
+    <button class="btn btn-gold btn-sm btn-block" style="margin-bottom:9px;" onclick="event.stopPropagation();openSpeedTableDetail('${tb.id}')" data-i18n="openTable">${t('openTable')}</button>
     <div class="speed-bets">
       <div class="bet-spot player" id="spot-${tb.id}-player" onclick="event.stopPropagation();placeSpeedBet('${tb.id}','player')"><div class="label">P</div><div class="odds">1:1</div><div class="my-bet" id="mybet-${tb.id}-player"></div></div>
       <div class="bet-spot tie" id="spot-${tb.id}-tie" onclick="event.stopPropagation();placeSpeedBet('${tb.id}','tie')"><div class="label">T</div><div class="odds">8:1</div><div class="my-bet" id="mybet-${tb.id}-tie"></div></div>

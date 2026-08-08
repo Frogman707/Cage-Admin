@@ -1,8 +1,11 @@
 /* ============================================================
    CAGE ADMIN 5.0 — shared player-facing game UI
    Premium live-casino visual language (Evolution-style felt,
-   chips, roadmap, dealing) built entirely from CSS gradients -
-   no external art assets. Used by /avatar on top of cage-ui.css.
+   chips, roadmap, dealing) built from CSS gradients. Lobby thumbnails
+   use assets/table-live.jpg (SkyEagles-owned live-table still) as a
+   photo backdrop; the active table stage stays a pure CSS/SVG felt so
+   the animated card-dealing overlay stays legible.
+   Used by /avatar on top of cage-ui.css.
    ============================================================ */
 
 .game-header{
@@ -50,14 +53,14 @@
   aspect-ratio:16/10;position:relative;overflow:hidden;
   background:
     radial-gradient(ellipse 120% 90% at 50% -10%, rgba(217,178,106,.14) 0%, transparent 55%),
-    radial-gradient(ellipse at 50% 35%, #0f4433 0%, #05140e 72%),
-    repeating-linear-gradient(115deg, rgba(217,178,106,.05) 0 2px, transparent 2px 9px);
+    linear-gradient(180deg, rgba(5,20,14,.1) 0%, rgba(5,20,14,.5) 100%),
+    url('assets/table-live.jpg') center/cover no-repeat;
   display:flex;align-items:center;justify-content:center;
 }
 .lobby-card .thumb .felt{
   width:82%;height:64%;border-radius:50%;position:relative;
   border:2px solid rgba(217,178,106,.5);
-  box-shadow:0 0 0 5px rgba(217,178,106,.08), inset 0 0 26px rgba(0,0,0,.5);
+  box-shadow:0 0 0 5px rgba(217,178,106,.08);
 }
 .lobby-card .thumb .felt::before{content:'';position:absolute;inset:8px;border:1px solid rgba(217,178,106,.22);border-radius:50%;}
 .lobby-card .live-dot{position:absolute;top:9px;left:9px;display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);padding:4px 9px;border-radius:12px;font-size:9.5px;font-weight:800;color:#fff;letter-spacing:.5px;}

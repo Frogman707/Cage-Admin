@@ -85,6 +85,14 @@
 @keyframes hotPulse{0%,100%{box-shadow:0 3px 10px -2px rgba(217,178,106,.5);}50%{box-shadow:0 3px 16px -1px rgba(217,178,106,.85);}}
 .lobby-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
 .lobby-toolbar select{background:var(--panel-raised);color:var(--ink);border:1px solid var(--line);padding:7px 10px;border-radius:var(--radius);font-size:12.5px;}
+.casino-tabs{display:flex;align-items:center;gap:22px;border-bottom:1px solid var(--line);margin-bottom:16px;}
+.casino-tab{background:none;border:none;color:var(--ink-faint);padding:9px 2px;font-size:13px;font-weight:700;letter-spacing:.2px;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.casino-tab.active{color:var(--brass);border-bottom-color:var(--brass);}
+.lobby-search-wrap{position:relative;display:flex;align-items:center;flex:1;max-width:320px;}
+.lobby-search-wrap svg{position:absolute;left:11px;width:15px;height:15px;color:var(--ink-faint);pointer-events:none;}
+.lobby-search{width:100%;background:var(--panel-raised);border:1px solid var(--line);color:var(--ink);padding:8px 12px 8px 34px;border-radius:20px;font-size:12.5px;}
+.lobby-search:focus{outline:none;border-color:var(--brass-dim);}
+.lobby-search::placeholder{color:var(--ink-faint);}
 .table-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:16px;color:var(--ink-dim);font-size:13px;}
 .table-loading .spin-lg{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--brass);border-radius:50%;animation:sp .7s linear infinite;box-shadow:0 0 16px -4px rgba(217,178,106,.4);}
 @keyframes sp{to{transform:rotate(360deg);}}

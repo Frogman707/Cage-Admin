@@ -221,17 +221,53 @@ function showPicker(){
 async function chooseAvatar(){
   stopAllLoops();
   MODE = 'avatar';
+  LOBBY_CASINO_FILTER = 'ALL'; LOBBY_SEARCH = '';
   showView('viewAvatarLobby');
   await goAvatarLobby();
 }
 async function chooseSpeed(){
   stopAllLoops();
   MODE = 'speed';
+  LOBBY_CASINO_FILTER = 'ALL'; LOBBY_SEARCH = '';
   showView('viewSpeedLobby');
   renderChipTray();
   await loadSpeedTables();
   renderMyBetHistory();
   SPEED.tick = setInterval(tickAllSpeedTables, 1000);
+}
+
+/* ---------------- lobby casino tabs + search (shared by avatar/speed) ---------------- */
+const LOBBY_CASINOS = ['HANN','NUSTAR'];
+let LOBBY_CASINO_FILTER = 'ALL';
+let LOBBY_SEARCH = '';
+function casinoTabsHtml(){
+  return `<div class="casino-tabs">
+    <button class="casino-tab ${LOBBY_CASINO_FILTER==='ALL'?'active':''}" data-c="ALL" onclick="setLobbyCasinoFilter('ALL')">✦ ${t('allCasinos')}</button>
+    ${LOBBY_CASINOS.map(c=>`<button class="casino-tab ${LOBBY_CASINO_FILTER===c?'active':''}" data-c="${c}" onclick="setLobbyCasinoFilter('${c}')">${c}</button>`).join('')}
+  </div>`;
+}
+function lobbySearchHtml(){
+  return `<div class="lobby-search-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input class="lobby-search" id="lobbySearchInput" placeholder="${t('searchTablePh')}" value="${escapeHtml(LOBBY_SEARCH)}" oninput="setLobbySearch(this.value)">
+  </div>`;
+}
+function setLobbyCasinoFilter(c){
+  LOBBY_CASINO_FILTER = c;
+  document.querySelectorAll('.casino-tab').forEach(b=>b.classList.toggle('active', b.dataset.c===c));
+  applyLobbyTileFilter();
+}
+function setLobbySearch(v){
+  LOBBY_SEARCH = v;
+  applyLobbyTileFilter();
+}
+function applyLobbyTileFilter(){
+  const q = LOBBY_SEARCH.trim().toLowerCase();
+  document.querySelectorAll('.lobby-card[data-casino], .speed-tile[data-casino]').forEach(el=>{
+    const casinoOk = LOBBY_CASINO_FILTER==='ALL' || el.dataset.casino===LOBBY_CASINO_FILTER;
+    const nameOk = !q || (el.dataset.name||'').toLowerCase().includes(q);
+    el.style.display = (casinoOk && nameOk) ? '' : 'none';
+  });
 }
 function backToAvatarLobby(){
   stopAvatarRoundLoop();
@@ -245,10 +281,12 @@ function onLangChange(){
       document.getElementById('viewAvatarTable').innerHTML = avatarTableShellHtml();
       renderAvatarRoadmap(); renderAvatarRecentResults(); renderMyBetHistory(); updateAvatarStatusPanel();
     } else if (AVATAR.lobbyData){
-      renderAvatarLobbyGrid(document.getElementById('lobbySort')?.value || 'popular');
+      goAvatarLobby();
     }
   } else if (MODE==='speed'){
     renderChipTray();
+    const toolbar = document.getElementById('speedToolbar');
+    if (toolbar && document.getElementById('viewSpeedLobby').style.display !== 'none') toolbar.innerHTML = casinoTabsHtml() + `<div class="lobby-toolbar">${lobbySearchHtml()}</div>`;
     Object.keys(SPEED.tables||{}).forEach(id=>{ renderSpeedTileStats(id); setSpeedTilePhaseText(id, SPEED.tstate[id].phase==='betting'?t('phaseBetting'):SPEED.tstate[id].phase==='dealing'?t('phaseDealing'):''); });
     if (SPEED.detailTableId) openSpeedTableDetail(SPEED.detailTableId, true);
   }
@@ -278,8 +316,10 @@ async function goAvatarLobby(){
   lobby.innerHTML = `
     <div class="lobby-wrap">
       <div class="lobby-title" data-i18n="avatarLobbyTitle">아바타 테이블</div>
+      ${casinoTabsHtml()}
       <div class="lobby-toolbar">
-        <label class="hint" style="margin:0;" data-i18n="sortLabel">정렬</label>
+        ${lobbySearchHtml()}
+        <label class="hint" style="margin:0 0 0 auto;" data-i18n="sortLabel">정렬</label>
         <select id="lobbySort" onchange="renderAvatarLobbyGrid(this.value)">
           <option value="popular" data-i18n="sortPopular">인기순 (베팅총액)</option>
           <option value="today" data-i18n="sortToday">오늘 베팅액순</option>
@@ -346,7 +386,7 @@ function renderAvatarLobbyGrid(sortMode){
     const cols = buildBigRoad(results.slice(-40));
     const isHot = streak.len >= 3;
     return `
-    <div class="lobby-card" onclick="handleAvatarCardClick('${tb.id}')" title="${t('openTable')}">
+    <div class="lobby-card" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="handleAvatarCardClick('${tb.id}')" title="${t('openTable')}">
       <div class="thumb">
         <div class="live-dot"><span></span>${t('live')}</div>
         <div class="badge-type">AVATAR</div>
@@ -359,6 +399,7 @@ function renderAvatarLobbyGrid(sortMode){
       <div class="stat-row" style="padding-bottom:13px;"><span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>${t('todayLabel')} <b>${fmtNum(volume.today)}</b></span></div>
     </div>`;
   }).join('');
+  applyLobbyTileFilter();
 }
 
 /* ---------------- avatar request modal ---------------- */
@@ -725,6 +766,8 @@ function renderChipTray(){
 }
 async function loadSpeedTables(){
   const grid = document.getElementById('speedGrid');
+  const toolbar = document.getElementById('speedToolbar');
+  if (toolbar) toolbar.innerHTML = casinoTabsHtml() + `<div class="lobby-toolbar">${lobbySearchHtml()}</div>`;
   grid.innerHTML = `<div class="table-loading" style="grid-column:1/-1;height:200px;"><div class="spin-lg"></div><div>${t('connectingTable')}</div></div>`;
   const [tableSnap, roundsSnap, betSnap] = await Promise.all([
     db.collection('tables').where('type','==','speed').get(),
@@ -738,6 +781,7 @@ async function loadSpeedTables(){
   SPEED.tables = {}; SPEED.tstate = {};
 
   grid.innerHTML = tables.map(tb=>speedTileHtml(tb)).join('');
+  applyLobbyTileFilter();
   tables.forEach(tb=>{
     SPEED.tables[tb.id] = tb;
     const rounds = allRounds.filter(r=>r.tableId===tb.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
@@ -754,7 +798,7 @@ async function loadSpeedTables(){
 }
 function speedTileHtml(tb){
   return `
-  <div class="speed-tile" id="tile-${tb.id}" style="cursor:pointer;" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}">
+  <div class="speed-tile" id="tile-${tb.id}" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" style="cursor:pointer;" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}">
     <div class="head"><span class="name">${escapeHtml(tb.name)}</span><span class="shoe">SHOE #${tb.shoeNo||1} · ${tb.casino}</span></div>
     <div id="hotbadge-${tb.id}"></div>
     <div class="speed-mini-stage" id="stage-${tb.id}"><div class="phase-txt" id="phase-${tb.id}">${t('phaseBetting')}</div><div class="speed-timer" id="timer-${tb.id}">15</div></div>

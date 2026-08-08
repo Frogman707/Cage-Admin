@@ -63,9 +63,11 @@ body{overflow:auto;}
 .speed-bets .bet-spot .label{font-size:12.5px;}
 .speed-mini-road{display:flex;gap:1px;overflow-x:hidden;margin-bottom:8px;}
 .speed-mini-road .br-col{gap:1px;}
-.speed-mini-road .br-cell{width:7px;height:7px;}
+.speed-mini-road .br-cell{width:7px;height:7px;border-width:1.5px;}
 .speed-mini-road .br-cell.tie-only{width:5px;height:5px;}
-.speed-mini-road .br-tie{border-width:1px;}
+.speed-mini-road .br-tie::before{height:1px;}
+.speed-mini-road .br-tie span{display:none;}
+.speed-mini-road .br-pair{width:2px;height:2px;}
 .speed-tile-stats{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-faint);font-family:var(--mono);margin-bottom:2px;}
 .speed-tile-stats b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
 .speed-hot-badge{position:absolute;top:7px;left:8px;background:var(--grad-gold);color:#071120;font-size:9px;font-weight:800;padding:3px 8px;border-radius:9px;z-index:2;box-shadow:0 3px 8px -2px rgba(217,178,106,.5);animation:hotPulse 1.8s ease-in-out infinite;}

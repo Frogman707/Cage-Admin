@@ -81,9 +81,10 @@
 .lobby-card .info .limits{font-size:11px;color:var(--ink-faint);margin-top:4px;font-family:var(--mono);}
 .lobby-card .mini-road{display:flex;gap:1px;padding:10px 15px 4px;overflow-x:hidden;}
 .lobby-card .mini-road .br-col{gap:1px;}
-.lobby-card .mini-road .br-cell{width:8px;height:8px;}
+.lobby-card .mini-road .br-cell{width:8px;height:8px;border-width:1.5px;}
 .lobby-card .mini-road .br-cell.tie-only{width:6px;height:6px;}
-.lobby-card .mini-road .br-tie{border-width:1px;}
+.lobby-card .mini-road .br-tie::before{height:1px;}
+.lobby-card .mini-road .br-tie span{display:none;}
 .lobby-card .stat-row{display:flex;justify-content:space-between;padding:4px 15px 13px;font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);border-top:1px solid rgba(255,255,255,.04);margin-top:6px;padding-top:8px;}
 .lobby-card .stat-row b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
 .thumb-overlay-btn{
@@ -290,12 +291,21 @@
 .roadmap-card{padding-bottom:12px;}
 .roadmap-card .br-grid{display:flex;gap:2px;overflow-x:auto;padding-bottom:6px;}
 .br-col{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
-.br-cell{width:16px;height:16px;border-radius:50%;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.4), inset 0 1px 1px rgba(255,255,255,.25);}
-.br-cell.player{background:radial-gradient(circle at 35% 30%,#8fd0ff,#2f7fbf 75%);}
-.br-cell.banker{background:radial-gradient(circle at 35% 30%,#f5a89c,var(--danger) 75%);}
-.br-cell.overflow{background:none;box-shadow:none;color:var(--ink-faint);font-size:9px;display:flex;align-items:center;justify-content:center;}
-.br-cell.tie-only{background:radial-gradient(circle at 35% 30%,#8fe8cf,var(--jade) 75%);width:10px;height:10px;align-self:center;}
-.br-tie{position:absolute;inset:-2px;border:2px solid var(--jade);border-radius:50%;box-shadow:0 0 4px rgba(47,169,140,.6);}
+/* Real Big Road boards draw hollow outline rings (not solid filled balls) so a
+   tie can be marked with a diagonal slash through the ring, and pair hits with
+   small corner dots - not a separate filled circle per cell. */
+.br-cell{width:16px;height:16px;border-radius:50%;position:relative;box-sizing:border-box;border:2.5px solid transparent;}
+.br-cell.player{border-color:#2f7fbf;}
+.br-cell.banker{border-color:var(--danger);}
+.br-cell.overflow{border:none;color:var(--ink-faint);font-size:9px;display:flex;align-items:center;justify-content:center;}
+.br-cell.tie-only{background:var(--jade);border:none;width:10px;height:10px;align-self:center;}
+.br-tie{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:flex-end;pointer-events:none;}
+.br-tie::before{content:'';position:absolute;left:10%;top:50%;width:80%;height:2px;background:var(--jade);transform:rotate(-30deg);}
+.br-tie span{position:relative;font-size:7.5px;font-weight:800;color:var(--jade);background:var(--void);border-radius:2px;padding:0 1px;line-height:1.3;}
+.br-pair{position:absolute;width:4px;height:4px;border-radius:50%;}
+.br-pair.player{top:0;left:0;background:#2f7fbf;}
+.br-pair.banker{bottom:0;right:0;background:var(--danger);}
+.lobby-card .mini-road .br-pair{width:2.5px;height:2.5px;}
 .roadmap-legend{display:flex;gap:12px;font-size:10.5px;color:var(--ink-faint);margin-top:10px;}
 .roadmap-legend span{display:flex;align-items:center;gap:4px;}
 .roadmap-legend i{width:8px;height:8px;border-radius:50%;display:inline-block;}

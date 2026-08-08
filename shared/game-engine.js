@@ -115,22 +115,24 @@ async function writeRoundDoc(db, {tableId, tableType, roundNo, shoeNo, sim, star
 }
 
 /* ---------------- Big Road roadmap builder ---------------- */
-function buildBigRoad(results){
-  // results: array of 'player'|'banker'|'tie', oldest first
+function buildBigRoad(results, pairFlags){
+  // results: array of 'player'|'banker'|'tie', oldest first.
+  // pairFlags (optional): parallel array of {playerPair,bankerPair} - real boards mark a
+  // pair hit as a small corner dot on the result circle rather than a separate symbol.
   const cols = [];
-  let lastNonTie = null;
-  results.forEach(r=>{
+  results.forEach((r,i)=>{
+    const pf = pairFlags && pairFlags[i];
     if (r==='tie'){
       if (cols.length) cols[cols.length-1].ties = (cols[cols.length-1].ties||0)+1;
-      else { cols.push({side:null, items:[], ties:1}); }
+      else { cols.push({side:null, items:[], pairs:[], ties:1}); }
       return;
     }
     if (cols.length && cols[cols.length-1].side===r){
       cols[cols.length-1].items.push(r);
+      cols[cols.length-1].pairs.push(pf);
     } else {
-      cols.push({side:r, items:[r], ties:0});
+      cols.push({side:r, items:[r], pairs:[pf], ties:0});
     }
-    lastNonTie = r;
   });
   return cols;
 }
@@ -143,7 +145,11 @@ function renderBigRoad(cols, maxRows){
     col.items.forEach((it,ri)=>{
       if (ri >= maxRows) return;
       const showTie = ri===0 && col.ties>0;
-      colHtml += `<div class="br-cell ${it}">${showTie?`<span class="br-tie">${col.ties}</span>`:''}</div>`;
+      const pf = col.pairs[ri];
+      let dots = '';
+      if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
+      if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
+      colHtml += `<div class="br-cell ${it}">${showTie?`<span class="br-tie">${col.ties}</span>`:''}${dots}</div>`;
     });
     if (col.items.length > maxRows) colHtml += `<div class="br-cell overflow">+${col.items.length-maxRows}</div>`;
     cells.push(`<div class="br-col">${colHtml}</div>`);

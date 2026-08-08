@@ -859,14 +859,15 @@ function speedTileHtml(tb){
 function renderSpeedTileRoad(tableId){
   const el = document.getElementById('road-'+tableId);
   if (el){
-    const cols = buildBigRoad(SPEED.tstate[tableId].history.slice(-40));
+    const cols = buildBigRoad(SPEED.tstate[tableId].history.slice(-40), (SPEED.tstate[tableId].pairFlags||[]).slice(-40));
     el.innerHTML = renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`;
   }
   if (SPEED.detailTableId===tableId) renderSpeedDetailRoad(tableId);
 }
 function renderSpeedDetailRoad(tableId){
   const history = SPEED.tstate[tableId].history;
-  const cols = buildBigRoad(history.slice(-90));
+  const pairFlags = SPEED.tstate[tableId].pairFlags || [];
+  const cols = buildBigRoad(history.slice(-90), pairFlags.slice(-90));
   const bigRoadEl = document.getElementById('road-detail');
   if (bigRoadEl) bigRoadEl.innerHTML = renderBigRoad(cols, 6) || `<span class="hint">${t('noRecord')}</span>`;
   const bigeyeEl = document.getElementById('bigeye-detail');

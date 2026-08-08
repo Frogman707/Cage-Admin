@@ -151,15 +151,13 @@ const I18N_DICT = {
   historyTabAvatar:{ko:'아바타 베팅',zh:'代打投注',en:'Avatar Bets',ja:'アバターベット',vi:'Cược Avatar'},
   noHistory:{ko:'베팅 내역이 없습니다',zh:'暂无投注记录',en:'No bet history',ja:'ベット履歴がありません',vi:'Chưa có lịch sử cược'},
   betLabel:{ko:'베팅',zh:'投注',en:'Bet',ja:'ベット',vi:'Cược'},
+  favorites:{ko:'즐겨찾기',zh:'收藏',en:'Favorites',ja:'お気に入り',vi:'Yêu thích'},
 
   // ---- display settings (theme / skin) ----
   displaySettings:{ko:'화면 설정',zh:'显示设置',en:'Display Settings',ja:'画面設定',vi:'Cài đặt hiển thị'},
   themeLabel:{ko:'테마',zh:'主题',en:'Theme',ja:'テーマ',vi:'Giao diện'},
   themeDark:{ko:'다크',zh:'深色',en:'Dark',ja:'ダーク',vi:'Tối'},
   themeLight:{ko:'라이트',zh:'浅色',en:'Light',ja:'ライト',vi:'Sáng'},
-  skinLabel:{ko:'테이블 스킨',zh:'桌台样式',en:'Table Skin',ja:'テーブルスキン',vi:'Giao diện bàn'},
-  skinModern:{ko:'모던',zh:'现代',en:'Modern',ja:'モダン',vi:'Hiện đại'},
-  skinClassic:{ko:'클래식',zh:'经典',en:'Classic',ja:'クラシック',vi:'Cổ điển'},
 
   // ---- speed single-table detail screen ----
   openTable:{ko:'테이블 입장',zh:'进入桌台',en:'Enter Table',ja:'テーブルに入る',vi:'Vào bàn'},

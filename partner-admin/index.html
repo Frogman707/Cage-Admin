@@ -11,8 +11,8 @@
 .video-wall{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
 .video-tile{background:var(--void);border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative;aspect-ratio:16/10;}
 .video-tile .feed{position:absolute;inset:0;background:
-  radial-gradient(ellipse at 50% 30%, #103a2c 0%, #05140e 70%),
-  repeating-linear-gradient(115deg, rgba(217,178,106,.05) 0 2px, transparent 2px 9px);
+  linear-gradient(180deg, rgba(5,20,14,.1) 0%, rgba(5,20,14,.5) 100%),
+  url('../shared/assets/table-live.jpg') center/cover no-repeat;
   display:flex;align-items:center;justify-content:center;}
 .video-tile .felt{width:82%;height:62%;border:2px solid rgba(217,178,106,.35);border-radius:50%;position:relative;}
 .video-tile .dot{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--danger);top:8px;left:8px;box-shadow:0 0 8px var(--danger);animation:pulseDot 1.4s infinite;}

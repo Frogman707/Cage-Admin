@@ -28,7 +28,7 @@ const ICONS = {
 };
 function ic(name){ return `<span class="ic">${ICONS[name]||ICONS.doc}</span>`; }
 
-/* ---------------- nav structure (58 leaf screens across 13 groups, mirrors the 51-screen reference set) ---------------- */
+/* ---------------- nav structure (58 leaf screens across 12 groups, mirrors the 51-screen reference set) ---------------- */
 const NAV_GROUPS = [
   {id:'dashboard', label:'대시보드', icon:'dashboard', single:true},
   {id:'myinfo', label:'내정보관리', icon:'user', single:true},
@@ -59,18 +59,16 @@ const NAV_GROUPS = [
     {id:'bettingStatus', label:'베팅현황'},
   ]},
   {id:'table', label:'테이블관리', icon:'table', children:[
-    {id:'tableList', label:'테이블관리'},
-    {id:'tableBetHistory', label:'테이블베팅내역'},
-  ]},
-  {id:'avatarGame', label:'아바타게임관리', icon:'gamepad', children:[
-    {id:'avatarGameList', label:'아바타게임관리'},
+    {id:'tableList', label:'테이블 관리'},
+    {id:'tableBetHistory', label:'테이블 배팅 총 금액(24H)'},
+    {id:'avatarGameList', label:'아바타 게임 관리'},
     {id:'avatarRequests', label:'아바타대리베팅신청'},
     {id:'roundEdit', label:'게임라운드수정'},
-    {id:'chatLog', label:'채팅내역'},
-    {id:'bankerCutBets', label:'뱅커절삭베팅내역'},
-    {id:'avatarMissFix', label:'아바타미스수정'},
-    {id:'tableVideo', label:'게임테이블영상'},
-    {id:'roundEditSettle', label:'게임라운드수정정산'},
+    {id:'chatLog', label:'채팅 로그'},
+    {id:'bankerCutBets', label:'뱅커 절사 배팅내역'},
+    {id:'avatarMissFix', label:'아바타 미스 수정'},
+    {id:'tableVideo', label:'게임 테이블 영상'},
+    {id:'roundEditSettle', label:'게임라운드수정 정산'},
   ]},
   {id:'wallet', label:'월렛관리', icon:'bank', children:[
     {id:'depositWithdrawList', label:'입출금리스트'},

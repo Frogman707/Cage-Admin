@@ -460,10 +460,7 @@ function avatarPreviewShellHtml(state){
       <div class="table-stage">
         <div class="table-id-badge">${escapeHtml(tb.name)}</div>
         <div class="table-shoe-badge">SHOE #${tb.shoeNo||1}</div>
-        <div class="deal-shoe"></div>
-        <div class="table-felt">
-          ${feltMarkingsSvg()}
-        </div>
+        <div class="table-felt"></div>
       </div>
       <div class="card avatar-status-card">
         <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
@@ -538,9 +535,7 @@ function avatarTableShellHtml(){
         <div class="table-id-badge">${escapeHtml(tb.name)}</div>
         <div class="table-shoe-badge">SHOE #${tb.shoeNo||1} · ${t('roundInfo')} ${AVATAR.roundNo}</div>
         <div class="phase-banner" id="phaseBanner">${t('phaseBetting')}</div>
-        <div class="deal-shoe"></div>
         <div class="table-felt">
-          ${feltMarkingsSvg()}
           <div class="cards-area" id="cardsArea">
             <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCards"></div><div class="score" id="playerScore"></div></div>
             <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCards"></div><div class="score" id="bankerScore"></div></div>
@@ -914,9 +909,7 @@ function speedDetailShellHtml(tableId){
         <div class="table-id-badge">${escapeHtml(tb.name)}</div>
         <div class="table-shoe-badge">SHOE #${tb.shoeNo||1}</div>
         <div class="phase-banner" id="phase-detail">${t('phaseBetting')}</div>
-        <div class="deal-shoe"></div>
         <div class="table-felt">
-          ${feltMarkingsSvg()}
           <div class="cards-area">
             <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCardsDetail"></div><div class="score" id="playerScoreDetail"></div></div>
             <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCardsDetail"></div><div class="score" id="bankerScoreDetail"></div></div>

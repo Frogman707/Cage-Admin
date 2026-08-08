@@ -451,9 +451,19 @@
              radial-gradient(ellipse at 50% 22%, #123c2f 0%, #07130e 78%);
   box-shadow:inset 0 0 90px rgba(0,0,0,.6);
 }
-.sd-tally{grid-area:tally;}
-.sd-road{grid-area:road;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+/* the reference shows the scoreboard (tally + road maps) on a plain white
+   card, contrasting with the dark felt above and dark board to the right -
+   scoped to just these two areas rather than the shared dark .tally-bar/
+   .roadmap-card used elsewhere (avatar sidebar, lobby mini-road). */
+.sd-tally.tally-bar{grid-area:tally;background:#fff;border-color:#e4e4e4;color:#1a1a1a;}
+.sd-tally.tally-bar .cnt{color:#1a1a1a;}
+.sd-tally.tally-bar .cnt.player{color:#2f7fbf;}
+.sd-tally.tally-bar .cnt.banker{color:var(--danger);}
+.sd-tally.tally-bar .cnt.tie{color:#1c8a6f;}
+.sd-road{grid-area:road;background:#fff;border:1px solid #e4e4e4;border-radius:12px;padding:12px 14px;color:#1a1a1a;}
 .sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;padding-bottom:6px;}
+.sd-road .derived-road-title{color:#8a8a8a;border-top-color:#e4e4e4;}
+.sd-road .bd-cell.overflow,.sd-road .br-cell.overflow{color:#8a8a8a;}
 .sd-bets{grid-area:bets;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 .sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
 .sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}

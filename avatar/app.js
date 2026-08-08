@@ -149,6 +149,10 @@ function renderMyBetHistory(){
   }).join('');
 }
 
+function toggleHeaderFavorite(){
+  document.getElementById('favoriteBtn')?.classList.toggle('active');
+}
+
 /* ---------------- game history bottom sheet (mobile-style, grouped by day) ---------------- */
 function toggleRoadmapCollapse(){
   document.getElementById('roadmapCard')?.classList.toggle('collapsed');
@@ -906,8 +910,8 @@ function speedDetailShellHtml(tableId){
     </div>
     <div class="speed-detail-grid">
       <div class="sd-stage">
-        <div class="table-id-badge">${escapeHtml(tb.name)}</div>
-        <div class="table-shoe-badge">SHOE #${tb.shoeNo||1}</div>
+        <div class="sd-type-badge">SPEED</div>
+        <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
         <div class="phase-banner" id="phase-detail">${t('phaseBetting')}</div>
         <div class="table-felt">
           <div class="cards-area">
@@ -925,16 +929,17 @@ function speedDetailShellHtml(tableId){
       </div>
       <div class="sd-bets">
         <div class="pair-row">
-          <div class="bet-spot pair" id="spot-detail-playerPair" onclick="placeSpeedBet('${tableId}','playerPair')"><div class="label" data-i18n="playerPair">플레이어 페어</div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-playerPair"></div></div>
-          <div class="bet-spot tie" id="spot-detail-tie" onclick="placeSpeedBet('${tableId}','tie')"><div class="label" data-i18n="tie">타이</div><div class="odds">8:1</div><div class="my-bet" id="mybet-detail-tie"></div></div>
-          <div class="bet-spot pair" id="spot-detail-bankerPair" onclick="placeSpeedBet('${tableId}','bankerPair')"><div class="label" data-i18n="bankerPair">뱅커 페어</div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-bankerPair"></div></div>
+          <div class="bet-spot pair" id="spot-detail-playerPair" onclick="placeSpeedBet('${tableId}','playerPair')"><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="label" data-i18n="playerPair">플레이어 페어</div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-playerPair"></div></div>
+          <div class="bet-spot tie" id="spot-detail-tie" onclick="placeSpeedBet('${tableId}','tie')"><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="label" data-i18n="tie">타이</div><div class="odds">8:1</div><div class="my-bet" id="mybet-detail-tie"></div></div>
+          <div class="bet-spot pair" id="spot-detail-bankerPair" onclick="placeSpeedBet('${tableId}','bankerPair')"><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="label" data-i18n="bankerPair">뱅커 페어</div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-bankerPair"></div></div>
         </div>
-        <div class="bet-rail two-up" style="margin-top:8px;">
-          <div class="bet-spot player" id="spot-detail-player" onclick="placeSpeedBet('${tableId}','player')"><div class="label" data-i18n="player">플레이어</div><div class="odds">1:1</div><div class="my-bet" id="mybet-detail-player"></div></div>
-          <div class="bet-spot banker" id="spot-detail-banker" onclick="placeSpeedBet('${tableId}','banker')"><div class="label" data-i18n="banker">뱅커</div><div class="odds">0.95:1</div><div class="my-bet" id="mybet-detail-banker"></div></div>
+        <div class="bet-rail two-up" style="margin-top:0;">
+          <div class="bet-spot player" id="spot-detail-player" onclick="placeSpeedBet('${tableId}','player')"><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="label" data-i18n="player">플레이어</div><div class="odds">1:1</div><div class="my-bet" id="mybet-detail-player"></div></div>
+          <div class="bet-spot banker" id="spot-detail-banker" onclick="placeSpeedBet('${tableId}','banker')"><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="label" data-i18n="banker">뱅커</div><div class="odds">0.95:1</div><div class="my-bet" id="mybet-detail-banker"></div></div>
         </div>
       </div>
       <div class="sd-tray sd-chip-tray">
+        <div class="sd-round-info"><div class="mark">${escapeHtml((tb.casino||'').slice(0,2))}</div><div class="txt"><b>${escapeHtml(tb.casino)}</b><br>${t('roundInfo')} ${SPEED.tstate[tableId]?.roundNo||1} · SHOE #${tb.shoeNo||1}</div></div>
         <button class="btn btn-sm" onclick="clearSpeedDetailBets('${tableId}')" data-i18n="cancelBet">취소</button>
         ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})"><span class="cv">${chipLabel(v)}</span></div>`).join('')}
         <span class="spacer"></span>

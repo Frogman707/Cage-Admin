@@ -113,6 +113,49 @@ function renderMyBetHistory(){
   }).join('');
 }
 
+/* ---------------- game history bottom sheet (mobile-style, grouped by day) ---------------- */
+function toggleRoadmapCollapse(){
+  document.getElementById('roadmapCard')?.classList.toggle('collapsed');
+}
+function openGameHistory(){
+  const activeBtn = document.querySelector('#historyTabs button.active') || document.querySelector('#historyTabs button');
+  renderGameHistory(activeBtn, activeBtn?.dataset.mode || 'speed');
+  openModal('modal-history');
+}
+function renderGameHistory(btn, mode){
+  if (btn){
+    document.querySelectorAll('#historyTabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    btn.dataset.mode = mode;
+  }
+  const body = document.getElementById('historyBody');
+  const rows = MY_BET_LOG.filter(b=>b.mode===mode);
+  if (!rows.length){ body.innerHTML = `<p class="hint" style="padding:20px 0;text-align:center;">베팅 내역이 없습니다</p>`; return; }
+  const byDay = {};
+  rows.forEach(b=>{
+    const day = fmtDate(b.dt);
+    (byDay[day] = byDay[day] || []).push(b);
+  });
+  body.innerHTML = Object.entries(byDay).map(([day, list])=>{
+    const totalBet = list.reduce((s,b)=>s+b.amount,0);
+    const totalNet = list.reduce((s,b)=>s+(b.payout-b.amount),0);
+    const rowsHtml = list.map(b=>{
+      const net = b.payout - b.amount;
+      const cls = net > 0 ? 'pos' : net < 0 ? 'neg' : '';
+      return `<div class="history-row">
+        <span class="t">${fmtDt(b.dt).slice(11)}</span>
+        <span class="g">${escapeHtml(b.tableName)} · ${BET_LABEL[b.betType]}</span>
+        <span class="amt">${fmtNum(b.amount)}</span>
+        <span class="wl ${cls}">${net===0?'푸시':fmtSigned(net)}</span>
+      </div>`;
+    }).join('');
+    return `<div class="history-day">
+      <div class="history-day-head"><span>${day}</span><span>베팅 ${fmtNum(totalBet)} · <b class="${totalNet>=0?'pos':'neg'}">${fmtSigned(totalNet)}</b></span></div>
+      ${rowsHtml}
+    </div>`;
+  }).join('');
+}
+
 /* ============================================================
    Navigation shell shared by both modes
    ============================================================ */
@@ -286,7 +329,7 @@ function avatarTableShellHtml(){
       </div>
     </div>
     <div class="table-side">
-      <div class="card roadmap-card"><h3>빅로드</h3><div class="br-grid" id="bigRoadGrid"></div>
+      <div class="card roadmap-card" id="roadmapCard"><h3><span>빅로드</span><button class="roadmap-toggle" onclick="toggleRoadmapCollapse()">▾</button></h3><div class="br-grid" id="bigRoadGrid"></div>
         <div class="roadmap-legend"><span><i style="background:#4A9FD8;"></i>PLAYER</span><span><i style="background:var(--danger);"></i>BANKER</span><span><i style="background:var(--jade);"></i>TIE</span></div>
         <div class="derived-road-title">빅아이보이</div>
         <div class="derived-road-grid" id="derivedRoadGrid"></div>
@@ -409,7 +452,7 @@ async function beginAvatarResultPhase(){
     if (amount <= 0) continue;
     const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId:AVATAR.table.id, roundId:AVATAR.currentRoundId, betType, amount, resultInfo:sim});
     totalPayout += payout;
-    MY_BET_LOG.unshift({tableName:AVATAR.table.name, roundNo:AVATAR.roundNo, betType, amount, payout});
+    MY_BET_LOG.unshift({tableName:AVATAR.table.name, roundNo:AVATAR.roundNo, betType, amount, payout, mode:'avatar', dt:new Date().toISOString()});
   }
   if (totalPayout > 0){ STATE.balance += totalPayout; toast(`+${fmtNum(totalPayout)} 획득!`); }
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
@@ -608,7 +651,7 @@ async function beginSpeedResult(tableId){
     if (amount <= 0) continue;
     const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, resultInfo:sim});
     totalPayout += payout;
-    MY_BET_LOG.unshift({tableName:t.name, roundNo:s.roundNo, betType, amount, payout});
+    MY_BET_LOG.unshift({tableName:t.name, roundNo:s.roundNo, betType, amount, payout, mode:'speed', dt:new Date().toISOString()});
     SPEED.allBets.push({relatedTableId:tableId, amount:-amount, category:'bet', createdAt:new Date().toISOString()});
   }
   if (MY_BET_LOG.length) renderMyBetHistory();

@@ -166,6 +166,14 @@
   background:var(--grad-gold);box-shadow:0 4px 12px -3px rgba(217,178,106,.6), inset 0 1px 0 rgba(255,255,255,.4);
 }
 .hand .score:empty{background:none;box-shadow:none;}
+.sd-stage-icons{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:10px;z-index:2;}
+.sd-stage-icons button{
+  width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);
+  border:1px solid rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;
+}
+.sd-stage-icons button:hover{border-color:var(--brass-dim);color:var(--brass);}
+.sd-stage-icons button svg{width:16px;height:16px;}
+.sd-stage-icons button.muted .icon-on,.sd-stage-icons button:not(.muted) .icon-off{display:none;}
 .timer-ring-wrap{position:absolute;bottom:16px;right:16px;width:64px;height:64px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.5));}
 .timer-ring-wrap svg{transform:rotate(-90deg);}
 .timer-ring-wrap .txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:18px;color:var(--brass);}
@@ -420,6 +428,8 @@
 .tally-bar .cnt.player i{background:radial-gradient(circle at 35% 30%,#8fd0ff,#2f7fbf 75%);}
 .tally-bar .cnt.banker i{background:radial-gradient(circle at 35% 30%,#f5a89c,var(--danger) 75%);}
 .tally-bar .cnt.tie i{background:radial-gradient(circle at 35% 30%,#8fe8cf,var(--jade) 75%);}
+.tally-bar .cnt.pair i{background:radial-gradient(circle at 35% 30%,#d8d8d8,#8a8a8a 75%);}
+.tally-bar .cnt.pair{font-weight:700;font-size:12px;}
 .tally-bar .streak{margin-left:auto;font-size:11.5px;color:var(--brass);font-weight:700;}
 .bead-road-wrap{margin-top:10px;}
 .bead-road{display:grid;grid-auto-flow:column;grid-template-rows:repeat(6,14px);gap:3px;overflow-x:auto;padding-bottom:4px;}
@@ -460,6 +470,7 @@
 .sd-tally.tally-bar .cnt.player{color:#2f7fbf;}
 .sd-tally.tally-bar .cnt.banker{color:var(--danger);}
 .sd-tally.tally-bar .cnt.tie{color:#1c8a6f;}
+.sd-tally.tally-bar .cnt.pair{color:#6a6a6a;}
 .sd-road{grid-area:road;background:#fff;border:1px solid #e4e4e4;border-radius:12px;padding:12px 16px;color:#1a1a1a;}
 .sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;padding-bottom:6px;}
 .sd-road .derived-road-title{color:#8a8a8a;border-top-color:#e4e4e4;}
@@ -468,13 +479,13 @@
 .sd-road-mini .derived-road-title{margin:12px 0 6px;}
 .sd-road-mini .derived-road-grid{grid-template-columns:repeat(auto-fill,9px);grid-template-rows:repeat(6,9px);}
 .sd-road-mini .derived-road-grid .dr-cell{width:9px;height:9px;}
-.sd-bets{grid-area:bets;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
+.sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 .sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
 .sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}
 .sd-bets .bet-spot{
   background:none;border:none;border-radius:0;box-shadow:none;
-  border-right:1px solid var(--line);border-bottom:1px solid var(--line);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
   padding:16px 8px;position:relative;
 }
 .sd-bets .bet-spot::before{display:none;}
@@ -482,15 +493,20 @@
 .sd-bets .pair-row .bet-spot:last-child,.sd-bets .bet-rail .bet-spot:last-child{border-right:none;}
 .sd-bets .bet-rail .bet-spot{border-bottom:none;padding:14px 8px;}
 .sd-bets .bet-rail .bet-spot .label{font-size:20px;}
-.sd-bets .bet-spot.selected{background:rgba(217,178,106,.08);box-shadow:inset 0 0 0 2px var(--brass);}
-.sd-bets .bet-spot .meta-row{position:absolute;top:9px;left:10px;right:10px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--ink-faint);font-family:var(--mono);}
-.sd-chip-tray{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));border:1px solid var(--line);border-radius:14px;}
+.sd-bets .bet-spot.selected{background:rgba(217,178,106,.1);box-shadow:inset 0 0 0 2px var(--brass);}
+.sd-bets .bet-spot .meta-row{display:flex;gap:10px;font-size:9.5px;color:rgba(255,255,255,.5);font-family:var(--mono);}
+.sd-bets .bet-spot .odds{font-size:9.5px;opacity:.7;}
+.sd-chip-tray{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));border:1px solid var(--line);border-radius:14px 14px 0 0;}
 .sd-chip-tray .spacer{margin-left:auto;}
 .sd-tray{grid-area:tray;}
-.sd-round-info{display:flex;align-items:center;gap:10px;flex-shrink:0;padding-right:14px;margin-right:4px;border-right:1px solid var(--line);}
-.sd-round-info .mark{width:30px;height:30px;border-radius:50%;background:var(--grad-gold);display:flex;align-items:center;justify-content:center;color:#071120;font-weight:900;font-size:12px;flex-shrink:0;}
-.sd-round-info .txt{font-size:11px;color:var(--ink-faint);line-height:1.5;font-family:var(--mono);}
+.sd-info-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#0a0a0a;border:1px solid var(--line);border-top:none;border-radius:0 0 14px 14px;}
+.sd-info-bar .spacer{margin-left:auto;}
+.sd-round-info{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.sd-round-info .mark{width:26px;height:26px;border-radius:50%;background:var(--grad-gold);display:flex;align-items:center;justify-content:center;color:#071120;font-weight:900;font-size:10.5px;flex-shrink:0;}
+.sd-round-info .txt{font-size:11px;color:var(--ink-faint);font-family:var(--mono);}
 .sd-round-info .txt b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
+.sd-info-bar .icon-btn{width:28px;height:28px;background:none;border:none;}
+.sd-info-bar .icon-btn:hover{color:var(--brass);}
 @media (max-width:860px){
   .speed-detail-grid{grid-template-columns:1fr;grid-template-areas:"stage" "tally" "bets" "road" "tray";}
   .sd-bets .bet-rail .bet-spot{padding:14px 8px;}

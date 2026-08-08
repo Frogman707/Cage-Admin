@@ -154,6 +154,10 @@ const I18N_DICT = {
   historyTabAvatar:{ko:'아바타 베팅',zh:'代打投注',en:'Avatar Bets',ja:'アバターベット',vi:'Cược Avatar'},
   noHistory:{ko:'베팅 내역이 없습니다',zh:'暂无投注记录',en:'No bet history',ja:'ベット履歴がありません',vi:'Chưa có lịch sử cược'},
   betLabel:{ko:'베팅',zh:'投注',en:'Bet',ja:'ベット',vi:'Cược'},
+  fullscreen:{ko:'전체화면',zh:'全屏',en:'Fullscreen',ja:'全画面',vi:'Toàn màn hình'},
+  mute:{ko:'음소거',zh:'静音',en:'Mute',ja:'ミュート',vi:'Tắt tiếng'},
+  viewToggle:{ko:'화면 보기 전환',zh:'切换视角',en:'Toggle view',ja:'表示切替',vi:'Chuyển chế độ xem'},
+  tipComingSoon:{ko:'팁 기능은 준비 중입니다',zh:'打赏功能即将上线',en:'Tipping is coming soon',ja:'チップ機能は準備中です',vi:'Tính năng tip sắp ra mắt'},
   favorites:{ko:'즐겨찾기',zh:'收藏',en:'Favorites',ja:'お気に入り',vi:'Yêu thích'},
 
   // ---- display settings (theme / skin) ----

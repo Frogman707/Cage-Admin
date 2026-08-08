@@ -313,21 +313,19 @@ function avatarRequestStateForTable(tableId){
   if (endedToday) return {state:'full', req:endedToday};
   return {state:'none', req:null};
 }
-function avatarActionButtonHtml(tableId){
-  const {state} = avatarRequestStateForTable(tableId);
-  if (state==='active') return `<button class="btn btn-jade btn-sm btn-block" onclick="event.stopPropagation();enterAvatarSession('${tableId}')">${t('btnReenter')}</button>`;
-  if (state==='pending') return `<button class="btn btn-sm btn-block" disabled style="opacity:.6;">${t('btnPending')}</button>`;
-  if (state==='full') return `<button class="btn btn-sm btn-block" disabled style="opacity:.5;">${t('btnFullToday')}</button>`;
-  return `<button class="btn btn-gold btn-sm btn-block" onclick="event.stopPropagation();openAvatarRequestModal('${tableId}')">${t('btnRequestAvatar')}</button>`;
-}
-// Clicking anywhere on the card (not just the small action button) should do the
-// same thing the button does: resume an active session, or start a new request.
+// Clicking anywhere on the card opens the full-screen table view. With an active
+// (approved) session that's the live proxy-betting session; otherwise it's a
+// read-only preview of the table, with the 아바타 신청 action living inside it.
 function handleAvatarCardClick(tableId){
   const {state} = avatarRequestStateForTable(tableId);
   if (state==='active') enterAvatarSession(tableId);
-  else if (state==='pending') toast(t('btnPending'));
-  else if (state==='full') toast(t('btnFullToday'));
-  else openAvatarRequestModal(tableId);
+  else openAvatarTablePreview(tableId, state);
+}
+function avatarStatusBadgeHtml(tableId){
+  const {state} = avatarRequestStateForTable(tableId);
+  if (state==='active') return `<div class="hot-badge" style="bottom:auto;top:9px;right:auto;left:9px;">${t('btnReenter')}</div>`;
+  if (state==='pending') return `<div class="badge-type" style="top:auto;bottom:9px;background:var(--ink-faint);">${t('btnPending')}</div>`;
+  return '';
 }
 function renderAvatarLobbyGrid(sortMode){
   if (!AVATAR.lobbyData) return;
@@ -353,12 +351,12 @@ function renderAvatarLobbyGrid(sortMode){
         <div class="live-dot"><span></span>${t('live')}</div>
         <div class="badge-type">AVATAR</div>
         <div class="felt"></div>
+        ${avatarStatusBadgeHtml(tb.id)}
         ${isHot ? `<div class="hot-badge">🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}</div>` : ''}
       </div>
       <div class="info"><div class="name">${escapeHtml(tb.name)}</div><div class="limits">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div></div>
       <div class="mini-road br-grid">${renderBigRoad(cols, 4) || `<span class="hint" style="font-size:10px;">${t('noRecord')}</span>`}</div>
-      <div class="stat-row"><span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>${t('todayLabel')} <b>${fmtNum(volume.today)}</b></span></div>
-      <div style="padding:0 15px 14px;">${avatarActionButtonHtml(tb.id)}</div>
+      <div class="stat-row" style="padding-bottom:13px;"><span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>${t('todayLabel')} <b>${fmtNum(volume.today)}</b></span></div>
     </div>`;
   }).join('');
 }
@@ -386,6 +384,61 @@ async function submitAvatarRequest(){
   closeModal('modal-avatar-request');
   toast(t('requestSubmitted'));
   goAvatarLobby();
+}
+
+/* ---------------- avatar table preview (no approved session yet) ---------------- */
+// Full-screen, read-only view of the table (felt + road map + recent results) with
+// the 아바타 신청 action inside it, so entering a table never requires a request first.
+async function openAvatarTablePreview(tableId, state){
+  AVATAR.request = null;
+  AVATAR.previewTableId = tableId;
+  showView('viewAvatarTable');
+  const view = document.getElementById('viewAvatarTable');
+  view.innerHTML = `<div class="table-loading"><div class="spin-lg"></div><div>${t('connectingTable')}</div></div>`;
+
+  const doc = await db.collection('tables').doc(tableId).get();
+  AVATAR.table = {id:tableId, ...doc.data()};
+  const roundsSnap = await db.collection('rounds').where('tableId','==',tableId).get();
+  const rounds = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+  AVATAR.history = rounds.map(r=>r.result);
+
+  view.innerHTML = avatarPreviewShellHtml(state ?? avatarRequestStateForTable(tableId).state);
+  renderAvatarRoadmap();
+  renderAvatarRecentResults();
+}
+function avatarPreviewRequestPanelHtml(state){
+  if (state==='pending') return `<div class="hint" style="margin-bottom:10px;">${t('btnPending')}</div><button class="btn btn-sm btn-block" disabled style="opacity:.6;">${t('btnPending')}</button>`;
+  if (state==='full') return `<div class="hint" style="margin-bottom:10px;">${t('btnFullToday')}</div><button class="btn btn-sm btn-block" disabled style="opacity:.5;">${t('btnFullToday')}</button>`;
+  return `<button class="btn btn-gold btn-block" onclick="openAvatarRequestModal('${AVATAR.previewTableId}')">${t('btnRequestAvatar')}</button>`;
+}
+function avatarPreviewShellHtml(state){
+  const tb = AVATAR.table;
+  return `
+  <div class="table-shell">
+    <div class="table-main">
+      <div class="table-stage">
+        <div class="table-id-badge">${escapeHtml(tb.name)}</div>
+        <div class="table-shoe-badge">SHOE #${tb.shoeNo||1}</div>
+        <div class="deal-shoe"></div>
+        <div class="table-felt">
+          ${feltMarkingsSvg()}
+        </div>
+      </div>
+      <div class="card avatar-status-card">
+        <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
+        <p class="hint" style="margin:0 0 12px;">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</p>
+        ${avatarPreviewRequestPanelHtml(state)}
+      </div>
+    </div>
+    <div class="table-side">
+      <div class="card roadmap-card" id="roadmapCard"><h3><span>${t('bigRoad')}</span><button class="roadmap-toggle" onclick="toggleRoadmapCollapse()">▾</button></h3><div class="br-grid" id="bigRoadGrid"></div>
+        <div class="roadmap-legend"><span><i style="background:#4A9FD8;"></i>${t('player')}</span><span><i style="background:var(--danger);"></i>${t('banker')}</span><span><i style="background:var(--jade);"></i>${t('tie')}</span></div>
+        <div class="derived-road-title">${t('bigEyeBoy')}</div>
+        <div class="derived-road-grid" id="derivedRoadGrid"></div>
+      </div>
+      <div class="card"><h3>${t('recentResults')}</h3><div class="recent-results" id="recentResults"></div></div>
+    </div>
+  </div>`;
 }
 
 /* ---------------- avatar session (approved, proxy-betting in progress) ---------------- */

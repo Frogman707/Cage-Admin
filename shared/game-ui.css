@@ -278,12 +278,14 @@
 .lobby-card .mini-road .br-pair{width:2.5px;height:2.5px;}
 .derived-road-grid{display:flex;gap:2px;overflow-x:auto;padding-bottom:2px;}
 .derived-road-grid .br-col{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
-.derived-road-grid .dr-cell{width:7px;height:7px;border-radius:50%;background:var(--line);flex-shrink:0;}
-.derived-road-grid .dr-cell.overflow{background:none;color:var(--ink-faint);font-size:6px;display:flex;align-items:center;justify-content:center;}
-.derived-road-grid .dr-cell.red{background:var(--danger);}
-.derived-road-grid .dr-cell.blue{background:#4A9FD8;}
+/* Big Eye Boy / Small Road are hollow rings on a real board too, same as Big Road,
+   just smaller - only Cockroach Road switches to a diagonal tick (below). */
+.derived-road-grid .dr-cell{width:7px;height:7px;border-radius:50%;border:1.5px solid transparent;box-sizing:border-box;flex-shrink:0;}
+.derived-road-grid .dr-cell.overflow{border:none;color:var(--ink-faint);font-size:6px;display:flex;align-items:center;justify-content:center;}
+.derived-road-grid .dr-cell.red{border-color:var(--danger);}
+.derived-road-grid .dr-cell.blue{border-color:#4A9FD8;}
 /* Cockroach Road is conventionally a diagonal tick, not a dot. */
-.derived-road-grid .dr-cell.diagonal{background:none;border-radius:0;position:relative;}
+.derived-road-grid .dr-cell.diagonal{border:none;border-radius:0;position:relative;}
 .derived-road-grid .dr-cell.diagonal::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-38deg);}
 .derived-road-grid .dr-cell.diagonal.red{color:var(--danger);}
 .derived-road-grid .dr-cell.diagonal.blue{color:#4A9FD8;}
@@ -405,11 +407,15 @@
 /* ---- P/B/T tally bar + bead road (single-table detail screens) ---- */
 .bead-road{display:flex;gap:3px;overflow-x:auto;padding-bottom:4px;}
 .bead-road .br-col{display:flex;flex-direction:column;gap:3px;flex-shrink:0;}
-.bead-road .bd-cell{width:14px;height:14px;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.35), inset 0 1px 1px rgba(255,255,255,.25);}
-.bead-road .bd-cell.overflow{background:none;box-shadow:none;color:var(--ink-faint);font-size:8px;display:flex;align-items:center;justify-content:center;}
+.bead-road .bd-cell{
+  width:14px;height:14px;border-radius:50%;position:relative;box-sizing:border-box;
+  box-shadow:0 1px 2px rgba(0,0,0,.35), inset 0 1px 1px rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:800;font-family:var(--sans);
+}
+.bead-road .bd-cell.overflow{background:none;box-shadow:none;color:var(--ink-faint);font-size:8px;}
 .bead-road .bd-cell.player{background:radial-gradient(circle at 35% 30%,#8fd0ff,#2f7fbf 75%);}
 .bead-road .bd-cell.banker{background:radial-gradient(circle at 35% 30%,#f5a89c,var(--danger) 75%);}
-.bead-road .bd-cell.tie{background:radial-gradient(circle at 35% 30%,#8fe8cf,var(--jade) 75%);width:9px;height:9px;}
+.bead-road .bd-cell.tie{background:radial-gradient(circle at 35% 30%,#8fe8cf,var(--jade) 75%);}
 
 /* ---- speed single-table detail screen (opened from a tile) ----
    Layout mirrors the reference: video + bead road stacked on the left,
@@ -446,12 +452,15 @@
 .sd-tally-head b{color:#1a1a1a;font-family:var(--mono);font-weight:700;}
 .sd-tally-body{display:flex;gap:14px;flex:1;min-height:0;}
 .sd-tally-list{display:flex;flex-direction:column;gap:7px;flex-shrink:0;padding-top:2px;}
-.sd-tally-list .tl-row{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;font-family:var(--mono);color:#1a1a1a;}
-.sd-tally-list .tl-row i{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.sd-tally-list .tl-row.player i{background:#2f7fbf;} .sd-tally-list .tl-row.player{color:#2f7fbf;}
-.sd-tally-list .tl-row.banker i{background:var(--danger);} .sd-tally-list .tl-row.banker{color:var(--danger);}
-.sd-tally-list .tl-row.tie i{background:var(--jade);} .sd-tally-list .tl-row.tie{color:var(--jade);}
-.sd-tally-list .tl-row.pair i{background:#999;} .sd-tally-list .tl-row.pair{color:#999;}
+.sd-tally-list .tl-row{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;font-family:var(--mono);}
+.sd-tally-list .tl-badge{
+  width:18px;height:18px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;font-family:var(--sans);
+}
+.sd-tally-list .tl-row.player .tl-badge{background:#2f7fbf;} .sd-tally-list .tl-row.player b{color:#2f7fbf;}
+.sd-tally-list .tl-row.banker .tl-badge{background:var(--danger);} .sd-tally-list .tl-row.banker b{color:var(--danger);}
+.sd-tally-list .tl-row.tie .tl-badge{background:var(--jade);} .sd-tally-list .tl-row.tie b{color:var(--jade);}
+.sd-tally-list .tl-row.pair .tl-badge{background:#999;} .sd-tally-list .tl-row.pair b{color:#666;}
 .sd-tally .bead-road{flex:1;}
 .sd-road{grid-area:road;padding:10px 14px;display:flex;flex-direction:column;overflow:hidden;}
 .sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;}
@@ -463,13 +472,20 @@
 .sd-road-roads{display:flex;flex-direction:column;justify-content:space-between;flex:1;min-width:0;}
 .sd-road .derived-road-grid{overflow-x:auto;}
 .sd-road .derived-road-grid .dr-cell{width:7px;height:7px;}
-.sd-road-legend-rail{display:flex;flex-direction:column;justify-content:space-around;align-items:center;flex-shrink:0;width:30px;border-left:1px solid #e4e4e4;}
-.sd-road-legend-rail .rail-badge{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:800;}
-.sd-road-legend-rail .rail-badge .ring{width:12px;height:12px;border-radius:50%;border:2px solid #2f7fbf;box-sizing:border-box;position:relative;}
+/* legend rail: a small key explaining the three marks used on the board (hollow
+   ring = Big Road/Big Eye Boy/Small Road, solid dot = Bead Plate, diagonal = tie),
+   grouped into a P (blue) pill and a B (red) pill stacked on the right edge. */
+.sd-road-legend-rail{display:flex;flex-direction:column;justify-content:space-around;align-items:center;flex-shrink:0;width:34px;border-left:1px solid #e4e4e4;}
+.sd-road-legend-rail .rail-badge{
+  display:flex;flex-direction:column;align-items:center;gap:5px;font-size:10px;font-weight:800;
+  border:1.5px solid currentColor;border-radius:14px;padding:8px 4px;
+}
+.sd-road-legend-rail .rail-badge .ring{width:11px;height:11px;border-radius:50%;border:2px solid currentColor;box-sizing:border-box;}
+.sd-road-legend-rail .rail-badge .dot{width:9px;height:9px;border-radius:50%;background:currentColor;}
+.sd-road-legend-rail .rail-badge .slash{width:11px;height:11px;border-radius:50%;border:2px solid currentColor;box-sizing:border-box;position:relative;}
+.sd-road-legend-rail .rail-badge .slash::before{content:'';position:absolute;left:8%;top:50%;width:84%;height:1.5px;background:currentColor;transform:rotate(-30deg);}
 .sd-road-legend-rail .rail-badge.player{color:#2f7fbf;}
 .sd-road-legend-rail .rail-badge.banker{color:var(--danger);}
-.sd-road-legend-rail .rail-badge.banker .ring{border-color:var(--danger);}
-.sd-road-legend-rail .rail-badge.banker .ring::before{content:'';position:absolute;left:8%;top:50%;width:84%;height:1.5px;background:var(--danger);transform:rotate(-30deg);}
 .sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 .sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
 .sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}

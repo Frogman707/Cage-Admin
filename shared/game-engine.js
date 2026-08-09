@@ -158,10 +158,29 @@ function renderBigRoad(cols, maxRows){
 }
 
 /* ---------------- Bead Road (진주로드) — same column rule as Big Road: a result keeps
-   stacking down the current column until the value changes, then a new column starts. ---------------- */
-function renderBeadRoad(results){
-  const cols = groupIntoRoadColumns(results);
-  return renderRoadColumns(cols, r=>`<div class="bd-cell ${r}"></div>`, 'bd-cell');
+   stacking down the current column until the value changes, then a new column starts.
+   Real boards mark each bead with its result letter and a pair corner dot, same as Big Road. */
+const RESULT_LETTER = {player:'P', banker:'B', tie:'T'};
+function renderBeadRoad(results, pairFlags){
+  const cols = [];
+  results.forEach((r,i)=>{
+    const pf = pairFlags && pairFlags[i];
+    if (cols.length && cols[cols.length-1].value===r) cols[cols.length-1].items.push(pf);
+    else cols.push({value:r, items:[pf]});
+  });
+  const maxRows = 6;
+  return cols.map(col=>{
+    let html = '';
+    col.items.forEach((pf,ri)=>{
+      if (ri >= maxRows) return;
+      let dots = '';
+      if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
+      if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
+      html += `<div class="bd-cell ${col.value}">${RESULT_LETTER[col.value]}${dots}</div>`;
+    });
+    if (col.items.length > maxRows) html += `<div class="bd-cell overflow">+${col.items.length-maxRows}</div>`;
+    return `<div class="br-col">${html}</div>`;
+  }).join('');
 }
 
 /* ---------------- shared column-grouping for the derived roads + Bead Road: groups

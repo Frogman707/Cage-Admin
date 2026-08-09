@@ -554,8 +554,8 @@ function avatarScoreboardHtml(idSuffix){
             <div class="derived-road-grid" id="cockroach-${idSuffix}"></div>
           </div>
           <div class="sd-road-legend-rail">
-            <div class="rail-badge player"><span class="ring"></span>P</div>
-            <div class="rail-badge banker"><span class="ring"></span>B</div>
+            <div class="rail-badge player">P<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>
+            <div class="rail-badge banker">B<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>
           </div>
         </div>
       </div>`;
@@ -572,7 +572,7 @@ function renderAvatarRoad(){
   const cockroachEl = document.getElementById('cockroach-avatar');
   if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`;
   const beadEl = document.getElementById('beadroad-avatar');
-  if (beadEl) beadEl.innerHTML = renderBeadRoad(AVATAR.history.slice(-36)) || `<span class="hint">${t('noRecord')}</span>`;
+  if (beadEl) beadEl.innerHTML = renderBeadRoad(AVATAR.history.slice(-36), (AVATAR.pairFlags||[]).slice(-36)) || `<span class="hint">${t('noRecord')}</span>`;
 }
 function renderAvatarTally(){
   const listEl = document.getElementById('tallylist-avatar');
@@ -585,8 +585,8 @@ function renderAvatarTally(){
   const bankerPairs = pairFlags.filter(p=>p && p.bankerPair).length;
   if (countEl) countEl.textContent = '#' + (AVATAR.roundNo || 1);
   if (listEl){
-    const row = (cls, letter, val) => `<div class="tl-row ${cls}"><i></i>${letter}<b>${fmtNum(val)}</b></div>`;
-    listEl.innerHTML = row('banker','B',wins.banker) + row('player','P',wins.player) + row('tie','T',wins.tie) + row('pair','',bankerPairs) + row('pair','',playerPairs);
+    const row = (cls, letter, val) => `<div class="tl-row ${cls}"><span class="tl-badge">${letter}</span><b>${fmtNum(val)}</b></div>`;
+    listEl.innerHTML = row('player','P',wins.player) + row('banker','B',wins.banker) + row('tie','T',wins.tie) + row('pair','',bankerPairs) + row('pair','',playerPairs);
   }
 }
 
@@ -927,7 +927,7 @@ function renderSpeedDetailRoad(tableId){
   const cockroachEl = document.getElementById('cockroach-detail');
   if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`;
   const beadEl = document.getElementById('beadroad-detail');
-  if (beadEl) beadEl.innerHTML = renderBeadRoad(history.slice(-36)) || `<span class="hint">${t('noRecord')}</span>`;
+  if (beadEl) beadEl.innerHTML = renderBeadRoad(history.slice(-36), pairFlags.slice(-36)) || `<span class="hint">${t('noRecord')}</span>`;
   renderSpeedDetailTally(tableId);
 }
 function renderSpeedDetailTally(tableId){
@@ -941,8 +941,8 @@ function renderSpeedDetailTally(tableId){
   const bankerPairs = pairFlags.filter(p=>p.bankerPair).length;
   if (countEl) countEl.textContent = '#' + (SPEED.tstate[tableId]?.roundNo || 1);
   if (listEl){
-    const row = (cls, letter, val) => `<div class="tl-row ${cls}"><i></i>${letter}<b>${fmtNum(val)}</b></div>`;
-    listEl.innerHTML = row('banker','B',wins.banker) + row('player','P',wins.player) + row('tie','T',wins.tie) + row('pair','',bankerPairs) + row('pair','',playerPairs);
+    const row = (cls, letter, val) => `<div class="tl-row ${cls}"><span class="tl-badge">${letter}</span><b>${fmtNum(val)}</b></div>`;
+    listEl.innerHTML = row('player','P',wins.player) + row('banker','B',wins.banker) + row('tie','T',wins.tie) + row('pair','',bankerPairs) + row('pair','',playerPairs);
   }
 }
 function renderSpeedTileStats(tableId){

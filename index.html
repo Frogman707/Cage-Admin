@@ -4907,6 +4907,7 @@ ko:{
  accLedger:"입출금 내역", allRecords:"전체 기록",
  colCasino:"카지노", colDate:"일시", colType:"구분", colIn:"입금", colOut:"출금", colBalance:"잔액", colStaff:"담당자", colMemo:"메모",
  colAccount:"어카운트", colCurrency:"통화", colInAmt:"입금액", colOutAmt:"출금액", colRemark:"비고",
+ memoCashDeposit:"현금 입금", memoCashOut:"현금 출금",
  gameStartTitle:"게임 시작", startType:"금액 유형", typeCash:"현금", typeAccount:"어카운트", typeMarker:"마커",
  tableLabel:"테이블", gameType:"게임 타입", avatarId:"아바타 ID", buyinTotal:"바이인 총액", startBtn:"게임 시작",
  inGameTitle:"진행중인 게임", gameIdLabel:"게임 ID",
@@ -5046,6 +5047,7 @@ en:{
  accLedger:"Transaction History", allRecords:"All Records",
  colCasino:"Casino", colDate:"Date/Time", colType:"Type", colIn:"In", colOut:"Out", colBalance:"Balance", colStaff:"Staff", colMemo:"Memo",
  colAccount:"Account", colCurrency:"Currency", colInAmt:"In Amt", colOutAmt:"Out Amt", colRemark:"Remark",
+ memoCashDeposit:"Cash Deposit", memoCashOut:"Cash Out",
  gameStartTitle:"Start Game", startType:"Amount Type", typeCash:"Cash", typeAccount:"Account", typeMarker:"Marker",
  tableLabel:"Table", gameType:"Game Type", avatarId:"Avatar ID", buyinTotal:"Buy-in Total", startBtn:"Start Game",
  inGameTitle:"Games In Progress", gameIdLabel:"Game ID",
@@ -5185,6 +5187,7 @@ en:{
  accLedger:"收付記錄", allRecords:"全部紀錄",
  colCasino:"賭場", colDate:"日期時間", colType:"類別", colIn:"存入", colOut:"提出", colBalance:"餘額", colStaff:"經辦人", colMemo:"備註",
  colAccount:"帳戶", colCurrency:"幣別", colInAmt:"存入金額", colOutAmt:"提出金額", colRemark:"備註",
+ memoCashDeposit:"現金存入", memoCashOut:"現金提出",
  gameStartTitle:"開局", startType:"金額類型", typeCash:"現金", typeAccount:"帳戶", typeMarker:"信用額度",
  tableLabel:"賭桌", gameType:"局別", avatarId:"分身編號", buyinTotal:"買入總額", startBtn:"開始遊戲",
  inGameTitle:"進行中賽局", gameIdLabel:"局號",
@@ -5324,6 +5327,7 @@ en:{
  accLedger:"收付记录", allRecords:"全部记录",
  colCasino:"赌场", colDate:"日期时间", colType:"类别", colIn:"存入", colOut:"取出", colBalance:"余额", colStaff:"经办人", colMemo:"备注",
  colAccount:"账户", colCurrency:"币种", colInAmt:"存入金额", colOutAmt:"取出金额", colRemark:"备注",
+ memoCashDeposit:"现金存入", memoCashOut:"现金提出",
  gameStartTitle:"开局", startType:"金额类型", typeCash:"现金", typeAccount:"账户", typeMarker:"信用额度",
  tableLabel:"赌桌", gameType:"局别", avatarId:"分身编号", buyinTotal:"买入总额", startBtn:"开始游戏",
  inGameTitle:"进行中赛局", gameIdLabel:"局号",
@@ -6230,7 +6234,7 @@ function setIoType(type){
  DB.ioType = type;
  document.getElementById('ioTypeDeposit').classList.toggle('on', type==='deposit');
  document.getElementById('ioTypeWithdraw').classList.toggle('on', type==='withdraw');
- document.getElementById('ioMemo').value = type==='deposit' ? 'Cash Deposit' : 'Cash Out';
+ document.getElementById('ioMemo').value = type==='deposit' ? t('memoCashDeposit') : t('memoCashOut');
 }
 
 /* ---- Withdrawal Password + PIN Auth (for withdraw / transfer / account buy-in) ---- */
@@ -6562,7 +6566,7 @@ async function _doProcessIo(amt){
   const ok = await writeLedgerEntry({accountId: DB.currentAccount, casino, type:'IN', amount:amt, staff:staffName, memo});
   if(!ok){ toast(t('toastStaffSyncFailed')); return; }
  }
- document.getElementById('ioAmount').value=''; document.getElementById('ioMemo').value = DB.ioType==='deposit' ? 'Cash Deposit' : 'Cash Out';
+ document.getElementById('ioAmount').value=''; document.getElementById('ioMemo').value = DB.ioType==='deposit' ? t('memoCashDeposit') : t('memoCashOut');
  saveDB(); renderMemberCard(); renderLedger(); renderBalancingSummary();
  pushNotification(DB.ioType==='deposit'?'notifDeposit':'notifWithdraw', `${DB.currentAccount} · ${casino} · ${fmt(amt)}`);
  toast(t('toastProcessed'));

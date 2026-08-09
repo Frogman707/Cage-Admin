@@ -570,11 +570,16 @@ function renderAvatarRoad(){
   const bigeyeEl = document.getElementById('bigeye-avatar');
   if (bigeyeEl) bigeyeEl.innerHTML = renderDerivedRoad(deriveBigEyeBoy(cols)) || `<span class="hint">${t('noRecord')}</span>`;
   const smallEl = document.getElementById('smallroad-avatar');
-  if (smallEl) smallEl.innerHTML = renderDerivedRoad(deriveSmallRoad(cols)) || `<span class="hint">${t('noRecord')}</span>`;
+  if (smallEl) smallEl.innerHTML = renderDerivedRoad(deriveSmallRoad(cols), 'filled') || `<span class="hint">${t('noRecord')}</span>`;
   const cockroachEl = document.getElementById('cockroach-avatar');
   if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`;
   const beadEl = document.getElementById('beadroad-avatar');
-  if (beadEl) beadEl.innerHTML = renderBeadRoad(AVATAR.history.slice(-36), (AVATAR.pairFlags||[]).slice(-36)) || `<span class="hint">${t('noRecord')}</span>`;
+  // Bead Plate fills left-to-right for the whole shoe and scrolls, rather than windowing the
+  // tail - a trailing slice would shift every bead one place on each new round.
+  if (beadEl){
+    beadEl.innerHTML = renderBeadRoad(AVATAR.history, AVATAR.pairFlags||[]) || `<span class="hint">${t('noRecord')}</span>`;
+    beadEl.scrollLeft = beadEl.scrollWidth;
+  }
 }
 function renderAvatarTally(){
   const listEl = document.getElementById('tallylist-avatar');
@@ -587,8 +592,11 @@ function renderAvatarTally(){
   const bankerPairs = pairFlags.filter(p=>p && p.bankerPair).length;
   if (countEl) countEl.textContent = '#' + (AVATAR.roundNo || 1);
   if (listEl){
+    // P/B/T rows carry the result letter; the two pair rows are a plain grey bead marked
+    // with the same corner dot the roads use (blue = player pair, red = banker pair).
     const row = (cls, letter, val) => `<div class="tl-row ${cls}"><span class="tl-badge">${letter}</span><b>${fmtNum(val)}</b></div>`;
-    listEl.innerHTML = row('player','P',wins.player) + row('banker','B',wins.banker) + row('tie','T',wins.tie) + row('pair','',bankerPairs) + row('pair','',playerPairs);
+    const pairRow = (side, val) => `<div class="tl-row pair ${side}"><span class="tl-badge"><i class="br-pair ${side}"></i></span><b>${fmtNum(val)}</b></div>`;
+    listEl.innerHTML = row('player','P',wins.player) + row('banker','B',wins.banker) + row('tie','T',wins.tie) + pairRow('player',playerPairs) + pairRow('banker',bankerPairs);
   }
 }
 
@@ -925,11 +933,14 @@ function renderSpeedDetailRoad(tableId){
   const bigeyeEl = document.getElementById('bigeye-detail');
   if (bigeyeEl) bigeyeEl.innerHTML = renderDerivedRoad(deriveBigEyeBoy(cols)) || `<span class="hint">${t('noRecord')}</span>`;
   const smallEl = document.getElementById('smallroad-detail');
-  if (smallEl) smallEl.innerHTML = renderDerivedRoad(deriveSmallRoad(cols)) || `<span class="hint">${t('noRecord')}</span>`;
+  if (smallEl) smallEl.innerHTML = renderDerivedRoad(deriveSmallRoad(cols), 'filled') || `<span class="hint">${t('noRecord')}</span>`;
   const cockroachEl = document.getElementById('cockroach-detail');
   if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`;
   const beadEl = document.getElementById('beadroad-detail');
-  if (beadEl) beadEl.innerHTML = renderBeadRoad(history.slice(-36), pairFlags.slice(-36)) || `<span class="hint">${t('noRecord')}</span>`;
+  if (beadEl){
+    beadEl.innerHTML = renderBeadRoad(history, pairFlags) || `<span class="hint">${t('noRecord')}</span>`;
+    beadEl.scrollLeft = beadEl.scrollWidth;
+  }
   renderSpeedDetailTally(tableId);
 }
 function renderSpeedDetailTally(tableId){
@@ -943,8 +954,11 @@ function renderSpeedDetailTally(tableId){
   const bankerPairs = pairFlags.filter(p=>p.bankerPair).length;
   if (countEl) countEl.textContent = '#' + (SPEED.tstate[tableId]?.roundNo || 1);
   if (listEl){
+    // P/B/T rows carry the result letter; the two pair rows are a plain grey bead marked
+    // with the same corner dot the roads use (blue = player pair, red = banker pair).
     const row = (cls, letter, val) => `<div class="tl-row ${cls}"><span class="tl-badge">${letter}</span><b>${fmtNum(val)}</b></div>`;
-    listEl.innerHTML = row('player','P',wins.player) + row('banker','B',wins.banker) + row('tie','T',wins.tie) + row('pair','',bankerPairs) + row('pair','',playerPairs);
+    const pairRow = (side, val) => `<div class="tl-row pair ${side}"><span class="tl-badge"><i class="br-pair ${side}"></i></span><b>${fmtNum(val)}</b></div>`;
+    listEl.innerHTML = row('player','P',wins.player) + row('banker','B',wins.banker) + row('tie','T',wins.tie) + pairRow('player',playerPairs) + pairRow('banker',bankerPairs);
   }
 }
 function renderSpeedTileStats(tableId){

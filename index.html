@@ -1460,6 +1460,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <div class="field"><label data-i18n="regAgentCode"></label><input id="editAgentCode" placeholder="H-A-000"></div>
     <div class="field"><label data-i18n="regProxy"></label><select id="editProxy"><option>OFF</option><option>ON</option></select></div>
   </div>
+  <div class="field" style="margin-top:12px;"><label data-i18n="colRemark"></label><input id="editRemark"></div>
 
   <div class="row" style="margin-top:12px;">
     <div class="field"><label data-i18n="regPassportNo"></label><input id="editPassportNo" placeholder="EC1234567"></div>
@@ -5985,6 +5986,7 @@ function openEditAccount(){
  document.getElementById('editTelegram').value = acc.telegram||'';
  document.getElementById('editAgentCode').value = acc.agentCode||'';
  document.getElementById('editProxy').value = acc.proxy||'OFF';
+ document.getElementById('editRemark').value = acc.remark||'';
  document.getElementById('editPassportNo').value = acc.passportNo||'';
  document.getElementById('editPassportExp').value = acc.passportExp||'';
  document.getElementById('editPbPassport').innerHTML = acc.passportPhoto ? `<img src="${acc.passportPhoto}">` : t('regPhotoBtn');
@@ -6023,6 +6025,7 @@ function saveAccountEdit(){
  acc.telegram = document.getElementById('editTelegram').value.trim();
  acc.agentCode = document.getElementById('editAgentCode').value.trim();
  acc.proxy = document.getElementById('editProxy').value;
+ acc.remark = document.getElementById('editRemark').value.trim();
  acc.passportNo = document.getElementById('editPassportNo').value.trim();
  acc.passportExp = document.getElementById('editPassportExp').value;
  const passportImg = document.getElementById('editPbPassport').querySelector('img');

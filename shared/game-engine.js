@@ -157,12 +157,35 @@ function renderBigRoad(cols, maxRows){
   return cells.join('');
 }
 
-/* ---------------- Bead Road (진주로드) — plain chronological grid, top-to-bottom then
-   next column, unlike Big Road which groups consecutive same-side runs into one column. ---------------- */
+/* ---------------- Bead Road (진주로드) — same column rule as Big Road: a result keeps
+   stacking down the current column until the value changes, then a new column starts. ---------------- */
 function renderBeadRoad(results){
-  // grid-auto-flow:column with a fixed row count (see .bead-road CSS) wraps into a new
-  // column automatically, so this just emits one cell per result in chronological order.
-  return results.map(r=>`<div class="bd-cell ${r}"></div>`).join('');
+  const cols = groupIntoRoadColumns(results);
+  return renderRoadColumns(cols, r=>`<div class="bd-cell ${r}"></div>`, 'bd-cell');
+}
+
+/* ---------------- shared column-grouping for the derived roads + Bead Road: groups
+   consecutive equal values into one column, exactly like Big Road groups consecutive
+   same-side results - a value change always starts a new column. ---------------- */
+function groupIntoRoadColumns(values){
+  const cols = [];
+  values.forEach(v=>{
+    if (cols.length && cols[cols.length-1].value===v) cols[cols.length-1].items.push(v);
+    else cols.push({value:v, items:[v]});
+  });
+  return cols;
+}
+function renderRoadColumns(cols, cellHtmlFn, overflowClass, maxRows){
+  maxRows = maxRows || 6;
+  return cols.map(col=>{
+    let html = '';
+    col.items.forEach((it,ri)=>{
+      if (ri >= maxRows) return;
+      html += cellHtmlFn(it);
+    });
+    if (col.items.length > maxRows) html += `<div class="${overflowClass} overflow">+${col.items.length-maxRows}</div>`;
+    return `<div class="br-col">${html}</div>`;
+  }).join('');
 }
 
 /* ---------------- table-list stats (vendor feedback: 오늘/총 베팅액, P/B/T 승수, 좋은 흐름) ---------------- */
@@ -220,7 +243,8 @@ function deriveCockroachRoad(cols){ return deriveRoad(cols, 3); }
 function renderDerivedRoad(marks, style){
   // Cockroach Road is conventionally drawn as diagonal ticks rather than dots,
   // distinguishing it at a glance from Big Eye Boy / Small Road on a real board.
-  return marks.map(m=>`<div class="dr-cell ${m}${style?' '+style:''}"></div>`).join('');
+  const cols = groupIntoRoadColumns(marks);
+  return renderRoadColumns(cols, m=>`<div class="dr-cell ${m}${style?' '+style:''}"></div>`, 'dr-cell');
 }
 
 

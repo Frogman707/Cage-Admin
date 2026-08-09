@@ -156,16 +156,13 @@ function toggleCardFavorite(btn){
   btn.classList.toggle('active');
 }
 function toggleStageFullscreen(btn){
-  const stage = btn.closest('.sd-stage,.table-stage');
+  const stage = btn.closest('.sd-stage');
   if (!stage) return;
   if (!document.fullscreenElement) stage.requestFullscreen?.().catch(()=>{});
   else document.exitFullscreen?.();
 }
 
 /* ---------------- game history bottom sheet (mobile-style, grouped by day) ---------------- */
-function toggleRoadmapCollapse(){
-  document.getElementById('roadmapCard')?.classList.toggle('collapsed');
-}
 function openGameHistory(){
   const activeBtn = document.querySelector('#historyTabs button.active') || document.querySelector('#historyTabs button');
   renderGameHistory(activeBtn, activeBtn?.dataset.mode || 'speed');
@@ -309,8 +306,13 @@ function onLangChange(){
   // re-render whichever screen is currently visible so JS-generated text updates immediately
   if (MODE==='avatar'){
     if (document.getElementById('viewAvatarTable').style.display !== 'none' && AVATAR.table){
-      document.getElementById('viewAvatarTable').innerHTML = avatarTableShellHtml();
-      renderAvatarRoadmap(); renderAvatarRecentResults(); renderMyBetHistory(); updateAvatarStatusPanel();
+      if (AVATAR.request){
+        document.getElementById('viewAvatarTable').innerHTML = avatarTableShellHtml();
+        renderAvatarRoad(); renderAvatarTally(); renderMyBetHistory(); updateAvatarStatusPanel();
+      } else {
+        document.getElementById('viewAvatarTable').innerHTML = avatarPreviewShellHtml(avatarRequestStateForTable(AVATAR.previewTableId).state);
+        renderAvatarRoad(); renderAvatarTally();
+      }
     } else if (AVATAR.lobbyData){
       goAvatarLobby();
     }
@@ -335,7 +337,7 @@ function onLangChange(){
 let AVATAR = {
   table: null, phase: 'idle', secondsLeft: 0, roundNo: 1,
   bets: {player:0, banker:0, tie:0, playerPair:0, bankerPair:0},
-  history: [], currentRoundId: null, timerHandle: null, chatUnsub: null,
+  history: [], pairFlags: [], currentRoundId: null, timerHandle: null, chatUnsub: null,
   lobbyData: null, myRequests: [], request: null, tipTotals: {avatar:0, dealer:0},
 };
 
@@ -490,10 +492,11 @@ async function openAvatarTablePreview(tableId, state){
   const roundsSnap = await db.collection('rounds').where('tableId','==',tableId).get();
   const rounds = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
   AVATAR.history = rounds.map(r=>r.result);
+  AVATAR.pairFlags = rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair}));
 
   view.innerHTML = avatarPreviewShellHtml(state ?? avatarRequestStateForTable(tableId).state);
-  renderAvatarRoadmap();
-  renderAvatarRecentResults();
+  renderAvatarRoad();
+  renderAvatarTally();
 }
 function avatarPreviewRequestPanelHtml(state){
   if (state==='pending') return `<div class="hint" style="margin-bottom:10px;">${t('btnPending')}</div><button class="btn btn-sm btn-block" disabled style="opacity:.6;">${t('btnPending')}</button>`;
@@ -503,28 +506,104 @@ function avatarPreviewRequestPanelHtml(state){
 function avatarPreviewShellHtml(state){
   const tb = AVATAR.table;
   return `
-  <div class="table-shell">
-    <div class="table-main">
-      <div class="table-stage">
-        <div class="table-id-badge">${escapeHtml(tb.name)}</div>
-        <div class="table-shoe-badge">SHOE #${tb.shoeNo||1}</div>
+  <div class="speed-detail-wrap">
+    <div class="speed-detail-grid">
+      <div class="sd-stage">
+        <button class="icon-btn speed-detail-close" onclick="backToAvatarLobby()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
+        <div class="sd-type-badge" style="left:56px;">AVATAR</div>
+        <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
         <div class="table-felt"></div>
       </div>
-      <div class="card avatar-status-card">
-        <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
-        <p class="hint" style="margin:0 0 12px;">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</p>
-        ${avatarPreviewRequestPanelHtml(state)}
+      ${avatarRoadSectionHtml(tb)}
+      <div class="sd-bets avatar-side">
+        <div class="card avatar-status-card">
+          <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
+          <p class="hint" style="margin:0 0 12px;">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</p>
+          ${avatarPreviewRequestPanelHtml(state)}
+        </div>
       </div>
-    </div>
-    <div class="table-side">
-      <div class="card roadmap-card" id="roadmapCard"><h3><span>${t('bigRoad')}</span><button class="roadmap-toggle" onclick="toggleRoadmapCollapse()">▾</button></h3><div class="br-grid" id="bigRoadGrid"></div>
-        <div class="roadmap-legend"><span><i style="background:#4A9FD8;"></i>${t('player')}</span><span><i style="background:var(--danger);"></i>${t('banker')}</span><span><i style="background:var(--jade);"></i>${t('tie')}</span></div>
-        <div class="derived-road-title">${t('bigEyeBoy')}</div>
-        <div class="derived-road-grid" id="derivedRoadGrid"></div>
+      <div class="sd-tray solo">
+        <div class="sd-info-bar">
+          <div class="sd-round-info"><div class="mark">${escapeHtml((tb.casino||'').slice(0,2))}</div><div class="txt">${escapeHtml(tb.name)} &nbsp;&nbsp; SHOE #${tb.shoeNo||1}</div></div>
+          <span class="spacer"></span>
+        </div>
       </div>
-      <div class="card"><h3>${t('recentResults')}</h3><div class="recent-results" id="recentResults"></div></div>
     </div>
   </div>`;
+}
+// Shared by the avatar preview and active-session shells - both show the same road
+// panel (Big Road + Big Eye Boy/Small Road/Cockroach Road + legend/trend + Bead Plate),
+// matching the Speed detail screen's .sd-road, with road ids common to both shells
+// since only one is ever mounted in #viewAvatarTable at a time.
+function avatarRoadSectionHtml(tb){
+  return `
+      <div class="sd-road">
+        <div class="sd-road-head">
+          <div class="sd-road-title-block"><b>百家樂</b><span>바카라</span><span>BACCARAT</span></div>
+          <div class="sd-road-bet-box min"><span>최소 배팅</span><b>PHP ${fmtNum(tb.betMin)}</b></div>
+          <div class="sd-road-bet-box max"><span>최대 배팅</span><b>PHP ${fmtNum(tb.betMax)}</b></div>
+          <div class="sd-road-table-id">TABLE<br><b>${escapeHtml(tb.name)}</b></div>
+        </div>
+        <div class="derived-road-title" style="margin-top:0;">BIG ROAD</div>
+        <div class="br-grid" id="road-avatar"></div>
+        <div class="sd-road-mini-row">
+          <div class="sd-road-mini"><div class="derived-road-title">BIG EYE BOY</div><div class="derived-road-grid" id="bigeye-avatar"></div></div>
+          <div class="sd-road-mini"><div class="derived-road-title">SMALL ROAD</div><div class="derived-road-grid" id="smallroad-avatar"></div></div>
+          <div class="sd-road-mini"><div class="derived-road-title">COCKROACH ROAD</div><div class="derived-road-grid" id="cockroach-avatar"></div></div>
+        </div>
+        <div class="sd-legend-row">
+          <div class="sd-legend-table" id="legend-avatar"></div>
+          <div class="sd-next-trend" id="trend-avatar"></div>
+        </div>
+        <div class="bead-road-wrap"><div class="derived-road-title">BEAD PLATE</div><div class="bead-road" id="beadroad-avatar"></div></div>
+        <div class="sd-road-disclaimer">${t('roadDisclaimer')}</div>
+      </div>`;
+}
+function renderAvatarRoad(){
+  const el = document.getElementById('road-avatar'); if (!el) return;
+  const cols = buildBigRoad(AVATAR.history.slice(-90), (AVATAR.pairFlags||[]).slice(-90));
+  el.innerHTML = renderBigRoad(cols, 6) || `<span class="hint">${t('noRecord')}</span>`;
+  el.scrollLeft = el.scrollWidth;
+  const bigeyeEl = document.getElementById('bigeye-avatar');
+  if (bigeyeEl) bigeyeEl.innerHTML = renderDerivedRoad(deriveBigEyeBoy(cols)) || `<span class="hint">${t('noRecord')}</span>`;
+  const smallEl = document.getElementById('smallroad-avatar');
+  if (smallEl) smallEl.innerHTML = renderDerivedRoad(deriveSmallRoad(cols)) || `<span class="hint">${t('noRecord')}</span>`;
+  const cockroachEl = document.getElementById('cockroach-avatar');
+  if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`;
+  const beadEl = document.getElementById('beadroad-avatar');
+  if (beadEl) beadEl.innerHTML = renderBeadRoad(AVATAR.history.slice(-36)) || `<span class="hint">${t('noRecord')}</span>`;
+}
+function renderAvatarTally(){
+  const legendEl = document.getElementById('legend-avatar');
+  const trendEl = document.getElementById('trend-avatar');
+  if (!legendEl && !trendEl) return;
+  const history = AVATAR.history;
+  const pairFlags = AVATAR.pairFlags || [];
+  const wins = tableWinCounts(history);
+  const streak = trailingStreak(history);
+  const playerPairs = pairFlags.filter(p=>p && p.playerPair).length;
+  const bankerPairs = pairFlags.filter(p=>p && p.bankerPair).length;
+  const roundNo = AVATAR.roundNo || 1;
+  if (legendEl){
+    const row = (colorClass, ko, en, val) => `<div class="lg-row"><i class="${colorClass}" style="background:${colorClass==='banker'?'var(--danger)':colorClass==='player'?'#2f7fbf':colorClass==='tie'?'var(--jade)':'#999'};"></i>${ko}<span class="en">${en}</span><b>${fmtNum(val)}</b></div>`;
+    legendEl.innerHTML = `
+      <div class="lg-head"><span>${t('dealsLabel')}</span><span>#${roundNo}</span></div>
+      ${row('banker','뱅커','BANKER',wins.banker)}
+      ${row('player','플레이어','PLAYER',wins.player)}
+      ${row('tie','타이','TIE',wins.tie)}
+      ${row('pair','뱅커페어','BANKER PAIR',bankerPairs)}
+      ${row('pair','플레이어페어','PLAYER PAIR',playerPairs)}
+    `;
+  }
+  if (trendEl){
+    const bankerHot = streak.side==='banker' && streak.len>=1;
+    const playerHot = streak.side==='player' && streak.len>=1;
+    trendEl.innerHTML = `
+      <div class="nt-title">${t('nextGameTrend')} <span class="en">NEXT GAME TREND</span></div>
+      <div class="nt-row banker ${bankerHot?'hot':''}"><span class="dot"></span>BANKER</div>
+      <div class="nt-row player ${playerHot?'hot':''}"><span class="dot"></span>PLAYER</div>
+    `;
+  }
 }
 
 /* ---------------- avatar session (approved, proxy-betting in progress) ---------------- */
@@ -542,12 +621,13 @@ async function enterAvatarSession(tableId){
   const roundsSnap = await db.collection('rounds').where('tableId','==',tableId).get();
   const rounds = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
   AVATAR.history = rounds.map(r=>r.result);
+  AVATAR.pairFlags = rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair}));
   AVATAR.roundNo = (Math.max(0, ...rounds.map(r=>r.roundNo||0)) || 0) + 1;
   await refreshTipTotals();
 
   view.innerHTML = avatarTableShellHtml();
-  renderAvatarRoadmap();
-  renderAvatarRecentResults();
+  renderAvatarRoad();
+  renderAvatarTally();
   renderMyBetHistory();
   updateAvatarStatusPanel();
   mountAvatarChat(tableId);
@@ -577,42 +657,53 @@ function updateAvatarStatusPanel(){
 function avatarTableShellHtml(){
   const tb = AVATAR.table;
   return `
-  <div class="table-shell">
-    <div class="table-main">
-      <div class="table-stage">
-        <div class="table-id-badge">${escapeHtml(tb.name)}</div>
-        <div class="table-shoe-badge">SHOE #${tb.shoeNo||1} · ${t('roundInfo')} ${AVATAR.roundNo}</div>
-        <div class="phase-banner" id="phaseBanner">${t('phaseBetting')}</div>
+  <div class="speed-detail-wrap">
+    <div class="speed-detail-grid">
+      <div class="sd-stage">
+        <button class="icon-btn speed-detail-close" onclick="backToAvatarLobby()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
+        <div class="sd-type-badge" style="left:56px;">AVATAR</div>
+        <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
+        <div class="phase-banner" id="phase-avatar">${t('phaseBetting')}</div>
+        <div class="sd-stage-icons">
+          <button onclick="toggleStageFullscreen(this)" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+          <button onclick="this.classList.toggle('muted')" data-i18n-title="mute" title="음소거">
+            <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a9 9 0 0 1 0 12"/></svg>
+            <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/></svg>
+          </button>
+          <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button onclick="openTipModal()" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
+        </div>
         <div class="table-felt">
-          <div class="cards-area" id="cardsArea">
-            <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCards"></div><div class="score" id="playerScore"></div></div>
-            <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCards"></div><div class="score" id="bankerScore"></div></div>
+          <div class="cards-area">
+            <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCardsAvatar"></div><div class="score" id="playerScoreAvatar"></div></div>
+            <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCardsAvatar"></div><div class="score" id="bankerScoreAvatar"></div></div>
           </div>
         </div>
-        <div class="timer-ring-wrap" id="timerRingWrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArc" cx="32" cy="32" r="27" stroke="var(--brass)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timerTxt">30</div></div>
-        <div class="result-flash" id="resultFlash"><div class="txt" id="resultFlashTxt"></div></div>
+        <div class="timer-ring-wrap" id="timerRingWrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArc" cx="32" cy="32" r="27" stroke="var(--brass)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-avatar">30</div></div>
       </div>
-      <div class="card avatar-status-card">
-        <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
-        <div class="kv-grid" id="avatarStatusGrid"></div>
-        <div class="row" style="gap:8px;margin-top:14px;">
-          <button class="btn btn-gold btn-sm" onclick="openTipModal()">${t('giveTip')}</button>
-          <button class="btn btn-sm" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
-          <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
+      ${avatarRoadSectionHtml(tb)}
+      <div class="sd-bets avatar-side">
+        <div class="card avatar-status-card">
+          <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
+          <div class="kv-grid" id="avatarStatusGrid"></div>
+          <div class="row" style="gap:8px;margin-top:14px;">
+            <button class="btn btn-gold btn-sm" onclick="openTipModal()">${t('giveTip')}</button>
+            <button class="btn btn-sm" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
+            <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
+          </div>
+        </div>
+        <div class="card chat-panel">
+          <h3>${t('chat')}</h3>
+          <div class="chat-log" id="chatLog"></div>
+          <div class="chat-input-row"><input id="chatInput" placeholder="${t('chatPh')}" onkeydown="if(event.key==='Enter')sendAvatarChat()"><button class="btn btn-sm btn-gold" onclick="sendAvatarChat()">${t('send')}</button></div>
         </div>
       </div>
-    </div>
-    <div class="table-side">
-      <div class="card roadmap-card" id="roadmapCard"><h3><span>${t('bigRoad')}</span><button class="roadmap-toggle" onclick="toggleRoadmapCollapse()">▾</button></h3><div class="br-grid" id="bigRoadGrid"></div>
-        <div class="roadmap-legend"><span><i style="background:#4A9FD8;"></i>${t('player')}</span><span><i style="background:var(--danger);"></i>${t('banker')}</span><span><i style="background:var(--jade);"></i>${t('tie')}</span></div>
-        <div class="derived-road-title">${t('bigEyeBoy')}</div>
-        <div class="derived-road-grid" id="derivedRoadGrid"></div>
-      </div>
-      <div class="card"><h3>${t('recentResults')}</h3><div class="recent-results" id="recentResults"></div></div>
-      <div class="card"><h3>${t('myBetHistory')}</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
-      <div class="card chat-panel"><h3>${t('chat')}</h3>
-        <div class="chat-log" id="chatLog"></div>
-        <div class="chat-input-row"><input id="chatInput" placeholder="${t('chatPh')}" onkeydown="if(event.key==='Enter')sendAvatarChat()"><button class="btn btn-sm btn-gold" onclick="sendAvatarChat()">${t('send')}</button></div>
+      <div class="sd-tray solo">
+        <div class="sd-info-bar">
+          <div class="sd-round-info"><div class="mark">${escapeHtml((tb.casino||'').slice(0,2))}</div><div class="txt">${t('roundInfo')} : ${AVATAR.roundNo} &nbsp;&nbsp; SHOE #${tb.shoeNo||1}</div></div>
+          <span class="spacer"></span>
+          <button class="icon-btn" onclick="openGameHistory()" data-i18n-title="gameHistory" title="기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
+        </div>
       </div>
     </div>
   </div>`;
@@ -670,16 +761,15 @@ function beginAvatarBettingPhase(){
   AVATAR.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
   AVATAR.bets[AVATAR.request.betSide] = AVATAR.request.betAmount;
   setAvatarPhaseBanner(t('phaseBetting'), AVATAR_BETTING_SECONDS);
-  const flash = document.getElementById('resultFlash'); if (flash) flash.classList.remove('show');
-  document.getElementById('playerCards').innerHTML = ''; document.getElementById('bankerCards').innerHTML = '';
-  document.getElementById('playerScore').textContent = ''; document.getElementById('bankerScore').textContent = '';
+  document.getElementById('playerCardsAvatar').innerHTML = ''; document.getElementById('bankerCardsAvatar').innerHTML = '';
+  document.getElementById('playerScoreAvatar').textContent = ''; document.getElementById('bankerScoreAvatar').textContent = '';
 }
 function setAvatarPhaseBanner(text, secs){
-  const el = document.getElementById('phaseBanner'); if (el) el.textContent = text;
+  const el = document.getElementById('phase-avatar'); if (el) el.textContent = text;
   updateAvatarTimerRing(secs, secs);
 }
 function updateAvatarTimerRing(secLeft, secTotal){
-  const txt = document.getElementById('timerTxt'); if (txt) txt.textContent = secLeft;
+  const txt = document.getElementById('timer-avatar'); if (txt) txt.textContent = secLeft;
   const arc = document.getElementById('timerArc');
   if (arc){ const c = 169.6; arc.style.strokeDashoffset = c * (1 - secLeft/secTotal); }
   const wrap = document.getElementById('timerRingWrap');
@@ -717,26 +807,20 @@ function cardHtml(card){
   return `<div class="playing-card ${red?'red':'black'}" data-rank="${card.rank}${card.suit}">${card.suit}</div>`;
 }
 async function revealAvatarCards(sim){
-  const pEl = document.getElementById('playerCards'), bEl = document.getElementById('bankerCards');
+  const pEl = document.getElementById('playerCardsAvatar'), bEl = document.getElementById('bankerCardsAvatar');
   const seq = [[pEl,sim.player.cards[0]],[bEl,sim.banker.cards[0]],[pEl,sim.player.cards[1]],[bEl,sim.banker.cards[1]]];
   for (const [el,card] of seq){
     el.insertAdjacentHTML('beforeend', cardHtml(card));
     await new Promise(r=>setTimeout(r, 260));
   }
-  document.getElementById('playerScore').textContent = sim.player.score;
-  document.getElementById('bankerScore').textContent = sim.banker.score;
+  document.getElementById('playerScoreAvatar').textContent = sim.player.score;
+  document.getElementById('bankerScoreAvatar').textContent = sim.banker.score;
 }
 async function beginAvatarResultPhase(){
   AVATAR.phase = 'result';
   AVATAR.secondsLeft = AVATAR_RESULT_SECONDS;
   const sim = AVATAR._sim;
   setAvatarPhaseBanner(sim.result==='player' ? t('phasePlayerWin') : sim.result==='banker' ? t('phaseBankerWin') : t('phaseTie'), AVATAR_RESULT_SECONDS);
-
-  const flash = document.getElementById('resultFlash');
-  const flashTxt = document.getElementById('resultFlashTxt');
-  flashTxt.className = 'txt ' + sim.result;
-  flashTxt.textContent = sim.result==='player' ? 'PLAYER WIN' : sim.result==='banker' ? 'BANKER WIN' : 'TIE';
-  flash.classList.add('show');
 
   let totalPayout = 0;
   for (const [betType, amount] of Object.entries(AVATAR.bets)){
@@ -751,31 +835,16 @@ async function beginAvatarResultPhase(){
 
   await writeRoundDoc(db, {tableId:AVATAR.table.id, tableType:'avatar', roundNo:AVATAR.roundNo, shoeNo:AVATAR.table.shoeNo||1, sim, startedAt:new Date(Date.now()-(AVATAR_BETTING_SECONDS+AVATAR_DEALING_SECONDS)*1000).toISOString()});
   AVATAR.history.push(sim.result);
+  AVATAR.pairFlags.push({playerPair:!!sim.playerPair, bankerPair:!!sim.bankerPair});
   AVATAR.roundNo++;
-  renderAvatarRoadmap();
-  renderAvatarRecentResults();
+  renderAvatarRoad();
+  renderAvatarTally();
   renderMyBetHistory();
 }
 async function refreshPointsQuiet(){
   const b = await getPlayerBalance(db, PLAYER.id);
   STATE.points = b.points;
   document.getElementById('hdrPoints').textContent = fmtNum(STATE.points);
-}
-function renderAvatarRoadmap(){
-  const el = document.getElementById('bigRoadGrid'); if (!el) return;
-  const cols = buildBigRoad(AVATAR.history.slice(-90));
-  el.innerHTML = renderBigRoad(cols, 6);
-  el.scrollLeft = el.scrollWidth;
-  const derivedEl = document.getElementById('derivedRoadGrid');
-  if (derivedEl){
-    derivedEl.innerHTML = renderDerivedRoad(deriveBigEyeBoy(cols));
-    derivedEl.scrollLeft = derivedEl.scrollWidth;
-  }
-}
-function renderAvatarRecentResults(){
-  const el = document.getElementById('recentResults'); if (!el) return;
-  const recent = AVATAR.history.slice(-20);
-  el.innerHTML = recent.map(r=>`<div class="rr ${r}">${r==='player'?'P':r==='banker'?'B':'T'}</div>`).join('') || `<span class="hint">${t('noRecord')}</span>`;
 }
 function mountAvatarChat(tableId){
   const log = document.getElementById('chatLog');
@@ -1005,18 +1074,18 @@ function speedDetailShellHtml(tableId){
           <div class="sd-road-bet-box max"><span>최대 배팅</span><b>PHP ${fmtNum(tb.betMax)}</b></div>
           <div class="sd-road-table-id">TABLE<br><b>${escapeHtml(tb.name)}</b></div>
         </div>
-        <div class="derived-road-title" style="margin-top:0;">${t('bigRoad')}</div>
+        <div class="derived-road-title" style="margin-top:0;">BIG ROAD</div>
         <div class="br-grid" id="road-detail"></div>
         <div class="sd-road-mini-row">
-          <div class="sd-road-mini"><div class="derived-road-title">${t('bigEyeBoy')}</div><div class="derived-road-grid" id="bigeye-detail"></div></div>
-          <div class="sd-road-mini"><div class="derived-road-title">${t('smallRoad')}</div><div class="derived-road-grid" id="smallroad-detail"></div></div>
-          <div class="sd-road-mini"><div class="derived-road-title">${t('cockroachRoad')}</div><div class="derived-road-grid" id="cockroach-detail"></div></div>
+          <div class="sd-road-mini"><div class="derived-road-title">BIG EYE BOY</div><div class="derived-road-grid" id="bigeye-detail"></div></div>
+          <div class="sd-road-mini"><div class="derived-road-title">SMALL ROAD</div><div class="derived-road-grid" id="smallroad-detail"></div></div>
+          <div class="sd-road-mini"><div class="derived-road-title">COCKROACH ROAD</div><div class="derived-road-grid" id="cockroach-detail"></div></div>
         </div>
         <div class="sd-legend-row">
           <div class="sd-legend-table" id="legend-detail"></div>
           <div class="sd-next-trend" id="trend-detail"></div>
         </div>
-        <div class="bead-road-wrap"><div class="derived-road-title">${t('beadPlate')}</div><div class="bead-road" id="beadroad-detail"></div></div>
+        <div class="bead-road-wrap"><div class="derived-road-title">BEAD PLATE</div><div class="bead-road" id="beadroad-detail"></div></div>
         <div class="sd-road-disclaimer">${t('roadDisclaimer')}</div>
       </div>
       <div class="sd-bets">

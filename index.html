@@ -655,6 +655,12 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
       <div class="card" style="margin-top:16px;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
           <h3 id="ledgerTitle" style="margin:0;flex:1;"><span data-i18n="accLedger"></span></h3>
+          <select id="ledgerMemoLangSel" style="flex:0 0 auto;" onchange="setLedgerMemoLang(this.value)">
+            <option value="en">English</option>
+            <option value="ko">한국어</option>
+            <option value="zh-TW">繁體</option>
+            <option value="zh-CN">简体</option>
+          </select>
           <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openLedgerList()" data-i18n="ledgerListBtn"></button>
         </div>
         <div class="table-wrap"><table>
@@ -4360,10 +4366,10 @@ function subscribeLedgerCloud(){
 // to know the ledger entry itself never landed. Local mode is unaffected (already synchronous/
 // reliable - the balance mutation there doesn't depend on any network round trip).
 function writeLedgerEntry(opts){
- const {accountId, casino, type, amount, staff, memo} = opts;
+ const {accountId, casino, type, amount, staff, memo, memoKind} = opts;
  const id = 'ldg_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const entry = {id, accountId, casino, dt:now, type, inn: type==='IN'?amount:0, out: type==='OUT'?amount:0, staff, memo};
+ const entry = {id, accountId, casino, dt:now, type, inn: type==='IN'?amount:0, out: type==='OUT'?amount:0, staff, memo, memoKind: memoKind||null};
  if(fbDb){
   return fbDb.collection('ledger').doc(id).set(entry).then(()=>true).catch(()=>false);
  } else {
@@ -5723,6 +5729,10 @@ function formatNumInput(el){
  el.value = (neg?'-':'') + v.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 function t(key){ return (I18N[LANG] && I18N[LANG][key]) || I18N.ko[key] || key; }
+function tIn(lang, key){ return (I18N[lang] && I18N[lang][key]) || I18N.ko[key] || key; }
+
+let ledgerMemoLang = 'en';
+function setLedgerMemoLang(lang){ ledgerMemoLang = lang; renderLedger(); }
 
 function checkAvatarRequest(){
  const reqs = DB.avatarRequests||[];
@@ -6234,7 +6244,7 @@ function setIoType(type){
  DB.ioType = type;
  document.getElementById('ioTypeDeposit').classList.toggle('on', type==='deposit');
  document.getElementById('ioTypeWithdraw').classList.toggle('on', type==='withdraw');
- document.getElementById('ioMemo').value = type==='deposit' ? t('memoCashDeposit') : t('memoCashOut');
+ document.getElementById('ioMemo').value = type==='deposit' ? 'Cash Deposit' : 'Cash Out';
 }
 
 /* ---- Withdrawal Password + PIN Auth (for withdraw / transfer / account buy-in) ---- */
@@ -6495,7 +6505,7 @@ function hasSufficientTotalBalance(accountId, amount){
 // Deduct amt from acc's balance starting with casino, spilling any shortfall into the other
 // branches (fixed HANN/NUSTAR/ONLINE order) - one writeLedgerEntry per branch actually drawn
 // from, since a single ledger entry can only carry one casino tag.
-async function withdrawAcrossBranches(accountId, casino, amt, staffName, memo){
+async function withdrawAcrossBranches(accountId, casino, amt, staffName, memo, memoKind){
  const acc = DB.accounts[accountId];
  const order = [casino, ...['HANN','NUSTAR','ONLINE'].filter(c=>c!==casino)];
  let remaining = amt;
@@ -6505,7 +6515,7 @@ async function withdrawAcrossBranches(accountId, casino, amt, staffName, memo){
   const avail = (acc.balances && acc.balances[c]) || 0;
   const take = Math.min(avail, remaining);
   if(take<=0) continue;
-  const ok = await writeLedgerEntry({accountId, casino:c, type:'OUT', amount:take, staff:staffName, memo});
+  const ok = await writeLedgerEntry({accountId, casino:c, type:'OUT', amount:take, staff:staffName, memo, memoKind});
   if(!ok) allOk = false;
   remaining -= take;
  }
@@ -6540,6 +6550,7 @@ async function applyAccountTransaction(accountId, type, amount, memo){
 async function _doProcessIo(amt){
  const casino = currentBranch();
  const memo = document.getElementById('ioMemo').value;
+ const memoKind = memo==='Cash Deposit' ? 'cashDeposit' : memo==='Cash Out' ? 'cashOut' : null;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  const acc = DB.accounts[DB.currentAccount];
  // Re-check with the freshest known balance right before writing (narrows, though cannot fully
@@ -6556,17 +6567,17 @@ async function _doProcessIo(amt){
   // Only a MAIN account is still siloed per-casino and needs the spill-across-branches path -
   // a guest's unified balance is a single write against the selected casino's tag.
   const ok = isMainAccount(DB.currentAccount)
-   ? await withdrawAcrossBranches(DB.currentAccount, casino, amt, staffName, memo)
-   : await writeLedgerEntry({accountId: DB.currentAccount, casino, type:'OUT', amount:amt, staff:staffName, memo});
+   ? await withdrawAcrossBranches(DB.currentAccount, casino, amt, staffName, memo, memoKind)
+   : await writeLedgerEntry({accountId: DB.currentAccount, casino, type:'OUT', amount:amt, staff:staffName, memo, memoKind});
   if(!ok){ toast(t('toastStaffSyncFailed')); return; }
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + amt;
  } else {
   const priorBal = accountBalanceFor(DB.currentAccount, casino);
   newBal = priorBal + amt;
-  const ok = await writeLedgerEntry({accountId: DB.currentAccount, casino, type:'IN', amount:amt, staff:staffName, memo});
+  const ok = await writeLedgerEntry({accountId: DB.currentAccount, casino, type:'IN', amount:amt, staff:staffName, memo, memoKind});
   if(!ok){ toast(t('toastStaffSyncFailed')); return; }
  }
- document.getElementById('ioAmount').value=''; document.getElementById('ioMemo').value = DB.ioType==='deposit' ? t('memoCashDeposit') : t('memoCashOut');
+ document.getElementById('ioAmount').value=''; document.getElementById('ioMemo').value = DB.ioType==='deposit' ? 'Cash Deposit' : 'Cash Out';
  saveDB(); renderMemberCard(); renderLedger(); renderBalancingSummary();
  pushNotification(DB.ioType==='deposit'?'notifDeposit':'notifWithdraw', `${DB.currentAccount} · ${casino} · ${fmt(amt)}`);
  toast(t('toastProcessed'));
@@ -6648,7 +6659,14 @@ async function _doTransfer(amt){
  sendCageNotification(toAccId, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${toAccId}`, `AMT.: ${fmt(amt)}`, `CURR.: ${(toAcc&&toAcc.currency)||'PHP'}`, `BAL: ${fmt(toPriorBal+amt)}`, `REMARKS: FROM ${DB.currentAccount}`]);
 }
 
+function ledgerMemoText(r){
+ if(r.memoKind==='cashDeposit') return tIn(ledgerMemoLang, 'memoCashDeposit');
+ if(r.memoKind==='cashOut') return tIn(ledgerMemoLang, 'memoCashOut');
+ return r.memo;
+}
 function renderLedger(){
+ const sel = document.getElementById('ledgerMemoLangSel');
+ if(sel) sel.value = ledgerMemoLang;
  const body = document.getElementById('ledgerBody');
  const id = DB.currentAccount;
  const rows = id ? (DB.ledger[id]||[]) : [];
@@ -6656,7 +6674,7 @@ function renderLedger(){
  body.innerHTML = rows.map(r=>`
   <tr><td>${esc(r.casino)}</td><td class="num">${esc(r.dt)}</td><td>${esc(id)}</td>
   <td class="num pos">${r.inn?fmt(r.inn):''}</td><td class="num neg">${r.out?fmt(r.out):''}</td>
-  <td class="num">${fmt(r.bal)}</td><td>${esc(r.staff)}</td><td>${esc(r.memo)}</td></tr>`).join('');
+  <td class="num">${fmt(r.bal)}</td><td>${esc(r.staff)}</td><td>${esc(ledgerMemoText(r))}</td></tr>`).join('');
 }
 function openLedgerList(){
  document.getElementById('ledgerListAccSearch').value = DB.currentAccount || '';

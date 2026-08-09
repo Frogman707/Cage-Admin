@@ -6791,18 +6791,26 @@ function checkAccountBuyinBalance(account, buyin){
 // memo so it's excluded from the branch's live guest-rolling grand total, same convention as the
 // mid-settle/game-end NN adjustments below (this seeds the game's rolling, it isn't observed
 // table turnover, so it shouldn't inflate the "today's observed rolling" dashboard figure).
-function seedRollingFromBuyin(g, amount, staffName){
- if(!amount) return;
+function seedRollingFromBuyin(g, buyinAmt, workingAmt, staffName){
+ const total = (buyinAmt||0) + (workingAmt||0);
+ if(!total) return;
  if(fbDb){
-  writeRollingEvent({gameId:g.gameId, amount, staff:staffName, memo:'buy-in'});
+  if(buyinAmt) writeRollingEvent({gameId:g.gameId, amount:buyinAmt, staff:staffName, memo:'buy-in'});
+  if(workingAmt) writeRollingEvent({gameId:g.gameId, amount:workingAmt, staff:staffName, memo:'working-chip'});
  } else {
   const now = phNow();
   const dateStr = now.toISOString().slice(0,10);
   const timeStr = now.toISOString().slice(11,19);
-  g.rolling = (g.rolling||0) + amount;
-  g.lastAdded = amount;
   g.rollingLog = g.rollingLog||[];
-  g.rollingLog.unshift({date:dateStr, time:timeStr, type:'R', amount, cum:g.rolling, total:getGuestRollingGrandTotal(), staff:staffName, memo:'buy-in'});
+  if(buyinAmt){
+   g.rolling = (g.rolling||0) + buyinAmt;
+   g.rollingLog.unshift({date:dateStr, time:timeStr, type:'R', amount:buyinAmt, cum:g.rolling, total:getGuestRollingGrandTotal(), staff:staffName, memo:'buy-in'});
+  }
+  if(workingAmt){
+   g.rolling = (g.rolling||0) + workingAmt;
+   g.rollingLog.unshift({date:dateStr, time:timeStr, type:'R', amount:workingAmt, cum:g.rolling, total:getGuestRollingGrandTotal(), staff:staffName, memo:'working-chip'});
+  }
+  g.lastAdded = total;
  }
 }
 async function _doAddBuyin(existing, buyin, workingChip){
@@ -6810,7 +6818,7 @@ async function _doAddBuyin(existing, buyin, workingChip){
  existing.buyin = (existing.buyin||0) + buyin;
  if(workingChip) existing.workingChip = (existing.workingChip||0) + workingChip;
  existing.staff = staffName;
- seedRollingFromBuyin(existing, buyin + workingChip, staffName);
+ seedRollingFromBuyin(existing, buyin, workingChip, staffName);
  if(existing.startKind === 'avatar' && DB.avatarRequests && DB.avatarRequests.length){
   DB.avatarRequests = DB.avatarRequests.filter(r=>r.account!==existing.account);
   renderAvatarReqBtn();
@@ -6854,7 +6862,7 @@ async function _doStartGame(account, buyin, workingChip, enteredId){
  DB.nextGameSeq++;
  const newGame = {dt:now.toISOString().slice(0,16).replace('T',' '), gameId, branch:currentBranch(), account, table, cur, type, startType, startKind, rolling:0, buyin, workingChip, staff:staffName, checkpoints:[], lastAdded:0, rollingLog:[]};
  DB.games.unshift(newGame);
- seedRollingFromBuyin(newGame, buyin + workingChip, staffName);
+ seedRollingFromBuyin(newGame, buyin, workingChip, staffName);
  if(startKind === 'avatar' && DB.avatarRequests && DB.avatarRequests.length){
   DB.avatarRequests = DB.avatarRequests.filter(r=>r.account!==account);
   renderAvatarReqBtn();
@@ -7589,9 +7597,12 @@ function renderGameEndList(){
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="16">—</td></tr>` :
   rows.map(g=>{
    const cc = g.cc||{}; const nn = g.nn||{};
+   const cps = g.checkpoints||[];
+   const ccField = f => (cc[f]||0) + cps.reduce((s,cp)=>s+((cp.cc&&cp.cc[f])||0),0);
+   const nnField = f => (nn[f]||0) + cps.reduce((s,cp)=>s+((cp.nn&&cp.nn[f])||0),0);
    return `<tr><td class="num">${esc(g.endDt)}</td><td class="num">${esc(g.gameId)}</td><td>${esc(g.account)}</td><td class="num">${fmt(g.buyin||0)}</td>
-    <td class="num">${fmt(cc.deposit)}</td><td class="num">${fmt(cc.cashout)}</td><td class="num">${fmt(cc.marker)}</td><td class="num">${fmt(cc.dealerTips)}</td><td class="num">${fmt(cc.houseTips)}</td>
-    <td class="num">${fmt(nn.deposit)}</td><td class="num">${fmt(nn.cashout)}</td><td class="num">${fmt(nn.marker)}</td><td class="num">${fmt(nn.working)}</td>
+    <td class="num">${fmt(ccField('deposit'))}</td><td class="num">${fmt(ccField('cashout'))}</td><td class="num">${fmt(ccField('marker'))}</td><td class="num">${fmt(ccField('dealerTips'))}</td><td class="num">${fmt(ccField('houseTips'))}</td>
+    <td class="num">${fmt(nnField('deposit'))}</td><td class="num">${fmt(nnField('cashout'))}</td><td class="num">${fmt(nnField('marker'))}</td><td class="num">${fmt(nnField('working'))}</td>
     <td class="num">${fmt(g.rolling||0)}</td><td class="num ${g.winLoss>0?'pos':g.winLoss<0?'neg':''}">${fmt(g.winLoss)}</td><td>${esc(g.endStaff)}</td></tr>`;
   }).join('');
 }

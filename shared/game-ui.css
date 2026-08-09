@@ -468,6 +468,10 @@
 .sd-road .br-cell{width:13px;height:13px;border-width:2px;}
 .sd-road .br-cell.tie-only{width:8px;height:8px;}
 .sd-road .bd-cell.overflow,.sd-road .br-cell.overflow,.sd-road .dr-cell.overflow{color:#8a8a8a;}
+/* .br-tie's count badge defaults to a dark pill (matching the dark lobby-card/sidebar
+   backgrounds it was designed for) - on this panel's white/graph-paper background that
+   reads as a stray dark smudge above the ring, so give it a light pill here instead. */
+.sd-road .br-tie span{background:#fff;box-shadow:0 0 0 1px #fff;}
 .sd-road-body{display:flex;flex:1;min-height:0;gap:10px;margin-top:6px;}
 .sd-road-roads{display:flex;flex-direction:column;justify-content:space-between;flex:1;min-width:0;}
 .sd-road .derived-road-grid{overflow-x:auto;}

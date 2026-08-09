@@ -111,3 +111,88 @@ cageConfig/global
 - 실시간 리스너(`onSnapshot`) 활성화 — 지금은 데이터 모델만 확정, 실제 다단말 실시간 반영은 2단계
 - Firestore 보안 규칙 정교화 (지금은 테스트 모드) — 직원 인증 연동한 실제 규칙은 별도 단계
 - 오프라인 캐시(IndexedDB) 활성화 옵션 켜기
+
+---
+
+## 파트너 어드민 / 아바타 / 스피드 사이트 확장 (CAGE ADMIN 5.0)
+
+같은 Firebase 프로젝트(`cage-admin-25bbf`)를 공유하되, 케이지 운영 데이터(`accounts`,`ledger`,`games`)와 완전히 분리된 새 최상위 컬렉션을 쓴다. 회원(플레이어) 자금도 위와 동일한 append-only 원장 원칙을 따른다 — **잔액은 저장하지 않고 항상 합산으로 구한다.**
+
+### `members` — 회원(플레이어) KYC/상태
+```
+members/{memberId}            // memberId = 클라이언트 생성 회원 ID (예: "SEC6937")
+  loginId, pw(해시), nickname, phone, telegram, casino, agentCode,
+  parentAgent, memberType: "정회원"|"준회원"|"관리회원"|"멀티회원",
+  status: "정상"|"정지"|"블랙리스트", vip, betMax, betMin,
+  withdrawPw, createdAt, lastLoginAt
+```
+
+### `memberLedger` — 회원 자금 이동 단일 진실 공급원 (append-only, 부호 있는 amount)
+```
+memberLedger/{uuid}
+  memberId, casino, amount,               // 입금 +, 출금/베팅 −, 페이아웃/포인트전환 +
+  category: "deposit"|"withdraw"|"bet"|"payout"|"point_earn"|"point_convert"|
+            "share_commission"|"rolling_commission"|"correction"
+  relatedRoundId, relatedTableId, memo, staff, deviceId, clientCreatedAt, createdAt
+```
+회원 보유금 = `sum(amount) where memberId==X`　·　보유포인트도 동일 패턴(`category` 필터)으로 합산.
+
+### `partners` — 에이전트/쉐어 파트너 계층
+```
+partners/{partnerCode}   { name, parentCode, shareRate, level, status, casino, createdAt }
+shareLedger/{uuid}       { partnerCode, amount(부호), category:"share_accum"|"share_settle", memo, dt }  // append-only
+```
+
+### `tables` — 아바타/스피드 테이블 메타데이터
+```
+tables/{tableId}   { name, type:"avatar"|"speed", casino, status:"open"|"closed", betMin, betMax, shoeNo }
+```
+
+### `rounds` — 라운드(핸드) 결과 이력 — 아바타/스피드 로드맵·정산의 단일 소스
+```
+rounds/{uuid}
+  tableId, tableType:"avatar"|"speed", roundNo, shoeNo,
+  phase: "betting"|"dealing"|"result",
+  playerCards, bankerCards, playerScore, bankerScore,
+  result: "player"|"banker"|"tie", playerPair, bankerPair,
+  startedAt, resultAt, editedBy, editedReason,   // 게임라운드수정 화면에서 사후 수정 시 기록
+  cancelled, cancelReason, cancelledBy, cancelledAt   // 라운드 취소 시 기록 (베팅은 memberLedger에 category:"correction"으로 환불/회수 - 아래 참조)
+```
+
+### `bettingLimits` / 뱅커절삭베팅내역 등은 `memberLedger`(category:"bet") + `rounds`를 조인해서 파생 — 별도 저장 없음.
+
+### 그 외 append-only 이벤트/설정 컬렉션
+```
+notices/{uuid}           { title, body, pinned, dt, staff }        // 공지사항
+tickerNotices/{uuid}      { text, active, dt }                      // 한줄공지
+noticeGuide/{single}       { body }                                  // 이용안내
+bannedWords/{uuid}         { word, dt }                              // 금지어설정
+inquiries/{uuid}           { memberId, title, body, reply, status:"대기"|"답변완료", dt }  // 일대일문의
+inGameNotices/{uuid}       { text, tableType, active, dt }           // 인게임공지
+csContacts/{uuid}          { channel:"telegram"|"kakao"|"whatsapp", label, value, active }
+memberActionLogs/{uuid}    { memberId, action, staff, dt, before, after }
+adminLogs/{uuid}           { staff, action, target, dt }
+chatMessages/{uuid}        { tableId, memberId, nickname, text, dt }
+depositRequests/{uuid}     { memberId, amount, method, status:"대기"|"승인"|"거절", dt, staff }   // 디파짓관리
+paymentRequests/{uuid}     { memberId, amount, type:"입금"|"출금", status, dt, staff }             // 결제처리리스트
+events/{uuid}              { title, body, startDt, endDt, active }
+avatarMissCorrections/{uuid} { roundId, before, after, staff, dt, reason }  // 아바타미스수정
+avatarRequests/{uuid}      { memberId, tableId, casino, buyin, betSide, betAmount,
+                              status:"대기"|"진행중"|"종료", avatarStaffId,
+                              requestedAt, approvedAt, endedAt }
+                              // 아바타(대리베팅) 신청 — 회원이 신청하면 파트너 어드민에서
+                              // 승인(담당 아바타 배정 → 진행중)하고, 승인된 동안은 매 라운드
+                              // 클라이언트가 betSide/betAmount로 자동 베팅한다. 팁은 memberLedger에
+                              // category:"avatar_tip"|"dealer_tip" + relatedRequestId로 기록.
+avatarServiceRequests/{uuid} { requestId, tableId, memberId, type:"shoe_change", dt }
+                              // 아바타 세션 중 슈체인지 등 서비스 요청 로그
+```
+
+### 잔액·집계 파생값 (저장하지 않고 항상 계산)
+| 화면 | 계산 방법 |
+|---|---|
+| 회원 보유금 | `sum(memberLedger.amount) where memberId==X` |
+| 회원 보유포인트 | `sum(memberLedger.amount) where memberId==X and category in (point_earn,point_convert)` |
+| 파트너 쉐어 누계 | `sum(shareLedger.amount) where partnerCode==X` |
+| 일자별정산/데일리리포트 | `memberLedger`를 `dt` 범위 + `category`로 집계 쿼리 |
+| 회원 베팅내역 | `memberLedger where category=="bet"` ⋈ `rounds` (roundId) |

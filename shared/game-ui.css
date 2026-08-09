@@ -283,12 +283,12 @@
 .derived-road-grid .dr-cell{width:7px;height:7px;border-radius:50%;border:1.5px solid transparent;box-sizing:border-box;flex-shrink:0;}
 .derived-road-grid .dr-cell.overflow{border:none;color:var(--ink-faint);font-size:6px;display:flex;align-items:center;justify-content:center;}
 .derived-road-grid .dr-cell.red{border-color:var(--danger);}
-.derived-road-grid .dr-cell.blue{border-color:#4A9FD8;}
+.derived-road-grid .dr-cell.blue{border-color:#2f7fbf;}
 /* Cockroach Road is conventionally a diagonal tick, not a dot. */
 .derived-road-grid .dr-cell.diagonal{border:none;border-radius:0;position:relative;}
 .derived-road-grid .dr-cell.diagonal::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-38deg);}
 .derived-road-grid .dr-cell.diagonal.red{color:var(--danger);}
-.derived-road-grid .dr-cell.diagonal.blue{color:#4A9FD8;}
+.derived-road-grid .dr-cell.diagonal.blue{color:#2f7fbf;}
 .bet-history-mini{font-size:11.5px;}
 .bet-history-mini .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1a2c4a;}
 .chat-panel{display:flex;flex-direction:column;flex:1;min-height:140px;}

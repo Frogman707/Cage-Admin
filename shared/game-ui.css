@@ -134,9 +134,11 @@
     linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.26)),
     url('assets/table-live.jpg') 22% 32%/cover no-repeat;
 }
-.sd-type-badge{position:absolute;top:14px;left:14px;background:rgba(4,20,30,.7);backdrop-filter:blur(4px);border:1px solid #3fd0e8;color:#3fd0e8;border-radius:14px;padding:5px 16px;font-weight:800;font-size:11.5px;letter-spacing:1px;z-index:2;}
-.sd-limit-text{position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-weight:800;font-size:16px;text-shadow:0 2px 8px rgba(0,0,0,.7);z-index:2;}
-.sd-stage .phase-banner{top:56px;}
+.sd-stage-top{position:absolute;top:14px;left:56px;right:64px;display:flex;align-items:center;gap:10px;z-index:2;flex-wrap:wrap;}
+.sd-type-badge{background:rgba(4,20,30,.7);backdrop-filter:blur(4px);border:1px solid #3fd0e8;color:#3fd0e8;border-radius:14px;padding:5px 16px;font-weight:800;font-size:11.5px;letter-spacing:1px;flex-shrink:0;}
+.sd-table-id-mini{color:#fff;font-family:var(--mono);font-size:12px;font-weight:700;text-shadow:0 2px 6px rgba(0,0,0,.6);flex-shrink:0;}
+.sd-limit-text{color:#fff;font-weight:800;font-size:14px;text-shadow:0 2px 8px rgba(0,0,0,.7);}
+.sd-stage .phase-banner{top:52px;}
 .cards-area{display:flex;gap:44px;align-items:center;perspective:600px;}
 .hand{display:flex;flex-direction:column;align-items:center;gap:10px;}
 .hand .side-label{font-size:11px;letter-spacing:3px;font-weight:800;color:var(--ink-dim);}
@@ -178,14 +180,14 @@
 .sd-stage-icons button.muted .icon-on,.sd-stage-icons button:not(.muted) .icon-off{display:none;}
 .timer-ring-wrap{position:absolute;bottom:16px;right:16px;width:64px;height:64px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.5));}
 .timer-ring-wrap svg{transform:rotate(-90deg);}
-.timer-ring-wrap .txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:18px;color:var(--brass);}
+.timer-ring-wrap .txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:18px;color:var(--jade);}
 .timer-ring-wrap.urgent .txt{color:var(--danger);}
 .timer-ring-wrap.urgent{animation:timerPulse 1s ease-in-out infinite;}
 @keyframes timerPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.07);}}
 .phase-banner{
   position:absolute;top:16px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,.55);backdrop-filter:blur(6px);border:1px solid var(--brass-dim);border-radius:22px;
-  padding:7px 20px;font-size:12.5px;font-weight:700;color:var(--brass);letter-spacing:.6px;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.18);border-radius:8px;
+  padding:8px 22px;font-size:14px;font-weight:700;color:#fff;letter-spacing:.4px;
   box-shadow:0 4px 14px -4px rgba(0,0,0,.5);
 }
 /* ---- betting rail ---- */
@@ -274,7 +276,6 @@
 .br-pair.player{top:0;left:0;background:#2f7fbf;}
 .br-pair.banker{bottom:0;right:0;background:var(--danger);}
 .lobby-card .mini-road .br-pair{width:2.5px;height:2.5px;}
-.derived-road-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-faint);margin:12px 0 6px;padding-top:10px;border-top:1px solid var(--line);}
 .derived-road-grid{display:flex;gap:2px;overflow-x:auto;padding-bottom:2px;}
 .derived-road-grid .br-col{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
 .derived-road-grid .dr-cell{width:7px;height:7px;border-radius:50%;background:var(--line);flex-shrink:0;}
@@ -402,7 +403,6 @@
 .seg-btn.active{background:var(--grad-gold);color:#071120;box-shadow:0 3px 10px -3px rgba(217,178,106,.5);}
 
 /* ---- P/B/T tally bar + bead road (single-table detail screens) ---- */
-.bead-road-wrap{margin-top:10px;}
 .bead-road{display:flex;gap:3px;overflow-x:auto;padding-bottom:4px;}
 .bead-road .br-col{display:flex;flex-direction:column;gap:3px;flex-shrink:0;}
 .bead-road .bd-cell{width:14px;height:14px;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.35), inset 0 1px 1px rgba(255,255,255,.25);}
@@ -421,11 +421,10 @@
 .speed-detail-head .meta{font-size:11.5px;color:var(--ink-faint);font-family:var(--mono);}
 .speed-detail-close{margin-left:auto;}
 .speed-detail-grid{
-  display:grid;gap:12px;grid-template-columns:1.35fr 1fr;
+  display:grid;gap:12px;grid-template-columns:1.35fr 1fr;grid-template-rows:auto 230px;
   grid-template-areas:
     "stage bets"
-    "road  bets"
-    "tray  tray";
+    "tally road";
 }
 .sd-stage{grid-area:stage;position:relative;border-radius:16px;min-height:300px;display:flex;align-items:center;justify-content:center;overflow:hidden;
   border:1px solid var(--line);
@@ -433,48 +432,44 @@
              radial-gradient(ellipse at 50% 22%, #123c2f 0%, #07130e 78%);
   box-shadow:inset 0 0 90px rgba(0,0,0,.6);
 }
-/* the reference shows the scoreboard (road maps) on a plain white card,
-   contrasting with the dark felt above and dark board to the right. */
-.sd-road{grid-area:road;background:#fff;border:1px solid #e4e4e4;border-radius:12px;padding:12px 16px;color:#1a1a1a;}
-.sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;padding-bottom:6px;}
-.sd-road .derived-road-title{color:#8a8a8a;border-top-color:#e4e4e4;}
-.sd-road .bd-cell.overflow,.sd-road .br-cell.overflow,.sd-road .dr-cell.overflow{color:#8a8a8a;}
-.sd-road-mini-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:2px;}
-.sd-road-mini .derived-road-title{margin:12px 0 6px;}
-/* real-scoreboard header strip: bilingual game title + min/max bet boxes + table id */
-.sd-road-head{display:flex;align-items:stretch;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
-.sd-road-title-block{display:flex;flex-direction:column;justify-content:center;gap:1px;min-width:80px;}
-.sd-road-title-block b{font-size:15px;}
-.sd-road-title-block span{font-size:10.5px;color:#8a8a8a;}
-.sd-road-bet-box{flex:1;min-width:120px;border-radius:8px;padding:7px 12px;color:#fff;display:flex;flex-direction:column;justify-content:center;}
-.sd-road-bet-box span{font-size:10px;opacity:.85;}
-.sd-road-bet-box b{font-size:15px;font-family:var(--mono);}
-.sd-road-bet-box.min{background:#2f8fd8;}
-.sd-road-bet-box.max{background:#1c5fa8;}
-.sd-road-table-id{font-size:9.5px;color:#8a8a8a;text-align:right;flex-shrink:0;}
-.sd-road-table-id b{display:block;font-size:13px;color:#1a1a1a;font-family:var(--mono);}
-/* legend table (뱅커/플레이어/타이/페어 counts) + next-game-trend widget */
-.sd-legend-row{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-top:14px;}
-.sd-legend-table{border:1px solid #e4e4e4;border-radius:8px;overflow:hidden;}
-.sd-legend-table .lg-head{background:#f4f4f4;padding:7px 12px;font-size:10.5px;font-weight:700;color:#666;display:flex;justify-content:space-between;}
-.sd-legend-table .lg-row{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;border-top:1px solid #eee;}
-.sd-legend-table .lg-row i{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
-.sd-legend-table .lg-row .en{color:#999;font-size:10px;margin-left:3px;}
-.sd-legend-table .lg-row b{margin-left:auto;font-family:var(--mono);}
-.sd-next-trend{border:1px solid #e4e4e4;border-radius:8px;padding:10px 12px;}
-.sd-next-trend .nt-title{font-size:9.5px;color:#8a8a8a;margin-bottom:8px;}
-.sd-next-trend .nt-title .en{font-size:8.5px;}
-.sd-next-trend .nt-row{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;padding:4px 0;}
-.sd-next-trend .nt-row .dot{width:12px;height:12px;border-radius:50%;border:2px solid #ccc;}
-.sd-next-trend .nt-row.hot .dot{background:currentColor;border-color:currentColor;}
-.sd-next-trend .nt-row.banker{color:var(--danger);}
-.sd-next-trend .nt-row.player{color:#2f7fbf;}
-.sd-road-disclaimer{margin-top:10px;font-size:9.5px;color:#aaa;text-align:center;}
-@media (max-width:860px){
-  .sd-legend-row{grid-template-columns:1fr;}
-  .sd-road-head{flex-direction:column;}
+/* the reference shows the scoreboard (road maps) and bead-plate/tally panels on a
+   plain graph-paper card, contrasting with the dark felt/betting board above. */
+.sd-graph-bg{
+  background-color:#fafafa;
+  background-image:linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
+  background-size:14px 14px;
+  border:1px solid #e4e4e4;border-radius:12px;color:#1a1a1a;
 }
-.sd-road-mini .derived-road-grid .dr-cell{width:9px;height:9px;}
+.sd-tally{grid-area:tally;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
+.sd-tally-head{display:flex;justify-content:space-between;font-size:10.5px;color:#8a8a8a;margin-bottom:8px;flex-shrink:0;}
+.sd-tally-head b{color:#1a1a1a;font-family:var(--mono);font-weight:700;}
+.sd-tally-body{display:flex;gap:14px;flex:1;min-height:0;}
+.sd-tally-list{display:flex;flex-direction:column;gap:7px;flex-shrink:0;padding-top:2px;}
+.sd-tally-list .tl-row{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;font-family:var(--mono);color:#1a1a1a;}
+.sd-tally-list .tl-row i{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.sd-tally-list .tl-row.player i{background:#2f7fbf;} .sd-tally-list .tl-row.player{color:#2f7fbf;}
+.sd-tally-list .tl-row.banker i{background:var(--danger);} .sd-tally-list .tl-row.banker{color:var(--danger);}
+.sd-tally-list .tl-row.tie i{background:var(--jade);} .sd-tally-list .tl-row.tie{color:var(--jade);}
+.sd-tally-list .tl-row.pair i{background:#999;} .sd-tally-list .tl-row.pair{color:#999;}
+.sd-tally .bead-road{flex:1;}
+.sd-road{grid-area:road;padding:10px 14px;display:flex;flex-direction:column;overflow:hidden;}
+.sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;}
+.sd-road .br-col{gap:1px;}
+.sd-road .br-cell{width:13px;height:13px;border-width:2px;}
+.sd-road .br-cell.tie-only{width:8px;height:8px;}
+.sd-road .bd-cell.overflow,.sd-road .br-cell.overflow,.sd-road .dr-cell.overflow{color:#8a8a8a;}
+.sd-road-body{display:flex;flex:1;min-height:0;gap:10px;margin-top:6px;}
+.sd-road-roads{display:flex;flex-direction:column;justify-content:space-between;flex:1;min-width:0;}
+.sd-road .derived-road-grid{overflow-x:auto;}
+.sd-road .derived-road-grid .dr-cell{width:7px;height:7px;}
+.sd-road-legend-rail{display:flex;flex-direction:column;justify-content:space-around;align-items:center;flex-shrink:0;width:30px;border-left:1px solid #e4e4e4;}
+.sd-road-legend-rail .rail-badge{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:800;}
+.sd-road-legend-rail .rail-badge .ring{width:12px;height:12px;border-radius:50%;border:2px solid #2f7fbf;box-sizing:border-box;position:relative;}
+.sd-road-legend-rail .rail-badge.player{color:#2f7fbf;}
+.sd-road-legend-rail .rail-badge.banker{color:var(--danger);}
+.sd-road-legend-rail .rail-badge.banker .ring{border-color:var(--danger);}
+.sd-road-legend-rail .rail-badge.banker .ring::before{content:'';position:absolute;left:8%;top:50%;width:84%;height:1.5px;background:var(--danger);transform:rotate(-30deg);}
 .sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 .sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
 .sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}
@@ -497,21 +492,11 @@
 .sd-bets.avatar-side{background:none;border:none;overflow:visible;gap:12px;}
 .sd-bets.avatar-side .avatar-status-card{margin-top:0;flex:0 0 auto;}
 .sd-bets.avatar-side .chat-panel{flex:1;min-height:160px;}
-.sd-chip-tray{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));border:1px solid var(--line);border-radius:14px 14px 0 0;}
+/* chip tray now lives inside .sd-bets itself (its last child), not a separate
+   full-width row, so it only needs bottom corners matching the parent card. */
+.sd-chip-tray{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));border-top:1px solid var(--line);flex-shrink:0;}
 .sd-chip-tray .spacer{margin-left:auto;}
-.sd-tray{grid-area:tray;}
-.sd-info-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#0a0a0a;border:1px solid var(--line);border-top:none;border-radius:0 0 14px 14px;}
-.sd-info-bar .spacer{margin-left:auto;}
-/* Avatar's info bar has no chip tray above it, so it needs its own top corners too. */
-.sd-tray.solo .sd-info-bar{border-radius:14px;border-top:1px solid var(--line);}
-.sd-round-info{display:flex;align-items:center;gap:10px;flex-shrink:0;}
-.sd-round-info .mark{width:26px;height:26px;border-radius:50%;background:var(--grad-gold);display:flex;align-items:center;justify-content:center;color:#071120;font-weight:900;font-size:10.5px;flex-shrink:0;}
-.sd-round-info .txt{font-size:11px;color:var(--ink-faint);font-family:var(--mono);}
-.sd-round-info .txt b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
-.sd-info-bar .icon-btn{width:28px;height:28px;background:none;border:none;}
-.sd-info-bar .icon-btn:hover{color:var(--brass);}
 @media (max-width:860px){
-  .speed-detail-grid{grid-template-columns:1fr;grid-template-areas:"stage" "bets" "road" "tray";}
+  .speed-detail-grid{grid-template-columns:1fr;grid-template-rows:auto auto auto;grid-template-areas:"stage" "bets" "tally" "road";}
   .sd-bets .bet-rail .bet-spot{padding:14px 8px;}
-  .sd-road-mini-row{gap:8px;}
 }

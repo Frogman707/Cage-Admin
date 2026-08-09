@@ -8568,6 +8568,7 @@ function renderDailyIo(){
  if(accQ) all = all.filter(r => r.account.includes(accQ));
  if(start) all = all.filter(r => r.dt.slice(0,10) >= start);
  if(end) all = all.filter(r => r.dt.slice(0,10) <= end);
+ all.sort((a,b)=> (b.dt||'').localeCompare(a.dt||''));
  document.getElementById('dailyIoBody').innerHTML = !all.length ? `<tr class="empty-row"><td colspan="8">—</td></tr>` :
   all.map(r=>`<tr><td>${esc(r.casino)}</td><td class="num">${esc(r.dt)}</td><td>${esc(r.account)}</td><td class="num pos">${r.inn?fmt(r.inn):''}</td><td class="num neg">${r.out?fmt(r.out):''}</td><td class="num">${fmt(r.bal)}</td><td>${esc(r.staff)}</td><td>${esc(r.memo)}</td></tr>`).join('');
 }

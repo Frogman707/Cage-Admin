@@ -549,9 +549,11 @@ function avatarScoreboardHtml(idSuffix){
         <div class="br-grid" id="road-${idSuffix}"></div>
         <div class="sd-road-body">
           <div class="sd-road-roads">
-            <div class="derived-road-grid" id="bigeye-${idSuffix}"></div>
-            <div class="derived-road-grid" id="smallroad-${idSuffix}"></div>
-            <div class="derived-road-grid" id="cockroach-${idSuffix}"></div>
+            <div class="sd-road-ring-roads">
+              <div class="derived-road-grid" id="bigeye-${idSuffix}"></div>
+              <div class="derived-road-grid" id="smallroad-${idSuffix}"></div>
+            </div>
+            <div class="derived-road-grid diagonal-road" id="cockroach-${idSuffix}"></div>
           </div>
           <div class="sd-road-legend-rail">
             <div class="rail-badge player">P<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>

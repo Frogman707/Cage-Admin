@@ -139,48 +139,47 @@ function buildBigRoad(results, pairFlags){
 function renderBigRoad(cols, maxRows){
   maxRows = maxRows || 6;
   const cells = [];
-  cols.forEach((col,ci)=>{
+  cols.forEach(col=>{
     if (!col.side){ cells.push(`<div class="br-col"><div class="br-cell tie-only">${col.ties}</div></div>`); return; }
-    let colHtml = '';
-    col.items.forEach((it,ri)=>{
-      if (ri >= maxRows) return;
-      const showTie = ri===0 && col.ties>0;
-      const pf = col.pairs[ri];
-      let dots = '';
-      if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
-      if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
-      colHtml += `<div class="br-cell ${it}">${showTie?`<span class="br-tie">${col.ties}</span>`:''}${dots}</div>`;
-    });
-    if (col.items.length > maxRows) colHtml += `<div class="br-cell overflow">+${col.items.length-maxRows}</div>`;
-    cells.push(`<div class="br-col">${colHtml}</div>`);
+    // A run longer than the board is deep continues in the next column ("dragon tail")
+    // rather than being cut off with a counter, which is what a real board draws.
+    for (let start=0; start<col.items.length; start+=maxRows){
+      let colHtml = '';
+      col.items.slice(start, start+maxRows).forEach((it,ri)=>{
+        const idx = start + ri;
+        const showTie = idx===0 && col.ties>0;
+        const pf = col.pairs[idx];
+        let dots = '';
+        if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
+        if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
+        colHtml += `<div class="br-cell ${it}">${showTie?`<span class="br-tie">${col.ties}</span>`:''}${dots}</div>`;
+      });
+      cells.push(`<div class="br-col">${colHtml}</div>`);
+    }
   });
   return cells.join('');
 }
 
-/* ---------------- Bead Road (진주로드) — same column rule as Big Road: a result keeps
-   stacking down the current column until the value changes, then a new column starts.
-   Real boards mark each bead with its result letter and a pair corner dot, same as Big Road. */
+/* ---------------- Bead Road (진주로드) — strictly chronological, unlike every other road:
+   results fill straight down a column of 6 and then wrap to the next column, so one column
+   freely mixes P/B/T. (The value-change-starts-a-new-column rule applies to Big Road and the
+   derived roads, never here.) Each bead carries its result letter and any pair corner dot. */
+const BEAD_ROWS = 6;
 const RESULT_LETTER = {player:'P', banker:'B', tie:'T'};
 function renderBeadRoad(results, pairFlags){
-  const cols = [];
-  results.forEach((r,i)=>{
-    const pf = pairFlags && pairFlags[i];
-    if (cols.length && cols[cols.length-1].value===r) cols[cols.length-1].items.push(pf);
-    else cols.push({value:r, items:[pf]});
-  });
-  const maxRows = 6;
-  return cols.map(col=>{
-    let html = '';
-    col.items.forEach((pf,ri)=>{
-      if (ri >= maxRows) return;
+  let html = '';
+  for (let start=0; start<results.length; start+=BEAD_ROWS){
+    let colHtml = '';
+    results.slice(start, start+BEAD_ROWS).forEach((r,ri)=>{
+      const pf = pairFlags && pairFlags[start+ri];
       let dots = '';
       if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
       if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
-      html += `<div class="bd-cell ${col.value}">${RESULT_LETTER[col.value]}${dots}</div>`;
+      colHtml += `<div class="bd-cell ${r}">${RESULT_LETTER[r]}${dots}</div>`;
     });
-    if (col.items.length > maxRows) html += `<div class="bd-cell overflow">+${col.items.length-maxRows}</div>`;
-    return `<div class="br-col">${html}</div>`;
-  }).join('');
+    html += `<div class="br-col">${colHtml}</div>`;
+  }
+  return html;
 }
 
 /* ---------------- shared column-grouping for the derived roads + Bead Road: groups
@@ -194,17 +193,16 @@ function groupIntoRoadColumns(values){
   });
   return cols;
 }
-function renderRoadColumns(cols, cellHtmlFn, overflowClass, maxRows){
+function renderRoadColumns(cols, cellHtmlFn, maxRows){
   maxRows = maxRows || 6;
-  return cols.map(col=>{
-    let html = '';
-    col.items.forEach((it,ri)=>{
-      if (ri >= maxRows) return;
-      html += cellHtmlFn(it);
-    });
-    if (col.items.length > maxRows) html += `<div class="${overflowClass} overflow">+${col.items.length-maxRows}</div>`;
-    return `<div class="br-col">${html}</div>`;
-  }).join('');
+  let html = '';
+  cols.forEach(col=>{
+    // same dragon-tail wrap as Big Road: overflow continues in the next column
+    for (let start=0; start<col.items.length; start+=maxRows){
+      html += `<div class="br-col">${col.items.slice(start, start+maxRows).map(cellHtmlFn).join('')}</div>`;
+    }
+  });
+  return html;
 }
 
 /* ---------------- table-list stats (vendor feedback: 오늘/총 베팅액, P/B/T 승수, 좋은 흐름) ---------------- */
@@ -259,11 +257,14 @@ function deriveRoad(cols, offset){
 function deriveBigEyeBoy(cols){ return deriveRoad(cols, 1); }
 function deriveSmallRoad(cols){ return deriveRoad(cols, 2); }
 function deriveCockroachRoad(cols){ return deriveRoad(cols, 3); }
+// The three derived roads are distinguished by their mark, not their position: Big Eye Boy
+// draws hollow rings, Small Road solid dots ('filled'), Cockroach Road diagonal ticks
+// ('diagonal') - the same trio the P/B legend rail spells out. They stack three-to-a-panel
+// under Big Road, so they run 3 rows deep rather than Big Road's 6.
+const DERIVED_ROAD_ROWS = 3;
 function renderDerivedRoad(marks, style){
-  // Cockroach Road is conventionally drawn as diagonal ticks rather than dots,
-  // distinguishing it at a glance from Big Eye Boy / Small Road on a real board.
   const cols = groupIntoRoadColumns(marks);
-  return renderRoadColumns(cols, m=>`<div class="dr-cell ${m}${style?' '+style:''}"></div>`, 'dr-cell');
+  return renderRoadColumns(cols, m=>`<div class="dr-cell ${m}${style?' '+style:''}"></div>`, DERIVED_ROAD_ROWS);
 }
 
 

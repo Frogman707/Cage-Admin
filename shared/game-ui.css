@@ -284,6 +284,11 @@
 .derived-road-grid .dr-cell.overflow{border:none;color:var(--ink-faint);font-size:6px;display:flex;align-items:center;justify-content:center;}
 .derived-road-grid .dr-cell.red{border-color:var(--danger);}
 .derived-road-grid .dr-cell.blue{border-color:#2f7fbf;}
+/* The three derived roads are told apart by their mark, not their position - Big Eye Boy
+   draws hollow rings, Small Road solid dots, Cockroach Road diagonal ticks. That trio is
+   exactly what the P/B legend rail spells out. */
+.derived-road-grid .dr-cell.filled.red{background:var(--danger);}
+.derived-road-grid .dr-cell.filled.blue{background:#2f7fbf;}
 /* Cockroach Road is conventionally a diagonal tick, not a dot. */
 .derived-road-grid .dr-cell.diagonal{border:none;border-radius:0;position:relative;}
 .derived-road-grid .dr-cell.diagonal::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-38deg);}
@@ -460,7 +465,12 @@
 .sd-tally-list .tl-row.player .tl-badge{background:#2f7fbf;} .sd-tally-list .tl-row.player b{color:#2f7fbf;}
 .sd-tally-list .tl-row.banker .tl-badge{background:var(--danger);} .sd-tally-list .tl-row.banker b{color:var(--danger);}
 .sd-tally-list .tl-row.tie .tl-badge{background:var(--jade);} .sd-tally-list .tl-row.tie b{color:var(--jade);}
-.sd-tally-list .tl-row.pair .tl-badge{background:#999;} .sd-tally-list .tl-row.pair b{color:#666;}
+/* pair rows: grey bead carrying the road's own corner-dot marker, with the count tinted
+   to the side that dot stands for. */
+.sd-tally-list .tl-row.pair .tl-badge{background:#b0b0b0;position:relative;}
+.sd-tally-list .tl-row.pair .br-pair{width:6px;height:6px;}
+.sd-tally-list .tl-row.pair.player b{color:#2f7fbf;}
+.sd-tally-list .tl-row.pair.banker b{color:var(--danger);}
 .sd-tally .bead-road{flex:1;}
 .sd-road{grid-area:road;padding:10px 14px;display:flex;flex-direction:column;overflow:hidden;}
 .sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;}

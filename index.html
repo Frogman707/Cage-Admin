@@ -5024,7 +5024,7 @@ ko:{
  balanceHann:"HANN 잔액", balanceNustar:"NUSTAR 잔액", balanceOnline:"ONLINE 잔액",
  depositAmtCol:"디파짓 금액", cashoutAmtCol:"캐쉬아웃 금액", markerRedeemAmtCol:"마커 리딤 금액", dealerTipsAmtCol:"딜러 팁 금액", houseTipsAmtCol:"하우스 팁 금액", workingChipsAmtCol:"워킹칩 금액",
  depositColShort:"디파짓", cashoutColShort:"캐쉬아웃", markerColShort:"마커 리딤", dealerTipsColShort:"딜러 팁", houseTipsColShort:"하우스 팁", workingChipsColShort:"워킹칩",
- specialRemark:"특이사항", floorStaffLabel:"근무자", nnDeductHint:"(캐쉬아웃·마커 리딤은 롤링에서 차감됩니다)",
+ specialRemark:"특이사항", floorStaffLabel:"근무자", nnDeductHint:"(캐쉬아웃·마커 리딤·워킹칩은 롤링에서 차감됩니다)",
  totalRollingLabel:"토탈 롤링",
  rollingReceiptTitle:"롤링커미션 정산서", receiptBuyinAmt:"바인금액", receiptCashoutAmt:"캐쉬아웃", rollingCommSettleAmt:"롤링 커미션 정산금", shiftManagerLabel:"Shift Manager",
  startKindLabel:"시작 종류", startKindLive:"라이브", startKindAvatar:"아바타", startKindSpeed:"스피드",
@@ -5163,7 +5163,7 @@ en:{
  balanceHann:"HANN Balance", balanceNustar:"NUSTAR Balance", balanceOnline:"ONLINE Balance",
  depositAmtCol:"Deposit Amount", cashoutAmtCol:"CashOut Amount", markerRedeemAmtCol:"Marker Redeem Amount", dealerTipsAmtCol:"Dealer Tips Amount", houseTipsAmtCol:"House Tips Amount", workingChipsAmtCol:"Working Chips Amount",
  depositColShort:"Deposit", cashoutColShort:"CashOut", markerColShort:"Marker Redeem", dealerTipsColShort:"Dealer Tips", houseTipsColShort:"House Tips", workingChipsColShort:"Working Chips",
- specialRemark:"Special Remark", floorStaffLabel:"Staff", nnDeductHint:"(CashOut / Marker Redeem are deducted from rolling)",
+ specialRemark:"Special Remark", floorStaffLabel:"Staff", nnDeductHint:"(CashOut / Marker Redeem / Working Chips are deducted from rolling)",
  totalRollingLabel:"Total Rolling",
  rollingReceiptTitle:"Rolling Commission Settlement", receiptBuyinAmt:"Buy-in Amount", receiptCashoutAmt:"CashOut", rollingCommSettleAmt:"Rolling Commission Settlement", shiftManagerLabel:"Shift Manager",
  startKindLabel:"Start Kind", startKindLive:"Live", startKindAvatar:"Avatar", startKindSpeed:"Speed",
@@ -5302,7 +5302,7 @@ en:{
  balanceHann:"HANN 餘額", balanceNustar:"NUSTAR 餘額", balanceOnline:"ONLINE 餘額",
  depositAmtCol:"存入金額", cashoutAmtCol:"兌現金額", markerRedeemAmtCol:"馬克兌換金額", dealerTipsAmtCol:"荷官小費金額", houseTipsAmtCol:"公司小費金額", workingChipsAmtCol:"在檯碼金額",
  depositColShort:"存入", cashoutColShort:"兌現", markerColShort:"馬克兌換", dealerTipsColShort:"荷官小費", houseTipsColShort:"公司小費", workingChipsColShort:"在檯碼",
- specialRemark:"特別備註", floorStaffLabel:"值班人員", nnDeductHint:"（兌現／馬克兌換將從轉碼中扣除）",
+ specialRemark:"特別備註", floorStaffLabel:"值班人員", nnDeductHint:"（兌現／馬克兌換／在檯碼將從轉碼中扣除）",
  totalRollingLabel:"總轉碼",
  rollingReceiptTitle:"轉碼佣金結算單", receiptBuyinAmt:"買入金額", receiptCashoutAmt:"兌現金額", rollingCommSettleAmt:"轉碼佣金結算金額", shiftManagerLabel:"班務經理",
  startKindLabel:"開局種類", startKindLive:"現場", startKindAvatar:"電投", startKindSpeed:"快速電投",
@@ -5441,7 +5441,7 @@ en:{
  balanceHann:"HANN 余额", balanceNustar:"NUSTAR 余额", balanceOnline:"ONLINE 余额",
  depositAmtCol:"存入金额", cashoutAmtCol:"兑现金额", markerRedeemAmtCol:"马克兑换金额", dealerTipsAmtCol:"荷官小费金额", houseTipsAmtCol:"公司小费金额", workingChipsAmtCol:"在台码金额",
  depositColShort:"存入", cashoutColShort:"兑现", markerColShort:"马克兑换", dealerTipsColShort:"荷官小费", houseTipsColShort:"公司小费", workingChipsColShort:"在台码",
- specialRemark:"特别备注", floorStaffLabel:"值班人员", nnDeductHint:"（兑现／马克兑换将从转码中扣除）",
+ specialRemark:"特别备注", floorStaffLabel:"值班人员", nnDeductHint:"（兑现／马克兑换／在台码将从转码中扣除）",
  totalRollingLabel:"总转码",
  rollingReceiptTitle:"转码佣金结算单", receiptBuyinAmt:"买入金额", receiptCashoutAmt:"兑现金额", rollingCommSettleAmt:"转码佣金结算金额", shiftManagerLabel:"班务经理",
  startKindLabel:"开局种类", startKindLive:"现场", startKindAvatar:"电投", startKindSpeed:"快速电投",
@@ -7292,8 +7292,8 @@ async function _doConfirmMidSettle(){
   marker: unformatNum(document.getElementById('midNnMarker').value),
   working: unformatNum(document.getElementById('midNnWorking').value),
  };
- // NN chip deposit / cashout / marker redeem are deducted from rolling; working chip returns don't affect rolling
- const added = -nn.deposit - nn.cashout - nn.marker;
+ // NN chip deposit / cashout / marker redeem / working chip returns are all deducted from rolling (win/loss excludes working chip separately below)
+ const added = -nn.deposit - nn.cashout - nn.marker - nn.working;
  const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  g.checkpoints = g.checkpoints||[];
@@ -7451,7 +7451,8 @@ function recalcEnd(){
  const nnDeposit = unformatNum(document.getElementById('endNnDeposit').value);
  const nnCashout = unformatNum(document.getElementById('endNnCashout').value);
  const nnMarker = unformatNum(document.getElementById('endNnMarker').value);
- const netNN = -nnDeposit - nnCashout - nnMarker;
+ const nnWorking = unformatNum(document.getElementById('endNnWorking').value);
+ const netNN = -nnDeposit - nnCashout - nnMarker - nnWorking;
  const totalRolling = (g ? (g.rolling||0) : 0) + netNN;
  const ccSum = ccDeposit + ccCashout + ccMarker + ccDealerTips + ccHouseTips;
  const nnSum = nnDeposit + nnCashout + nnMarker;
@@ -7488,7 +7489,7 @@ function confirmGameEnd(){
  const nn = gameEndNnFields();
  const returnedWorking = workingChipReturnedTotal(g) + nn.working;
  if(Math.abs(returnedWorking - (g.workingChip||0)) > 0.001){ toast(t('toastWorkingChipNotReturned')); return; }
- const netNN = -nn.deposit - nn.cashout - nn.marker;
+ const netNN = -nn.deposit - nn.cashout - nn.marker - nn.working;
  if((g.rolling||0) + netNN < 0){ toast(t('toastRollingNegative')); return; }
  requestPinAuth(_doConfirmGameEnd);
 }
@@ -7504,7 +7505,7 @@ async function _doConfirmGameEnd(){
   houseTips: unformatNum(document.getElementById('endCcHouseTips').value),
  };
  const nn = gameEndNnFields();
- const netNN = -nn.deposit - nn.cashout - nn.marker;
+ const netNN = -nn.deposit - nn.cashout - nn.marker - nn.working;
  const totalRolling = (g.rolling||0) + netNN;
  if(totalRolling < 0){ toast(t('toastRollingNegative')); return; }
  const ccSum = cc.deposit + cc.cashout + cc.marker + cc.dealerTips + cc.houseTips;

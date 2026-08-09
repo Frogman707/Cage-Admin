@@ -517,7 +517,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <div id="login-step1">
       <div class="field"><label data-i18n="loginStaffLabel"></label>
         <select id="loginStaff"></select></div>
-      <div class="field"><label data-i18n="loginPinLabel"></label><input id="loginPin" type="password" maxlength="6" placeholder="••••••" autocomplete="off"></div>
+      <div class="field"><label data-i18n="loginPinLabel"></label><input id="loginPin" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off"></div>
       <div class="field"><label data-i18n="loginOtpLabel"></label><input id="loginOtp" type="text" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off" class="otp-input"></div>
       <p class="login-error" id="loginError" data-i18n="loginErrorMsg" style="display:none;"></p>
       <p class="login-error" id="loginOtpError" data-i18n="loginOtpErrorMsg" style="display:none;"></p>
@@ -1235,8 +1235,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <div class="field"><label data-i18n="regPwConfirm"></label><input type="password"></div>
           </div>
           <div class="row">
-            <div class="field req-field"><label data-i18n="regWdPw"></label><input type="password" id="regWdPw"></div>
-            <div class="field req-field"><label data-i18n="regWdPwConfirm"></label><input type="password" id="regWdPwConfirm"></div>
+            <div class="field req-field"><label data-i18n="regWdPw"></label><input type="password" id="regWdPw" inputmode="numeric"></div>
+            <div class="field req-field"><label data-i18n="regWdPwConfirm"></label><input type="password" id="regWdPwConfirm" inputmode="numeric"></div>
           </div>
           <div class="hint" data-i18n="regWdPwHint"></div>
           <div class="row" style="margin-top:12px;">
@@ -1434,8 +1434,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <div class="field"><label data-i18n="regPwConfirm"></label><input type="password"></div>
   </div>
   <div class="row">
-    <div class="field"><label data-i18n="regWdPw"></label><input type="password" id="editWdPw"></div>
-    <div class="field"><label data-i18n="regWdPwConfirm"></label><input type="password" id="editWdPwConfirm"></div>
+    <div class="field"><label data-i18n="regWdPw"></label><input type="password" id="editWdPw" inputmode="numeric"></div>
+    <div class="field"><label data-i18n="regWdPwConfirm"></label><input type="password" id="editWdPwConfirm" inputmode="numeric"></div>
   </div>
   <div class="hint" data-i18n="editWdPwHint"></div>
 
@@ -1525,7 +1525,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <div class="modal-bg" id="modal-cage-pin-auth"><div class="modal auth-modal">
   <h3 data-i18n="cagePinAuthTitle"></h3>
   <p class="auth-sub" data-i18n="cagePinAuthSub"></p>
-  <div class="field"><input type="password" id="cagePinAuth" placeholder="••••" maxlength="6"></div>
+  <div class="field"><input type="password" id="cagePinAuth" inputmode="numeric" placeholder="••••" maxlength="6"></div>
   <p class="login-error" id="cagePinAuthError" data-i18n="wdAuthPinErrorMsg" style="display:none;"></p>
   <button class="btn btn-gold btn-block" style="margin-top:10px;" onclick="confirmCagePinAuth()" data-i18n="confirmBtn"></button>
   <button class="btn btn-block" style="margin-top:8px;" onclick="cancelCagePinAuth()" data-i18n="cancelBtn"></button>
@@ -1804,7 +1804,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <div class="modal-bg" id="modal-withdraw-pw"><div class="modal auth-modal">
   <h3 data-i18n="wdAuthPwTitle"></h3>
   <p class="auth-sub" data-i18n="wdAuthPwSub"></p>
-  <div class="field"><input type="password" id="wdAuthPw" placeholder="••••" maxlength="8"></div>
+  <div class="field"><input type="password" id="wdAuthPw" inputmode="numeric" placeholder="••••" maxlength="8"></div>
   <p class="login-error" id="wdAuthPwError" data-i18n="wdAuthPwErrorMsg" style="display:none;"></p>
   <button class="btn btn-gold btn-block" style="margin-top:10px;" onclick="confirmWithdrawPw()" data-i18n="confirmBtn"></button>
   <div class="row" style="margin-top:8px;">
@@ -1818,7 +1818,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <div class="modal-bg" id="modal-withdraw-pin"><div class="modal auth-modal">
   <h3 data-i18n="wdAuthPinTitle"></h3>
   <p class="auth-sub" data-i18n="wdAuthPinSub"></p>
-  <div class="field"><input type="password" id="wdAuthPin" placeholder="••••" maxlength="6"></div>
+  <div class="field"><input type="password" id="wdAuthPin" inputmode="numeric" placeholder="••••" maxlength="6"></div>
   <p class="login-error" id="wdAuthPinError" data-i18n="wdAuthPinErrorMsg" style="display:none;"></p>
   <button class="btn btn-gold btn-block" style="margin-top:10px;" onclick="confirmWithdrawPin()" data-i18n="confirmBtn"></button>
   <button class="btn btn-block" style="margin-top:8px;" onclick="cancelWithdrawAuth()" data-i18n="cancelBtn"></button>

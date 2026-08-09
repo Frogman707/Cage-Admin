@@ -4511,7 +4511,7 @@ function getGuestRollingGrandTotal(){
  Object.keys(fbRollingEventsByGame).forEach(gameId=>{
   const meta = fbGamesCache[gameId];
   if(meta && (meta.branch||'HANN') !== currentBranch()) return;
-  (fbRollingEventsByGame[gameId]||[]).forEach(e=>{ if(!e.memo) total += e.amount; });
+  (fbRollingEventsByGame[gameId]||[]).forEach(e=>{ if(e.memo==='rolling') total += e.amount; });
  });
  return total;
 }
@@ -6909,11 +6909,11 @@ async function cancelGame(gameId){
   applyShift('workingChipRollingShift', -g.workingChip, staffName);
  }
  // guestRollingGrandTotal/rollingDailyTotal/rollingCashShift only ever accumulate manually-entered
- // (memo-less) rolling - buy-in-seeded and mid-settle/game-end NN-adjustment entries are tagged
- // with a memo specifically so they're excluded from those running totals (see
+ // ('rolling'-tagged) rolling - buy-in-seeded and mid-settle/game-end NN-adjustment entries are
+ // tagged with a different memo specifically so they're excluded from those running totals (see
  // seedRollingFromBuyin/confirmRollingInput). Reversing by g.rolling itself would subtract those
- // never-added contributions too, so only the memo-less portion of the log is reversed here.
- const observedRolling = (g.rollingLog||[]).filter(r=>!r.memo).reduce((s,r)=>s+(r.amount||0), 0);
+ // never-added contributions too, so only the manually-entered portion of the log is reversed here.
+ const observedRolling = (g.rollingLog||[]).filter(r=>r.memo==='rolling').reduce((s,r)=>s+(r.amount||0), 0);
  if(observedRolling){
   bd().guestRollingGrandTotal = (bd().guestRollingGrandTotal||0) - observedRolling;
   bd().rollingDailyTotal = (bd().rollingDailyTotal||0) - observedRolling;
@@ -6990,7 +6990,7 @@ function confirmRollingInput(){
   DB.gameNNAdjust = (DB.gameNNAdjust||0) - amount;
   applyShift('rollingCashShift', amount, staffName);
   if(fbDb){
-   writeRollingEvent({gameId, amount, staff:staffName, memo:''});
+   writeRollingEvent({gameId, amount, staff:staffName, memo:'rolling'});
   } else {
    const now = phNow();
    const dateStr = now.toISOString().slice(0,10);
@@ -6999,7 +6999,7 @@ function confirmRollingInput(){
    g.lastAdded = amount;
    g.rollingLog = g.rollingLog||[];
    g.lastGrandTotal = bd().guestRollingGrandTotal;
-   g.rollingLog.unshift({date:dateStr, time:timeStr, type: amount<0?'W':'R', amount, cum:g.rolling, total:bd().guestRollingGrandTotal, staff:staffName, memo:''});
+   g.rollingLog.unshift({date:dateStr, time:timeStr, type: amount<0?'W':'R', amount, cum:g.rolling, total:bd().guestRollingGrandTotal, staff:staffName, memo:'rolling'});
   }
   saveDB(); renderOngoing(); renderBalancingSummary();
   pushNotification('notifRollingInput', `${g.account} · ${g.gameId} · ${amount>=0?'+':''}${fmt(amount)}`);

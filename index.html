@@ -204,7 +204,7 @@ tr:hover td{background:var(--panel-raised);}
 
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(8,9,4,.72);z-index:100;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow-y:auto;opacity:0;transition:opacity .18s ease;}
 .modal-bg.open{display:flex;opacity:1;}
-#modal-cage-pin-auth, #modal-withdraw-pw, #modal-withdraw-pin, #modal-reset-confirm{z-index:200;}
+#modal-cage-pin-auth, #modal-withdraw-pw, #modal-withdraw-pin{z-index:200;}
 /* modal-totp-setup can be opened from the master-login screen, before #login-gate (z-index:500)
    is hidden - it needs to sit above that overlay or it renders invisibly behind it. */
 #modal-totp-setup{z-index:600;}
@@ -598,7 +598,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <button data-view="concierge" onclick="switchView('concierge')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M2 17h20"/><circle cx="12" cy="4.6" r="1.1" fill="currentColor" stroke="none"/></svg></span><span data-i18n="navConcierge"></span></button>
     <div class="nav-foot" style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;">
       <span>Junket Cage Ops<br>International Standard</span>
-      <button id="resetBtn" onclick="openResetConfirm()" style="flex:0 0 auto;font-size:10px;padding:3px 8px;opacity:.35;background:transparent;border:1px solid var(--line);color:var(--ink-faint);border-radius:4px;cursor:pointer;transition:opacity .15s ease;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35">Reset</button>
     </div>
   </div>
 
@@ -1836,15 +1835,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     </tr></thead>
     <tbody id="gameDetailBody"></tbody>
   </table></div>
-</div></div>
-
-<div class="modal-bg" id="modal-reset-confirm"><div class="modal auth-modal">
-  <h3 data-i18n="resetConfirmTitle"></h3>
-  <p class="auth-sub" data-i18n="resetConfirmSub"></p>
-  <div class="field"><input type="password" id="resetPassword" placeholder="••••" autocomplete="off"></div>
-  <p class="login-error" id="resetPasswordError" data-i18n="resetPasswordErrorMsg" style="display:none;"></p>
-  <button class="btn btn-danger btn-block" style="margin-top:10px;" onclick="confirmReset()" data-i18n="resetConfirmBtn"></button>
-  <button class="btn btn-block" style="margin-top:8px;" onclick="closeModal('modal-reset-confirm')" data-i18n="cancelBtn"></button>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -5014,7 +5004,6 @@ ko:{
  transferAccSearch:"어카운트 검색", transferAccSearchPh:"어카운트 검색", transferNoMatch:"일치하는 어카운트가 없습니다", transferPickAcc:"이체할 어카운트를 선택하세요",
  rollingInputCol:"입력", rollingWord:"롤링", idCardAuth:"ID 카드 인증", authWaiting:"인증 대기중", authWaiting2:"대기중", authDone:"인증완료",
  wdAuthPwTitle:"출금 비밀번호 인증", wdAuthPwSub:"출금 비밀번호를 입력하세요", wdAuthPwErrorMsg:"비밀번호가 일치하지 않습니다.", wdAuthPwHint:"데모 비밀번호: 0000 (미등록 계좌 기준)",
- resetBtnLabel:"Reset", resetConfirmTitle:"지점 초기화", resetConfirmSub:"마스터 비밀번호를 입력하세요. [{branch}] 지점의 계정(MAIN 제외)·게임·정산·포인트/이벤트·근무기록·컨시어지 기록이 모두 초기화됩니다. 다른 지점 기록은 영향받지 않습니다. 초기화 전 백업 파일이 자동으로 다운로드됩니다.", resetPasswordErrorMsg:"비밀번호가 일치하지 않습니다.", resetConfirmBtn:"초기화",
  wdAuthLinkBtn:"링크 생성", wdAuthTelegramBtn:"텔레그램 전송", toastNoTelegram:"연동된 텔레그램이 없습니다.", toastTelegramSent:"텔레그램으로 인증 링크를 전송했습니다.",
  tgWaitingStatus:"연동 대기 중...", tgLinkedStatus:"연동됨: {id}", toastTelegramLinked:"{id} 연동이 완료되었습니다.", toastTelegramSendFailed:"전송에 실패했습니다.",
  wdAuthPinTitle:"핀코드 인증", wdAuthPinSub:"근무자 핀코드를 입력하세요", wdAuthPinErrorMsg:"핀코드가 일치하지 않습니다.", wdAuthPinHint:"데모 핀코드: 1234",
@@ -5152,7 +5141,6 @@ en:{
  transferAccSearch:"Account Search", transferAccSearchPh:"Search account", transferNoMatch:"No matching account", transferPickAcc:"Select an account to transfer to",
  rollingInputCol:"Input", rollingWord:"ROLLING", idCardAuth:"ID Card Authentication", authWaiting:"Awaiting Auth", authWaiting2:"Waiting", authDone:"Authenticated",
  wdAuthPwTitle:"Withdrawal Password", wdAuthPwSub:"Enter the withdrawal password", wdAuthPwErrorMsg:"Incorrect password.", wdAuthPwHint:"Demo password: 0000 (default for unregistered accounts)",
- resetBtnLabel:"Reset", resetConfirmTitle:"Reset Branch", resetConfirmSub:"Enter the master password. All [{branch}] branch records — accounts (except MAIN), games, balancing, points/event, shift log, and concierge — will be reset. Other branches are not affected. A backup file will be downloaded automatically before the reset.", resetPasswordErrorMsg:"Incorrect password.", resetConfirmBtn:"Reset",
  wdAuthLinkBtn:"Generate Link", wdAuthTelegramBtn:"Send via Telegram", toastNoTelegram:"No linked Telegram account.", toastTelegramSent:"Verification link sent via Telegram.",
  tgWaitingStatus:"Waiting for link...", tgLinkedStatus:"Linked: {id}", toastTelegramLinked:"{id} has been linked.", toastTelegramSendFailed:"Failed to send.",
  tgScanHint:"Scan the QR code or send the link below to the guest.",
@@ -5291,7 +5279,6 @@ en:{
  transferAccSearch:"帳戶搜尋", transferAccSearchPh:"搜尋帳戶", transferNoMatch:"沒有符合的帳戶", transferPickAcc:"請選擇要轉帳的帳戶",
  rollingInputCol:"輸入", rollingWord:"轉碼", idCardAuth:"ID 卡驗證", authWaiting:"驗證中", authWaiting2:"等待中", authDone:"驗證完成",
  wdAuthPwTitle:"出款密碼驗證", wdAuthPwSub:"請輸入出款密碼", wdAuthPwErrorMsg:"密碼不正確。", wdAuthPwHint:"示範密碼：0000（未設定帳戶適用）",
- resetBtnLabel:"Reset", resetConfirmTitle:"分店初始化", resetConfirmSub:"請輸入主管密碼。[{branch}] 分店的帳戶(MAIN除外)、遊戲、結算、點數/活動、交班紀錄、禮賓服務紀錄將全部重置。不影響其他分店的紀錄。重置前會自動下載備份檔案。", resetPasswordErrorMsg:"密碼不正確。", resetConfirmBtn:"重置",
  wdAuthLinkBtn:"產生連結", wdAuthTelegramBtn:"透過 Telegram 傳送", toastNoTelegram:"尚未綁定 Telegram。", toastTelegramSent:"已透過 Telegram 傳送驗證連結。",
  tgWaitingStatus:"等待連動中...", tgLinkedStatus:"已連動：{id}", toastTelegramLinked:"{id} 已完成連動。", toastTelegramSendFailed:"傳送失敗。",
  tgScanHint:"請掃描 QR 碼，或將下方連結傳送給貴賓。",
@@ -5430,7 +5417,6 @@ en:{
  transferAccSearch:"账户搜索", transferAccSearchPh:"搜索账户", transferNoMatch:"没有符合的账户", transferPickAcc:"请选择要转账的账户",
  rollingInputCol:"输入", rollingWord:"转码", idCardAuth:"ID 卡验证", authWaiting:"验证中", authWaiting2:"等待中", authDone:"验证完成",
  wdAuthPwTitle:"出款密码验证", wdAuthPwSub:"请输入出款密码", wdAuthPwErrorMsg:"密码不正确。", wdAuthPwHint:"演示密码：0000（未设置账户适用）",
- resetBtnLabel:"Reset", resetConfirmTitle:"分店初始化", resetConfirmSub:"请输入主管密码。[{branch}] 分店的账户(MAIN除外)、游戏、结算、积分/活动、交班记录、礼宾服务记录将全部重置。不影响其他分店的记录。重置前会自动下载备份文件。", resetPasswordErrorMsg:"密码不正确。", resetConfirmBtn:"重置",
  wdAuthLinkBtn:"生成链接", wdAuthTelegramBtn:"通过 Telegram 发送", toastNoTelegram:"尚未绑定 Telegram。", toastTelegramSent:"已通过 Telegram 发送验证链接。",
  tgWaitingStatus:"等待连接中...", tgLinkedStatus:"已连接：{id}", toastTelegramLinked:"{id} 已完成连接。", toastTelegramSendFailed:"发送失败。",
  tgScanHint:"请扫描二维码，或将下方链接发送给贵宾。",
@@ -6315,130 +6301,10 @@ function cancelWithdrawAuth(){
 document.getElementById('wdAuthPw').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmWithdrawPw(); });
 document.getElementById('wdAuthPin').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmWithdrawPin(); });
 
-/* ---- Master reset — wipes all records of the currently selected branch only ----
-   The password itself is unchanged ('kyle'); only its SHA-256 digest is stored/compared now,
-   so the plaintext no longer sits in the page source for anyone skimming view-source. */
+// Master password hash — used for master login authentication (see attemptMasterLogin below).
+// The password itself is unchanged ('kyle'); only its SHA-256 digest is stored/compared here,
+// so the plaintext no longer sits in the page source for anyone skimming view-source.
 const MASTER_RESET_PASSWORD_HASH = 'bb44bf07cf9a2db0554bba63a03d822c927deae77df101874496df5a6a3e896d';
-function openResetConfirm(){
- document.getElementById('resetPassword').value = '';
- document.getElementById('resetPasswordError').style.display = 'none';
- const sub = document.querySelector('#modal-reset-confirm .auth-sub');
- if(sub) sub.textContent = t('resetConfirmSub').replace('{branch}', currentBranch());
- openModal('modal-reset-confirm');
-}
-async function confirmReset(){
- const entered = document.getElementById('resetPassword').value;
- if(await sha256Hex(entered) !== MASTER_RESET_PASSWORD_HASH){
-  document.getElementById('resetPasswordError').style.display = 'block';
-  return;
- }
- closeModal('modal-reset-confirm');
- performBranchReset();
-}
-document.getElementById('resetPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmReset(); });
-// Reset wipes this branch's ledger/games/balancing history (accounts themselves are kept -
-// see performBranchResetData) - so snapshot exactly what's about to be wiped and hand the
-// staff member a JSON file before anything is actually deleted.
-function downloadBranchResetBackup(branch){
- const backup = {
-  branch, dt: phNow().toISOString().slice(0,16).replace('T',' '),
-  ledger:{}, games:[], endedGames:[], settled:[], balancing:{},
- };
- Object.keys(DB.ledger||{}).forEach(acc=>{
-  const entries = (DB.ledger[acc]||[]).filter(e=>(e.casino||'HANN')===branch);
-  if(entries.length) backup.ledger[acc] = entries;
- });
- backup.games = (DB.games||[]).filter(g=>(g.branch||'HANN')===branch);
- backup.endedGames = (DB.endedGames||[]).filter(g=>(g.branch||'HANN')===branch);
- backup.settled = (DB.settled||[]).filter(s=>(s.branch||'HANN')===branch);
- backup.balancing = JSON.parse(JSON.stringify(bd()||{}));
-
- const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
- const url = URL.createObjectURL(blob);
- const a = document.createElement('a');
- a.href = url;
- a.download = `cage-admin-reset-backup-${branch}-${backup.dt.replace(/[: ]/g,'-')}.json`;
- document.body.appendChild(a);
- a.click();
- a.remove();
- URL.revokeObjectURL(url);
-}
-async function performBranchReset(){
- downloadBranchResetBackup(currentBranch());
- await performBranchResetData();
- // Give the browser a moment to actually start the download before the page navigates away.
- setTimeout(()=>location.reload(), 400);
-}
-async function performBranchResetData(){
- const branch = currentBranch();
- // Snapshot the current combined cash/rolling totals BEFORE wiping anything - the physical cash
- // and chips sitting in the cage don't disappear just because the records are reset, so these
- // carry forward as the new baseline (otherwise the very next breakdown count would show a false
- // discrepancy equal to whatever was reset away).
- const combinedCashNow = unformatNum((document.getElementById('combinedCash')||{}).textContent||'0');
- const combinedRollingNow = unformatNum((document.getElementById('combinedRolling')||{}).textContent||'0');
-
- // Accounts are kept across a reset - only this branch's ledger/games/balancing history is
- // cleared, same as any other period reset.
-
- // Ledger: drop this branch's entries from every account (accounts opened in other branches can
- // still carry a transaction tagged to this casino via the free casino selector on deposit/transfer).
- Object.keys(DB.ledger||{}).forEach(acc=>{
-  DB.ledger[acc] = (DB.ledger[acc]||[]).filter(e=>(e.casino||'HANN')!==branch);
-  if(!DB.ledger[acc].length) delete DB.ledger[acc];
- });
- // MAIN-<branch>'s own ledger is entirely casino===branch by construction, so it's fully wiped -
- // zeroing it directly is equivalent to (and cheaper than) resumming its now-empty remainder.
- // A guest's unified balance only loses this branch's slice, so it's resummed from whatever
- // ledger entries (other branches' tags) survived the filter above, not reset to 0 outright.
- Object.entries(DB.accounts||{}).forEach(([id,acc])=>{
-  if(isMainAccount(id)){ acc.balances = acc.balances||{}; acc.balances[branch] = 0; }
-  else acc.balance = (DB.ledger[id]||[]).reduce((s,e)=>s+(e.inn||0)-(e.out||0),0);
- });
- if(fbDb){
-  try{
-   const snap = await fbDb.collection('ledger').where('casino','==',branch).get();
-   const batch = fbDb.batch();
-   snap.forEach(d=>batch.delete(d.ref));
-   await batch.commit();
-  }catch(e){}
- }
-
- // Games / rolling / settled receipts for this branch.
- if(fbDb){
-  const gameIds = Object.keys(fbGamesCache).filter(id=>(fbGamesCache[id].branch||'HANN')===branch);
-  gameIds.forEach(id=>deleteGameDoc(id));
- }
- DB.games = (DB.games||[]).filter(g=>(g.branch||'HANN')!==branch);
- DB.endedGames = (DB.endedGames||[]).filter(g=>(g.branch||'HANN')!==branch);
- DB.settled = (DB.settled||[]).filter(s=>(s.branch||'HANN')!==branch);
-
- // Balancing (cage totals, shift counters, breakdowns, cutoffs, month records) for this branch.
- if(fbDb){
-  try{
-   const [mcSnap, shSnap] = await Promise.all([
-    fbDb.collection('mainCageLedger').where('branch','==',branch).get(),
-    fbDb.collection('shiftEvents').where('branch','==',branch).get(),
-   ]);
-   const batch = fbDb.batch();
-   mcSnap.forEach(d=>batch.delete(d.ref));
-   shSnap.forEach(d=>batch.delete(d.ref));
-   await batch.commit();
-   await fbDb.collection('cageConfig').doc(branch).delete();
-  }catch(e){}
- }
- if(DB.branchData) delete DB.branchData[branch];
- branchData(branch);
- bd().cashCarryBaseline = combinedCashNow;
- bd().rollingCarryBaseline = combinedRollingNow;
- if(fbDb) await seedCageConfigToCloudIfEmpty();
-
- // Shift & Report: clear the shift check-in/out log for this reset action (on-duty roster is
- // shared, live staff state and is intentionally left alone so nobody gets bumped off shift).
- DB.shiftLog = [];
-
- saveDB();
-}
 
 /* ---- Cage-level PIN-only auth (balancing confirm, main cage, cutoff, month settle, diff correction) ---- */
 let pendingPinCallback = null;

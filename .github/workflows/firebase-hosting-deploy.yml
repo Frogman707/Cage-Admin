@@ -15,6 +15,9 @@ on:
       - "speed/**"
       - "shared/**"
       - "functions/**"
+      - "package.json"
+      - "package-lock.json"
+      - "eslint.config.js"
       - ".github/workflows/firebase-hosting-deploy.yml"
 
 jobs:

@@ -4211,6 +4211,16 @@ let fbStaffUnsub = null;
 // sitting in DB.staff, and get rejected every time. Login now stays disabled until this
 // resolves, with a hard timeout so a genuinely offline session doesn't lock out login forever.
 let staffCloudSynced = false;
+// The global 20s init backstop (armed further down, near the cloud-init sequence) exists only to
+// catch "nothing ever responded at all" - once any real signal has come in through a more specific
+// path (loadLoginStaffNames succeeding or failing, subscribeStaffCloud's own 15s timeout, etc.),
+// its job is done. Left armed, it used to fire unconditionally 20s after page load regardless of
+// what had already happened - so a perfectly successful, already-usable login screen (unlocked in
+// well under 20s by loadLoginStaffNames) could still flip back to showing the offline/"timed-out"
+// warning later, purely because the REST of the cloud-init sequence (six more sequential seed
+// calls after it, each with its own budget) hadn't finished yet. Cleared on the first call here so
+// it can't fire after the fact and revert an already-working screen to a false "offline" state.
+let globalReadyBackstop = null;
 // Called every time sync state changes (first success, the 15s timeout firing, or a later
 // snapshot/error after either of those) - NOT gated to "first call wins". The 15s timeout and the
 // real server round-trip race each other; if the timeout loses that race and shows the offline
@@ -4218,6 +4228,7 @@ let staffCloudSynced = false;
 // warning (and the "try again" prompt) is stuck on screen even though the sync in fact succeeded
 // and login proceeds normally with current data - which is confusing and looks like a bug.
 function markLoginReady(offlineFailure, errorDetail){
+ if(globalReadyBackstop){ clearTimeout(globalReadyBackstop); globalReadyBackstop = null; }
  staffCloudSynced = true;
  const btn = document.getElementById('loginBtn');
  const hint = document.getElementById('loginSyncHint');
@@ -9301,7 +9312,7 @@ function startInactivityTimer(){
   // (e.g. seedStaffToCloudIfEmpty's own network call) is what actually hangs. Widened alongside
   // subscribeStaffCloud's own timer for the same reason - a slow-but-working connection deserves
   // more room before being written off as unreachable.
-  setTimeout(()=>markLoginReady(true, 'timed-out'), 20000);
+  globalReadyBackstop = setTimeout(()=>markLoginReady(true, 'timed-out'), 20000);
   // Each seed call is raced against a timeout (see withTimeout above) so a single hung .get() -
   // which, unlike a normal network error, may never resolve OR reject on some networks - can't
   // block every subscribeXCloud() after it from ever running.

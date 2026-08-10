@@ -4368,6 +4368,11 @@ async function seedLedgerToCloudIfEmpty(){
  }catch(e){}
 }
 let fbLedgerUnsub = null;
+// Set once a `ledger` snapshot arrives that the SDK confirms actually came from the server (not
+// offline persistence's local cache). Cash-out (withdraw) sufficiency checks gate on this - see
+// processIo()/_doProcessIo() below - so a stale cached balance right after login/reconnect can't
+// approve real cash physically leaving the cage before this device has genuinely re-synced.
+let ledgerServerConfirmed = false;
 function subscribeLedgerCloud(){
  if(!fbDb) return;
  if(fbLedgerUnsub) fbLedgerUnsub();
@@ -4404,6 +4409,7 @@ function subscribeLedgerCloud(){
   if(listModal && listModal.classList.contains('open')) renderLedgerList();
   const dailyModal = document.getElementById('modal-daily-io');
   if(dailyModal && dailyModal.classList.contains('open')) renderDailyIo();
+  if(!snap.metadata.fromCache) ledgerServerConfirmed = true;
   resetFirestoreResubscribeBackoff('ledger');
  }, err=>{
   console.error('subscribeLedgerCloud onSnapshot error:', err);
@@ -5056,7 +5062,7 @@ ko:{
  toastBlocked:"차단이 적용되었습니다.", toastCutoff:"마감 처리되었습니다.", toastRegistered:"신규 어카운트가 등록되었습니다.", toastPwMismatch:"비밀번호가 일치하지 않습니다.", toastAccIdExists:"이미 존재하는 어카운트 ID입니다.", toastRegRequiredFields:"필수 항목(어카운트 ID, 영문 이름, 전화번호, 여권 번호, 출금 비밀번호)을 모두 입력해주세요.",
  toastNoAcc:"어카운트를 먼저 조회하세요.", toastTransfer:"이체가 완료되었습니다.", toastShift:"교대 처리되었습니다.",
  toastTransferHalfFailed:"출금은 처리됐지만 입금이 실패했습니다! 다시 시도하지 말고 입출금 내역을 직접 확인해주세요.",
- toastInsufficientBalance:"잔액이 부족합니다.", notifInsufficientBalance:"잔액 부족", toastInsufficientPoints:"포인트 잔액이 부족합니다.",
+ toastInsufficientBalance:"잔액이 부족합니다.", notifInsufficientBalance:"잔액 부족", toastInsufficientPoints:"포인트 잔액이 부족합니다.", toastBalanceSyncing:"잔액 동기화 중입니다. 잠시 후 다시 시도해주세요.",
 
  navConcierge:"컨시어지", navPoints:"포인트 · 이벤트",
  hotelTab:"호텔 예약", carTab:"차량 예약", aeroTab:"아로 서비스",
@@ -5193,7 +5199,7 @@ en:{
  toastBlocked:"Account blocked.", toastCutoff:"Cutoff completed.", toastRegistered:"New account registered.", toastPwMismatch:"Passwords do not match.", toastAccIdExists:"That account ID already exists.", toastRegRequiredFields:"Please fill in all required fields (Account ID, English Name, Phone Number, Passport No., Withdrawal Password).",
  toastNoAcc:"Look up an account first.", toastTransfer:"Transfer completed.", toastShift:"Shift updated.",
  toastTransferHalfFailed:"The withdrawal went through but the deposit failed! Do not retry - check the ledger history directly.",
- toastInsufficientBalance:"Insufficient balance.", notifInsufficientBalance:"Insufficient Balance", toastInsufficientPoints:"Insufficient points balance.",
+ toastInsufficientBalance:"Insufficient balance.", notifInsufficientBalance:"Insufficient Balance", toastInsufficientPoints:"Insufficient points balance.", toastBalanceSyncing:"Balance is syncing. Please try again shortly.",
 
  navConcierge:"Concierge", navPoints:"Points & Event",
  hotelTab:"Hotel Booking", carTab:"Car Reservation", aeroTab:"ARO Service",
@@ -5331,7 +5337,7 @@ en:{
  toastBlocked:"已套用封鎖。", toastCutoff:"結帳已完成。", toastRegistered:"新帳戶已登記。", toastPwMismatch:"密碼不一致。", toastAccIdExists:"該帳戶 ID 已存在。", toastRegRequiredFields:"請填寫所有必填項目（帳號、英文姓名、電話號碼、護照號碼、提款密碼）。",
  toastNoAcc:"請先查詢帳戶。", toastTransfer:"轉帳已完成。", toastShift:"交班已處理。",
  toastTransferHalfFailed:"扣款已處理，但入帳失敗！請勿重試，請直接查看交易紀錄確認。",
- toastInsufficientBalance:"餘額不足。", notifInsufficientBalance:"餘額不足", toastInsufficientPoints:"點數餘額不足。",
+ toastInsufficientBalance:"餘額不足。", notifInsufficientBalance:"餘額不足", toastInsufficientPoints:"點數餘額不足。", toastBalanceSyncing:"餘額同步中，請稍後再試。",
 
  navConcierge:"禮賓服務", navPoints:"積分‧活動",
  hotelTab:"飯店預訂", carTab:"車輛預約", aeroTab:"ARO服務",
@@ -5469,7 +5475,7 @@ en:{
  toastBlocked:"已应用封锁。", toastCutoff:"结账已完成。", toastRegistered:"新账户已登记。", toastPwMismatch:"密码不一致。", toastAccIdExists:"该账户 ID 已存在。", toastRegRequiredFields:"请填写所有必填项目（账号、英文姓名、电话号码、护照号码、取款密码）。",
  toastNoAcc:"请先查询账户。", toastTransfer:"转账已完成。", toastShift:"交班已处理。",
  toastTransferHalfFailed:"扣款已处理，但入账失败！请勿重试，请直接查看交易记录确认。",
- toastInsufficientBalance:"余额不足。", notifInsufficientBalance:"余额不足", toastInsufficientPoints:"点数余额不足。",
+ toastInsufficientBalance:"余额不足。", notifInsufficientBalance:"余额不足", toastInsufficientPoints:"点数余额不足。", toastBalanceSyncing:"余额同步中，请稍后再试。",
 
  navConcierge:"礼宾服务", navPoints:"积分‧活动",
  hotelTab:"酒店预订", carTab:"车辆预约", aeroTab:"ARO服务",
@@ -6428,6 +6434,13 @@ function processIo(){
  if(amt<=0) return;
  if(DB.ioType==='withdraw'){
   const casino = currentBranch();
+  // Offline persistence can serve a snapshot straight from local cache before this device has
+  // actually re-synced with the server (see ledgerServerConfirmed's definition above) - block
+  // real cash from leaving the cage against a balance that might be stale, rather than trust it.
+  if(fbDb && !ledgerServerConfirmed){
+   toast(t('toastBalanceSyncing'));
+   return;
+  }
   if(!hasSufficientTotalBalance(DB.currentAccount, amt)){
    toast(t('toastInsufficientBalance'));
    pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
@@ -6500,6 +6513,10 @@ async function _doProcessIo(amt){
  const acc = DB.accounts[DB.currentAccount];
  // Re-check with the freshest known balance right before writing (narrows, though cannot fully
  // close, the race window between the initial check and PIN confirmation on another terminal).
+ if(DB.ioType==='withdraw' && fbDb && !ledgerServerConfirmed){
+  toast(t('toastBalanceSyncing'));
+  return;
+ }
  if(DB.ioType==='withdraw' && !hasSufficientTotalBalance(DB.currentAccount, amt)){
   toast(t('toastInsufficientBalance'));
   pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);

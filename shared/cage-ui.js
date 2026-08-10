@@ -6,7 +6,7 @@
    ============================================================ */
 
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCOZL9qjgYnVPFTZMwGXyVKtRvJv3N0_cw",
+  apiKey: "AIzaSyCOZl9qjgYnVPFTZMwGXyVKtRvJv3N0_cw",
   authDomain: "cage-admin-25bbf.firebaseapp.com",
   projectId: "cage-admin-25bbf",
   storageBucket: "cage-admin-25bbf.firebasestorage.app",

@@ -4310,16 +4310,24 @@ async function seedStaffToCloudIfEmpty(){
 // login replaces it with the real thing via subscribeStaffCloud (which needs request.auth != null
 // to succeed, and so can only run after signInWithCustomToken).
 async function loadLoginStaffNames(){
- try{
-  const resp = await fetch(`${FUNCTIONS_BASE}/listStaffNames`);
-  if(!resp.ok) throw new Error('http '+resp.status);
-  const data = await resp.json();
-  DB.staff = data.staff||[];
-  renderStaffDropdowns();
-  markLoginReady();
- }catch(e){
-  markLoginReady(true, 'staff-list-failed');
+ // One retry for a transient blip (same pattern as verifyStaffCredsServer/signInStaffSession) -
+ // this is the very first network call on page load, so it's the most exposed to a cold/flaky
+ // connection; falling back to the offline warning (and the local seed data) on a single failed
+ // attempt was needlessly pessimistic.
+ for(let attempt=0; attempt<2; attempt++){
+  try{
+   const resp = await fetch(`${FUNCTIONS_BASE}/listStaffNames`);
+   if(!resp.ok) throw new Error('http '+resp.status);
+   const data = await resp.json();
+   DB.staff = data.staff||[];
+   renderStaffDropdowns();
+   markLoginReady();
+   return;
+  }catch(e){
+   if(attempt===0) await new Promise(r=>setTimeout(r, 1000));
+  }
  }
+ markLoginReady(true, 'staff-list-failed');
 }
 function subscribeStaffCloud(){
  if(!fbDb) return;
@@ -5707,6 +5715,7 @@ function seedDB(){
   currentAccount:null,
   ioType:"deposit",
   staff:[
+   {id:"STF-ERIC", name:"Eric", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-JENA", name:"Jena", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-WONI", name:"Woni", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-LIV", name:"Liv", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},

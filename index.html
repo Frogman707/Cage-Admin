@@ -568,7 +568,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="status-chip dt-only"><span class="status-dot" id="nfcDot"></span><span id="nfcTxt" data-i18n="nfcConnected"></span></div>
   <div class="topbar-meta dt-only">
     <span data-i18n="lastBalancing"></span><b id="lastBalTime" class="num">—</b>
-    <span data-i18n="staff"></span><b id="staffCount" class="num">Kyle, Jena</b>
+    <span data-i18n="staff"></span><b id="staffCount" class="num">Eric</b>
     <span class="pill cc" id="topEventPill" style="display:none;" data-i18n="eventOnTop"></span>
   </div>
   <div class="lang-switch dt-only">
@@ -1302,7 +1302,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openStaffMgmt()" data-i18n="staffMgmtBtn"></button>
             <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openShiftList()" data-i18n="shiftListBtn"></button>
           </div>
-          <div class="stat-line"><span data-i18n="currentWorker"></span><b class="num" id="currentWorker">Kyle, Jena</b></div>
+          <div class="stat-line"><span data-i18n="currentWorker"></span><b class="num" id="currentWorker">Eric</b></div>
           <div class="stat-line"><span data-i18n="shiftDateTimeLabel"></span><b class="num" id="shiftLastDt">—</b></div>
           <div class="field" style="margin-top:12px;"><label data-i18n="checkInStaffLabel"></label>
             <select id="checkInStaffSelect"></select></div>
@@ -4842,7 +4842,7 @@ function processBranchTransfer(){
 }
 async function _doProcessBranchTransfer(fromBranch, toBranch, amt){
  const memo = document.getElementById('branchTransferMemo').value.trim() || t('branchTransferTitle');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const okOut = await writeLedgerEntry({accountId: mainAccountIdForCasino(fromBranch), casino:fromBranch, type:'OUT', amount:amt, staff:staffName, memo});
  if(!okOut){ toast(t('toastStaffSyncFailed')); return; }
  const okIn = await writeLedgerEntry({accountId: mainAccountIdForCasino(toBranch), casino:toBranch, type:'IN', amount:amt, staff:staffName, memo});
@@ -5707,18 +5707,15 @@ function seedDB(){
   currentAccount:null,
   ioType:"deposit",
   staff:[
-   {id:"STF-KYLE", name:"Kyle", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
-   {id:"STF-TEDDY", name:"Teddy", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-JENA", name:"Jena", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-WONI", name:"Woni", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-LIV", name:"Liv", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-MINAMI", name:"Minami", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-MAY", name:"May", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
   ],
-  onDutyStaff:["Kyle","Jena"],
+  onDutyStaff:["Eric"],
   shiftLog:[
-   {dt:"2026-07-29 09:00", staff:"Kyle", action:"in"},
-   {dt:"2026-07-29 09:02", staff:"Jena", action:"in"},
+   {dt:"2026-07-29 09:00", staff:"Eric", action:"in"},
   ],
   eventStart:"2026-07-25T00:00",
   eventEnd:"2026-08-05T23:59",
@@ -6505,7 +6502,7 @@ async function applyAccountTransaction(accountId, type, amount, memo){
  // for any account whose actual funds sat in NUSTAR/ONLINE, rejecting valid buy-ins as
  // "insufficient" and, had it gone through, would have wrongly drained the wrong branch's ledger.
  const casino = currentBranch();
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  // Computed here (prior known balance ± amount) rather than read back from the account after
  // writeLedgerEntry - in cloud-sync mode the local balance doesn't update synchronously, so a
  // post-call read would be stale for the notification message below.
@@ -6526,7 +6523,7 @@ async function applyAccountTransaction(accountId, type, amount, memo){
 async function _doProcessIo(amt){
  const casino = currentBranch();
  const memo = document.getElementById('ioMemo').value;
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const acc = DB.accounts[DB.currentAccount];
  // Re-check with the freshest known balance right before writing (narrows, though cannot fully
  // close, the race window between the initial check and PIN confirmation on another terminal).
@@ -6606,7 +6603,7 @@ function doTransfer(){
 }
 async function _doTransfer(amt){
  const casino = currentBranch();
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  if(!hasSufficientBalance(DB.currentAccount, casino, amt)){
   toast(t('toastInsufficientBalance'));
   pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
@@ -6805,7 +6802,7 @@ function seedRollingFromBuyin(g, buyinAmt, workingAmt, staffName){
  }
 }
 async function _doAddBuyin(existing, buyin, workingChip){
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  existing.buyin = (existing.buyin||0) + buyin;
  if(workingChip) existing.workingChip = (existing.workingChip||0) + workingChip;
  existing.staff = staffName;
@@ -6841,7 +6838,7 @@ async function _doAddBuyin(existing, buyin, workingChip){
  toast(acctWriteFailed ? t('toastStaffSyncFailed') : t('toastAddBuyin'));
 }
 async function _doStartGame(account, buyin, workingChip, enteredId){
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const table = document.getElementById('gTable').value;
  const cur = document.getElementById('gCurrency').value;
  const type = document.getElementById('gType').value;
@@ -6884,7 +6881,7 @@ async function _doStartGame(account, buyin, workingChip, enteredId){
 async function cancelGame(gameId){
  const g = DB.games.find(x=>x.gameId===gameId);
  if(!g) return;
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  if(g.startType === 'account' && g.buyin){
   // Refund the account BEFORE touching any local/shift state below - if this fails, bail out
   // entirely and leave the game exactly as it was, rather than deleting the game record (and
@@ -6976,7 +6973,7 @@ function confirmRollingInput(){
  const {gameId, amount} = pendingRolling;
  const g = DB.games.find(x=>x.gameId===gameId);
  if(g){
-  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
   bd().guestRollingGrandTotal = (bd().guestRollingGrandTotal||0) + amount;
   bd().rollingDailyTotal = (bd().rollingDailyTotal||0) + amount;
   DB.gameCCAdjust = (DB.gameCCAdjust||0) + amount;
@@ -7163,7 +7160,7 @@ async function _doSettleGame(){
  const cashout = isEnded ? (g.buyin||0) + (g.winLoss||0) : null;
  const winLoss = isEnded ? g.winLoss : null;
  const dt = isEnded ? g.endDt : phNow().toISOString().slice(0,16).replace('T',' ');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  // Credit the account BEFORE marking the game settled/ended below - if this fails, bail out
  // entirely and leave the game exactly as it was (still selectable, still re-settleable) rather
  // than recording a settlement whose payout never actually reached the customer's account.
@@ -7295,7 +7292,7 @@ async function _doConfirmMidSettle(){
  };
  // NN chip deposit / cashout / marker redeem / working chip returns are all deducted from rolling (win/loss excludes working chip separately below)
  const added = -nn.deposit - nn.cashout - nn.marker - nn.working;
- const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  g.checkpoints = g.checkpoints||[];
  g.checkpoints.unshift({dt:now, added, cc, nn, staff:floorStaff});
@@ -7521,7 +7518,7 @@ async function _doConfirmGameEnd(){
   historicalSum += (n.deposit||0)+(n.cashout||0)+(n.marker||0);
  });
  const winLoss = (historicalSum + ccSum + nn.deposit + nn.cashout + nn.marker) - (g.buyin||0);
- const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  if(fbDb){
   if(netNN) writeRollingEvent({gameId:g.gameId, amount:netNN, staff:floorStaff, memo:'game-end'});
@@ -7607,7 +7604,7 @@ function renderGameEndList(){
    ============================================================ */
 function shiftAction(dir){
  const staff = document.getElementById('checkInStaffSelect').value;
- DB.onDutyStaff = DB.onDutyStaff || ['Teddy','Jena'];
+ DB.onDutyStaff = DB.onDutyStaff || ['Eric'];
  if(dir==='in'){
   if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff);
  } else {
@@ -7625,7 +7622,7 @@ function renderShiftStaff(){
  // another device, or straight from Firestore) so the top bar never shows a ghost worker. Only
  // prune once staff data has actually loaded - an empty DB.staff during the brief window before
  // the cloud snapshot arrives must not be mistaken for "nobody is registered".
- const raw = DB.onDutyStaff||['Teddy','Jena'];
+ const raw = DB.onDutyStaff||['Eric'];
  let list = raw;
  if((DB.staff||[]).length){
   const registeredNames = new Set(DB.staff.map(s=>s.name));
@@ -7922,7 +7919,7 @@ function _doProcessMainCage(type, amt){
   DB.mainCageNNAdjust += amt;
  }
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  if(fbDb){
   writeMainCageEntry(type, amt, staffName);
  } else {
@@ -8002,7 +7999,7 @@ function confirmBalancingCheck(){
 }
 function _doConfirmBalancingCheck(){
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  bd().balancingCheckLog = bd().balancingCheckLog||[];
  bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'confirm'});
  bd().lastBalancingDt = now;
@@ -8031,7 +8028,7 @@ function _doInitialSetupBalancing(){
  bd().cashCarryBaseline = (bd().cashCarryBaseline||0) - diffCash;
  bd().rollingCarryBaseline = (bd().rollingCarryBaseline||0) - diffRolling;
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  bd().balancingCheckLog = bd().balancingCheckLog||[];
  bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'setup', diffCash, diffRolling});
  if(fbDb) writeCageConfig({cashCarryBaseline: bd().cashCarryBaseline, rollingCarryBaseline: bd().rollingCarryBaseline});
@@ -8293,7 +8290,7 @@ function correctDiff(){
  if(val===0){ toast(t('toastNoDiffToCorrect')); return; }
  requestPinAuth(()=>{
   const now = phNow().toISOString().slice(0,16).replace('T',' ');
-  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
   DB.correctionLog = DB.correctionLog||[];
   DB.correctionLog.unshift({dt:now, amount:val, staff:staffName});
   DB.memberCompanyDiffVal = 0;
@@ -8319,7 +8316,7 @@ function confirmMonthSettleReset(){
  const ccNow = unformatNum(document.getElementById('ccBreakTotal').textContent);
  const nnNow = unformatNum(document.getElementById('nnBreakTotal').textContent);
  const guestNow = visibleGames().reduce((s,g)=>s+(g.rolling||0),0) + visibleEndedGames().reduce((s,g)=>s+(g.rolling||0),0);
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const monthRecord = {
   dt: phNow().toISOString().slice(0,16).replace('T',' '),
   cash: cashNow, cashChips: ccNow, rollingChips: nnNow, cum: bd().rollingGrandTotal||0, guest: guestNow,
@@ -8530,7 +8527,7 @@ function applyBlock(){
  const account = document.getElementById('blockAcc').value.trim().toUpperCase();
  const reason = document.getElementById('blockReason').value.trim();
  if(!account) return;
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  DB.blocks.unshift({account, type:"Full", reason, staff:staffName, dt:phNow().toISOString().slice(0,10)});
  document.getElementById('blockAcc').value=''; document.getElementById('blockReason').value='';
  saveDB(); renderBlocks();
@@ -8928,7 +8925,7 @@ function activateEvent(){
  DB.eventEnd = end;
  DB.eventRate = document.getElementById('eventRate').value.trim() || '1.00';
  document.getElementById('eventStartDate').value = nowStr;
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  DB.eventActivationLog = DB.eventActivationLog||[];
  DB.eventActivationLog.unshift({dt: phNow().toISOString().slice(0,16).replace('T',' '), start: DB.eventStart, end: DB.eventEnd, rate: DB.eventRate, staff: staffName});
  saveDB();
@@ -8991,7 +8988,7 @@ async function payEventCommissionForSettle(account, rolling){
  // (rather than a misleading "paid" record) is the right amount of feedback here.
  if(!txn) return;
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  DB.eventHistory = DB.eventHistory||[];
  DB.eventHistory.unshift({dt:now, account, rolling, rate, amt, staff:staffName});
  renderMemberCard(); renderLedger(); renderEventHistory();
@@ -9121,7 +9118,7 @@ async function attemptLogin(){
  if(fbDb){ await seedStaffToCloudIfEmpty(); subscribeStaffCloud(); }
  document.getElementById('login-gate').style.display = 'none';
  if(typeof DB !== 'undefined' && DB){
-  DB.onDutyStaff = DB.onDutyStaff || ['Teddy','Jena'];
+  DB.onDutyStaff = DB.onDutyStaff || ['Eric'];
   if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff);
   if(typeof renderShiftStaff === 'function') renderShiftStaff();
   if(typeof saveDB === 'function') saveDB();

@@ -57,7 +57,7 @@ module.exports = [
     },
   },
   {
-    files: ["functions/**/*.js"],
+    files: ["functions/**/*.js", "test/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "commonjs",
@@ -69,6 +69,7 @@ module.exports = [
         console: "readonly",
         Buffer: "readonly",
         fetch: "readonly",
+        __dirname: "readonly",
       },
     },
     rules: {

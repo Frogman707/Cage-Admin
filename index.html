@@ -4501,7 +4501,7 @@ function getGuestRollingGrandTotal(){
  Object.keys(fbRollingEventsByGame).forEach(gameId=>{
   const meta = fbGamesCache[gameId];
   if(meta && (meta.branch||'HANN') !== currentBranch()) return;
-  (fbRollingEventsByGame[gameId]||[]).forEach(e=>{ if(e.memo==='rolling') total += e.amount; });
+  (fbRollingEventsByGame[gameId]||[]).forEach(e=>{ if(!e.memo || e.memo==='rolling') total += e.amount; });
  });
  return total;
 }
@@ -6775,11 +6775,13 @@ async function cancelGame(gameId){
   applyShift('workingChipRollingShift', -g.workingChip, staffName);
  }
  // guestRollingGrandTotal/rollingDailyTotal/rollingCashShift only ever accumulate manually-entered
- // ('rolling'-tagged) rolling - buy-in-seeded and mid-settle/game-end NN-adjustment entries are
- // tagged with a different memo specifically so they're excluded from those running totals (see
- // seedRollingFromBuyin/confirmRollingInput). Reversing by g.rolling itself would subtract those
- // never-added contributions too, so only the manually-entered portion of the log is reversed here.
- const observedRolling = (g.rollingLog||[]).filter(r=>r.memo==='rolling').reduce((s,r)=>s+(r.amount||0), 0);
+ // rolling - buy-in-seeded and mid-settle/game-end NN-adjustment entries are tagged with a memo
+ // specifically so they're excluded from those running totals (see
+ // seedRollingFromBuyin/confirmRollingInput). Manually-entered rolling is tagged 'rolling'; older
+ // entries written before that convention existed have an empty memo, so both count here.
+ // Reversing by g.rolling itself would subtract those never-added contributions too, so only the
+ // manually-entered portion of the log is reversed here.
+ const observedRolling = (g.rollingLog||[]).filter(r=>!r.memo || r.memo==='rolling').reduce((s,r)=>s+(r.amount||0), 0);
  if(observedRolling){
   bd().guestRollingGrandTotal = (bd().guestRollingGrandTotal||0) - observedRolling;
   bd().rollingDailyTotal = (bd().rollingDailyTotal||0) - observedRolling;
@@ -7379,6 +7381,8 @@ async function _doConfirmGameEnd(){
   houseTips: unformatNum(document.getElementById('endCcHouseTips').value),
  };
  const nn = gameEndNnFields();
+ const returnedWorking = workingChipReturnedTotal(g) + nn.working;
+ if(Math.abs(returnedWorking - (g.workingChip||0)) > 0.001){ toast(t('toastWorkingChipNotReturned')); return; }
  const netNN = -nn.deposit - nn.cashout - nn.marker - nn.working;
  const totalRolling = (g.rolling||0) + netNN;
  if(totalRolling < 0){ toast(t('toastRollingNegative')); return; }

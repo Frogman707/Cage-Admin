@@ -4165,6 +4165,21 @@ const FIREBASE_CONFIG = {
  measurementId: "G-4P1TM5RGRP"
 };
 let fbDb = null;
+// Firestore listeners are one-shot: once an onSnapshot subscription reports an error, that stream
+// is dead and does NOT retry on its own - it only reconnects if the caller resubscribes. Without
+// this, a single transient hiccup (blocked port, brief network drop, proxy timeout) permanently
+// freezes that collection's data for the rest of the session, with no way to recover short of a
+// full page reload. Every subscribeXCloud()'s error callback schedules a retry through this; each
+// one's success callback resets its own backoff back to the base delay.
+const fbResubscribeBackoff = {};
+function scheduleFirestoreResubscribe(key, resubscribeFn){
+ const delay = fbResubscribeBackoff[key] || 5000;
+ setTimeout(resubscribeFn, delay);
+ fbResubscribeBackoff[key] = Math.min(delay * 2, 60000);
+}
+function resetFirestoreResubscribeBackoff(key){
+ fbResubscribeBackoff[key] = 5000;
+}
 let fbStaffUnsub = null;
 // Staff records (including each person's TOTP secret) only exist locally until the first
 // Firestore snapshot arrives - attemptLogin() checked whatever was in memory at that instant
@@ -4284,6 +4299,7 @@ function subscribeStaffCloud(){
   if(snap.metadata.fromCache) return;
   clearTimeout(readyFallback);
   markLoginReady();
+  resetFirestoreResubscribeBackoff('staff');
  }, err=>{
   // Every failure mode (genuinely offline, blocked network, Firestore quota exhausted, a rules/
   // permission problem) lands here and used to look identical to the user - show the SDK's own
@@ -4291,6 +4307,7 @@ function subscribeStaffCloud(){
   console.error('subscribeStaffCloud onSnapshot error:', err);
   clearTimeout(readyFallback);
   markLoginReady(true, err && (err.code || err.message));
+  scheduleFirestoreResubscribe('staff', subscribeStaffCloud);
  });
 }
 
@@ -4348,7 +4365,11 @@ function subscribeLedgerCloud(){
   if(listModal && listModal.classList.contains('open')) renderLedgerList();
   const dailyModal = document.getElementById('modal-daily-io');
   if(dailyModal && dailyModal.classList.contains('open')) renderDailyIo();
- }, ()=>{});
+  resetFirestoreResubscribeBackoff('ledger');
+ }, err=>{
+  console.error('subscribeLedgerCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('ledger', subscribeLedgerCloud);
+ });
 }
 // Returns a promise resolving true/false - a real money movement silently failing to reach
 // Firestore (flaky connection, blocked request) used to be indistinguishable from success: the
@@ -4424,7 +4445,11 @@ function subscribeGamesCloud(){
   fbGamesCache = {};
   snap.forEach(doc=>{ fbGamesCache[doc.id] = doc.data(); });
   renderAllGameViews();
- }, ()=>{});
+  resetFirestoreResubscribeBackoff('games');
+ }, err=>{
+  console.error('subscribeGamesCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('games', subscribeGamesCloud);
+ });
 }
 let fbRollingEventsUnsub = null;
 let fbRollingEventsByGame = {};
@@ -4439,7 +4464,11 @@ function subscribeRollingEventsCloud(){
    fbRollingEventsByGame[r.gameId].push(r);
   });
   renderAllGameViews();
- }, ()=>{});
+  resetFirestoreResubscribeBackoff('rollingEvents');
+ }, err=>{
+  console.error('subscribeRollingEventsCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('rollingEvents', subscribeRollingEventsCloud);
+ });
 }
 function buildGameFromCache(gameId, meta){
  const events = fbRollingEventsByGame[gameId]||[];
@@ -4689,7 +4718,11 @@ function subscribeMainCageLedgerCloud(){
   fbMainCageRaw = [];
   snap.forEach(doc=>fbMainCageRaw.push(doc.data()));
   deriveMainCageForBranch();
- }, ()=>{});
+  resetFirestoreResubscribeBackoff('mainCage');
+ }, err=>{
+  console.error('subscribeMainCageLedgerCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('mainCage', subscribeMainCageLedgerCloud);
+ });
 }
 function writeMainCageEntry(type, amt, staff){
  if(!fbDb) return null;
@@ -4718,7 +4751,11 @@ function subscribeBranchTransfersCloud(){
   snap.forEach(doc=>rows.push(doc.data()));
   DB.branchTransferLog = rows.slice().reverse();
   renderBranchTransferList();
- }, ()=>{});
+  resetFirestoreResubscribeBackoff('branchTransfers');
+ }, err=>{
+  console.error('subscribeBranchTransfersCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('branchTransfers', subscribeBranchTransfersCloud);
+ });
 }
 function writeBranchTransferEntry(fromBranch, toBranch, amount, staff, memo){
  const id = 'btr_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
@@ -4811,7 +4848,11 @@ function subscribeShiftEventsCloud(){
   fbShiftRaw = [];
   snap.forEach(doc=>fbShiftRaw.push(doc.data()));
   deriveShiftTotalsForBranch();
- }, ()=>{});
+  resetFirestoreResubscribeBackoff('shiftEvents');
+ }, err=>{
+  console.error('subscribeShiftEventsCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('shiftEvents', subscribeShiftEventsCloud);
+ });
 }
 function writeShiftEvent(field, delta, staff){
  if(!fbDb || !delta) return;
@@ -4862,7 +4903,11 @@ function subscribeCageConfigCloud(){
   if(cutoffListModal && cutoffListModal.classList.contains('open')) renderCutoffList();
   if(typeof renderMonthRecords === 'function') renderMonthRecords();
   if(typeof renderReportCards === 'function') renderReportCards();
- }, ()=>{});
+  resetFirestoreResubscribeBackoff('cageConfig');
+ }, err=>{
+  console.error('subscribeCageConfigCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('cageConfig', subscribeCageConfigCloud);
+ });
 }
 async function seedCageConfigToCloudIfEmpty(){
  if(!fbDb) return;

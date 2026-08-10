@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cage Admin 프로젝트 리뷰 보고서 · 2026-08-10</title>
+<style>
+:root{
+  --bg:#f7f7f5; --surface:#ffffff; --surface-2:#fbfbfa;
+  --ink:#1a1a18; --ink-2:#4a4a45; --ink-faint:#8a8a82;
+  --line:#e3e3de; --line-strong:#c9c9c2;
+  --accent:#8c1c2b; --accent-soft:#f6eaec;
+  --p0:#a3121f; --p0-bg:#fbeaec;
+  --p1:#a35a08; --p1-bg:#fdf1e3;
+  --p2:#5a6470; --p2-bg:#eef1f4;
+  --ok:#1f6b45; --ok-bg:#e8f3ec;
+  --code-bg:#f2f2ef; --code-ink:#2b2b28;
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Pretendard","Noto Sans KR",Roboto,"Malgun Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#141416; --surface:#1c1c1f; --surface-2:#212125;
+    --ink:#ececea; --ink-2:#b6b6b0; --ink-faint:#83837c;
+    --line:#2e2e33; --line-strong:#43434a;
+    --accent:#e0899a; --accent-soft:#31191e;
+    --p0:#f08a97; --p0-bg:#3a1319;
+    --p1:#e3b070; --p1-bg:#33240f;
+    --p2:#a5b1bf; --p2-bg:#22262b;
+    --ok:#7ec49c; --ok-bg:#132b1f;
+    --code-bg:#242429; --code-ink:#d6d6d1;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--sans); font-size:15.5px; line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px 120px;display:grid;grid-template-columns:230px 1fr;gap:52px}
+@media (max-width:960px){.wrap{grid-template-columns:1fr;gap:0;padding:0 18px 80px}}
+
+/* ---------- cover ---------- */
+.cover{grid-column:1/-1;padding:76px 0 44px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:650;margin:0 0 14px}
+.cover h1{margin:0 0 10px;font-size:clamp(30px,4.6vw,46px);line-height:1.16;letter-spacing:-.02em;font-weight:700}
+.cover .sub{margin:0 0 30px;font-size:17px;color:var(--ink-2);max-width:62ch}
+.meta{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.meta div{padding:13px 18px;border-right:1px solid var(--line);flex:1 1 150px;min-width:0}
+.meta div:last-child{border-right:0}
+.meta dt{margin:0 0 3px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+.meta dd{margin:0;font-size:14px;font-weight:600;font-family:var(--mono);word-break:break-all}
+
+/* ---------- nav ---------- */
+nav{position:sticky;top:0;align-self:start;padding:44px 0;max-height:100vh;overflow-y:auto;font-size:13.5px}
+@media (max-width:960px){nav{position:static;max-height:none;padding:26px 0 0;border-bottom:1px solid var(--line)}}
+nav .navtitle{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);font-weight:650;margin:0 0 12px}
+nav ol{list-style:none;margin:0;padding:0;counter-reset:n}
+nav li{counter-increment:n;margin:0 0 1px}
+nav a{display:block;padding:5px 10px 5px 30px;color:var(--ink-2);text-decoration:none;border-radius:5px;position:relative;line-height:1.45}
+nav a::before{content:counter(n,decimal-leading-zero);position:absolute;left:8px;font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+nav a:hover{background:var(--surface);color:var(--ink)}
+
+/* ---------- main ---------- */
+main{padding:44px 0 0;min-width:0}
+section{scroll-margin-top:24px;margin:0 0 64px}
+h2{font-size:25px;letter-spacing:-.01em;margin:0 0 6px;padding:0 0 12px;border-bottom:2px solid var(--ink);font-weight:700}
+h2 .num{font-family:var(--mono);font-size:15px;color:var(--accent);margin-right:12px;font-weight:600}
+h3{font-size:18px;margin:38px 0 8px;letter-spacing:-.005em;font-weight:670;display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+h4{font-size:14px;margin:22px 0 6px;color:var(--ink-2);letter-spacing:.02em;text-transform:uppercase;font-weight:650}
+p{margin:0 0 14px}
+a{color:var(--accent)}
+code{font-family:var(--mono);font-size:.875em;background:var(--code-bg);color:var(--code-ink);padding:.12em .38em;border-radius:4px;word-break:break-word}
+pre{background:var(--code-bg);color:var(--code-ink);border:1px solid var(--line);border-radius:8px;padding:15px 17px;overflow-x:auto;font-family:var(--mono);font-size:12.8px;line-height:1.62;margin:0 0 16px}
+pre code{background:none;padding:0;font-size:inherit}
+ul,ol{margin:0 0 16px;padding-left:22px}
+li{margin:0 0 5px}
+hr{border:0;border-top:1px solid var(--line);margin:38px 0}
+blockquote{margin:0 0 14px;padding:10px 16px;border-left:3px solid var(--line-strong);color:var(--ink-2)}
+
+/* ---------- badges ---------- */
+.badge{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:4px;white-space:nowrap;line-height:1.6}
+.b-p0{background:var(--p0-bg);color:var(--p0);border:1px solid var(--p0)}
+.b-p1{background:var(--p1-bg);color:var(--p1);border:1px solid var(--p1)}
+.b-p2{background:var(--p2-bg);color:var(--p2);border:1px solid var(--p2)}
+.b-ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok)}
+.id{font-family:var(--mono);font-size:12.5px;color:var(--ink-faint);font-weight:600}
+
+/* ---------- tables ---------- */
+.tblwrap{overflow-x:auto;margin:0 0 20px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.6px;min-width:600px}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{background:var(--surface-2);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:650;white-space:nowrap;border-bottom:1px solid var(--line-strong)}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{font-family:var(--mono);white-space:nowrap}
+.center{text-align:center}
+
+/* ---------- callouts ---------- */
+.call{border-left:3px solid var(--accent);background:var(--surface);padding:14px 18px;border-radius:0 8px 8px 0;margin:0 0 20px}
+.call.ok{border-left-color:var(--ok)}
+.call.warn{border-left-color:var(--p0)}
+.call p:last-child{margin-bottom:0}
+.call .lbl{display:block;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--accent);margin:0 0 5px}
+.call.ok .lbl{color:var(--ok)}
+.call.warn .lbl{color:var(--p0)}
+
+/* ---------- stat grid ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin:0 0 24px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:15px 17px}
+.stat .v{font-family:var(--mono);font-size:26px;font-weight:700;line-height:1.15;letter-spacing:-.02em}
+.stat .k{font-size:12px;color:var(--ink-faint);margin-top:4px;line-height:1.4}
+.stat.bad .v{color:var(--p0)}
+.stat.warn .v{color:var(--p1)}
+.stat.good .v{color:var(--ok)}
+
+/* ---------- finding block ---------- */
+.finding{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:2px 22px 18px;margin:0 0 22px}
+.finding h3{margin-top:20px}
+.finding .where{font-family:var(--mono);font-size:12.5px;color:var(--ink-faint);margin:0 0 12px}
+.fix{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:13px 17px;margin:16px 0 0}
+.fix .lbl{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--ok);display:block;margin:0 0 6px}
+.fix ol,.fix ul{margin:0;padding-left:20px}
+.fix li:last-child{margin-bottom:0}
+
+/* ---------- print ---------- */
+@media print{
+  :root{--bg:#fff;--surface:#fff;--surface-2:#fff}
+  nav{display:none}
+  .wrap{grid-template-columns:1fr;max-width:none;padding:0}
+  section{page-break-inside:auto}
+  .finding,pre,.tblwrap{page-break-inside:avoid}
+  h2{page-break-after:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="cover">
+  <p class="eyebrow">Engineering Review</p>
+  <h1>Cage Admin 프로젝트 리뷰 보고서</h1>
+  <p class="sub">카지노 케이지 운영 · 파트너 콘솔 · 플레이어 Avatar/Speed 데모를 한 저장소에서 제공하는 Firebase 정적 웹 애플리케이션에 대한 아키텍처 · 보안 · 데이터 일관성 · 성능 · 코드 품질 전면 검토.</p>
+  <dl class="meta">
+    <div><dt>리뷰 일자</dt><dd>2026-08-10</dd></div>
+    <div><dt>브랜치</dt><dd>claude/cage-admin-5-features-75k9ac</dd></div>
+    <div><dt>기준 커밋</dt><dd>3cc02e0</dd></div>
+    <div><dt>대상 규모</dt><dd>약 14,300 LOC</dd></div>
+    <div><dt>발견 항목</dt><dd>21건 (P0 4 · P1 9 · P2 8)</dd></div>
+  </dl>
+</header>
+
+<nav>
+  <p class="navtitle">목차</p>
+  <ol>
+    <li><a href="#s1">총평</a></li>
+    <li><a href="#s2">프로젝트 현황</a></li>
+    <li><a href="#s3">발견 항목 요약</a></li>
+    <li><a href="#s4">아키텍처 진단</a></li>
+    <li><a href="#s5">보안</a></li>
+    <li><a href="#s6">데이터 일관성</a></li>
+    <li><a href="#s7">성능</a></li>
+    <li><a href="#s8">코드 품질</a></li>
+    <li><a href="#s9">문서 정합성</a></li>
+    <li><a href="#s10">잘 되어 있는 것</a></li>
+    <li><a href="#s11">개선 로드맵</a></li>
+    <li><a href="#s12">부록</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- ============ 1 ============ -->
+<section id="s1">
+  <h2><span class="num">01</span>총평</h2>
+
+  <p>이 프로젝트는 <strong>제품 표면(UI · 화면 흐름 · 도메인 모델링)의 완성도가 높습니다.</strong> 케이지 원장, 교대, 롤링, 메인 케이지, 파트너 정산, 플레이어 베팅과 로드맵까지 실제 카지노 운영 도메인이 상당히 정밀하게 구현되어 있고, 5개 국어 i18n과 TOTP 기반 2단계 인증 같은 요소도 이미 들어가 있습니다. 영업 시연물로서 보여줄 것은 충분히 갖췄습니다.</p>
+
+  <p>반면 <strong>그 뒤를 받치는 신뢰 경계는 아직 존재하지 않습니다.</strong> 브라우저가 Firestore에 직접 쓰는 구조인데 Firestore 보안 규칙 파일이 저장소에 없고, 인증 · 잔액 검사 · 라운드 결과 · 페이아웃 계산이 전부 클라이언트 권한입니다. 저장소 전체에서 <code>runTransaction</code> 0건, 클라이언트 <code>serverTimestamp</code> 0건입니다. 즉 "브라우저를 신뢰하지 않으면 성립하는 기능"이 현재 하나도 없습니다.</p>
+
+  <div class="call">
+    <span class="lbl">핵심 판단</span>
+    <p>발견된 21건 중 <strong>대부분은 "서버 권한 계층이 없다"는 단 하나의 원인</strong>에서 파생됩니다. 개별 항목을 하나씩 패치하는 접근은 비효율적이며, 서버 API 계층을 도입하는 순간 함께 해소됩니다. 따라서 이 보고서는 각 항목을 <strong>"지금 데모에서 고칠 것"</strong>과 <strong>"서버 전환 시 자연히 해소될 것"</strong>으로 구분해 표기합니다.</p>
+  </div>
+
+  <p>데모 용도로 지금 당장 처리해야 할 것은 4건입니다 — 공개 번들에 커밋된 API 비밀값(<span class="id">S2</span>), 주석에 남은 마스터 비밀번호 평문(<span class="id">S8</span>), 기본 거부 Firestore 규칙 부재(<span class="id">S1</span>), 파트너 콘솔 저장형 XSS(<span class="id">S7</span>). 나머지는 서버 API 전환 계획에 흡수시키는 편이 합리적입니다.</p>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="s2">
+  <h2><span class="num">02</span>프로젝트 현황</h2>
+
+  <div class="stats">
+    <div class="stat"><div class="v">14.3k</div><div class="k">코드 라인 수 (문서 제외)</div></div>
+    <div class="stat warn"><div class="v">499 KB</div><div class="k">index.html 단일 파일</div></div>
+    <div class="stat bad"><div class="v">0</div><div class="k">테스트 · 보안 규칙 · 트랜잭션</div></div>
+    <div class="stat"><div class="v">4</div><div class="k">Cloud Functions 엔드포인트</div></div>
+    <div class="stat"><div class="v">5</div><div class="k">지원 언어 (ko/zh/en/ja/vi)</div></div>
+    <div class="stat warn"><div class="v">29</div><div class="k">내용 없는 catch 블록</div></div>
+  </div>
+
+  <h4>구성</h4>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>경로</th><th>대상</th><th class="num">규모</th><th>역할</th></tr></thead>
+    <tbody>
+      <tr><td><code>/</code></td><td>케이지 운영자</td><td class="num">9,193줄 / 499 KB</td><td>계좌 · 원장 · 게임 · 메인 케이지 · 교대 · 지점</td></tr>
+      <tr><td><code>/partner-admin/</code></td><td>파트너 운영자</td><td class="num">1,903줄 / 117 KB</td><td>회원 · 잔액 · 입금 · 제휴사 · 테이블 · Avatar 요청</td></tr>
+      <tr><td><code>/avatar/</code></td><td>플레이어</td><td class="num">1,442줄 / 69 KB</td><td>가입 · 로그인 · Avatar 요청 · Speed 베팅 · 이력</td></tr>
+      <tr><td><code>/shared/</code></td><td>공용</td><td class="num">1,459줄 / 97 KB</td><td>Firebase 부트스트랩 · UI 유틸 · i18n · 게임 엔진 · 테마</td></tr>
+      <tr><td><code>/functions/</code></td><td>서버</td><td class="num">206줄</td><td>Telegram 연동 4개 엔드포인트 <em>(서버 코드의 전부)</em></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>프레임워크 · 번들러 · 빌드 단계가 없습니다. Firebase Hosting이 저장소 루트를 그대로 배포하고, GitHub Actions가 푸시마다 <code>channelId: live</code>로 자동 배포합니다. 배포 전에 실행되는 검증 단계는 없습니다.</p>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="s3">
+  <h2><span class="num">03</span>발견 항목 요약</h2>
+
+  <p>"데모"는 <strong>영업 시연 용도로 지금 운영할 때</strong> 실제로 문제가 되는지를, "실서비스"는 <strong>실제 돈이 오가는 서비스로 전환할 때</strong> 차단 요소인지를 뜻합니다.</p>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th class="num">ID</th><th class="center">등급</th><th>문제</th><th class="center">데모</th><th class="center">실서비스</th><th class="num center">확신</th></tr></thead>
+    <tbody>
+      <tr><td class="num">S1</td><td class="center"><span class="badge b-p0">P0</span></td><td>Firestore 보안 규칙 파일이 저장소에 없음</td><td class="center">⬤ 즉시</td><td class="center">⬤ 차단</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">S2</td><td class="center"><span class="badge b-p0">P0</span></td><td><code>APP_API_SECRET</code>이 공개 번들에 하드코딩 · Git 커밋</td><td class="center">⬤ 즉시</td><td class="center">⬤ 차단</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">S3</td><td class="center"><span class="badge b-p0">P0</span></td><td>베팅 · 라운드 결과 · 페이아웃이 전부 클라이언트 권한</td><td class="center">○ 허용</td><td class="center">⬤ 차단</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">S4</td><td class="center"><span class="badge b-p0">P0</span></td><td>Telegram 계좌 연동에 소유권 증명 없음</td><td class="center">◐ 주의</td><td class="center">⬤ 차단</td><td class="num center">9/10</td></tr>
+      <tr><td class="num">S5</td><td class="center"><span class="badge b-p1">P1</span></td><td>비밀번호 평문 저장 + 클라이언트 비교</td><td class="center">○ 허용</td><td class="center">⬤ 차단</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">S6</td><td class="center"><span class="badge b-p1">P1</span></td><td>가입 무인증 + 즉시 100,000 지급, TOCTOU 덮어쓰기</td><td class="center">◐ 주의</td><td class="center">⬤ 차단</td><td class="num center">9/10</td></tr>
+      <tr><td class="num">S7</td><td class="center"><span class="badge b-p1">P1</span></td><td>파트너 콘솔 저장형 XSS (회원 닉네임 · ID)</td><td class="center">⬤ 즉시</td><td class="center">⬤ 차단</td><td class="num center">9/10</td></tr>
+      <tr><td class="num">S8</td><td class="center"><span class="badge b-p1">P1</span></td><td>마스터 비밀번호 평문이 해시 바로 위 주석에 남음</td><td class="center">⬤ 즉시</td><td class="center">⬤ 차단</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">C1</td><td class="center"><span class="badge b-p1">P1</span></td><td>금전 쓰기에 트랜잭션 0건 → 오버드래프트 · 이중지불</td><td class="center">◐ 주의</td><td class="center">⬤ 차단</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">C2</td><td class="center"><span class="badge b-p1">P1</span></td><td>타임스탬프가 클라이언트 벽시계 → 정산일 조작 가능</td><td class="center">○ 허용</td><td class="center">⬤ 차단</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">C3</td><td class="center"><span class="badge b-p1">P1</span></td><td>멱등성 주장이 실제로 성립하지 않음</td><td class="center">◐ 주의</td><td class="center">⬤ 차단</td><td class="num center">9/10</td></tr>
+      <tr><td class="num">C4</td><td class="center"><span class="badge b-p2">P2</span></td><td>원장 스키마가 컬렉션마다 달라 집계가 조용히 0 반환</td><td class="center">◐ 주의</td><td class="center">◐ 주의</td><td class="num center">9/10</td></tr>
+      <tr><td class="num">C5</td><td class="center"><span class="badge b-p2">P2</span></td><td>오프라인 캐시 활성 상태에서 잔액 검사가 stale</td><td class="center">◐ 주의</td><td class="center">◐ 주의</td><td class="num center">9/10</td></tr>
+      <tr><td class="num">P1</td><td class="center"><span class="badge b-p1">P1</span></td><td>잔액 조회가 원장 전량 다운로드 × 매 라운드</td><td class="center">⬤ 즉시</td><td class="center">⬤ 차단</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">P2</td><td class="center"><span class="badge b-p2">P2</span></td><td>케이지 화면이 7개 컬렉션을 <code>limit</code> 없이 구독</td><td class="center">◐ 주의</td><td class="center">⬤ 차단</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">P3</td><td class="center"><span class="badge b-p2">P2</span></td><td>캐시 <code>no-store</code> 설정으로 매 방문 700 KB 재다운로드</td><td class="center">◐ 주의</td><td class="center">◐ 주의</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">Q1</td><td class="center"><span class="badge b-p2">P2</span></td><td>테스트 0건 · 배포 전 검증 단계 없음</td><td class="center">○ 허용</td><td class="center">⬤ 차단</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">Q2</td><td class="center"><span class="badge b-p2">P2</span></td><td><code>FIREBASE_CONFIG</code> 2벌 중복 · 빈 catch 29곳</td><td class="center">◐ 주의</td><td class="center">◐ 주의</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">Q3</td><td class="center"><span class="badge b-p2">P2</span></td><td>파트너 콘솔이 전 컬렉션 다운로드 + 수동 캐시 무효화</td><td class="center">◐ 주의</td><td class="center">◐ 주의</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">Q4</td><td class="center"><span class="badge b-p2">P2</span></td><td>린터 · 포매터 · 루트 <code>package.json</code> 없음</td><td class="center">○ 허용</td><td class="center">◐ 주의</td><td class="num center">10/10</td></tr>
+      <tr><td class="num">D1</td><td class="center"><span class="badge b-p1">P1</span></td><td>문서가 사실과 다른 보안 주장을 8건 단언</td><td class="center">⬤ 즉시</td><td class="center">⬤ 차단</td><td class="num center">10/10</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:13px;color:var(--ink-faint)">⬤ 즉시 = 지금 조치 필요 · ◐ 주의 = 인지하고 시연 시나리오에서 회피 · ○ 허용 = 데모 범위에서는 의도된 단순화</p>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="s4">
+  <h2><span class="num">04</span>아키텍처 진단</h2>
+
+  <h3>현재 신뢰 경계</h3>
+  <pre><code>┌───────────────── 브라우저 (모든 권한 보유) ─────────────────┐
+│                                                              │
+│  회원 인증    members/{id}.pw 를 받아와 JS 에서 문자열 비교  │
+│               shared/game-engine.js:47                       │
+│  잔액 계산    memberLedger 전량 다운로드 후 JS 합산          │
+│               shared/game-engine.js:70                       │
+│  잔액 검사    STATE.balance (메모리 변수) — 베팅 경로엔 없음 │
+│  라운드 결과  Math.random()                                  │
+│               shared/game-engine.js:26                       │
+│  페이아웃     mult × amount 를 클라이언트가 계산·기록        │
+│               shared/game-engine.js:88-104                   │
+│  원장 기록    set() 직접 쓰기 · 트랜잭션 0건                 │
+│  앱 비밀값    index.html:6138 에 평문                        │
+│                                                              │
+└──────────────────────────┬───────────────────────────────────┘
+                           │
+                    ⚠  검증 계층 없음
+                           │
+                           ▼
+┌──────────── Firestore (보안 규칙 파일 없음) ────────────────┐
+│  members        loginId · pw(평문) · withdrawPw(평문)        │
+│  accounts       passportNo · passportPhoto · signaturePhoto  │
+│  memberLedger   실제 보유금의 단일 진실 공급원               │
+│  partnerStaff   운영자 계정 (pw 평문)                        │
+└──────────────────────────────────────────────────────────────┘
+                           ▲
+                           │  ← Cloud Functions 는 telegramLinks 4개만 방어
+                           │     (그 방어도 S2 로 무력화됨)</code></pre>
+
+  <p><strong>서버 측 검증 지점 = 0개.</strong> Cloud Functions는 존재하지만 Telegram 연동 전용이며, 자금 흐름에는 전혀 관여하지 않습니다.</p>
+
+  <h3>서버 API 도입 시의 목표 경계</h3>
+  <p>영업 시연 이후 서버를 구축해 API를 연동하는 방향이라면, 경계를 다시 그을 때 기준선은 다음 한 문장입니다 — <strong>"돈의 금액을 결정하는 계산은 브라우저에 두지 않는다."</strong></p>
+  <pre><code>브라우저                     서버 API                    Firestore / DB
+   │                            │                             │
+   │ "PLAYER 에 50,000 베팅"     │                             │
+   ├───────────────────────────►│  ① 세션 토큰 검증           │
+   │  (의도만 전송)              │  ② 잔액 조회 + 한도 검사    │
+   │                            │  ③ 트랜잭션 내 원장 쓰기    ├──►
+   │                            │  ④ serverTimestamp 부여     │
+   │ ◄──────────────────────────┤                             │
+   │  결과 구독 (읽기 전용)      │  라운드 결과도 서버가 생성  │
+   ▼                            ▼                             ▼</code></pre>
+  <p>이 경계가 생기면 <span class="id">S3</span> <span class="id">S5</span> <span class="id">S6</span> <span class="id">C1</span> <span class="id">C2</span> <span class="id">C3</span> <span class="id">P1</span>이 한꺼번에 해소됩니다. 반대로 이 경계 없이 개별 항목만 패치하면 각각이 다시 새는 지점을 만듭니다.</p>
+
+  <div class="call">
+    <span class="lbl">전환 전략 권고</span>
+    <p>현재 화면 코드는 <strong>Firestore SDK 호출이 UI 코드에 직접 인라인</strong>되어 있습니다(<code>index.html</code>에만 <code>onSnapshot</code> 20곳). 서버 API로 옮길 때 화면을 통째로 다시 쓰지 않으려면, 지금 <strong>데이터 접근 함수를 <code>shared/</code>의 얇은 계층으로 모으는 작업</strong>부터 하는 것이 비용이 가장 적습니다. 그 계층의 구현만 <code>fetch()</code>로 교체하면 화면은 그대로 유지됩니다.</p>
+  </div>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="s5">
+  <h2><span class="num">05</span>보안</h2>
+
+  <div class="finding">
+    <h3><span class="badge b-p0">P0</span> <span class="id">S1</span> Firestore 보안 규칙 파일 부재</h3>
+    <p class="where">저장소 전체 · firebase.json</p>
+    <p>저장소에 <code>*.rules</code> 파일이 <strong>0건</strong>이고, <code>firebase.json</code>에 <code>firestore</code> 섹션이 없습니다. 즉 규칙은 배포 파이프라인에 존재하지 않으며, 나중에 규칙을 작성해도 현재 CI로는 자동 배포되지 않습니다.</p>
+    <pre><code>   테스트 모드 규칙
+        │
+        ├── 만료일 도달 ────► allow: if false  ──► 앱 전면 무음 정지
+        │                                          (빈 catch 29곳 때문에
+        │                                           사용자에게 표시조차 안 됨)
+        │
+        └── 만료 전 ───────► allow: if true   ──► DB 전면 공개
+                                                   ↓
+                        projectId 는 클라이언트 번들에 노출 (cage-ui.js:11)
+                                                   ↓
+                        누구나 Firestore SDK 로 직접 접속 가능</code></pre>
+    <p>공개 상태일 경우 가능한 것: <code>members</code> 전량 읽기로 <strong>전 회원 평문 비밀번호 · 출금 비밀번호</strong> 획득, <code>accounts</code>의 여권번호 · 여권사진 · 서명사진 등 KYC 원본 유출, <code>memberLedger</code>에 임의 금액 직접 삽입, <code>partnerStaff</code> 운영자 계정 탈취.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li><code>firestore.rules</code> + <code>firestore.indexes.json</code>을 저장소에 추가하고 <code>firebase.json</code>에 연결</li>
+        <li>기본 자세를 <code>allow read, write: if false</code>로 두고 필요한 경로만 여는 화이트리스트 방식</li>
+        <li>돈 컬렉션(<code>memberLedger</code> · <code>ledger</code> · <code>mainCageLedger</code> · <code>shareLedger</code>)은 클라이언트 쓰기 전면 거부</li>
+        <li><code>accounts</code>의 여권 · 서명 이미지는 Firestore가 아니라 Storage로 옮기고 서명 URL로만 접근</li>
+        <li>CI 배포 경로에 규칙을 포함하고 <code>@firebase/rules-unit-testing</code> 기반 규칙 테스트 추가</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p0">P0</span> <span class="id">S2</span> <code>APP_API_SECRET</code> 공개 번들 하드코딩</h3>
+    <p class="where">index.html:6138</p>
+    <pre><code>const TG_APP_API_SECRET = '19293b49…7702da0';   // 실제 값은 전체가 커밋되어 있음</code></pre>
+    <p><code>docs/how-to-deploy.md:38</code>은 정반대를 지시합니다 — "값을 따옴표와 함께 소스 코드나 Git에 저장하지 마세요." 브라우저 <code>view-source</code>로 즉시 획득 가능하므로 Cloud Functions 3종의 인증은 사실상 없는 것과 같습니다.</p>
+    <div class="tblwrap">
+    <table>
+      <thead><tr><th>함수</th><th>비밀값 유출 시 가능한 행위</th></tr></thead>
+      <tbody>
+        <tr><td><code>getTelegramLinks</code></td><td>계좌ID별 Telegram 사용자명 · chatId 열거 (PII 수집)</td></tr>
+        <tr><td><code>sendTelegramMessage</code></td><td>실제 고객에게 임의 문구 발송. 앱이 쓰는 "출금 인증 요청" 형식을 그대로 흉내내면 완성형 피싱</td></tr>
+        <tr><td><code>deleteTelegramLink</code></td><td>임의 계정의 연동 해제 (서비스 방해)</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p><strong>CORS는 방어가 아닙니다.</strong> <code>functions/index.js:19-28</code>의 <code>applyCors</code>는 <code>Access-Control-Allow-Origin</code>을 <em>설정</em>만 하고 <code>req.get('origin')</code>을 <em>읽지 않습니다</em>. CORS는 브라우저 정책이라 <code>curl</code>은 무시합니다. 따라서 <code>docs/reference-cloud-functions.md:15</code>의 "앱용 엔드포인트는 Origin, 메서드, <code>X-App-Secret</code>을 확인합니다"는 사실이 아닙니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li><strong>비밀값 회전이 먼저.</strong> 이미 Git 히스토리에 남아 있으므로 코드에서 지우는 것만으로는 무효화되지 않음</li>
+        <li>공유 비밀값 모델 자체를 폐기. 브라우저에 두고 안전한 비밀값은 존재하지 않음 — Firebase Auth ID 토큰 검증(<code>onCall</code> 또는 <code>verifyIdToken</code>)으로 대체</li>
+        <li>Origin을 실제로 검증하려면 <code>req.get('origin')</code>을 읽고 화이트리스트와 비교 (보조 수단이지 인증은 아님)</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p1">P1</span> <span class="id">S8</span> 마스터 비밀번호 평문이 주석에 남음</h3>
+    <p class="where">index.html:6354-6357</p>
+    <pre><code>// Master password hash — used for master login authentication (see attemptMasterLogin below).
+// The password itself is unchanged ('kyle'); only its SHA-256 digest is stored/compared here,
+// so the plaintext no longer sits in the page source for anyone skimming view-source.
+const MASTER_RESET_PASSWORD_HASH = 'bb44bf07…6a3e896d';</code></pre>
+    <p>해시로 바꾼 목적이 <em>"평문이 페이지 소스에 남지 않게 한다"</em>인데, <strong>바로 그 평문이 두 줄 위 주석에 그대로 있습니다.</strong> 주석도 번들에 포함되어 <code>view-source</code>로 보이므로 조치 효과가 0입니다.</p>
+    <p>부수 문제: 솔트 없는 단일 SHA-256이라 이 정도 길이의 값은 레인보우 테이블로 즉시 역산됩니다. 주석을 지워도 해시 상수만으로 복원 가능합니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>주석에서 평문 제거 + <strong>비밀번호 자체를 변경</strong> (이미 Git 히스토리에 남음)</li>
+        <li>클라이언트 상수 비교 방식을 폐기하고 마스터 인증을 서버 검증으로 이동</li>
+        <li>서버 이전 전까지의 임시 조치라면 최소한 솔트 + 반복 해시(PBKDF2)로 교체</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p1">P1</span> <span class="id">S7</span> 파트너 콘솔 저장형 XSS</h3>
+    <p class="where">partner-admin/app.js:585-596</p>
+    <pre><code>function acctRowHtml(m, bal){
+  return `&lt;tr id="acctrow-${m.id}"&gt;
+    &lt;td&gt;${m.id}&lt;/td&gt;&lt;td&gt;${m.nickname||'—'}&lt;/td&gt;
+    ...
+    &lt;td&gt;&lt;button onclick="openBalanceModal('${m.id}','deposit','보유금 추가')"&gt;+ 추가&lt;/button&gt;</code></pre>
+    <p><code>nickname</code>과 <code>id</code>는 회원이 가입 폼에서 직접 입력하는 값이고 형식 검증이 없습니다. <code>id</code>는 <code>onclick</code> 속성 문자열 안에 들어가므로 작은따옴표 탈출로 임의 JS 실행이 가능합니다.</p>
+    <pre><code>회원 가입 폼          Firestore              파트너 콘솔 회원목록
+ nickname:            members/{id}            innerHTML 로 그대로 삽입
+ &lt;img src=x           .nickname               → 운영자 세션에서 스크립트 실행
+  onerror=...&gt;   ──►   저장          ──►      → 그 세션은 DB 전권을 가짐</code></pre>
+    <h4>이스케이프 적용 현황 (실측)</h4>
+    <div class="tblwrap">
+    <table>
+      <thead><tr><th>파일</th><th class="num">이스케이프 호출</th><th class="num">innerHTML 대입</th><th class="num">인라인 onclick</th><th>판정</th></tr></thead>
+      <tbody>
+        <tr><td><code>index.html</code></td><td class="num">149 <span style="color:var(--ink-faint)">(esc)</span></td><td class="num">74</td><td class="num">155</td><td><span class="badge b-ok">양호</span></td></tr>
+        <tr><td><code>avatar/app.js</code></td><td class="num">12</td><td class="num">49</td><td class="num">39</td><td><span class="badge b-p2">부분</span></td></tr>
+        <tr><td><code>partner-admin/app.js</code></td><td class="num">8</td><td class="num">31</td><td class="num">42</td><td><span class="badge b-p1">미흡</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>케이지 화면은 자체 <code>esc()</code>를 149회 사용해 잘 방어하고 있습니다. <strong>문제는 파트너 콘솔 한 곳에 집중</strong>되어 있어 수정 범위가 좁습니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li><code>partner-admin/app.js</code>의 테이블 렌더러 전수 점검 — <code>shared/cage-ui.js</code>의 <code>escapeHtml</code>이 이미 존재하므로 적용만 하면 됨</li>
+        <li><code>onclick="fn('${값}')"</code> 패턴을 <code>data-*</code> 속성 + 이벤트 위임으로 교체 (근본 해결)</li>
+        <li><code>id</code> · <code>nickname</code>에 입력 형식 제약을 가입 시점과 보안 규칙 양쪽에서 강제</li>
+        <li>Hosting에 CSP 헤더 추가 (<code>firebase.json</code>의 <code>headers</code>에 지금은 캐시 헤더만 있음)</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p0">P0</span> <span class="id">S3</span> 베팅 · 결과 · 페이아웃이 전부 클라이언트 권한</h3>
+    <p class="where">shared/game-engine.js:81-104 · avatar/app.js:786</p>
+    <pre><code>async function placeBet(db, {memberId, casino, tableId, roundId, betType, amount, staff}){
+  await db.collection('memberLedger').doc(uuidv4()).set({
+    memberId, casino, amount: -Math.abs(amount), category:'bet', ...</code></pre>
+    <p>잔액 검사가 함수 안에도, 호출부에도 없습니다. 팁 경로만 <code>STATE.balance</code>를 검사하는데 이는 메모리 변수라 콘솔에서 바꾸면 그만입니다. 결과 생성(<code>Math.random()</code>) · 배수 결정 · 상금 기록이 모두 같은 신뢰 영역에 있습니다.</p>
+    <p><code>docs/explanation-architecture.md:62</code>가 RNG 문제를 정직하게 인정하고 있으나, <strong>더 큰 문제는 RNG가 아니라 페이아웃 기록 권한</strong>입니다. 공인 RNG를 붙여도 클라이언트가 상금을 원장에 쓰는 구조면 소용이 없습니다.</p>
+    <p>추가로, 단말마다 <code>setInterval</code>로 각자 라운드를 돌리므로 <strong>"같은 테이블"이라는 개념 자체가 성립하지 않습니다</strong> — 두 플레이어가 같은 테이블에 앉아도 서로 다른 카드를 봅니다. 시연에서 두 대의 단말을 나란히 놓으면 바로 드러나는 지점입니다.</p>
+    <div class="fix"><span class="lbl">개선 방향 (서버 전환 시)</span>
+      <ol>
+        <li><code>placeBet</code> / <code>settleBet</code> / <code>writeRoundDoc</code>를 서버 권한 주체로 이동</li>
+        <li>라운드 결과는 서버가 생성하고 모든 참가 단말이 같은 라운드 문서를 구독</li>
+        <li>서버는 한 트랜잭션 안에서 (a) 잔액 집계 (b) 베팅 한도 검사 (c) 원장 쓰기 수행</li>
+        <li>클라이언트는 "베팅 의도"만 제출하고 결과를 구독</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p0">P0</span> <span class="id">S4</span> Telegram 연동에 소유권 증명 없음</h3>
+    <p class="where">functions/index.js:63-78</p>
+    <p><code>/start SE7419</code>를 보낸 사람이 누구든 그 계좌에 자기 chat이 연결됩니다. 계좌 ID는 짧고 규칙적이어서(<code>SE7419</code>, <code>SEC6937</code>) 열거가 쉽고, 앱이 이 채널로 출금 인증 링크를 보내므로 계좌 탈취 경로가 됩니다.</p>
+    <pre><code>공격자                Telegram Bot            telegramLinks
+  │  /start SE7419         │                       │
+  ├───────────────────────►│                       │
+  │                        ├──► set(SE7419_&lt;myChat&gt;)
+  │                        │                       │
+  │  이후 SE7419 의 출금 인증 메시지를 수신        │
+  ◄────────────────────────┤                       │</code></pre>
+    <p>부수 문제: 사용자 입력 <code>accountId</code>가 검증 없이 문서 ID(<code>${accountId.toUpperCase()}_${chatId}</code>)에 들어갑니다. <code>/</code>가 포함되면 Firestore 경로 파싱이 깨집니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>앱에서 발급한 <strong>1회용 · 단기 만료 연동 토큰</strong>을 <code>/start &lt;token&gt;</code> 페이로드로 사용. 계좌 ID를 직접 받지 않음</li>
+        <li>토큰은 로그인 세션에서만 발급되고 사용 즉시 소멸</li>
+        <li><code>accountId</code> 형식 검증(<code>^[A-Z0-9]{4,16}$</code>)을 문서 ID 조립 전에 수행</li>
+        <li>webhook에 chatId 단위 rate limit 추가</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p1">P1</span> <span class="id">S5</span> 비밀번호 평문 저장 + 클라이언트 비교</h3>
+    <p class="where">shared/game-engine.js:47 · partner-admin/app.js:186, 701</p>
+    <pre><code>// shared/game-engine.js:47
+if (String(m.pw ?? '0000') !== pw) return {ok:false, reason:'badpw'};
+
+// partner-admin/app.js:701 (데모 시드)
+pw:'0000', withdrawPw:'0000', ...</code></pre>
+    <p>두 겹의 문제입니다. (a) 평문 저장 (b) 검증을 클라이언트가 수행 — 즉 <strong>로그인하려면 먼저 그 계정의 비밀번호를 다운로드해야 합니다.</strong> 규칙이 없으면 로그인 없이도 전체 조회가 됩니다.</p>
+    <p><code>docs/FIRESTORE_DATA_MODEL.md:124</code>는 <code>pw(해시)</code>라고 명세하지만 구현은 평문입니다. 또한 <code>partner-admin/app.js:170-172</code>는 <code>partnerStaff</code>가 비어 있을 때 <code>admin / 0000</code> 마스터 계정을 자동 생성하고, <code>docs/tutorial-run-demo.md</code>가 그 자격증명을 문서에 공개합니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>Firebase Authentication으로 이전 — 비밀번호를 애플리케이션이 보관하지 않는 것이 목표</li>
+        <li>역할은 custom claims(<code>member</code> / <code>partnerStaff</code> / <code>cage</code>)로 표현하고 규칙과 서버가 그 claim을 신뢰</li>
+        <li>출금 비밀번호처럼 별도 유지가 필요한 값은 서버에서 salt + Argon2id/scrypt로 해시하고 비교도 서버에서</li>
+        <li>자동 생성 마스터 계정 제거. 최초 운영자는 배포 스크립트나 콘솔에서 1회 수동 생성</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p1">P1</span> <span class="id">S6</span> 가입 무인증 + 즉시 100,000 지급</h3>
+    <p class="where">shared/game-engine.js:53-68</p>
+    <pre><code>const existing = await db.collection('members').doc(id).get();
+if (existing.exists) return {ok:false, reason:'dup'};
+...
+await db.collection('memberLedger').doc(uuidv4()).set({
+  memberId:id, amount:100000, category:'deposit', memo:'가입 축하 포인트', ...
+});</code></pre>
+    <p>두 결함이 겹칩니다.</p>
+    <ul>
+      <li><strong>TOCTOU</strong> — 존재 확인과 쓰기가 분리되어 동시 가입 시 기존 회원 문서를 덮어씁니다. 덮어쓴 쪽이 그 ID의 원장 전부를 상속합니다.</li>
+      <li><strong>카테고리 오류</strong> — 메모는 "포인트"인데 <code>category:'deposit'</code>입니다. <code>game-engine.js:74</code>가 <code>point_earn</code> / <code>point_convert</code>만 포인트로 취급하므로 이 100,000은 포인트가 아니라 <strong>현금성 보유금</strong>입니다.</li>
+    </ul>
+    <p>인증 없는 가입과 결합하면 계정 수 × 100,000의 무한 발행입니다. <code>smsVerified</code>는 클라이언트가 <code>true</code>로 넘기는 값이라 방어가 되지 않습니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>가입을 서버 권한 주체로 이전하고 문서 생성은 <code>create</code> 의미론(존재 시 실패)으로 수행</li>
+        <li>가입 보너스의 카테고리를 명시적으로 결정 — 포인트라면 <code>point_earn</code></li>
+        <li>보너스는 SMS/이메일 인증 완료 후 지급하도록 분리</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="s6">
+  <h2><span class="num">06</span>데이터 일관성</h2>
+
+  <div class="finding">
+    <h3><span class="badge b-p1">P1</span> <span class="id">C1</span> 금전 쓰기에 트랜잭션 0건</h3>
+    <p class="where">저장소 전체 — runTransaction 검색 결과 0건</p>
+    <p><code>docs/FIRESTORE_DATA_MODEL.md:13</code>의 핵심 주장:</p>
+    <blockquote>오프라인 상태의 서로 다른 단말이 각자 다른 거래를 기록해도, 온라인 복귀 시 그냥 둘 다 존재하게 될 뿐 — 충돌도, 유실도 없다.</blockquote>
+    <p>이 문장은 <strong>분실 갱신(lost update)에 대해서는 참</strong>이지만 <strong>불변식(잔액 ≥ 0)에 대해서는 거짓</strong>입니다. append-only는 "거래 분실"을 막고, "허가되지 않은 거래"는 막지 않습니다.</p>
+    <pre><code>   단말 A                     단말 B
+     │ read balance = 100,000   │ read balance = 100,000
+     │                          │
+     │ append -100,000 ────────►│
+     │                          ├──► append -100,000
+     ▼                          ▼
+        최종 잔액 = -100,000
+        append-only 는 이 상황을 "정상"으로 처리함</code></pre>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>읽기-검사-쓰기를 하나의 트랜잭션으로 묶음. Firestore 트랜잭션은 컬렉션 합산을 직접 못 하므로, 회원당 <strong>잔액 스냅샷 문서</strong>(<code>memberBalances/{memberId}</code>)를 트랜잭션 대상으로 두고 원장은 감사 기록으로 유지하는 하이브리드가 현실적</li>
+        <li>스냅샷과 원장 합계가 어긋나는지 주기적으로 검증하는 정합성 배치를 함께 설계</li>
+        <li>문서에 "append-only가 보장하는 것 / 보장하지 않는 것"을 명시적으로 분리 기술</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p1">P1</span> <span class="id">C2</span> 타임스탬프가 클라이언트 벽시계</h3>
+    <p class="where">shared/game-engine.js:85 · avatar/app.js:718 · partner-admin/app.js:701</p>
+    <p>명세는 <code>createdAt: serverTimestamp</code> + <code>clientCreatedAt</code> + <code>deviceId</code> 3필드이지만, 구현은 <code>createdAt: new Date().toISOString()</code> 하나입니다. 클라이언트 코드에서 <code>serverTimestamp</code> 사용 <strong>0건</strong>, <code>clientCreatedAt</code> · <code>deviceId</code>는 어느 쓰기 경로에도 없습니다.</p>
+    <p>영향 범위가 넓습니다. 일자별정산 · 데일리리포트가 이 필드 기준이고 <code>cageConfig/global</code>의 <code>lastCutoffDt</code> · <code>lastMonthSettleDt</code>도 같은 축입니다. <strong>단말 시계를 바꾸면 베팅을 다른 정산일로 옮길 수 있고</strong>, 다단말 간 순서 보장도 없으며, <code>deviceId</code> 부재로 사후 추적도 불가능합니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>모든 금전 문서에 <code>createdAt: FieldValue.serverTimestamp()</code> 강제. 규칙에서 <code>request.time</code>과 일치 검사</li>
+        <li>클라이언트 시각은 <code>clientCreatedAt</code>으로 분리 저장 (오프라인 UI 표시용, 정산 근거로는 미사용)</li>
+        <li><code>deviceId</code>를 브라우저별 안정 식별자로 생성해 모든 쓰기에 포함</li>
+        <li>정산 · 리포트 쿼리를 서버 <code>createdAt</code> 기준으로 통일</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p1">P1</span> <span class="id">C3</span> 멱등성 주장이 성립하지 않음</h3>
+    <p class="where">shared/game-engine.js:82 · shared/cage-ui.js:28-33</p>
+    <p><code>placeBet</code> 호출마다 <code>uuidv4()</code>를 <strong>새로</strong> 생성합니다. 따라서 SDK 내부 오프라인 큐 재생은 멱등이지만, <strong>앱 레벨 재시도(버튼 재클릭, 실패 후 재호출)는 중복 원장을 생성</strong>합니다. 실제 운영에서 흔한 쪽은 후자입니다.</p>
+    <p>추가로 <code>uuidv4()</code>가 <code>Math.random()</code> 기반입니다. 금전 원장 키 생성기로 <code>crypto.randomUUID()</code>를 쓰지 않을 이유가 없습니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>멱등 키를 <strong>호출 시점이 아니라 의도 시점</strong>에 생성. 예: <code>{memberId}_{roundId}_{betType}</code>처럼 자연 키를 문서 ID로 사용하면 재시도가 진짜로 멱등해짐</li>
+        <li><code>uuidv4()</code>를 <code>crypto.randomUUID()</code>로 교체 <em>(단독으로도 즉시 가능한 저비용 수정)</em></li>
+        <li>문서에서 멱등성이 성립하는 범위를 정확히 기술</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p2">P2</span> <span class="id">C4</span> 원장 스키마 불일치 — 집계가 조용히 0 반환</h3>
+    <p class="where">shared/cage-ui.js:172 · index.html:4302, 4660</p>
+    <div class="tblwrap">
+    <table>
+      <thead><tr><th>컬렉션</th><th>문서 명세</th><th>실제 구현</th><th class="center">일치</th></tr></thead>
+      <tbody>
+        <tr><td><code>memberLedger</code></td><td><code>amount</code></td><td><code>amount</code></td><td class="center"><span class="badge b-ok">✓</span></td></tr>
+        <tr><td><code>ledger</code></td><td><code>amount</code> (부호 있는 단일 필드)</td><td><code>inn</code> / <code>out</code> 2필드</td><td class="center"><span class="badge b-p1">✗</span></td></tr>
+        <tr><td><code>mainCageLedger</code></td><td><code>amount</code></td><td><code>amt</code></td><td class="center"><span class="badge b-p1">✗</span></td></tr>
+        <tr><td><code>rollingEvents</code></td><td><code>games/{id}/rollingEvents</code> 서브컬렉션</td><td>전역 컬렉션</td><td class="center"><span class="badge b-p1">✗</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>문제는 격차 자체보다 <strong>실패 방식</strong>입니다.</p>
+    <pre><code>// shared/cage-ui.js:172
+snap.forEach(d=&gt; sum += Number(d.data()[field])||0);</code></pre>
+    <p><code>sumWhere(db, 'mainCageLedger', [...], 'amount')</code>를 호출하면 필드가 없으므로 <code>undefined</code> → <code>Number(undefined)||0</code> → <strong>예외 없이 0</strong>을 반환합니다. 회계 화면에 0이 그대로 표시되고 아무도 오류를 보지 못합니다. 조용한 실패가 돈 숫자에 붙는 최악의 조합입니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>세 원장의 스키마를 <code>memberLedger</code> 형태(부호 있는 <code>amount</code>)로 통일하고 마이그레이션 작성</li>
+        <li>통일 전까지 <code>sumWhere</code>에 필드 부재 감지 추가 — 전 문서에서 해당 필드가 없으면 0이 아니라 예외</li>
+        <li>데이터 모델 문서에 "현행 스키마"와 "목표 스키마"를 나란히 표기</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p2">P2</span> <span class="id">C5</span> 오프라인 캐시 활성 + 잔액 검사 stale</h3>
+    <p class="where">shared/cage-ui.js:24 · index.html:4258</p>
+    <pre><code>cageDb.enablePersistence({synchronizeTabs:true}).catch(()=&gt;{});</code></pre>
+    <p>데이터 모델 문서는 오프라인 캐시를 1단계 범위에서 제외한다고 쓰지만 실제로는 <strong>두 곳에서 이미 켜져 있습니다.</strong> <code>synchronizeTabs:true</code>이므로 탭 여러 개가 같은 캐시를 공유하고, 오프라인 쓰기는 큐에 쌓입니다. 잔액 조회가 캐시를 읽으면 다른 탭의 대기 중 베팅이 반영되지 않은 값을 보게 되어 <span class="id">C1</span>의 이중지불 창을 넓힙니다. <code>catch(()=&gt;{})</code>라 실패해도 아무도 모릅니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>서버 권한 도입 전까지 금전 화면에서 오프라인 지속성을 끄거나, 최소한 활성 여부를 UI에 표시</li>
+        <li>잔액 조회를 <code>{source:'server'}</code>로 강제</li>
+        <li><code>catch(()=&gt;{})</code>를 로깅으로 교체</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="s7">
+  <h2><span class="num">07</span>성능</h2>
+
+  <div class="finding">
+    <h3><span class="badge b-p1">P1</span> <span class="id">P1</span> 잔액 조회가 원장 전량 다운로드 × 매 라운드</h3>
+    <p class="where">shared/game-engine.js:69-78 · avatar/app.js:825</p>
+    <pre><code>async function getPlayerBalance(db, memberId){
+  const snap = await db.collection('memberLedger').where('memberId','==',memberId).get();
+  let balance = 0, points = 0;
+  snap.forEach(d=&gt; { ... });</code></pre>
+    <p>명세는 <code>getAggregateFromServer</code> + <code>sum()</code>이지만 구현은 전량 다운로드 후 JS 합산입니다. 호출 빈도가 문제를 증폭시킵니다 — <code>refreshPointsQuiet()</code>가 <strong>매 라운드 종료마다</strong> 호출되고 스피드 테이블은 라운드가 21초입니다.</p>
+    <pre><code>누적 베팅 1,000건 회원 · 스피드 4시간 플레이
+  라운드 수        ≈ 685
+  라운드당 읽기     = 누적 원장 문서 수 (계속 증가)
+  총 문서 읽기      ≈ 685 × 평균 1,300 ≈ 890,000 회
+  Spark 무료 한도   = 50,000 회/일</code></pre>
+    <p>하루치 한도를 한 명이 30분 만에 소진합니다. 원장은 append-only라 <strong>영원히 커지므로</strong>, 오래된 회원일수록 느려지고 비싸집니다. 장시간 시연에서 화면이 멈추는 형태로 드러날 수 있는 항목입니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li><span class="id">C1</span>의 잔액 스냅샷 문서를 도입하면 조회가 문서 1건 읽기로 끝남 — <strong>정합성 문제와 성능 문제가 같은 해법을 공유</strong></li>
+        <li>스냅샷 전까지는 <code>getAggregateFromServer</code> + <code>sum()</code>으로 전환</li>
+        <li>라운드마다 전체 재조회 대신 로컬 델타 적용 + 주기적 서버 대조</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p2">P2</span> <span class="id">P2</span> 케이지 화면이 7개 컬렉션을 <code>limit</code> 없이 구독</h3>
+    <p class="where">index.html:4281, 4335, 4444, 4459, 4717, 4749, 4847</p>
+    <pre><code>fbStaffUnsub          = fbDb.collection('staff').orderBy('dt').onSnapshot(...)
+fbLedgerUnsub         = fbDb.collection('ledger').orderBy('dt').onSnapshot(...)
+fbGamesUnsub          = fbDb.collection('games').orderBy('dt').onSnapshot(...)
+fbRollingEventsUnsub  = fbDb.collection('rollingEvents').orderBy('dt').onSnapshot(...)
+fbMainCageUnsub       = fbDb.collection('mainCageLedger').orderBy('dt').onSnapshot(...)
+fbBranchTransferUnsub = fbDb.collection('branchTransfers').orderBy('dt').onSnapshot(...)
+fbShiftUnsub          = fbDb.collection('shiftEvents').orderBy('dt').onSnapshot(...)
+// 날짜 필터도, limit 도, 페이지네이션도 없음</code></pre>
+    <p>케이지 단말은 시작할 때마다 <strong>전체 운영 이력을 통째로 내려받아 메모리에 보관</strong>합니다. 원장은 append-only이므로 운영 일수에 비례해 초기 로딩 시간과 읽기 과금이 선형 증가합니다. 시연 환경에서는 데이터가 적어 드러나지 않지만, 실제 운영 1개월 후부터 체감됩니다.</p>
+    <p>같은 코드 영역에 최근 개선(<code>index.html:4168</code>, 리스너 오류 후 자동 재구독)이 들어가 있어 안정성 쪽은 이미 손을 댄 상태입니다. 범위 제한만 추가하면 됩니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>각 구독에 영업일 기준 범위 필터(<code>where('dt','&gt;=', 당일 개장시각)</code>) 또는 <code>limit</code> 적용</li>
+        <li>과거 이력 조회는 별도의 명시적 조회 화면으로 분리 (구독이 아닌 단발 쿼리)</li>
+        <li><code>firestore.indexes.json</code>을 저장소에 편입 — 현재 복합 인덱스를 코드로 관리하지 않아 콘솔 수동 작업에 의존</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p2">P2</span> <span class="id">P3</span> 캐시 <code>no-store</code>로 매 방문 전량 재다운로드</h3>
+    <p class="where">firebase.json</p>
+    <pre><code>{ "source": "**/*.html",      "headers": [{ "key": "Cache-Control",
+                               "value": "no-cache, no-store, must-revalidate" }] },
+{ "source": "**/*.@(js|css)", "headers": [{ "key": "Cache-Control",
+                               "value": "no-cache, no-store, must-revalidate" }] }</code></pre>
+    <p>모든 HTML · JS · CSS에 <code>no-store</code>가 걸려 있어 <strong>새로고침할 때마다 약 700 KB를 다시 받습니다</strong>(<code>index.html</code> 499 KB + <code>shared/</code> 97 KB + 화면별 JS). 배포 즉시 반영을 노린 설정으로 보이지만, 모바일 회선에서 진행하는 시연이라면 초기 로딩이 눈에 띄게 느려집니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>HTML만 <code>no-cache</code>로 두고, JS/CSS는 파일명 또는 쿼리에 버전을 붙여 <code>max-age</code>를 길게 부여</li>
+        <li>빌드 단계를 도입하지 않겠다면 <code>?v=YYYYMMDD</code> 수동 버전 파라미터만으로도 충분</li>
+        <li><code>index.html</code>의 CSS(501줄)와 JS(5,000줄 이상)를 별도 파일로 분리하면 캐시 효율이 크게 개선됨</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="s8">
+  <h2><span class="num">08</span>코드 품질</h2>
+
+  <div class="finding">
+    <h3><span class="badge b-p2">P2</span> <span class="id">Q1</span> 테스트 0건 · 배포 전 검증 단계 없음</h3>
+    <p>루트에 <code>package.json</code>이 없고, <code>functions/package.json</code>에 <code>test</code> 스크립트가 없으며, 테스트 파일 · 디렉터리 · 프레임워크가 없습니다. CI는 Hosting 배포만 수행하고 <code>channelId: live</code>로 직행합니다.</p>
+    <pre><code>코드 경로                                            현재 커버리지
+[+] functions/index.js
+  ├── telegramWebhook()   401 / 정상 / 페이로드 없음    [GAP]
+  │   └── accountId 에 '/' 포함 → 경로 예외             [GAP] 처리 자체가 없음
+  ├── getTelegramLinks()   401 / 400 / 정상             [GAP]
+  ├── sendTelegramMessage() 401 / 403 / 405 / 400 / 500 [GAP]
+  └── deleteTelegramLink()  401 / 405 / 400 / 정상      [GAP]
+
+[+] shared/game-engine.js
+  ├── playerLogin()   notfound / badpw / blocked / 정상 [GAP]
+  ├── playerSignup()  중복 / 정상 / 동시가입 경합        [GAP]
+  ├── getPlayerBalance()  포인트·잔액 분리 합산          [GAP]
+  ├── placeBet()      잔액 부족 / 한도 초과              [GAP] 분기 자체가 없음
+  ├── settleBet()     5개 betType × 3개 result 조합      [GAP]
+  └── buildBigRoad()  타이 선행 / 드래곤테일 / 빈 배열   [GAP]
+
+[+] firestore.rules
+  └── 규칙 파일이 없으므로 테스트할 대상이 없음          [CRITICAL]
+
+사용자 흐름
+  ├── 가입 → 로그인 → 베팅 → 정산 → 이력 확인            [GAP]
+  ├── 탭 2개 동시 베팅 (이중지불)                        [GAP] 핵심
+  └── 오프라인 → 복귀 후 큐 재전송                       [GAP] 핵심
+
+커버리지: 0/24 (0%)</code></pre>
+    <div class="fix"><span class="lbl">개선 방향 (착수 비용 순)</span>
+      <ol>
+        <li><code>game-engine.js</code>의 순수 함수(<code>buildBigRoad</code> · <code>deriveRoad</code> · <code>decomposeChipStack</code> · <code>settleBet</code> 배수 계산)는 의존성이 없어 <strong>단위 테스트 비용이 거의 0</strong> — 여기부터 시작</li>
+        <li>Functions는 <code>firebase-functions-test</code>로 4개 함수 × 오류 분기 전수</li>
+        <li><code>firestore.rules</code> 도입과 동시에 <code>@firebase/rules-unit-testing</code> + 에뮬레이터로 규칙 테스트. 규칙은 이 시스템에서 가장 하중이 큰 코드</li>
+        <li>E2E는 이중지불과 오프라인 복귀 두 시나리오를 최우선 — 문서가 해결했다고 주장하는 바로 그 시나리오</li>
+        <li>CI에 테스트 단계를 넣고 실패 시 배포 차단</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p2">P2</span> <span class="id">Q2</span> 설정 중복과 무음 실패</h3>
+    <div class="tblwrap">
+    <table>
+      <thead><tr><th>항목</th><th class="num">실측</th><th>영향</th></tr></thead>
+      <tbody>
+        <tr><td><code>FIREBASE_CONFIG</code> 정의</td><td class="num">2벌</td><td><code>index.html:4158</code> · <code>shared/cage-ui.js:8</code> — 프로젝트 전환 시 한쪽만 바꾸면 조용히 갈라짐</td></tr>
+        <tr><td>내용 없는 catch 블록</td><td class="num">29곳</td><td>동기화 실패가 사용자에게도 로그에도 남지 않음</td></tr>
+        <tr><td>Firebase 초기화 경로</td><td class="num">2가지</td><td>케이지 화면은 <code>firebase.firestore()</code> 직접, 나머지는 <code>cageInitFirebase()</code> — 오프라인 설정이 화면마다 다름</td></tr>
+        <tr><td>인라인 <code>onclick</code></td><td class="num">236곳</td><td>이벤트 위임 부재. <span class="id">S7</span>의 XSS 표면과 동일한 뿌리</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>돈을 다루는 화면에서 무음 실패는 일반 버그보다 위험합니다. 사용자는 기록이 저장됐다고 믿고 다음 작업으로 넘어갑니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li><code>FIREBASE_CONFIG</code>를 <code>shared/</code>로 단일화하고 <code>index.html</code>이 그것을 로드</li>
+        <li>빈 catch를 최소한 <code>console.error</code> + 사용자 표시(<code>toast</code>는 이미 있음)로 교체</li>
+        <li>파일 분할은 서버 전환 작업과 겹치므로 그 시점에 함께 정리 — 지금 쪼개면 곧 지울 코드를 정돈하는 셈</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p2">P2</span> <span class="id">Q3</span> 파트너 콘솔이 전 컬렉션 다운로드 + 수동 캐시 무효화</h3>
+    <p class="where">partner-admin/app.js:230-236</p>
+    <pre><code>async function fetchAll(coll){
+  const snap = await db.collection(coll).get();
+  return snap.docs.map(d=&gt;({id:d.id, ...d.data()}));
+}
+let MEMBER_CACHE = null, BALANCE_CACHE = null, TABLE_CACHE = null;</code></pre>
+    <p>파트너 콘솔은 <code>onSnapshot</code>을 <strong>한 번도 쓰지 않고</strong> 전 컬렉션을 <code>get()</code>으로 받아 수동 캐시에 담습니다. 결과적으로 (a) 실시간 반영이 없어 다른 운영자의 변경을 못 보고, (b) <code>invalidateCaches()</code> 호출을 한 곳이라도 빠뜨리면 stale 데이터를 표시합니다. 같은 저장소의 케이지 화면은 <code>onSnapshot</code>을 20곳에서 쓰는데 파트너 콘솔만 다른 방식입니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>회원 · 테이블처럼 자주 바뀌는 컬렉션은 <code>onSnapshot</code> 구독으로 전환해 수동 무효화 제거</li>
+        <li>서버 API 전환 시에는 두 화면의 데이터 접근 방식을 같은 계층으로 통일</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="finding">
+    <h3><span class="badge b-p2">P2</span> <span class="id">Q4</span> 린터 · 포매터 · 루트 <code>package.json</code> 없음</h3>
+    <p>정적 분석 도구가 하나도 설정되어 있지 않습니다. 14,300줄 규모에서 미사용 변수나 오타난 필드명(<span class="id">C4</span>의 <code>amt</code> / <code>amount</code> 같은)을 잡아줄 장치가 없습니다. 도입 비용이 낮은 데 비해 <span class="id">C4</span>류의 조용한 실패를 상당수 사전 차단합니다.</p>
+    <div class="fix"><span class="lbl">개선 방향</span>
+      <ol>
+        <li>루트 <code>package.json</code> + ESLint(브라우저 환경) + Prettier. 빌드 단계 추가 없이 개발 도구로만 사용 가능</li>
+        <li>CI에 <code>lint</code> 단계 추가 (테스트보다 먼저 도입 가능한 최저비용 게이트)</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9 ============ -->
+<section id="s9">
+  <h2><span class="num">09</span>문서 정합성</h2>
+
+  <p>문서가 사실과 다른 보안 · 일관성 주장을 단언하고 있습니다. 이 문서를 읽고 작업하는 사람은 <strong>이미 방어가 있다고 믿게 됩니다.</strong> 잘못된 안전 신호는 방어 부재보다 위험할 수 있습니다.</p>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th class="num">#</th><th>문서</th><th>주장</th><th>실제</th></tr></thead>
+    <tbody>
+      <tr><td class="num">D1a</td><td><code>FIRESTORE_DATA_MODEL.md:124</code></td><td><code>pw(해시)</code></td><td>평문</td></tr>
+      <tr><td class="num">D1b</td><td><code>reference-cloud-functions.md:15</code></td><td>Origin을 확인</td><td>설정만 하고 검증 안 함</td></tr>
+      <tr><td class="num">D1c</td><td><code>how-to-deploy.md:38</code></td><td>비밀값을 소스 · Git에 두지 말 것</td><td><code>index.html:6138</code>에 커밋됨</td></tr>
+      <tr><td class="num">D1d</td><td><code>FIRESTORE_DATA_MODEL.md:21</code></td><td>서버 측 집계 쿼리</td><td>전량 다운로드 후 JS 합산</td></tr>
+      <tr><td class="num">D1e</td><td><code>FIRESTORE_DATA_MODEL.md:39-40</code></td><td><code>serverTimestamp</code> + <code>clientCreatedAt</code></td><td>클라이언트 시각 1개</td></tr>
+      <tr><td class="num">D1f</td><td><code>FIRESTORE_DATA_MODEL.md:38</code></td><td><code>deviceId</code> 감사 필드</td><td>어느 쓰기에도 없음</td></tr>
+      <tr><td class="num">D1g</td><td><code>FIRESTORE_DATA_MODEL.md:113</code></td><td>오프라인 캐시 1단계 제외</td><td>2곳에서 이미 활성</td></tr>
+      <tr><td class="num">D1h</td><td><code>FIRESTORE_DATA_MODEL.md:18</code></td><td>재시도 멱등</td><td>앱 레벨 재시도는 중복 생성</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="call ok">
+    <span class="lbl">모범 사례</span>
+    <p><code>explanation-architecture.md</code>는 <strong>반대로 정직합니다</strong> — 보안 규칙 부재(<code>:60</code>), 데모 인증(<code>:60</code>), <code>Math.random()</code> RNG(<code>:62</code>), 스키마 격차(<code>:34</code>)를 모두 명시하고, <code>:36</code>에서 "데이터 모델 문서를 현행 스키마 명세로 오해하지 말 것"까지 경고합니다. <strong>다른 문서의 기준으로 삼을 것.</strong></p>
+  </div>
+
+  <div class="fix"><span class="lbl">개선 방향</span>
+    <ol>
+      <li><code>FIRESTORE_DATA_MODEL.md</code> 상단에 "이 문서는 <strong>목표 설계</strong>이며 현행 구현과 다르다"는 경고 배치</li>
+      <li>각 컬렉션에 "현행 / 목표" 상태 컬럼 추가</li>
+      <li>D1a~D1h 정정. 특히 <strong>D1b · D1c는 잘못된 안전 신호</strong>를 주므로 최우선</li>
+      <li><code>how-to-deploy.md</code>의 배포 확인 절차에 "Firestore 규칙이 배포되었는지" 항목 추가</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 10 ============ -->
+<section id="s10">
+  <h2><span class="num">10</span>잘 되어 있는 것</h2>
+
+  <p>서버 전환 시 버릴 것과 남길 것을 구분하기 위한 목록입니다. <strong>대부분은 남습니다.</strong></p>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>자산</th><th>상태</th><th>판단</th></tr></thead>
+    <tbody>
+      <tr><td>append-only 원장 개념</td><td><code>memberLedger</code>에서 정상 동작</td><td><strong>유지.</strong> 방향이 옳음 — 쓰기 주체만 바꾸면 됨</td></tr>
+      <tr><td>부호 있는 <code>amount</code> + <code>category</code></td><td><code>memberLedger</code> 한정</td><td><strong>유지.</strong> 나머지 원장을 여기에 맞춤</td></tr>
+      <tr><td>도메인 모델링</td><td>케이지 · 롤링 · 교대 · 정산 · 파트너 계층</td><td><strong>핵심 자산.</strong> 이 부분이 프로젝트의 실질 가치</td></tr>
+      <tr><td>5개 국어 i18n</td><td><code>shared/i18n.js</code> · 147개 키 · 플레이어 화면 전면 적용</td><td><strong>유지.</strong> 데이터 계층과 무관</td></tr>
+      <tr><td>TOTP 2단계 인증</td><td><code>index.html:5493</code> 이하 · RFC 6238 자체 구현</td><td><strong>재사용.</strong> 서버 검증으로 옮기면 그대로 유효</td></tr>
+      <tr><td>케이지 화면 XSS 방어</td><td><code>esc()</code> 149회 적용</td><td><strong>모범.</strong> 파트너 콘솔이 따라가면 됨</td></tr>
+      <tr><td>Cloud Functions 배포 파이프라인</td><td>동작 중</td><td><strong>재사용.</strong> 자금 API를 여기에 얹으면 새 인프라 불필요</td></tr>
+      <tr><td>Firebase Secrets</td><td>3개 등록 · 사용 중</td><td><strong>재사용.</strong> 서버 측 비밀값 관리는 이미 정상</td></tr>
+      <tr><td>리스너 자동 재구독</td><td><code>index.html:4168</code> (최근 커밋)</td><td><strong>유지.</strong> 안정성 개선 방향이 맞음</td></tr>
+      <tr><td><code>shared/cage-ui.js</code> 유틸</td><td><code>escapeHtml</code> · 포매터 · 의존성 없는 SVG 차트</td><td><strong>재사용.</strong> 파트너 콘솔이 안 쓰고 있을 뿐</td></tr>
+      <tr><td><code>explanation-architecture.md</code></td><td>한계를 정직하게 서술</td><td><strong>모범.</strong> 다른 문서의 기준</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============ 11 ============ -->
+<section id="s11">
+  <h2><span class="num">11</span>개선 로드맵</h2>
+
+  <h3>트랙 A · 영업 시연을 계속하기 위한 최소 조치</h3>
+  <p>구조 변경 없이 처리 가능한 항목입니다. <strong>"지금 실제로 새고 있는가"</strong>만을 기준으로 골랐습니다.</p>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th class="num">순서</th><th>작업</th><th class="num">해소</th><th class="num">예상 규모</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td><code>APP_API_SECRET</code> 회전 + 코드에서 제거</td><td class="num">S2</td><td class="num">30분</td></tr>
+      <tr><td class="num">2</td><td>마스터 비밀번호 주석 삭제 + 비밀번호 변경</td><td class="num">S8</td><td class="num">15분</td></tr>
+      <tr><td class="num">3</td><td><code>firestore.rules</code> 최소본 작성 · 배포 (기본 deny + 데모 경로만 허용)</td><td class="num">S1</td><td class="num">2~3시간</td></tr>
+      <tr><td class="num">4</td><td><code>partner-admin/app.js</code> 렌더러에 <code>escapeHtml</code> 적용</td><td class="num">S7</td><td class="num">1~2시간</td></tr>
+      <tr><td class="num">5</td><td>문서 D1b · D1c 정정 (잘못된 안전 신호 제거)</td><td class="num">D1</td><td class="num">30분</td></tr>
+      <tr><td class="num">6</td><td><code>uuidv4()</code> → <code>crypto.randomUUID()</code></td><td class="num">C3</td><td class="num">10분</td></tr>
+      <tr><td class="num">7</td><td>Telegram <code>accountId</code> 형식 검증 추가</td><td class="num">S4</td><td class="num">20분</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="call warn">
+    <span class="lbl">시연 시 주의</span>
+    <p>단말 2대를 같은 테이블에 접속시키면 <strong>서로 다른 카드가 나옵니다</strong>(<span class="id">S3</span>). 시연 시나리오에서 다중 단말 동시 플레이는 피하거나, "라운드 동기화는 서버 연동 단계에서 구현"이라고 사전에 선을 긋는 편이 안전합니다.</p>
+  </div>
+
+  <h3>트랙 B · 서버 API 전환</h3>
+  <p>각 단계는 앞 단계 없이 성립하지 않습니다. 특히 2단계는 1단계의 인증 없이는 "누가 이 요청을 보냈는가"를 서버가 알 수 없어 구현이 불가능합니다.</p>
+  <pre><code>0단계 · 전환 준비 (화면 코드 변경 최소화)
+  ├── 데이터 접근 함수를 shared/ 얇은 계층으로 집약        Q2 Q3
+  └── FIREBASE_CONFIG 단일화 · 빈 catch 로깅화             Q2
+
+1단계 · 인증 기반 교체
+  ├── Firebase Auth 도입 + custom claims                   S5
+  ├── firestore.rules 를 claim 기반으로 재작성             S1
+  ├── 자동 생성 마스터 계정 제거                           S5
+  └── 규칙 단위 테스트 + CI 편입                           Q1
+
+2단계 · 자금 권한 서버 이전
+  ├── placeBet / settleBet / 가입 보너스 서버 이전         S3 S6
+  ├── 잔액 스냅샷 + 트랜잭션 도입                          C1 P1
+  ├── serverTimestamp · deviceId 강제                      C2
+  └── 멱등 키를 자연 키로 전환                             C3
+
+3단계 · 게임 권위 이전
+  ├── 라운드 생성·결과를 서버로 (다단말 동기화)            S3
+  └── 공인 RNG 검토                                        S3
+
+4단계 · 스키마·성능 정리
+  ├── ledger / mainCageLedger 스키마 통일 + 마이그레이션   C4
+  ├── 구독 범위 제한 · 인덱스 파일 편입                    P2
+  ├── 캐시 헤더 · 파일 분할                                P3
+  └── 문서와 구현 정합성 확보                              D1</code></pre>
+
+  <div class="call">
+    <span class="lbl">전환 방식 권고</span>
+    <p>기존 화면을 유지한 채 서버 API를 붙이려면, <strong>Firestore 직접 접근을 한 번에 걷어내지 말고 계층별로 교체</strong>하는 편이 안전합니다. 0단계에서 데이터 접근 계층을 만들어 두면, 이후 각 단계는 그 계층 안의 함수 구현만 <code>fetch()</code>로 바꾸는 작업이 됩니다. 읽기는 Firestore 구독을 유지하고 <strong>쓰기부터 서버로 옮기는 순서</strong>가 위험 대비 효과가 가장 큽니다 — 이 프로젝트의 문제는 전부 쓰기 쪽에 있습니다.</p>
+  </div>
+</section>
+
+<!-- ============ 12 ============ -->
+<section id="s12">
+  <h2><span class="num">12</span>부록</h2>
+
+  <h3>리뷰 방법과 확신도</h3>
+  <p>모든 항목은 기준 커밋(<code>3cc02e0</code>) 시점의 코드를 직접 읽고 확인했습니다. 수치는 저장소 실측값입니다.</p>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th class="num">등급</th><th>의미</th></tr></thead>
+    <tbody>
+      <tr><td class="num">10/10</td><td>해당 코드 라인을 직접 읽고 확인. 재현 경로가 구체적</td></tr>
+      <tr><td class="num">9/10</td><td>코드로 확인했으나 실제 배포된 Firestore 규칙 상태는 저장소에서 알 수 없음</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="call warn">
+    <span class="lbl">가장 먼저 확인할 것</span>
+    <p><span class="id">S1</span>의 실제 심각도는 <strong>현재 배포된 Firestore 규칙의 내용에 따라 갈립니다.</strong> 저장소에 규칙이 없으므로 Firebase 콘솔 → Firestore → 규칙 탭에서 직접 확인해야 합니다. 규칙이 <code>allow read, write: if true</code>이거나 만료일이 지난 테스트 모드라면 <span class="id">S1</span>은 P0 중에서도 최우선입니다.</p>
+  </div>
+
+  <h3>이번 리뷰에서 다루지 않은 것</h3>
+  <ul>
+    <li><strong>게임 로직 정확성</strong> — 바카라 3번째 카드 규칙 미구현(<code>dealHand()</code>가 2장만 배분), 파생 로드맵 규칙이 근사치(<code>game-engine.js:238</code>이 스스로 인정). 자금 무결성과 독립된 별도 범위</li>
+    <li><strong>UI/UX · 접근성 품질</strong> — 별도 디자인 리뷰 범위</li>
+    <li><strong>파일 분할 리팩터링</strong> — 트랙 B의 2단계에서 상당 부분이 제거될 코드라 지금 정돈하면 낭비</li>
+    <li><strong>비용 모델 · 요금제 전환</strong> — Blaze 전환은 트랙 B 2단계 결정에 종속</li>
+    <li><strong>감사 · 규제 요건</strong>(라이선스, KYC 절차, 자금세탁 방지) — 기술 리뷰 범위 밖. 실서비스 목표라면 별도 검토 필요</li>
+  </ul>
+
+  <h3>관련 문서</h3>
+  <ul>
+    <li><a href="review-security-data-integrity.md">보안 · 데이터 일관성 상세 리뷰</a> — 이 보고서 5~9장의 원본 분석</li>
+    <li><a href="explanation-architecture.md">아키텍처와 운영 경계</a></li>
+    <li><a href="FIRESTORE_DATA_MODEL.md">Firestore 데이터 모델</a> — <strong>목표 설계이며 현행 구현과 다름</strong></li>
+    <li><a href="reference-cloud-functions.md">Cloud Functions API 참조</a></li>
+    <li><a href="how-to-deploy.md">Firebase 배포 방법</a></li>
+  </ul>
+</section>
+
+<hr>
+<p style="font-size:12.5px;color:var(--ink-faint);text-align:center;margin:0">
+  Cage Admin 프로젝트 리뷰 보고서 · 기준 커밋 <code>3cc02e0</code> · 2026-08-10<br>
+  이 보고서에는 미조치 상태의 보안 취약점 정보가 포함되어 있습니다. 외부 공유에 주의하세요.
+</p>
+
+</main>
+</div>
+</body>
+</html>

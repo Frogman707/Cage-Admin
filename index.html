@@ -1845,6 +1845,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <!-- Vendored, unmodified: QR Code Generator for JavaScript, (c) 2009 Kazuhiko Arase, MIT license.
      https://github.com/kazuhikoarase/qrcode-generator - used to render Authenticator setup QR codes
      entirely client-side (no external network calls at runtime). -->
@@ -4164,6 +4165,10 @@ const FIREBASE_CONFIG = {
  appId: "1:894377496526:web:01b205e540c64dace8e59f",
  measurementId: "G-4P1TM5RGRP"
 };
+// Same Cloud Functions deployment the Telegram integration (TG_FUNCTIONS_BASE, further down) uses -
+// duplicated as its own constant since this one isn't Telegram-specific and login needs it before
+// that section of the file is even reached.
+const FUNCTIONS_BASE = 'https://us-central1-cage-admin-25bbf.cloudfunctions.net';
 let fbDb = null;
 // A Firestore one-time .get() can, on some networks, neither resolve nor reject - the request just
 // stalls forever instead of erroring out (unlike a normal REST call, which either succeeds or the
@@ -4246,12 +4251,13 @@ function loadScriptOnce(src){
 async function ensureFirebaseSdkLoaded(maxRetries){
  maxRetries = maxRetries===undefined ? 3 : maxRetries;
  for(let attempt=0; attempt<=maxRetries; attempt++){
-  if(typeof firebase !== 'undefined' && firebase.firestore) return true;
+  if(typeof firebase !== 'undefined' && firebase.firestore && firebase.auth) return true;
   try{
    await loadScriptOnce('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
    await loadScriptOnce('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js');
+   await loadScriptOnce('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js');
   }catch(e){}
-  if(typeof firebase !== 'undefined' && firebase.firestore) return true;
+  if(typeof firebase !== 'undefined' && firebase.firestore && firebase.auth) return true;
   if(attempt<maxRetries) await new Promise(r=>setTimeout(r, 1000*Math.pow(2,attempt)));
  }
  return false;
@@ -4283,6 +4289,24 @@ async function seedStaffToCloudIfEmpty(){
    await batch.commit();
   }
  }catch(e){}
+}
+// Pre-login staff picker. The `staff` collection itself denies direct client reads (it holds PINs
+// and TOTP secrets - see firestore.rules), so the dropdown can no longer be populated from a live
+// Firestore listener before the staff member has actually signed in. listStaffNames is a public
+// Cloud Function that returns names only; DB.staff here is a name-only stand-in until a successful
+// login replaces it with the real thing via subscribeStaffCloud (which needs request.auth != null
+// to succeed, and so can only run after signInWithCustomToken).
+async function loadLoginStaffNames(){
+ try{
+  const resp = await fetch(`${FUNCTIONS_BASE}/listStaffNames`);
+  if(!resp.ok) throw new Error('http '+resp.status);
+  const data = await resp.json();
+  DB.staff = data.staff||[];
+  renderStaffDropdowns();
+  markLoginReady();
+ }catch(e){
+  markLoginReady(true, 'staff-list-failed');
+ }
 }
 function subscribeStaffCloud(){
  if(!fbDb) return;
@@ -8988,6 +9012,33 @@ function renderDashboard(){
  if(el) el.textContent = Object.keys(DB.accounts||{}).filter(accountVisibleInBranch).length;
 }
 
+// Local fallback path only - used when the staffLogin Cloud Function is unreachable (SDK never
+// loaded, or the call itself fails mid-attempt). DB.staff only carries pin/totpSecret here if it
+// was already populated from a previous successful sync cached in localStorage; the normal
+// pre-login path (loadLoginStaffNames) deliberately never fetches those fields at all.
+async function verifyStaffCredsLocally(staffName, pin, otp){
+ const staffRec = ((DB && DB.staff) || []).find(s=>s.name===staffName);
+ if(!staffRec || pin !== staffRec.pin) return {ok:false, reason:'pin'};
+ // Temporary, user-requested exception: ERIC logs in with a fixed code instead of a real TOTP
+ // check - this staff member has no working authenticator app set up. Every other staff member
+ // still goes through verifyTotp() as normal.
+ const otpOk = (staffRec.name||'').toUpperCase() === 'ERIC' ? otp.trim() === '123456' : staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp);
+ return otpOk ? {ok:true} : {ok:false, reason:'otp'};
+}
+// Verifies the PIN + TOTP server-side (staffLogin never returns them, unlike the old direct
+// Firestore read this replaced) and returns a Firebase custom auth token on success, which is
+// what request.auth != null in firestore.rules checks for on the staff collection from here on.
+async function verifyStaffCredsServer(staffName, pin, otp){
+ try{
+  const resp = await fetch(`${FUNCTIONS_BASE}/staffLogin`, {
+   method:'POST', headers:{'Content-Type':'application/json'},
+   body: JSON.stringify({name:staffName, pin, otp}),
+  });
+  return await resp.json();
+ }catch(e){
+  return verifyStaffCredsLocally(staffName, pin, otp);
+ }
+}
 async function attemptLogin(){
  // Enter-to-submit on the PIN/OTP fields calls this directly, bypassing the button's own
  // disabled state - block here too so a keyboard submit can't slip through the sync window.
@@ -8995,25 +9046,15 @@ async function attemptLogin(){
  const staff = document.getElementById('loginStaff').value;
  const pin = document.getElementById('loginPin').value;
  const otp = document.getElementById('loginOtp').value;
- const staffRec = ((DB && DB.staff) || []).find(s=>s.name===staff);
- let hasError = false;
- if(!staffRec || pin !== staffRec.pin){
-  document.getElementById('loginError').style.display = 'block';
-  hasError = true;
- } else {
-  document.getElementById('loginError').style.display = 'none';
+ const result = fbDb ? await verifyStaffCredsServer(staff, pin, otp) : await verifyStaffCredsLocally(staff, pin, otp);
+ document.getElementById('loginError').style.display = result.reason==='pin' ? 'block' : 'none';
+ document.getElementById('loginOtpError').style.display = result.reason==='otp' ? 'block' : 'none';
+ if(!result.ok) return;
+ if(result.token){
+  try{ await firebase.auth().signInWithCustomToken(result.token); }
+  catch(e){ console.error('signInWithCustomToken failed', e); }
  }
- // Temporary, user-requested exception: ERIC logs in with a fixed code instead of a real TOTP
- // check - this staff member has no working authenticator app set up. Every other staff member
- // still goes through verifyTotp() as normal.
- const otpOk = staffRec && ((staffRec.name||'').toUpperCase() === 'ERIC' ? otp.trim() === '123456' : staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp));
- if(!otpOk){
-  document.getElementById('loginOtpError').style.display = 'block';
-  hasError = true;
- } else {
-  document.getElementById('loginOtpError').style.display = 'none';
- }
- if(hasError) return;
+ if(fbDb){ await seedStaffToCloudIfEmpty(); subscribeStaffCloud(); }
  document.getElementById('login-gate').style.display = 'none';
  if(typeof DB !== 'undefined' && DB){
   DB.onDutyStaff = DB.onDutyStaff || ['Teddy','Jena'];
@@ -9055,6 +9096,8 @@ async function attemptMasterLogin(){
  } else {
   document.getElementById('masterLoginError').style.display = 'none';
  }
+ // Master's TOTP secret is per-device local state, not synced to Firestore, so it can't be
+ // re-verified server-side the way staff logins are - the local check here is the real one.
  const otpOk = DB && DB.masterTotpSecret && await verifyTotp(DB.masterTotpSecret, otp);
  if(!otpOk){
   document.getElementById('masterOtpError').style.display = 'block';
@@ -9063,6 +9106,24 @@ async function attemptMasterLogin(){
   document.getElementById('masterOtpError').style.display = 'none';
  }
  if(hasError) return;
+ // Re-verifies the password server-side (Admin SDK bypasses firestore.rules) before minting a
+ // real session token - without this, master login has no way to satisfy request.auth != null on
+ // the staff collection, and features that need it (staff management, on-duty roster) would fail
+ // silently after login. If the function is unreachable, master still gets in (matches staff
+ // login's own fall-back-rather-than-lock-out behavior); it just won't be able to reach `staff`
+ // until connectivity returns and this is retried.
+ if(fbDb){
+  try{
+   const resp = await fetch(`${FUNCTIONS_BASE}/masterSessionToken`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({password: pw}),
+   });
+   const data = await resp.json();
+   if(data.token) await firebase.auth().signInWithCustomToken(data.token);
+  }catch(e){ console.error('masterSessionToken failed', e); }
+  await seedStaffToCloudIfEmpty();
+  subscribeStaffCloud();
+ }
  document.getElementById('login-gate').style.display = 'none';
  // Master is an admin override login, not a floor worker - never add it to the on-duty roster.
  startInactivityTimer();
@@ -9191,8 +9252,13 @@ function startInactivityTimer(){
   // Each seed call is raced against a timeout (see withTimeout above) so a single hung .get() -
   // which, unlike a normal network error, may never resolve OR reject on some networks - can't
   // block every subscribeXCloud() after it from ever running.
-  await withTimeout(seedStaffToCloudIfEmpty(), 6000);
-  subscribeStaffCloud();
+  // Staff is handled separately from the other seed+subscribe pairs below: that collection now
+  // requires request.auth != null (see firestore.rules), so subscribeStaffCloud() can't succeed
+  // until after a successful login signs the client in. loadLoginStaffNames() covers the
+  // pre-login need (populating the login dropdown, unlocking the login button) via a public
+  // Cloud Function instead; attemptLogin()/attemptMasterLogin() call subscribeStaffCloud() once
+  // signInWithCustomToken() has actually completed.
+  await withTimeout(loadLoginStaffNames(), 6000);
   await withTimeout(seedLedgerToCloudIfEmpty(), 6000);
   subscribeLedgerCloud();
   await withTimeout(seedGamesToCloudIfEmpty(), 6000);

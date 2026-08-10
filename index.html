@@ -4174,8 +4174,13 @@ let fbStaffUnsub = null;
 // sitting in DB.staff, and get rejected every time. Login now stays disabled until this
 // resolves, with a hard timeout so a genuinely offline session doesn't lock out login forever.
 let staffCloudSynced = false;
+// Called every time sync state changes (first success, the 15s timeout firing, or a later
+// snapshot/error after either of those) - NOT gated to "first call wins". The 15s timeout and the
+// real server round-trip race each other; if the timeout loses that race and shows the offline
+// warning, the live snapshot arriving a moment later must still be able to clear it, or the
+// warning (and the "try again" prompt) is stuck on screen even though the sync in fact succeeded
+// and login proceeds normally with current data - which is confusing and looks like a bug.
 function markLoginReady(offlineFailure, errorDetail){
- if(staffCloudSynced) return;
  staffCloudSynced = true;
  const btn = document.getElementById('loginBtn');
  const hint = document.getElementById('loginSyncHint');

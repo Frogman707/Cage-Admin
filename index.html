@@ -4788,13 +4788,17 @@ function deleteMainCageEntry(id){
    transfer) so MAIN-<branch> balances stay accurate; this collection is purely the dedicated
    from/to audit log for the "지점간 이체 기록" list. ---- */
 let fbBranchTransferUnsub = null;
+// Pure audit-log display (see writeBranchTransferEntry's comment: actual money movement rides on
+// two `ledger` writes, not this collection), so unlike ledger/rollingEvents/mainCageLedger/
+// shiftEvents nothing here sums the full history into a trusted balance - safe to cap to the most
+// recent entries instead of downloading every branch transfer ever made on every session.
 function subscribeBranchTransfersCloud(){
  if(!fbDb) return;
  if(fbBranchTransferUnsub) fbBranchTransferUnsub();
- fbBranchTransferUnsub = fbDb.collection('branchTransfers').orderBy('dt').onSnapshot(snap=>{
+ fbBranchTransferUnsub = fbDb.collection('branchTransfers').orderBy('dt','desc').limit(500).onSnapshot(snap=>{
   const rows = [];
   snap.forEach(doc=>rows.push(doc.data()));
-  DB.branchTransferLog = rows.slice().reverse();
+  DB.branchTransferLog = rows;
   renderBranchTransferList();
   resetFirestoreResubscribeBackoff('branchTransfers');
  }, err=>{

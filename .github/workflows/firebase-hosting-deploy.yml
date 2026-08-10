@@ -9,6 +9,7 @@ on:
       - "index.html"
       - "firebase.json"
       - ".firebaserc"
+      - "firestore.rules"
       - "partner-admin/**"
       - "avatar/**"
       - "speed/**"

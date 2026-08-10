@@ -61,8 +61,13 @@ exports.telegramWebhook = onRequest(
     const text = msg && msg.text;
 
     if (msg && text && text.startsWith("/start")) {
-      const accountId = text.trim().split(/\s+/)[1];
+      const rawAccountId = text.trim().split(/\s+/)[1];
       const chatId = msg.chat.id;
+      // Account IDs are always alphanumeric (e.g. SE7419) - reject anything else before it ever
+      // reaches a Firestore document path. An unvalidated value here (e.g. containing "/") gets
+      // parsed as a path separator by the Firestore client, letting `/start` target document
+      // paths outside the telegramLinks collection entirely.
+      const accountId = rawAccountId && /^[A-Za-z0-9]{4,16}$/.test(rawAccountId) ? rawAccountId : null;
       if (accountId) {
         const username = msg.from && msg.from.username ? "@" + msg.from.username : null;
         const firstName = (msg.from && msg.from.first_name) || null;
@@ -86,9 +91,9 @@ exports.telegramWebhook = onRequest(
           logger.error("Failed to send confirmation message", e);
         }
       } else {
-        // Plain "/start" with no payload - only reachable by typing it manually, not through the
-        // app's QR/link. Still reply so a manual test isn't silently indistinguishable from a
-        // dead webhook.
+        // Plain "/start" with no payload, or a payload that failed the format check above - only
+        // reachable by typing it manually, not through the app's QR/link. Still reply so a manual
+        // test isn't silently indistinguishable from a dead webhook.
         try {
           await callTelegram(TELEGRAM_BOT_TOKEN.value(), "sendMessage", {
             chat_id: chatId,

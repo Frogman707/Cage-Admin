@@ -553,7 +553,7 @@ async function renderRealtime(){
     <div class="card"><h3>접속중 회원</h3>
       <div class="table-wrap"><table><thead><tr><th>ID</th><th>닉네임</th><th>카지노</th><th>회원유형</th><th>최근접속</th><th>상태</th></tr></thead><tbody>
       ${online.length ? online.sort((a,b)=>new Date(b.lastLoginAt)-new Date(a.lastLoginAt)).map(m=>`
-        <tr><td>${m.id}</td><td>${m.nickname||'—'}</td><td>${m.casino}</td><td>${m.memberType}</td><td>${fmtDt(m.lastLoginAt)}</td><td><span class="badge-dot"></span> 온라인</td></tr>
+        <tr><td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td><td>${escapeHtml(m.casino)}</td><td>${escapeHtml(m.memberType)}</td><td>${fmtDt(m.lastLoginAt)}</td><td><span class="badge-dot"></span> 온라인</td></tr>
       `).join('') : `<tr class="empty-row"><td colspan="6">접속 중인 회원이 없습니다</td></tr>`}
       </tbody></table></div>
     </div>
@@ -584,7 +584,7 @@ async function renderAccount(){
 }
 function acctRowHtml(m, bal){
   return `<tr id="acctrow-${m.id}">
-    <td>${m.id}</td><td>${m.nickname||'—'}</td>
+    <td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td>
     <td><span class="num ${bal<0?'neg':bal>0?'pos':''}">${fmtNum(bal)}</span></td>
     <td><button class="btn btn-xs btn-jade" onclick="openBalanceModal('${m.id}','deposit','보유금 추가')">+ 추가</button>
         <button class="btn btn-xs btn-danger" onclick="openBalanceModal('${m.id}','withdraw','보유금 차감')">− 차감</button></td>
@@ -729,10 +729,10 @@ async function renderDetailTab(memberId, tab){
   let html = '';
   if (tab==='상세회원정보'){
     html = `<div class="kv-grid">
-      <span>ID</span><b>${m.id}</b><span>닉네임</span><b>${m.nickname||'—'}</b>
-      <span>전화번호</span><b>${maskPhone(m.phone)}</b><span>텔레그램</span><b>${m.telegram||'—'}</b>
-      <span>카지노</span><b>${m.casino}</b><span>상위에이전트</span><b>${m.parentAgent||'—'}</b>
-      <span>회원유형</span><b>${m.memberType}</b><span>상태</span><b>${m.status}</b>
+      <span>ID</span><b>${escapeHtml(m.id)}</b><span>닉네임</span><b>${escapeHtml(m.nickname||'—')}</b>
+      <span>전화번호</span><b>${maskPhone(m.phone)}</b><span>텔레그램</span><b>${escapeHtml(m.telegram||'—')}</b>
+      <span>카지노</span><b>${escapeHtml(m.casino)}</b><span>상위에이전트</span><b>${escapeHtml(m.parentAgent||'—')}</b>
+      <span>회원유형</span><b>${escapeHtml(m.memberType)}</b><span>상태</span><b>${escapeHtml(m.status)}</b>
       <span>배팅최대금액</span><b>${fmtNum(m.betMax)}</b><span>배팅최소금액</span><b>${fmtNum(m.betMin)}</b>
       <span>가입일</span><b>${fmtDt(m.createdAt)}</b><span>최근접속</span><b>${fmtDt(m.lastLoginAt)}</b>
     </div>`;

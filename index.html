@@ -6367,9 +6367,11 @@ document.getElementById('wdAuthPw').addEventListener('keydown', e=>{ if(e.key===
 document.getElementById('wdAuthPin').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmWithdrawPin(); });
 
 // Master password hash — used for master login authentication (see attemptMasterLogin below).
-// The password itself is unchanged ('kyle'); only its SHA-256 digest is stored/compared here,
-// so the plaintext no longer sits in the page source for anyone skimming view-source.
-const MASTER_RESET_PASSWORD_HASH = 'bb44bf07cf9a2db0554bba63a03d822c927deae77df101874496df5a6a3e896d';
+// Only the SHA-256 digest is stored/compared here; the plaintext itself is never written to this
+// file (previously it was named in this very comment, defeating the point of hashing it at all -
+// the password was rotated when that was fixed, so anyone who saw the old plaintext no longer has
+// a working credential).
+const MASTER_RESET_PASSWORD_HASH = 'a28bda95db05b4b2b710c9286166bfcc7038a1948e2f7a0dc4e1801b295f78e6';
 
 /* ---- Cage-level PIN-only auth (balancing confirm, main cage, cutoff, month settle, diff correction) ---- */
 let pendingPinCallback = null;

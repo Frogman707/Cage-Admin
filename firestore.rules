@@ -10,19 +10,19 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
-    // Firestore ORs every matching `match` block together for a given path - a plain
-    // `match /{document=**} { allow read, write: if true; }` here would also match every /staff/*
-    // document and silently cancel the restriction above out (true OR anything is true). The
-    // path[0] != 'staff' guard excludes staff paths from this catch-all so the rule above is the
-    // one that actually governs them.
+    // Every other top-level collection keeps the app's current behavior (no auth system covers
+    // these yet - see the project engineering review, Track B) - unrestricted, matching what was
+    // already effectively the case before this file existed (no rules file meant Firestore's
+    // default test-mode rules applied). Tightening these requires moving their reads/writes
+    // behind a server API the same way staff was, tracked separately.
     //
-    // Every other collection keeps the app's current behavior (no auth system covers these yet -
-    // see the project engineering review, Track B) - unrestricted, matching what was already
-    // effectively the case before this file existed (no rules file meant Firestore's default
-    // test-mode rules applied). Tightening these requires moving their reads/writes behind a
-    // server API the same way staff was, tracked separately.
-    match /{path=**} {
-      allow read, write: if path[0] != 'staff';
+    // This uses two single-segment wildcards ({collection}/{docId}), NOT a recursive {path=**}.
+    // A recursive wildcard cannot be used for `list` queries - Firestore can't statically bind it
+    // to a fixed depth, and rejects every collection-level onSnapshot()/query() with "Variable is
+    // not bound in path template" even though plain get-by-id reads work fine. Every collection
+    // this app uses is top-level (no subcollections), so this bounded form covers all of them.
+    match /{collection}/{docId} {
+      allow read, write: if collection != 'staff';
     }
   }
 }

@@ -351,3 +351,8 @@ exports.deleteTelegramLink = onRequest(
     res.status(200).json({ ok: true });
   }
 );
+
+// Exposed for functions/test/*.test.js only. firebase-tools' deploy discovery identifies Cloud
+// Functions by the trigger metadata onRequest()/onCall()/etc attach to their return value - plain
+// function exports like these lack that metadata and are silently skipped, not deployed.
+exports.__test__ = { base32Decode, hotp, verifyTotp, secretEquals };

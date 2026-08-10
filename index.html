@@ -1850,6 +1850,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
      https://github.com/kazuhikoarase/qrcode-generator - used to render Authenticator setup QR codes
      entirely client-side (no external network calls at runtime). -->
 <script>
+/* eslint-disable no-redeclare -- vendored, unmodified library; see the comment above this <script> tag */
 //---------------------------------------------------------------------
 //
 // QR Code Generator for JavaScript
@@ -4147,6 +4148,7 @@ var qrcode = function() {
 }(function () {
     return qrcode;
 }));
+/* eslint-enable no-redeclare */
 
 </script>
 <script>

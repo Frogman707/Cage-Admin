@@ -18,6 +18,21 @@ on:
       - ".github/workflows/firebase-hosting-deploy.yml"
 
 jobs:
+  # Independent of every deploy job below (same pattern as deploy-functions/deploy-firestore-rules
+  # being kept separate) - a lint failure here shows up as a red check on the commit/PR without
+  # blocking Hosting or Functions from deploying. Only eslint, not `prettier --check`: the existing
+  # codebase predates Prettier's config and isn't formatted to its rules yet, so gating on that
+  # would fail on files nobody touched rather than catching an actual regression.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm install
+      - run: npm run lint
+
   deploy:
     # retrigger: previous run stuck queued with no runner assigned
     runs-on: ubuntu-latest
@@ -49,6 +64,7 @@ jobs:
         with:
           node-version: "24"
       - run: npm install --prefix functions
+      - run: npm test --prefix functions
       - run: npx firebase-tools deploy --only functions --project cage-admin-25bbf --non-interactive
 
   # Locks the `staff` collection down to signed-in sessions only (see firestore.rules). Kept as its

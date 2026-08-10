@@ -17,6 +17,13 @@ const TELEGRAM_WEBHOOK_SECRET = defineSecret("TELEGRAM_WEBHOOK_SECRET");
 const APP_API_SECRET = defineSecret("APP_API_SECRET");
 
 const ALLOWED_ORIGINS = ["https://cage-admin-25bbf.web.app", "https://cage-admin-25bbf.firebaseapp.com"];
+// Firebase Hosting preview channels (firebase hosting:channel:deploy) get their own subdomain -
+// https://cage-admin-25bbf--<channel-id>-<random-hash>.web.app - a different origin than the live
+// site, so it isn't covered by ALLOWED_ORIGINS above. Matched by pattern instead of listing each
+// channel: Firebase provisions these subdomains itself (only reachable by deploying to this
+// specific project with real credentials), so this isn't opening CORS to arbitrary origins, just to
+// every preview channel of this one site - which is exactly what hosting-preview-link.yml creates.
+const PREVIEW_ORIGIN_PATTERN = /^https:\/\/cage-admin-25bbf--[a-z0-9][a-z0-9-]*\.web\.app$/;
 
 // CORS headers alone are not a security boundary - a non-browser caller (curl, a script) ignores
 // them entirely, since Origin-checking is enforced by browsers, not servers. This only stops a
@@ -24,7 +31,7 @@ const ALLOWED_ORIGINS = ["https://cage-admin-25bbf.web.app", "https://cage-admin
 // the X-App-Secret / login-credential checks each handler still does on its own.
 function applyCors(req, res) {
   const origin = req.get("origin");
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  if (origin && (ALLOWED_ORIGINS.includes(origin) || PREVIEW_ORIGIN_PATTERN.test(origin))) {
     res.set("Access-Control-Allow-Origin", origin);
   }
   res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");

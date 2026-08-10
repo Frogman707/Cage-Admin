@@ -62,7 +62,10 @@ async function playerSignup(db, data){
     createdAt:new Date().toISOString(), lastLoginAt:new Date().toISOString(),
   };
   await db.collection('members').doc(id).set(member);
-  await db.collection('memberLedger').doc(uuidv4()).set({memberId:id, casino:data.casino, amount:100000, category:'deposit', memo:'가입 축하 포인트', staff:'system', createdAt:new Date().toISOString()});
+  await db.collection('memberLedger').doc(uuidv4()).set({
+    memberId:id, casino:data.casino, amount:100000, category:'deposit', memo:'가입 축하 포인트', staff:'system',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
+  });
   PLAYER = member;
   return {ok:true, member};
 }
@@ -82,7 +85,7 @@ async function placeBet(db, {memberId, casino, tableId, roundId, betType, amount
   await db.collection('memberLedger').doc(uuidv4()).set({
     memberId, casino, amount: -Math.abs(amount), category:'bet', betType,
     relatedTableId: tableId, relatedRoundId: roundId, staff: staff||'system',
-    createdAt: new Date().toISOString(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
   });
 }
 async function settleBet(db, {memberId, casino, tableId, roundId, betType, amount, resultInfo}){
@@ -97,7 +100,7 @@ async function settleBet(db, {memberId, casino, tableId, roundId, betType, amoun
     await db.collection('memberLedger').doc(uuidv4()).set({
       memberId, casino, amount: payout, category:'payout',
       relatedTableId: tableId, relatedRoundId: roundId, staff:'system',
-      createdAt: new Date().toISOString(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
     });
   }
   return payout;

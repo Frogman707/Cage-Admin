@@ -378,7 +378,8 @@ async function submitBalanceAdjust(){
   await db.collection('memberLedger').doc(uuidv4()).set({
     memberId: BALANCE_CTX.memberId, amount: signed,
     category: BALANCE_CTX.mode==='withdraw' ? 'withdraw' : 'deposit',
-    memo, staff: CURRENT_STAFF?.id||'—', createdAt: new Date().toISOString()
+    memo, staff: CURRENT_STAFF?.id||'—', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
   });
   await db.collection('memberActionLogs').doc(uuidv4()).set({
     memberId: BALANCE_CTX.memberId, action: `${BALANCE_CTX.mode==='withdraw'?'차감':'지급'} ${fmtNum(amt)}`,
@@ -849,7 +850,7 @@ async function approveDeposit(id){
   const doc = await db.collection('depositRequests').doc(id).get();
   const d = doc.data();
   await db.collection('depositRequests').doc(id).set({status:'승인'}, {merge:true});
-  await db.collection('memberLedger').doc(uuidv4()).set({memberId:d.memberId, amount:Math.abs(d.amount), category:'deposit', memo:'디파짓 승인', staff:CURRENT_STAFF?.id||'—', createdAt:new Date().toISOString()});
+  await db.collection('memberLedger').doc(uuidv4()).set({memberId:d.memberId, amount:Math.abs(d.amount), category:'deposit', memo:'디파짓 승인', staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
   toast('승인되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
 }
 async function rejectDeposit(id){
@@ -1220,10 +1221,10 @@ async function submitRoundCancel(roundId, tableId){
   for (const d of snap.docs){
     const r = d.data();
     if (r.category==='bet'){
-      await db.collection('memberLedger').doc(uuidv4()).set({memberId:r.memberId, casino:r.casino, amount:Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 환불 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:new Date().toISOString()});
+      await db.collection('memberLedger').doc(uuidv4()).set({memberId:r.memberId, casino:r.casino, amount:Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 환불 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
       refunded += Math.abs(r.amount);
     } else if (r.category==='payout'){
-      await db.collection('memberLedger').doc(uuidv4()).set({memberId:r.memberId, casino:r.casino, amount:-Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 페이아웃 회수 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:new Date().toISOString()});
+      await db.collection('memberLedger').doc(uuidv4()).set({memberId:r.memberId, casino:r.casino, amount:-Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 페이아웃 회수 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
       clawedBack += Math.abs(r.amount);
     }
   }
@@ -1582,7 +1583,7 @@ async function processPayment(id, status){
   const p = (await fetchAll('paymentRequests')).find(x=>x.id===id);
   await db.collection('paymentRequests').doc(id).set({status}, {merge:true});
   if (status==='승인' && p){
-    await db.collection('memberLedger').doc(uuidv4()).set({memberId:p.memberId, amount: p.type==='출금' ? -Math.abs(p.amount) : Math.abs(p.amount), category: p.type==='출금'?'withdraw':'deposit', memo:'결제처리 승인', staff:CURRENT_STAFF?.id||'—', createdAt:new Date().toISOString()});
+    await db.collection('memberLedger').doc(uuidv4()).set({memberId:p.memberId, amount: p.type==='출금' ? -Math.abs(p.amount) : Math.abs(p.amount), category: p.type==='출금'?'withdraw':'deposit', memo:'결제처리 승인', staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
   }
   toast(`${status}되었습니다`); invalidateCaches(); switchView(CURRENT_VIEW);
 }

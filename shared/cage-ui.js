@@ -29,6 +29,19 @@ function uuidv4(){
   return crypto.randomUUID();
 }
 
+// Stable per-browser identifier for audit trails on money-relevant writes (see
+// shared/game-engine.js) - not a security boundary, just lets a later investigation tell "same
+// device, different sessions" apart from "different devices" when a client's wall clock (or the
+// createdAt it wrote) turns out to have been wrong.
+function getDeviceId(){
+  let id = localStorage.getItem('cage-device-id');
+  if (!id){
+    id = crypto.randomUUID();
+    localStorage.setItem('cage-device-id', id);
+  }
+  return id;
+}
+
 function fmtNum(n){
   n = Number(n)||0;
   return n.toLocaleString('en-US', {maximumFractionDigits:2});

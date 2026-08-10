@@ -4165,6 +4165,21 @@ const FIREBASE_CONFIG = {
  measurementId: "G-4P1TM5RGRP"
 };
 let fbDb = null;
+// A Firestore one-time .get() can, on some networks, neither resolve nor reject - the request just
+// stalls forever instead of erroring out (unlike a normal REST call, which either succeeds or the
+// browser eventually surfaces a network error). The app's startup sequence awaits several of these
+// (seedStaffToCloudIfEmpty, seedLedgerToCloudIfEmpty, etc.) one after another, so a single stuck
+// call blocks every subscribeXCloud() after it from ever running - not just staff, but ledger,
+// games, rolling, main cage, branch transfers, shift log, and cage config all stay uninitialized
+// for the rest of the session. Racing each seed call against this timeout (resolving rather than
+// rejecting, so existing try/catch-swallow call sites keep working unchanged) guarantees the
+// startup sequence always reaches every subscribeXCloud() call, even when a seed read hangs.
+function withTimeout(promise, ms){
+ return Promise.race([
+  Promise.resolve(promise).catch(()=>{}),
+  new Promise(resolve=>setTimeout(resolve, ms)),
+ ]);
+}
 // Firestore listeners are one-shot: once an onSnapshot subscription reports an error, that stream
 // is dead and does NOT retry on its own - it only reconnects if the caller resubscribes. Without
 // this, a single transient hiccup (blocked port, brief network drop, proxy timeout) permanently
@@ -9167,24 +9182,27 @@ function startInactivityTimer(){
   markLoginReady(true, 'sdk-load-failed');
  } else {
   // Backstop independent of subscribeStaffCloud's own timer, in case something upstream of it
-  // (e.g. seedStaffToCloudIfEmpty's own network call, which has no timeout of its own) is what
-  // actually hangs. Widened alongside subscribeStaffCloud's own timer for the same reason - a
-  // slow-but-working connection deserves more room before being written off as unreachable.
+  // (e.g. seedStaffToCloudIfEmpty's own network call) is what actually hangs. Widened alongside
+  // subscribeStaffCloud's own timer for the same reason - a slow-but-working connection deserves
+  // more room before being written off as unreachable.
   setTimeout(()=>markLoginReady(true, 'timed-out'), 20000);
-  await seedStaffToCloudIfEmpty();
+  // Each seed call is raced against a timeout (see withTimeout above) so a single hung .get() -
+  // which, unlike a normal network error, may never resolve OR reject on some networks - can't
+  // block every subscribeXCloud() after it from ever running.
+  await withTimeout(seedStaffToCloudIfEmpty(), 6000);
   subscribeStaffCloud();
-  await seedLedgerToCloudIfEmpty();
+  await withTimeout(seedLedgerToCloudIfEmpty(), 6000);
   subscribeLedgerCloud();
-  await seedGamesToCloudIfEmpty();
+  await withTimeout(seedGamesToCloudIfEmpty(), 6000);
   subscribeGamesCloud();
-  await seedRollingEventsToCloudIfEmpty();
+  await withTimeout(seedRollingEventsToCloudIfEmpty(), 6000);
   subscribeRollingEventsCloud();
-  await seedMainCageLedgerToCloudIfEmpty();
+  await withTimeout(seedMainCageLedgerToCloudIfEmpty(), 6000);
   subscribeMainCageLedgerCloud();
   subscribeBranchTransfersCloud();
-  await seedShiftEventsToCloudIfEmpty();
+  await withTimeout(seedShiftEventsToCloudIfEmpty(), 6000);
   subscribeShiftEventsCloud();
-  await seedCageConfigToCloudIfEmpty();
+  await withTimeout(seedCageConfigToCloudIfEmpty(), 6000);
   subscribeCageConfigCloud();
  }
 })();

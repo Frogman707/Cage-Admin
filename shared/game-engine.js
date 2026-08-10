@@ -52,8 +52,6 @@ async function playerLogin(db, id, pw){
 }
 async function playerSignup(db, data){
   const id = data.id.toUpperCase();
-  const existing = await db.collection('members').doc(id).get();
-  if (existing.exists) return {ok:false, reason:'dup'};
   const member = {
     id, loginId:id, pw:data.pw, nickname:data.nickname, phone:data.phone, telegram:data.telegram||null,
     casino:data.casino, agentCode:data.agentCode||'DIRECT', parentAgent:data.agentCode||'DIRECT',
@@ -61,7 +59,20 @@ async function playerSignup(db, data){
     withdrawPw:data.pw, smsVerified:!!data.smsVerified, source:'online',
     createdAt:new Date().toISOString(), lastLoginAt:new Date().toISOString(),
   };
-  await db.collection('members').doc(id).set(member);
+  // Claiming the id (checking it doesn't exist, then creating it) has to happen in one transaction,
+  // not a separate get() then set() - otherwise two concurrent signups for the same id can both pass
+  // the existence check and each append their own 100,000 signup bonus to memberLedger.
+  const ref = db.collection('members').doc(id);
+  try {
+    await db.runTransaction(async tx=>{
+      const existing = await tx.get(ref);
+      if (existing.exists) throw new Error('DUP');
+      tx.set(ref, member);
+    });
+  } catch (e) {
+    if (e.message === 'DUP') return {ok:false, reason:'dup'};
+    throw e;
+  }
   await db.collection('memberLedger').doc(uuidv4()).set({
     memberId:id, casino:data.casino, amount:100000, category:'deposit', memo:'가입 축하 포인트', staff:'system',
     createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),

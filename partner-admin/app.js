@@ -846,15 +846,42 @@ async function renderDepositMgmt(){
     sortKey:'dt', sortDir:'desc',
   });
 }
+// Approve/reject read the request's current status and flip it inside a single transaction, so
+// a double-click or two staff acting on the same request at once can't both pass the '대기' check
+// and both append a memberLedger credit (or leave the request in a contradictory state).
 async function approveDeposit(id){
-  const doc = await db.collection('depositRequests').doc(id).get();
-  const d = doc.data();
-  await db.collection('depositRequests').doc(id).set({status:'승인'}, {merge:true});
+  const ref = db.collection('depositRequests').doc(id);
+  let d;
+  try {
+    await db.runTransaction(async tx=>{
+      const doc = await tx.get(ref);
+      if (!doc.exists) throw new Error('NOT_FOUND');
+      d = doc.data();
+      if (d.status !== '대기') throw new Error('ALREADY_PROCESSED');
+      tx.set(ref, {status:'승인'}, {merge:true});
+    });
+  } catch (e) {
+    if (e.message === 'ALREADY_PROCESSED'){ toast('이미 처리된 요청입니다'); switchView(CURRENT_VIEW); return; }
+    if (e.message === 'NOT_FOUND'){ toast('요청을 찾을 수 없습니다'); switchView(CURRENT_VIEW); return; }
+    throw e;
+  }
   await db.collection('memberLedger').doc(uuidv4()).set({memberId:d.memberId, amount:Math.abs(d.amount), category:'deposit', memo:'디파짓 승인', staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
   toast('승인되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
 }
 async function rejectDeposit(id){
-  await db.collection('depositRequests').doc(id).set({status:'거절'}, {merge:true});
+  const ref = db.collection('depositRequests').doc(id);
+  try {
+    await db.runTransaction(async tx=>{
+      const doc = await tx.get(ref);
+      if (!doc.exists) throw new Error('NOT_FOUND');
+      if (doc.data().status !== '대기') throw new Error('ALREADY_PROCESSED');
+      tx.set(ref, {status:'거절'}, {merge:true});
+    });
+  } catch (e) {
+    if (e.message === 'ALREADY_PROCESSED'){ toast('이미 처리된 요청입니다'); switchView(CURRENT_VIEW); return; }
+    if (e.message === 'NOT_FOUND'){ toast('요청을 찾을 수 없습니다'); switchView(CURRENT_VIEW); return; }
+    throw e;
+  }
   toast('거절되었습니다'); switchView(CURRENT_VIEW);
 }
 async function renderShareAccumList(){
@@ -1215,6 +1242,21 @@ function openRoundCancelModal(roundId, tableId){
 async function submitRoundCancel(roundId, tableId){
   const reason = document.getElementById('rcReason').value;
   const pushNotice = document.getElementById('rcNotice').checked;
+  const roundRef = db.collection('rounds').doc(roundId);
+  // Claim the cancellation atomically first (transaction: read cancelled -> flip it) before
+  // touching any ledger rows. Only one concurrent call can win this flip from false to true, so a
+  // double-click or two staff cancelling the same round at once can no longer both refund/claw
+  // back the same bets - the loser sees ALREADY_CANCELLED and does nothing further.
+  try {
+    await db.runTransaction(async tx=>{
+      const doc = await tx.get(roundRef);
+      if (doc.exists && doc.data().cancelled) throw new Error('ALREADY_CANCELLED');
+      tx.set(roundRef, {cancelled:true, cancelReason:reason, cancelledBy:CURRENT_STAFF?.id||'—', cancelledAt:new Date().toISOString()}, {merge:true});
+    });
+  } catch (e) {
+    if (e.message === 'ALREADY_CANCELLED'){ toast('이미 취소된 라운드입니다'); closeModal('modal-form'); return; }
+    throw e;
+  }
   // single equality filter (relatedRoundId) only - avoids needing a composite Firestore index
   const snap = await db.collection('memberLedger').where('relatedRoundId','==',roundId).get();
   let refunded = 0, clawedBack = 0;
@@ -1228,7 +1270,6 @@ async function submitRoundCancel(roundId, tableId){
       clawedBack += Math.abs(r.amount);
     }
   }
-  await db.collection('rounds').doc(roundId).set({cancelled:true, cancelReason:reason, cancelledBy:CURRENT_STAFF?.id||'—', cancelledAt:new Date().toISOString()}, {merge:true});
   if (pushNotice){
     await db.collection('inGameNotices').doc(uuidv4()).set({text:`[${tableId}] 라운드 취소 안내: ${reason}로 인해 해당 라운드가 취소되어 베팅이 전액 환불되었습니다.`, tableType:'all', active:true, dt:new Date().toISOString()});
   }
@@ -1580,8 +1621,24 @@ async function renderPaymentProcessList(){
   });
 }
 async function processPayment(id, status){
-  const p = (await fetchAll('paymentRequests')).find(x=>x.id===id);
-  await db.collection('paymentRequests').doc(id).set({status}, {merge:true});
+  // Reads the request fresh inside the transaction rather than off the cached fetchAll() list -
+  // that cache can be stale, and the transaction is also what makes the status check + flip atomic
+  // (see approveDeposit above for why: prevents a duplicate-credit race on double-click/two staff).
+  const ref = db.collection('paymentRequests').doc(id);
+  let p;
+  try {
+    await db.runTransaction(async tx=>{
+      const doc = await tx.get(ref);
+      if (!doc.exists) throw new Error('NOT_FOUND');
+      p = doc.data();
+      if (p.status !== '대기') throw new Error('ALREADY_PROCESSED');
+      tx.set(ref, {status}, {merge:true});
+    });
+  } catch (e) {
+    if (e.message === 'ALREADY_PROCESSED'){ toast('이미 처리된 요청입니다'); switchView(CURRENT_VIEW); return; }
+    if (e.message === 'NOT_FOUND'){ toast('요청을 찾을 수 없습니다'); switchView(CURRENT_VIEW); return; }
+    throw e;
+  }
   if (status==='승인' && p){
     await db.collection('memberLedger').doc(uuidv4()).set({memberId:p.memberId, amount: p.type==='출금' ? -Math.abs(p.amount) : Math.abs(p.amount), category: p.type==='출금'?'withdraw':'deposit', memo:'결제처리 승인', staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
   }

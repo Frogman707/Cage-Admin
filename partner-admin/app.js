@@ -204,6 +204,12 @@ function doLogout(){
 }
 /* ---------------- view dispatch ---------------- */
 async function switchView(viewId){
+  // Tear down the previous screen's live list subscription (if any) before mounting the next one -
+  // otherwise navigating away from a mountListView() screen would leave its onSnapshot listener
+  // running forever in the background (a real leak, and it'd keep calling renderListBody() against
+  // a #listBody that no longer exists - harmless since that's a no-op, but the live Firestore
+  // listener itself doesn't stop just because nothing reads its output anymore).
+  if (LIST_UNSUB){ LIST_UNSUB(); LIST_UNSUB = null; }
   CURRENT_VIEW = viewId;
   setActiveNav(viewId);
   const main = document.getElementById('mainArea');
@@ -260,13 +266,36 @@ function invalidateCaches(){ MEMBER_CACHE=null; BALANCE_CACHE=null; TABLE_CACHE=
 
 /* generic list-view engine, driven by config */
 let LIST_STATE = {};
+// Set by mountListView while a list screen is mounted; torn down by switchView() on navigation.
+let LIST_UNSUB = null;
+// Previously this did a single fetchAll() and never looked at the collection again - a screen
+// stayed frozen at whatever it looked like on the moment of navigation until the staff member
+// manually hit 새로고침 (or switched away and back). Converted to a live onSnapshot subscription so
+// all ~40 screens built on this shared engine update in real time - a new deposit request, an
+// approval from another terminal, a status change, etc. now appear without any manual action.
+// Scope note: only the row DATA is live. cfg.stats() (the summary stat cards above the table) is
+// still computed once at initial mount, same as before - re-rendering those live would mean
+// regenerating the whole shell (including the search input), which would drop whatever the staff
+// member is mid-typing into the search box on every incoming snapshot. Stats catch up next time the
+// screen is (re)mounted.
 async function mountListView(cfg){
-  let docs = await fetchAll(cfg.coll);
-  if (cfg.extraFilter) docs = docs.filter(cfg.extraFilter);
-  if (CASINO_FILTER!=='ALL' && cfg.casinoField) docs = docs.filter(d=>d[cfg.casinoField]===CASINO_FILTER);
-  let rows = cfg.mapRow ? docs.map(cfg.mapRow) : docs;
-  if (cfg.sortKey) rows.sort((a,b)=> cfg.sortDir==='asc' ? (a[cfg.sortKey]>b[cfg.sortKey]?1:-1) : (a[cfg.sortKey]<b[cfg.sortKey]?1:-1));
-  LIST_STATE = {cfg, rows, filtered: rows, page:1, pageSize:20, q:'', activeFilters:{}};
+  LIST_STATE = {cfg, rows: [], filtered: [], page:1, pageSize:20, q:'', activeFilters:{}};
+  let resolveFirst;
+  const firstSnapshot = new Promise(res=>{ resolveFirst = res; });
+  LIST_UNSUB = db.collection(cfg.coll).onSnapshot(snap=>{
+    let docs = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    if (cfg.extraFilter) docs = docs.filter(cfg.extraFilter);
+    if (CASINO_FILTER!=='ALL' && cfg.casinoField) docs = docs.filter(d=>d[cfg.casinoField]===CASINO_FILTER);
+    let rows = cfg.mapRow ? docs.map(cfg.mapRow) : docs;
+    if (cfg.sortKey) rows.sort((a,b)=> cfg.sortDir==='asc' ? (a[cfg.sortKey]>b[cfg.sortKey]?1:-1) : (a[cfg.sortKey]<b[cfg.sortKey]?1:-1));
+    LIST_STATE.rows = rows;
+    reapplyListFilters();
+    if (resolveFirst){ resolveFirst(); resolveFirst = null; }
+  }, err=>{
+    console.error('mountListView onSnapshot error:', cfg.coll, err);
+    if (resolveFirst){ resolveFirst(); resolveFirst = null; } // don't hang the view forever on a permission/offline error
+  });
+  await firstSnapshot;
   setTimeout(renderListBody, 0); // #listBody only exists once switchView() commits this HTML to the DOM
   return renderListShell();
 }
@@ -314,12 +343,21 @@ function onListFilter(key, val){
   applyListFilters();
 }
 function applyListFilters(){
+  LIST_STATE.page = 1;
+  reapplyListFilters();
+}
+// Recomputes `filtered` from the current rows/search/filter state without resetting the page - used
+// both by applyListFilters() (which resets the page itself, for an actual user search/filter
+// action) and by mountListView()'s onSnapshot handler (an incoming live update shouldn't yank a
+// staff member back to page 1 while they're browsing page 3).
+function reapplyListFilters(){
   const {cfg, rows, q, activeFilters} = LIST_STATE;
   let out = rows;
   if (q) out = out.filter(r => (cfg.searchFields||[]).some(f => String(r[f]??'').toLowerCase().includes(q)));
   Object.entries(activeFilters||{}).forEach(([k,v])=>{ out = out.filter(r=> String(r[k])===v); });
   LIST_STATE.filtered = out;
-  LIST_STATE.page = 1;
+  const pageCount = Math.max(1, Math.ceil(out.length/LIST_STATE.pageSize));
+  if (LIST_STATE.page > pageCount) LIST_STATE.page = pageCount;
   renderListBody();
 }
 function renderListBody(){

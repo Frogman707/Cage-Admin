@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Staff records include a plaintext PIN and TOTP secret. Direct client access is denied
+    // entirely - the only paths to this collection are the listStaffNames (public, names only)
+    // and staffLogin (verifies PIN+TOTP server-side, never returns them) Cloud Functions, using
+    // the Admin SDK, which bypasses these rules. Once staffLogin succeeds, the client signs in
+    // with the custom token it returns, which is what request.auth != null below is checking for.
+    match /staff/{staffId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Every other top-level collection keeps the app's current behavior (no auth system covers
+    // these yet - see the project engineering review, Track B) - unrestricted, matching what was
+    // already effectively the case before this file existed (no rules file meant Firestore's
+    // default test-mode rules applied). Tightening these requires moving their reads/writes
+    // behind a server API the same way staff was, tracked separately.
+    //
+    // This uses two single-segment wildcards ({collection}/{docId}), NOT a recursive {path=**}.
+    // A recursive wildcard cannot be used for `list` queries - Firestore can't statically bind it
+    // to a fixed depth, and rejects every collection-level onSnapshot()/query() with "Variable is
+    // not bound in path template" even though plain get-by-id reads work fine. Every collection
+    // this app uses is top-level (no subcollections), so this bounded form covers all of them.
+    match /{collection}/{docId} {
+      allow read, write: if collection != 'staff';
+    }
+  }
+}

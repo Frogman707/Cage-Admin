@@ -1,4 +1,15 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "functions"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    }
+  },
   "hosting": {
     "public": ".",
     "ignore": [
@@ -6,7 +17,11 @@
       "**/.*",
       "**/node_modules/**",
       "functions/**",
-      "docs/**"
+      "docs/**",
+      "package.json",
+      "package-lock.json",
+      "eslint.config.js",
+      ".prettierrc*"
     ],
     "headers": [
       {

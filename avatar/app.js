@@ -711,11 +711,12 @@ async function submitTip(){
   const amount = rawNum(document.getElementById('tipAmount').value);
   if (!amount){ toast(t('suErrRequired'), true); return; }
   if (amount > STATE.balance){ toast(t('insufficientBalance'), true); return; }
-  await db.collection('memberLedger').doc(uuidv4()).set({
+  await writeMemberLedgerEntry(db, {
     memberId: PLAYER.id, casino: PLAYER.casino, amount: -amount,
     category: target==='avatar' ? 'avatar_tip' : 'dealer_tip',
     relatedRequestId: AVATAR.request.id, relatedTableId: AVATAR.table.id,
-    staff: 'member', createdAt: new Date().toISOString(),
+    staff: 'member', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
   });
   STATE.balance -= amount;
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);

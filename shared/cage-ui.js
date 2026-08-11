@@ -29,6 +29,19 @@ function uuidv4(){
   return crypto.randomUUID();
 }
 
+// Stable per-browser identifier for audit trails on money-relevant writes (see
+// shared/game-engine.js) - not a security boundary, just lets a later investigation tell "same
+// device, different sessions" apart from "different devices" when a client's wall clock (or the
+// createdAt it wrote) turns out to have been wrong.
+function getDeviceId(){
+  let id = localStorage.getItem('cage-device-id');
+  if (!id){
+    id = crypto.randomUUID();
+    localStorage.setItem('cage-device-id', id);
+  }
+  return id;
+}
+
 function fmtNum(n){
   n = Number(n)||0;
   return n.toLocaleString('en-US', {maximumFractionDigits:2});
@@ -172,4 +185,27 @@ async function sumWhere(db, coll, wheres, field){
 
 function escapeHtml(s){
   return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---- memberLedger + balanceTotals dual-write (docs/BALANCE_ARCHITECTURE_DESIGN.md) ----
+   Every memberLedger write (deposit/withdraw/bet/payout/point_earn/point_convert/correction/
+   avatar_tip/dealer_tip/...) also applies FieldValue.increment() to the matching
+   balanceTotals/member_{memberId} doc, in the same batch, so the two can never drift apart from
+   each other - a partial failure leaves neither written rather than one without the other.
+   This is the dual-write phase only: getPlayerBalance()/getBalances() still derive the balance
+   shown to staff/players from a full memberLedger sum, same as before. Nothing reads or trusts
+   balanceTotals yet - it exists purely so a future cutover (once verified against the derived sum
+   over the shadow-read period described in the design doc) has a maintained number ready to use.
+   Centralized here (one function, not one inline .set() per call site) specifically so a future
+   write site can't forget the increment the way the design doc calls out as mechanism (b)'s risk. */
+const MEMBER_LEDGER_POINT_CATEGORIES = ['point_earn', 'point_convert'];
+async function writeMemberLedgerEntry(db, entry){
+  const ledgerRef = db.collection('memberLedger').doc(uuidv4());
+  const balRef = db.collection('balanceTotals').doc('member_' + entry.memberId);
+  const field = MEMBER_LEDGER_POINT_CATEGORIES.includes(entry.category) ? 'points' : 'balance';
+  const batch = db.batch();
+  batch.set(ledgerRef, entry);
+  batch.set(balRef, {[field]: firebase.firestore.FieldValue.increment(Number(entry.amount)||0)}, {merge:true});
+  await batch.commit();
+  return ledgerRef.id;
 }

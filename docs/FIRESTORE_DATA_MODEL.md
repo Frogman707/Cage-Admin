@@ -1,5 +1,33 @@
 # Firestore 데이터 모델 설계 (다단말 오프라인 안전 구조)
 
+> **⚠ 이 문서는 목표 설계이며, 현재 구현과 다른 부분이 있습니다.** 아래는 2026-08-10 기준
+> 확인된 구체적인 차이입니다 (엔지니어링 리뷰 D1 항목 기준):
+> - `members.pw`/`withdrawPw`: 이 문서는 해시 저장을 전제하지만, 실제로는 **평문**으로 저장·비교됩니다.
+> - "서버 측 집계 쿼리(`getAggregateFromServer`+`sum()`)"(15줄): 실제로는 `getPlayerBalance()`가
+>   해당 회원의 `memberLedger` 문서를 **전량 다운로드한 뒤 클라이언트에서 합산**합니다.
+> - `createdAt: serverTimestamp` + `clientCreatedAt` + `deviceId`: **`memberLedger` 쓰기는
+>   2026-08-10부로 실제 구현되었습니다** (shared/game-engine.js, avatar/app.js, partner-admin/app.js).
+>   다만 케이지 운영 화면(`index.html`)의 `ledger`/`rollingEvents`/`mainCageLedger` 등은 아직
+>   클라이언트 시각(`phNow()`) 문자열만 사용하며, `deviceId`도 기록되지 않습니다 — 별도 후속 작업입니다.
+> - "1단계 범위에서 제외한 것"(108줄) 중 "오프라인 캐시(IndexedDB) 활성화 옵션 켜기"는 이미
+>   `shared/cage-ui.js`와 `index.html` 양쪽에서 `enablePersistence({synchronizeTabs:true})`로
+>   **켜져 있습니다.**
+> - 재시도(멱등성): 문서 ID를 매 호출마다 새로 생성하는 구조(`uuidv4()`를 호출 시점에 생성)라서,
+>   앱 레벨 재시도(버튼 재클릭 등)는 실제로는 **중복 문서를 생성**합니다. Firestore SDK 자체의
+>   오프라인 큐 재전송만 멱등합니다.
+> - Firestore 보안 규칙: `staff` 컬렉션은 2026-08-10부로 인증(`request.auth != null`) 필수로
+>   전환되었습니다 (`/firestore.rules`). 그 외 컬렉션은 여전히 테스트 모드(`if true`)입니다.
+>
+> 컬렉션별 구조 자체(아래 스키마)는 대체로 실제 구현과 일치하지만, 위 동작 관련 서술은
+> "목표"와 "현재"를 구분해서 읽어주세요.
+>
+> - "서버 측 집계 쿼리(`getAggregateFromServer`+`sum()`)"로 잔액을 구한다는 42줄의 설계도 실제로는
+>   채택되지 않았다 — `getAggregateFromServer`는 매 조회마다 서버에서 전체 이력을 다시 훑는
+>   비용은 그대로 남기면서, "잔액 확인과 동시에 원자적으로 차감"이 불가능해 케이지 출금의
+>   동시성 레이스(엔지니어링 리뷰 C1 잔여분)를 닫지 못한다. 대신 원장 쓰기와 같은 트랜잭션 안에서
+>   별도 잔액 문서를 `FieldValue.increment()`로 유지하는 방식으로 재설계 중 — 전체 근거는
+>   `docs/BALANCE_ARCHITECTURE_DESIGN.md` 참고 (2026-08-10부, 아직 검토 대기 중이며 미배포).
+
 ## 왜 이렇게 설계하는가
 
 지금 앱(localStorage)은 잔액을 하나의 숫자로 저장하고 매번 덮어쓴다:

@@ -1845,10 +1845,12 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <!-- Vendored, unmodified: QR Code Generator for JavaScript, (c) 2009 Kazuhiko Arase, MIT license.
      https://github.com/kazuhikoarase/qrcode-generator - used to render Authenticator setup QR codes
      entirely client-side (no external network calls at runtime). -->
 <script>
+/* eslint-disable no-redeclare -- vendored, unmodified library; see the comment above this <script> tag */
 //---------------------------------------------------------------------
 //
 // QR Code Generator for JavaScript
@@ -4146,6 +4148,7 @@ var qrcode = function() {
 }(function () {
     return qrcode;
 }));
+/* eslint-enable no-redeclare */
 
 </script>
 <script>
@@ -4164,6 +4167,10 @@ const FIREBASE_CONFIG = {
  appId: "1:894377496526:web:01b205e540c64dace8e59f",
  measurementId: "G-4P1TM5RGRP"
 };
+// Same Cloud Functions deployment the Telegram integration (TG_FUNCTIONS_BASE, further down) uses -
+// duplicated as its own constant since this one isn't Telegram-specific and login needs it before
+// that section of the file is even reached.
+const FUNCTIONS_BASE = 'https://us-central1-cage-admin-25bbf.cloudfunctions.net';
 let fbDb = null;
 // A Firestore one-time .get() can, on some networks, neither resolve nor reject - the request just
 // stalls forever instead of erroring out (unlike a normal REST call, which either succeeds or the
@@ -4246,12 +4253,13 @@ function loadScriptOnce(src){
 async function ensureFirebaseSdkLoaded(maxRetries){
  maxRetries = maxRetries===undefined ? 3 : maxRetries;
  for(let attempt=0; attempt<=maxRetries; attempt++){
-  if(typeof firebase !== 'undefined' && firebase.firestore) return true;
+  if(typeof firebase !== 'undefined' && firebase.firestore && firebase.auth) return true;
   try{
    await loadScriptOnce('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
    await loadScriptOnce('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js');
+   await loadScriptOnce('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js');
   }catch(e){}
-  if(typeof firebase !== 'undefined' && firebase.firestore) return true;
+  if(typeof firebase !== 'undefined' && firebase.firestore && firebase.auth) return true;
   if(attempt<maxRetries) await new Promise(r=>setTimeout(r, 1000*Math.pow(2,attempt)));
  }
  return false;
@@ -4283,6 +4291,24 @@ async function seedStaffToCloudIfEmpty(){
    await batch.commit();
   }
  }catch(e){}
+}
+// Pre-login staff picker. The `staff` collection itself denies direct client reads (it holds PINs
+// and TOTP secrets - see firestore.rules), so the dropdown can no longer be populated from a live
+// Firestore listener before the staff member has actually signed in. listStaffNames is a public
+// Cloud Function that returns names only; DB.staff here is a name-only stand-in until a successful
+// login replaces it with the real thing via subscribeStaffCloud (which needs request.auth != null
+// to succeed, and so can only run after signInWithCustomToken).
+async function loadLoginStaffNames(){
+ try{
+  const resp = await fetch(`${FUNCTIONS_BASE}/listStaffNames`);
+  if(!resp.ok) throw new Error('http '+resp.status);
+  const data = await resp.json();
+  DB.staff = data.staff||[];
+  renderStaffDropdowns();
+  markLoginReady();
+ }catch(e){
+  markLoginReady(true, 'staff-list-failed');
+ }
 }
 function subscribeStaffCloud(){
  if(!fbDb) return;
@@ -4344,6 +4370,11 @@ async function seedLedgerToCloudIfEmpty(){
  }catch(e){}
 }
 let fbLedgerUnsub = null;
+// Set once a `ledger` snapshot arrives that the SDK confirms actually came from the server (not
+// offline persistence's local cache). Cash-out (withdraw) sufficiency checks gate on this - see
+// processIo()/_doProcessIo() below - so a stale cached balance right after login/reconnect can't
+// approve real cash physically leaving the cage before this device has genuinely re-synced.
+let ledgerServerConfirmed = false;
 function subscribeLedgerCloud(){
  if(!fbDb) return;
  if(fbLedgerUnsub) fbLedgerUnsub();
@@ -4380,24 +4411,52 @@ function subscribeLedgerCloud(){
   if(listModal && listModal.classList.contains('open')) renderLedgerList();
   const dailyModal = document.getElementById('modal-daily-io');
   if(dailyModal && dailyModal.classList.contains('open')) renderDailyIo();
+  if(!snap.metadata.fromCache) ledgerServerConfirmed = true;
   resetFirestoreResubscribeBackoff('ledger');
  }, err=>{
   console.error('subscribeLedgerCloud onSnapshot error:', err);
   scheduleFirestoreResubscribe('ledger', subscribeLedgerCloud);
  });
 }
+// Stable per-browser identifier for audit trails on money-relevant writes - same idea as
+// shared/cage-ui.js's getDeviceId() (used by avatar/partner-admin), duplicated locally rather than
+// shared since index.html doesn't load that file (predates the 5.0 shared-script split and pulling
+// it in now would risk colliding with this file's own toast()/openModal()/etc globals).
+function getDeviceId(){
+ let id = localStorage.getItem('cage-device-id');
+ if(!id){
+  id = crypto.randomUUID();
+  localStorage.setItem('cage-device-id', id);
+ }
+ return id;
+}
 // Returns a promise resolving true/false - a real money movement silently failing to reach
 // Firestore (flaky connection, blocked request) used to be indistinguishable from success: the
 // game/notification/toast all proceeded as if the cash had actually moved, with no way for staff
 // to know the ledger entry itself never landed. Local mode is unaffected (already synchronous/
 // reliable - the balance mutation there doesn't depend on any network round trip).
+//
+// Also applies FieldValue.increment() to balanceTotals/acct_{accountId} in the same batch as the
+// ledger write (see docs/BALANCE_ARCHITECTURE_DESIGN.md) - dual-write phase only, nothing reads
+// balanceTotals yet, hasSufficientTotalBalance below still checks the existing listener-derived
+// DB.accounts state. The batch (not a transaction) is enough here: there's no read-then-check
+// happening in this function, just "these two writes must land together or not at all".
 function writeLedgerEntry(opts){
  const {accountId, casino, type, amount, staff, memo} = opts;
  const id = 'ldg_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const entry = {id, accountId, casino, dt:now, type, inn: type==='IN'?amount:0, out: type==='OUT'?amount:0, staff, memo};
  if(fbDb){
-  return fbDb.collection('ledger').doc(id).set(entry).then(()=>true).catch(()=>false);
+  // createdAt/clientCreatedAt/deviceId only added on the Firestore write, not the shared `entry`
+  // above - a FieldValue.serverTimestamp() sentinel has no business in the local (non-cloud)
+  // branch's DB.ledger array below, which saveDB() later JSON.stringifies to localStorage.
+  const cloudEntry = {...entry, createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: now, deviceId: getDeviceId()};
+  const balRef = fbDb.collection('balanceTotals').doc('acct_'+accountId);
+  const delta = type==='IN' ? amount : -amount;
+  const batch = fbDb.batch();
+  batch.set(fbDb.collection('ledger').doc(id), cloudEntry);
+  batch.set(balRef, {balances:{[casino]: firebase.firestore.FieldValue.increment(delta)}}, {merge:true});
+  return batch.commit().then(()=>true).catch(()=>false);
  } else {
   DB.ledger[accountId] = DB.ledger[accountId]||[];
   DB.ledger[accountId].unshift(entry);
@@ -4535,13 +4594,21 @@ function deleteGameDoc(gameId){
   return batch.commit();
  }).catch(()=>{});
 }
+// Also increments games/{gameId}.rolling in the same batch (docs/BALANCE_ARCHITECTURE_DESIGN.md) -
+// piggybacks on the existing game doc rather than a new collection, since one already exists per
+// game. Dual-write only: renderAllGameViews/buildGameFromCache still derive `rolling` from summing
+// fbRollingEventsByGame, not from this field, until cutover.
 function writeRollingEvent(opts){
  const {gameId, amount, staff, memo} = opts;
  if(!fbDb || !amount) return null;
  const id = 'rev_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const entry = {id, gameId, amount, dt:now, staff, memo:memo||''};
- fbDb.collection('rollingEvents').doc(id).set(entry).catch(()=>{});
+ const entry = {id, gameId, amount, dt:now, staff, memo:memo||'',
+  createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: now, deviceId: getDeviceId()};
+ const batch = fbDb.batch();
+ batch.set(fbDb.collection('rollingEvents').doc(id), entry);
+ batch.set(fbDb.collection('games').doc(gameId), {rolling: firebase.firestore.FieldValue.increment(amount)}, {merge:true});
+ batch.commit().catch(()=>{});
  return entry;
 }
 function getGuestRollingGrandTotal(){
@@ -4739,12 +4806,23 @@ function subscribeMainCageLedgerCloud(){
   scheduleFirestoreResubscribe('mainCage', subscribeMainCageLedgerCloud);
  });
 }
+// buyin/rollingCC/marker add to the branch's rolling total, redeem subtracts - same rule
+// deriveMainCageForBranch already applies when summing the raw collection.
+const MAINCAGE_SIGN = {buyin:1, rollingCC:1, marker:1, redeem:-1};
+// Also increments balanceTotals/maincage_{branch}.total in the same batch (docs/BALANCE_ARCHITECTURE_DESIGN.md).
+// Dual-write only: deriveMainCageForBranch still derives the displayed total from fbMainCageRaw.
 function writeMainCageEntry(type, amt, staff){
  if(!fbDb) return null;
  const id = 'mcl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const entry = {id, type, amt, dt:now, staff, branch:currentBranch()};
- fbDb.collection('mainCageLedger').doc(id).set(entry).catch(()=>{});
+ const branch = currentBranch();
+ const entry = {id, type, amt, dt:now, staff, branch,
+  createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: now, deviceId: getDeviceId()};
+ const batch = fbDb.batch();
+ batch.set(fbDb.collection('mainCageLedger').doc(id), entry);
+ const sign = MAINCAGE_SIGN[type] || 0;
+ batch.set(fbDb.collection('balanceTotals').doc('maincage_'+branch), {total: firebase.firestore.FieldValue.increment(sign*amt)}, {merge:true});
+ batch.commit().catch(()=>{});
  return entry;
 }
 function deleteMainCageEntry(id){
@@ -4758,13 +4836,17 @@ function deleteMainCageEntry(id){
    transfer) so MAIN-<branch> balances stay accurate; this collection is purely the dedicated
    from/to audit log for the "지점간 이체 기록" list. ---- */
 let fbBranchTransferUnsub = null;
+// Pure audit-log display (see writeBranchTransferEntry's comment: actual money movement rides on
+// two `ledger` writes, not this collection), so unlike ledger/rollingEvents/mainCageLedger/
+// shiftEvents nothing here sums the full history into a trusted balance - safe to cap to the most
+// recent entries instead of downloading every branch transfer ever made on every session.
 function subscribeBranchTransfersCloud(){
  if(!fbDb) return;
  if(fbBranchTransferUnsub) fbBranchTransferUnsub();
- fbBranchTransferUnsub = fbDb.collection('branchTransfers').orderBy('dt').onSnapshot(snap=>{
+ fbBranchTransferUnsub = fbDb.collection('branchTransfers').orderBy('dt','desc').limit(500).onSnapshot(snap=>{
   const rows = [];
   snap.forEach(doc=>rows.push(doc.data()));
-  DB.branchTransferLog = rows.slice().reverse();
+  DB.branchTransferLog = rows;
   renderBranchTransferList();
   resetFirestoreResubscribeBackoff('branchTransfers');
  }, err=>{
@@ -4869,11 +4951,19 @@ function subscribeShiftEventsCloud(){
   scheduleFirestoreResubscribe('shiftEvents', subscribeShiftEventsCloud);
  });
 }
+// Also increments balanceTotals/shift_{branch}.{field} in the same batch (docs/BALANCE_ARCHITECTURE_DESIGN.md).
+// Dual-write only: deriveShiftTotalsForBranch still derives the displayed totals from fbShiftRaw.
 function writeShiftEvent(field, delta, staff){
  if(!fbDb || !delta) return;
  const id = 'shf_'+Date.now()+'_'+Math.random().toString(36).slice(2,9)+'_'+field;
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- fbDb.collection('shiftEvents').doc(id).set({id, field, delta, dt:now, staff:staff||'', branch:currentBranch()}).catch(()=>{});
+ const branch = currentBranch();
+ const entry = {id, field, delta, dt:now, staff:staff||'', branch,
+  createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: now, deviceId: getDeviceId()};
+ const batch = fbDb.batch();
+ batch.set(fbDb.collection('shiftEvents').doc(id), entry);
+ batch.set(fbDb.collection('balanceTotals').doc('shift_'+branch), {[field]: firebase.firestore.FieldValue.increment(delta)}, {merge:true});
+ batch.commit().catch(()=>{});
 }
 function applyShift(field, delta, staff){
  if(fbDb){ writeShiftEvent(field, delta, staff); } else { bd()[field] = (bd()[field]||0) + delta; }
@@ -5032,14 +5122,14 @@ ko:{
  toastBlocked:"차단이 적용되었습니다.", toastCutoff:"마감 처리되었습니다.", toastRegistered:"신규 어카운트가 등록되었습니다.", toastPwMismatch:"비밀번호가 일치하지 않습니다.", toastAccIdExists:"이미 존재하는 어카운트 ID입니다.", toastRegRequiredFields:"필수 항목(어카운트 ID, 영문 이름, 전화번호, 여권 번호, 출금 비밀번호)을 모두 입력해주세요.",
  toastNoAcc:"어카운트를 먼저 조회하세요.", toastTransfer:"이체가 완료되었습니다.", toastShift:"교대 처리되었습니다.",
  toastTransferHalfFailed:"출금은 처리됐지만 입금이 실패했습니다! 다시 시도하지 말고 입출금 내역을 직접 확인해주세요.",
- toastInsufficientBalance:"잔액이 부족합니다.", notifInsufficientBalance:"잔액 부족", toastInsufficientPoints:"포인트 잔액이 부족합니다.",
+ toastInsufficientBalance:"잔액이 부족합니다.", notifInsufficientBalance:"잔액 부족", toastInsufficientPoints:"포인트 잔액이 부족합니다.", toastBalanceSyncing:"잔액 동기화 중입니다. 잠시 후 다시 시도해주세요.",
 
  navConcierge:"컨시어지", navPoints:"포인트 · 이벤트",
  hotelTab:"호텔 예약", carTab:"차량 예약", aeroTab:"아로 서비스",
  hotelTitle:"호텔 객실 예약", hotelCheckin:"체크인", hotelCheckout:"체크아웃", hotelRoomType:"객실 타입", hotelGuestName:"투숙객 이름", hotelBedType:"베드 타입", hotelRemark:"비고", hotelReceiptTitle:"Hotel Booking Confirmation",
  hotelBookBtn:"예약하기", hotelBookingsTitle:"예약 목록",
  colRoomType:"객실 타입", colCheckin:"체크인", colCheckout:"체크아웃", colGuest:"투숙객", colStatus:"상태",
- statusConfirmed:"확정", statusCancelled:"취소됨", cancelBtn:"취소",
+ statusConfirmed:"확정", statusCancelled:"취소됨",
  carTitle:"차량 예약", carDate:"날짜", carTime:"시간", carPickup:"픽업 장소", carDropoff:"도착 장소", carType:"차량 종류", carGuestName:"성함", carPax:"인원수", carRemark:"비고", carReceiptTitle:"Car Booking Confirmation",
  carReserveBtn:"예약하기", carListTitle:"예약 목록",
  colPickup:"픽업", colDropoff:"도착", colCarType:"차량", colDriver:"기사", driverAssigned:"배정됨", driverPending:"배정 대기",
@@ -5053,7 +5143,7 @@ ko:{
  toastEventPeriodMissing:"시작일과 종료일을 모두 입력하세요.", toastEventPeriodInvalid:"종료일은 시작일보다 빠를 수 없습니다.", toastEventPeriodSet:"이벤트 기간이 설정되었습니다.",
  eventPayBtn:"이벤트 커미션 지급", eventHistoryTitle:"이벤트 커미션 지급 내역", eventInactiveHint:"이벤트를 활성화하면 롤링 커미션을 추가로 지급할 수 있습니다.", eventAutoHint:"이벤트 기간 중 롤링 커미션을 정산하면 이벤트 커미션이 자동으로 계좌에 입금됩니다.",
  toastEventInactive:"먼저 이벤트를 활성화하세요.", toastEventPaid:"이벤트 커미션이 지급되었습니다.", notifEvent:"이벤트 커미션 지급",
- colReason:"사유", colPointsChange:"증감", colPointsBalance:"잔여 포인트", pointsEarn:"적립", pointsUse:"사용",
+ colPointsChange:"증감", colPointsBalance:"잔여 포인트", pointsEarn:"적립", pointsUse:"사용",
  notifTitle:"알림", notifMarkAll:"모두 읽음", notifEmpty:"새 알림이 없습니다.",
  avatarReqTitle:"아바타 요청 확인", toastNoAvatarReq:"대기중인 아바타 요청이 없습니다.", toastAvatarReqChecked:"아바타 요청을 확인했습니다.", avatarIdLabel:"아바타 ID", toastAvatarReqCancelled:"아바타 요청이 취소되었습니다.",
  notifDeposit:"입금 처리", notifWithdraw:"출금 처리", notifTransferT:"이체 완료", notifGameStart:"게임 시작", notifGameSettle:"정산 완료",
@@ -5169,14 +5259,14 @@ en:{
  toastBlocked:"Account blocked.", toastCutoff:"Cutoff completed.", toastRegistered:"New account registered.", toastPwMismatch:"Passwords do not match.", toastAccIdExists:"That account ID already exists.", toastRegRequiredFields:"Please fill in all required fields (Account ID, English Name, Phone Number, Passport No., Withdrawal Password).",
  toastNoAcc:"Look up an account first.", toastTransfer:"Transfer completed.", toastShift:"Shift updated.",
  toastTransferHalfFailed:"The withdrawal went through but the deposit failed! Do not retry - check the ledger history directly.",
- toastInsufficientBalance:"Insufficient balance.", notifInsufficientBalance:"Insufficient Balance", toastInsufficientPoints:"Insufficient points balance.",
+ toastInsufficientBalance:"Insufficient balance.", notifInsufficientBalance:"Insufficient Balance", toastInsufficientPoints:"Insufficient points balance.", toastBalanceSyncing:"Balance is syncing. Please try again shortly.",
 
  navConcierge:"Concierge", navPoints:"Points & Event",
  hotelTab:"Hotel Booking", carTab:"Car Reservation", aeroTab:"ARO Service",
  hotelTitle:"Hotel Room Booking", hotelCheckin:"Check-in", hotelCheckout:"Check-out", hotelRoomType:"Room Type", hotelGuestName:"Guest Name", hotelBedType:"Bed Type", hotelRemark:"Remark", hotelReceiptTitle:"Hotel Booking Confirmation",
  hotelBookBtn:"Book Room", hotelBookingsTitle:"Bookings",
  colRoomType:"Room Type", colCheckin:"Check-in", colCheckout:"Check-out", colGuest:"Guest", colStatus:"Status",
- statusConfirmed:"Confirmed", statusCancelled:"Cancelled", cancelBtn:"Cancel",
+ statusConfirmed:"Confirmed", statusCancelled:"Cancelled",
  carTitle:"Car Reservation", carDate:"Date", carTime:"Time", carPickup:"Pickup Location", carDropoff:"Drop-off Location", carType:"Vehicle Type", carGuestName:"Guest Name", carPax:"Passengers", carRemark:"Remark", carReceiptTitle:"Car Booking Confirmation",
  carReserveBtn:"Reserve", carListTitle:"Reservations",
  colPickup:"Pickup", colDropoff:"Drop-off", colCarType:"Vehicle", colDriver:"Driver", driverAssigned:"Assigned", driverPending:"Pending",
@@ -5190,7 +5280,7 @@ en:{
  toastEventPeriodMissing:"Enter both a start and end date.", toastEventPeriodInvalid:"End date cannot be before the start date.", toastEventPeriodSet:"Event period set.",
  eventPayBtn:"Pay Event Commission", eventHistoryTitle:"Event Commission History", eventInactiveHint:"Activate the event to pay additional rolling commission.", eventAutoHint:"While the event is active, event commission is paid automatically to the account whenever a rolling commission is settled.",
  toastEventInactive:"Activate the event first.", toastEventPaid:"Event commission paid.", notifEvent:"Event Commission Paid",
- colReason:"Reason", colPointsChange:"Change", colPointsBalance:"Balance", pointsEarn:"Earned", pointsUse:"Used",
+ colPointsChange:"Change", colPointsBalance:"Balance", pointsEarn:"Earned", pointsUse:"Used",
  notifTitle:"Notifications", notifMarkAll:"Mark all read", notifEmpty:"No new notifications.",
  avatarReqTitle:"Check Avatar Request", toastNoAvatarReq:"No pending avatar requests.", toastAvatarReqChecked:"Avatar request checked.", avatarIdLabel:"Avatar ID", toastAvatarReqCancelled:"Avatar request cancelled.",
  notifDeposit:"Deposit Processed", notifWithdraw:"Withdrawal Processed", notifTransferT:"Transfer Completed", notifGameStart:"Game Started", notifGameSettle:"Settlement Completed",
@@ -5307,14 +5397,14 @@ en:{
  toastBlocked:"已套用封鎖。", toastCutoff:"結帳已完成。", toastRegistered:"新帳戶已登記。", toastPwMismatch:"密碼不一致。", toastAccIdExists:"該帳戶 ID 已存在。", toastRegRequiredFields:"請填寫所有必填項目（帳號、英文姓名、電話號碼、護照號碼、提款密碼）。",
  toastNoAcc:"請先查詢帳戶。", toastTransfer:"轉帳已完成。", toastShift:"交班已處理。",
  toastTransferHalfFailed:"扣款已處理，但入帳失敗！請勿重試，請直接查看交易紀錄確認。",
- toastInsufficientBalance:"餘額不足。", notifInsufficientBalance:"餘額不足", toastInsufficientPoints:"點數餘額不足。",
+ toastInsufficientBalance:"餘額不足。", notifInsufficientBalance:"餘額不足", toastInsufficientPoints:"點數餘額不足。", toastBalanceSyncing:"餘額同步中，請稍後再試。",
 
  navConcierge:"禮賓服務", navPoints:"積分‧活動",
  hotelTab:"飯店預訂", carTab:"車輛預約", aeroTab:"ARO服務",
  hotelTitle:"飯店客房預訂", hotelCheckin:"入住日", hotelCheckout:"退房日", hotelRoomType:"房型", hotelGuestName:"住客姓名", hotelBedType:"床型", hotelRemark:"備註", hotelReceiptTitle:"Hotel Booking Confirmation",
  hotelBookBtn:"預訂", hotelBookingsTitle:"預訂紀錄",
  colRoomType:"房型", colCheckin:"入住", colCheckout:"退房", colGuest:"住客", colStatus:"狀態",
- statusConfirmed:"已確認", statusCancelled:"已取消", cancelBtn:"取消",
+ statusConfirmed:"已確認", statusCancelled:"已取消",
  carTitle:"車輛預約", carDate:"日期", carTime:"時間", carPickup:"上車地點", carDropoff:"下車地點", carType:"車輛類型", carGuestName:"姓名", carPax:"人數", carRemark:"備註", carReceiptTitle:"Car Booking Confirmation",
  carReserveBtn:"預約", carListTitle:"預約紀錄",
  colPickup:"上車", colDropoff:"下車", colCarType:"車輛", colDriver:"司機", driverAssigned:"已指派", driverPending:"待指派",
@@ -5328,7 +5418,7 @@ en:{
  toastEventPeriodMissing:"請輸入開始與結束日期。", toastEventPeriodInvalid:"結束日期不能早於開始日期。", toastEventPeriodSet:"活動期間已設定。",
  eventPayBtn:"發放活動佣金", eventHistoryTitle:"活動佣金發放紀錄", eventInactiveHint:"啟用活動後即可額外發放轉碼佣金。", eventAutoHint:"活動期間內結算轉碼佣金時，活動佣金將自動存入帳戶。",
  toastEventInactive:"請先啟用活動。", toastEventPaid:"活動佣金已發放。", notifEvent:"活動佣金發放",
- colReason:"原因", colPointsChange:"變動", colPointsBalance:"餘額", pointsEarn:"累積", pointsUse:"使用",
+ colPointsChange:"變動", colPointsBalance:"餘額", pointsEarn:"累積", pointsUse:"使用",
  notifTitle:"通知", notifMarkAll:"全部已讀", notifEmpty:"目前沒有新通知。",
  avatarReqTitle:"確認阿凡達請求", toastNoAvatarReq:"目前沒有待處理的阿凡達請求。", toastAvatarReqChecked:"已確認阿凡達請求。", avatarIdLabel:"阿凡達 ID", toastAvatarReqCancelled:"阿凡達請求已取消。",
  notifDeposit:"存款已處理", notifWithdraw:"提款已處理", notifTransferT:"轉帳已完成", notifGameStart:"賽局已開始", notifGameSettle:"結算已完成",
@@ -5445,14 +5535,14 @@ en:{
  toastBlocked:"已应用封锁。", toastCutoff:"结账已完成。", toastRegistered:"新账户已登记。", toastPwMismatch:"密码不一致。", toastAccIdExists:"该账户 ID 已存在。", toastRegRequiredFields:"请填写所有必填项目（账号、英文姓名、电话号码、护照号码、取款密码）。",
  toastNoAcc:"请先查询账户。", toastTransfer:"转账已完成。", toastShift:"交班已处理。",
  toastTransferHalfFailed:"扣款已处理，但入账失败！请勿重试，请直接查看交易记录确认。",
- toastInsufficientBalance:"余额不足。", notifInsufficientBalance:"余额不足", toastInsufficientPoints:"点数余额不足。",
+ toastInsufficientBalance:"余额不足。", notifInsufficientBalance:"余额不足", toastInsufficientPoints:"点数余额不足。", toastBalanceSyncing:"余额同步中，请稍后再试。",
 
  navConcierge:"礼宾服务", navPoints:"积分‧活动",
  hotelTab:"酒店预订", carTab:"车辆预约", aeroTab:"ARO服务",
  hotelTitle:"酒店客房预订", hotelCheckin:"入住日", hotelCheckout:"退房日", hotelRoomType:"房型", hotelGuestName:"住客姓名", hotelBedType:"床型", hotelRemark:"备注", hotelReceiptTitle:"Hotel Booking Confirmation",
  hotelBookBtn:"预订", hotelBookingsTitle:"预订记录",
  colRoomType:"房型", colCheckin:"入住", colCheckout:"退房", colGuest:"住客", colStatus:"状态",
- statusConfirmed:"已确认", statusCancelled:"已取消", cancelBtn:"取消",
+ statusConfirmed:"已确认", statusCancelled:"已取消",
  carTitle:"车辆预约", carDate:"日期", carTime:"时间", carPickup:"上车地点", carDropoff:"下车地点", carType:"车辆类型", carGuestName:"姓名", carPax:"人数", carRemark:"备注", carReceiptTitle:"Car Booking Confirmation",
  carReserveBtn:"预约", carListTitle:"预约记录",
  colPickup:"上车", colDropoff:"下车", colCarType:"车辆", colDriver:"司机", driverAssigned:"已指派", driverPending:"待指派",
@@ -5466,7 +5556,7 @@ en:{
  toastEventPeriodMissing:"请输入开始和结束日期。", toastEventPeriodInvalid:"结束日期不能早于开始日期。", toastEventPeriodSet:"活动期间已设置。",
  eventPayBtn:"发放活动佣金", eventHistoryTitle:"活动佣金发放记录", eventInactiveHint:"启用活动后即可额外发放转码佣金。", eventAutoHint:"活动期间内结算转码佣金时，活动佣金将自动存入账户。",
  toastEventInactive:"请先启用活动。", toastEventPaid:"活动佣金已发放。", notifEvent:"活动佣金发放",
- colReason:"原因", colPointsChange:"变动", colPointsBalance:"余额", pointsEarn:"累积", pointsUse:"使用",
+ colPointsChange:"变动", colPointsBalance:"余额", pointsEarn:"累积", pointsUse:"使用",
  notifTitle:"通知", notifMarkAll:"全部已读", notifEmpty:"暂无新通知。",
  avatarReqTitle:"确认阿凡达请求", toastNoAvatarReq:"目前没有待处理的阿凡达请求。", toastAvatarReqChecked:"已确认阿凡达请求。", avatarIdLabel:"阿凡达 ID", toastAvatarReqCancelled:"阿凡达请求已取消。",
  notifDeposit:"存款已处理", notifWithdraw:"取款已处理", notifTransferT:"转账已完成", notifGameStart:"赛局已开始", notifGameSettle:"结算已完成",
@@ -6404,6 +6494,13 @@ function processIo(){
  if(amt<=0) return;
  if(DB.ioType==='withdraw'){
   const casino = currentBranch();
+  // Offline persistence can serve a snapshot straight from local cache before this device has
+  // actually re-synced with the server (see ledgerServerConfirmed's definition above) - block
+  // real cash from leaving the cage against a balance that might be stale, rather than trust it.
+  if(fbDb && !ledgerServerConfirmed){
+   toast(t('toastBalanceSyncing'));
+   return;
+  }
   if(!hasSufficientTotalBalance(DB.currentAccount, amt)){
    toast(t('toastInsufficientBalance'));
    pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
@@ -6476,6 +6573,10 @@ async function _doProcessIo(amt){
  const acc = DB.accounts[DB.currentAccount];
  // Re-check with the freshest known balance right before writing (narrows, though cannot fully
  // close, the race window between the initial check and PIN confirmation on another terminal).
+ if(DB.ioType==='withdraw' && fbDb && !ledgerServerConfirmed){
+  toast(t('toastBalanceSyncing'));
+  return;
+ }
  if(DB.ioType==='withdraw' && !hasSufficientTotalBalance(DB.currentAccount, amt)){
   toast(t('toastInsufficientBalance'));
   pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
@@ -8988,6 +9089,33 @@ function renderDashboard(){
  if(el) el.textContent = Object.keys(DB.accounts||{}).filter(accountVisibleInBranch).length;
 }
 
+// Local fallback path only - used when the staffLogin Cloud Function is unreachable (SDK never
+// loaded, or the call itself fails mid-attempt). DB.staff only carries pin/totpSecret here if it
+// was already populated from a previous successful sync cached in localStorage; the normal
+// pre-login path (loadLoginStaffNames) deliberately never fetches those fields at all.
+async function verifyStaffCredsLocally(staffName, pin, otp){
+ const staffRec = ((DB && DB.staff) || []).find(s=>s.name===staffName);
+ if(!staffRec || pin !== staffRec.pin) return {ok:false, reason:'pin'};
+ // Temporary, user-requested exception: ERIC logs in with a fixed code instead of a real TOTP
+ // check - this staff member has no working authenticator app set up. Every other staff member
+ // still goes through verifyTotp() as normal.
+ const otpOk = (staffRec.name||'').toUpperCase() === 'ERIC' ? otp.trim() === '123456' : staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp);
+ return otpOk ? {ok:true} : {ok:false, reason:'otp'};
+}
+// Verifies the PIN + TOTP server-side (staffLogin never returns them, unlike the old direct
+// Firestore read this replaced) and returns a Firebase custom auth token on success, which is
+// what request.auth != null in firestore.rules checks for on the staff collection from here on.
+async function verifyStaffCredsServer(staffName, pin, otp){
+ try{
+  const resp = await fetch(`${FUNCTIONS_BASE}/staffLogin`, {
+   method:'POST', headers:{'Content-Type':'application/json'},
+   body: JSON.stringify({name:staffName, pin, otp}),
+  });
+  return await resp.json();
+ }catch(e){
+  return verifyStaffCredsLocally(staffName, pin, otp);
+ }
+}
 async function attemptLogin(){
  // Enter-to-submit on the PIN/OTP fields calls this directly, bypassing the button's own
  // disabled state - block here too so a keyboard submit can't slip through the sync window.
@@ -8995,25 +9123,15 @@ async function attemptLogin(){
  const staff = document.getElementById('loginStaff').value;
  const pin = document.getElementById('loginPin').value;
  const otp = document.getElementById('loginOtp').value;
- const staffRec = ((DB && DB.staff) || []).find(s=>s.name===staff);
- let hasError = false;
- if(!staffRec || pin !== staffRec.pin){
-  document.getElementById('loginError').style.display = 'block';
-  hasError = true;
- } else {
-  document.getElementById('loginError').style.display = 'none';
+ const result = fbDb ? await verifyStaffCredsServer(staff, pin, otp) : await verifyStaffCredsLocally(staff, pin, otp);
+ document.getElementById('loginError').style.display = result.reason==='pin' ? 'block' : 'none';
+ document.getElementById('loginOtpError').style.display = result.reason==='otp' ? 'block' : 'none';
+ if(!result.ok) return;
+ if(result.token){
+  try{ await firebase.auth().signInWithCustomToken(result.token); }
+  catch(e){ console.error('signInWithCustomToken failed', e); }
  }
- // Temporary, user-requested exception: ERIC logs in with a fixed code instead of a real TOTP
- // check - this staff member has no working authenticator app set up. Every other staff member
- // still goes through verifyTotp() as normal.
- const otpOk = staffRec && ((staffRec.name||'').toUpperCase() === 'ERIC' ? otp.trim() === '123456' : staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp));
- if(!otpOk){
-  document.getElementById('loginOtpError').style.display = 'block';
-  hasError = true;
- } else {
-  document.getElementById('loginOtpError').style.display = 'none';
- }
- if(hasError) return;
+ if(fbDb){ await seedStaffToCloudIfEmpty(); subscribeStaffCloud(); }
  document.getElementById('login-gate').style.display = 'none';
  if(typeof DB !== 'undefined' && DB){
   DB.onDutyStaff = DB.onDutyStaff || ['Teddy','Jena'];
@@ -9055,6 +9173,8 @@ async function attemptMasterLogin(){
  } else {
   document.getElementById('masterLoginError').style.display = 'none';
  }
+ // Master's TOTP secret is per-device local state, not synced to Firestore, so it can't be
+ // re-verified server-side the way staff logins are - the local check here is the real one.
  const otpOk = DB && DB.masterTotpSecret && await verifyTotp(DB.masterTotpSecret, otp);
  if(!otpOk){
   document.getElementById('masterOtpError').style.display = 'block';
@@ -9063,6 +9183,24 @@ async function attemptMasterLogin(){
   document.getElementById('masterOtpError').style.display = 'none';
  }
  if(hasError) return;
+ // Re-verifies the password server-side (Admin SDK bypasses firestore.rules) before minting a
+ // real session token - without this, master login has no way to satisfy request.auth != null on
+ // the staff collection, and features that need it (staff management, on-duty roster) would fail
+ // silently after login. If the function is unreachable, master still gets in (matches staff
+ // login's own fall-back-rather-than-lock-out behavior); it just won't be able to reach `staff`
+ // until connectivity returns and this is retried.
+ if(fbDb){
+  try{
+   const resp = await fetch(`${FUNCTIONS_BASE}/masterSessionToken`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({password: pw}),
+   });
+   const data = await resp.json();
+   if(data.token) await firebase.auth().signInWithCustomToken(data.token);
+  }catch(e){ console.error('masterSessionToken failed', e); }
+  await seedStaffToCloudIfEmpty();
+  subscribeStaffCloud();
+ }
  document.getElementById('login-gate').style.display = 'none';
  // Master is an admin override login, not a floor worker - never add it to the on-duty roster.
  startInactivityTimer();
@@ -9191,8 +9329,13 @@ function startInactivityTimer(){
   // Each seed call is raced against a timeout (see withTimeout above) so a single hung .get() -
   // which, unlike a normal network error, may never resolve OR reject on some networks - can't
   // block every subscribeXCloud() after it from ever running.
-  await withTimeout(seedStaffToCloudIfEmpty(), 6000);
-  subscribeStaffCloud();
+  // Staff is handled separately from the other seed+subscribe pairs below: that collection now
+  // requires request.auth != null (see firestore.rules), so subscribeStaffCloud() can't succeed
+  // until after a successful login signs the client in. loadLoginStaffNames() covers the
+  // pre-login need (populating the login dropdown, unlocking the login button) via a public
+  // Cloud Function instead; attemptLogin()/attemptMasterLogin() call subscribeStaffCloud() once
+  // signInWithCustomToken() has actually completed.
+  await withTimeout(loadLoginStaffNames(), 6000);
   await withTimeout(seedLedgerToCloudIfEmpty(), 6000);
   subscribeLedgerCloud();
   await withTimeout(seedGamesToCloudIfEmpty(), 6000);

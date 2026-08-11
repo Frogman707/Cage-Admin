@@ -204,6 +204,12 @@ function doLogout(){
 }
 /* ---------------- view dispatch ---------------- */
 async function switchView(viewId){
+  // Tear down the previous screen's live list subscription (if any) before mounting the next one -
+  // otherwise navigating away from a mountListView() screen would leave its onSnapshot listener
+  // running forever in the background (a real leak, and it'd keep calling renderListBody() against
+  // a #listBody that no longer exists - harmless since that's a no-op, but the live Firestore
+  // listener itself doesn't stop just because nothing reads its output anymore).
+  if (LIST_UNSUB){ LIST_UNSUB(); LIST_UNSUB = null; }
   CURRENT_VIEW = viewId;
   setActiveNav(viewId);
   const main = document.getElementById('mainArea');
@@ -260,13 +266,36 @@ function invalidateCaches(){ MEMBER_CACHE=null; BALANCE_CACHE=null; TABLE_CACHE=
 
 /* generic list-view engine, driven by config */
 let LIST_STATE = {};
+// Set by mountListView while a list screen is mounted; torn down by switchView() on navigation.
+let LIST_UNSUB = null;
+// Previously this did a single fetchAll() and never looked at the collection again - a screen
+// stayed frozen at whatever it looked like on the moment of navigation until the staff member
+// manually hit 새로고침 (or switched away and back). Converted to a live onSnapshot subscription so
+// all ~40 screens built on this shared engine update in real time - a new deposit request, an
+// approval from another terminal, a status change, etc. now appear without any manual action.
+// Scope note: only the row DATA is live. cfg.stats() (the summary stat cards above the table) is
+// still computed once at initial mount, same as before - re-rendering those live would mean
+// regenerating the whole shell (including the search input), which would drop whatever the staff
+// member is mid-typing into the search box on every incoming snapshot. Stats catch up next time the
+// screen is (re)mounted.
 async function mountListView(cfg){
-  let docs = await fetchAll(cfg.coll);
-  if (cfg.extraFilter) docs = docs.filter(cfg.extraFilter);
-  if (CASINO_FILTER!=='ALL' && cfg.casinoField) docs = docs.filter(d=>d[cfg.casinoField]===CASINO_FILTER);
-  let rows = cfg.mapRow ? docs.map(cfg.mapRow) : docs;
-  if (cfg.sortKey) rows.sort((a,b)=> cfg.sortDir==='asc' ? (a[cfg.sortKey]>b[cfg.sortKey]?1:-1) : (a[cfg.sortKey]<b[cfg.sortKey]?1:-1));
-  LIST_STATE = {cfg, rows, filtered: rows, page:1, pageSize:20, q:'', activeFilters:{}};
+  LIST_STATE = {cfg, rows: [], filtered: [], page:1, pageSize:20, q:'', activeFilters:{}};
+  let resolveFirst;
+  const firstSnapshot = new Promise(res=>{ resolveFirst = res; });
+  LIST_UNSUB = db.collection(cfg.coll).onSnapshot(snap=>{
+    let docs = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    if (cfg.extraFilter) docs = docs.filter(cfg.extraFilter);
+    if (CASINO_FILTER!=='ALL' && cfg.casinoField) docs = docs.filter(d=>d[cfg.casinoField]===CASINO_FILTER);
+    let rows = cfg.mapRow ? docs.map(cfg.mapRow) : docs;
+    if (cfg.sortKey) rows.sort((a,b)=> cfg.sortDir==='asc' ? (a[cfg.sortKey]>b[cfg.sortKey]?1:-1) : (a[cfg.sortKey]<b[cfg.sortKey]?1:-1));
+    LIST_STATE.rows = rows;
+    reapplyListFilters();
+    if (resolveFirst){ resolveFirst(); resolveFirst = null; }
+  }, err=>{
+    console.error('mountListView onSnapshot error:', cfg.coll, err);
+    if (resolveFirst){ resolveFirst(); resolveFirst = null; } // don't hang the view forever on a permission/offline error
+  });
+  await firstSnapshot;
   setTimeout(renderListBody, 0); // #listBody only exists once switchView() commits this HTML to the DOM
   return renderListShell();
 }
@@ -314,12 +343,21 @@ function onListFilter(key, val){
   applyListFilters();
 }
 function applyListFilters(){
+  LIST_STATE.page = 1;
+  reapplyListFilters();
+}
+// Recomputes `filtered` from the current rows/search/filter state without resetting the page - used
+// both by applyListFilters() (which resets the page itself, for an actual user search/filter
+// action) and by mountListView()'s onSnapshot handler (an incoming live update shouldn't yank a
+// staff member back to page 1 while they're browsing page 3).
+function reapplyListFilters(){
   const {cfg, rows, q, activeFilters} = LIST_STATE;
   let out = rows;
   if (q) out = out.filter(r => (cfg.searchFields||[]).some(f => String(r[f]??'').toLowerCase().includes(q)));
   Object.entries(activeFilters||{}).forEach(([k,v])=>{ out = out.filter(r=> String(r[k])===v); });
   LIST_STATE.filtered = out;
-  LIST_STATE.page = 1;
+  const pageCount = Math.max(1, Math.ceil(out.length/LIST_STATE.pageSize));
+  if (LIST_STATE.page > pageCount) LIST_STATE.page = pageCount;
   renderListBody();
 }
 function renderListBody(){
@@ -375,10 +413,11 @@ async function submitBalanceAdjust(){
   if (!amt){ toast('금액을 입력하세요', true); return; }
   const memo = document.getElementById('balanceMemo').value;
   const signed = BALANCE_CTX.mode==='withdraw' ? -Math.abs(amt) : Math.abs(amt);
-  await db.collection('memberLedger').doc(uuidv4()).set({
+  await writeMemberLedgerEntry(db, {
     memberId: BALANCE_CTX.memberId, amount: signed,
     category: BALANCE_CTX.mode==='withdraw' ? 'withdraw' : 'deposit',
-    memo, staff: CURRENT_STAFF?.id||'—', createdAt: new Date().toISOString()
+    memo, staff: CURRENT_STAFF?.id||'—', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
   });
   await db.collection('memberActionLogs').doc(uuidv4()).set({
     memberId: BALANCE_CTX.memberId, action: `${BALANCE_CTX.mode==='withdraw'?'차감':'지급'} ${fmtNum(amt)}`,
@@ -845,15 +884,42 @@ async function renderDepositMgmt(){
     sortKey:'dt', sortDir:'desc',
   });
 }
+// Approve/reject read the request's current status and flip it inside a single transaction, so
+// a double-click or two staff acting on the same request at once can't both pass the '대기' check
+// and both append a memberLedger credit (or leave the request in a contradictory state).
 async function approveDeposit(id){
-  const doc = await db.collection('depositRequests').doc(id).get();
-  const d = doc.data();
-  await db.collection('depositRequests').doc(id).set({status:'승인'}, {merge:true});
-  await db.collection('memberLedger').doc(uuidv4()).set({memberId:d.memberId, amount:Math.abs(d.amount), category:'deposit', memo:'디파짓 승인', staff:CURRENT_STAFF?.id||'—', createdAt:new Date().toISOString()});
+  const ref = db.collection('depositRequests').doc(id);
+  let d;
+  try {
+    await db.runTransaction(async tx=>{
+      const doc = await tx.get(ref);
+      if (!doc.exists) throw new Error('NOT_FOUND');
+      d = doc.data();
+      if (d.status !== '대기') throw new Error('ALREADY_PROCESSED');
+      tx.set(ref, {status:'승인'}, {merge:true});
+    });
+  } catch (e) {
+    if (e.message === 'ALREADY_PROCESSED'){ toast('이미 처리된 요청입니다'); switchView(CURRENT_VIEW); return; }
+    if (e.message === 'NOT_FOUND'){ toast('요청을 찾을 수 없습니다'); switchView(CURRENT_VIEW); return; }
+    throw e;
+  }
+  await writeMemberLedgerEntry(db, {memberId:d.memberId, amount:Math.abs(d.amount), category:'deposit', memo:'디파짓 승인', staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
   toast('승인되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
 }
 async function rejectDeposit(id){
-  await db.collection('depositRequests').doc(id).set({status:'거절'}, {merge:true});
+  const ref = db.collection('depositRequests').doc(id);
+  try {
+    await db.runTransaction(async tx=>{
+      const doc = await tx.get(ref);
+      if (!doc.exists) throw new Error('NOT_FOUND');
+      if (doc.data().status !== '대기') throw new Error('ALREADY_PROCESSED');
+      tx.set(ref, {status:'거절'}, {merge:true});
+    });
+  } catch (e) {
+    if (e.message === 'ALREADY_PROCESSED'){ toast('이미 처리된 요청입니다'); switchView(CURRENT_VIEW); return; }
+    if (e.message === 'NOT_FOUND'){ toast('요청을 찾을 수 없습니다'); switchView(CURRENT_VIEW); return; }
+    throw e;
+  }
   toast('거절되었습니다'); switchView(CURRENT_VIEW);
 }
 async function renderShareAccumList(){
@@ -1214,20 +1280,34 @@ function openRoundCancelModal(roundId, tableId){
 async function submitRoundCancel(roundId, tableId){
   const reason = document.getElementById('rcReason').value;
   const pushNotice = document.getElementById('rcNotice').checked;
+  const roundRef = db.collection('rounds').doc(roundId);
+  // Claim the cancellation atomically first (transaction: read cancelled -> flip it) before
+  // touching any ledger rows. Only one concurrent call can win this flip from false to true, so a
+  // double-click or two staff cancelling the same round at once can no longer both refund/claw
+  // back the same bets - the loser sees ALREADY_CANCELLED and does nothing further.
+  try {
+    await db.runTransaction(async tx=>{
+      const doc = await tx.get(roundRef);
+      if (doc.exists && doc.data().cancelled) throw new Error('ALREADY_CANCELLED');
+      tx.set(roundRef, {cancelled:true, cancelReason:reason, cancelledBy:CURRENT_STAFF?.id||'—', cancelledAt:new Date().toISOString()}, {merge:true});
+    });
+  } catch (e) {
+    if (e.message === 'ALREADY_CANCELLED'){ toast('이미 취소된 라운드입니다'); closeModal('modal-form'); return; }
+    throw e;
+  }
   // single equality filter (relatedRoundId) only - avoids needing a composite Firestore index
   const snap = await db.collection('memberLedger').where('relatedRoundId','==',roundId).get();
   let refunded = 0, clawedBack = 0;
   for (const d of snap.docs){
     const r = d.data();
     if (r.category==='bet'){
-      await db.collection('memberLedger').doc(uuidv4()).set({memberId:r.memberId, casino:r.casino, amount:Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 환불 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:new Date().toISOString()});
+      await writeMemberLedgerEntry(db, {memberId:r.memberId, casino:r.casino, amount:Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 환불 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
       refunded += Math.abs(r.amount);
     } else if (r.category==='payout'){
-      await db.collection('memberLedger').doc(uuidv4()).set({memberId:r.memberId, casino:r.casino, amount:-Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 페이아웃 회수 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:new Date().toISOString()});
+      await writeMemberLedgerEntry(db, {memberId:r.memberId, casino:r.casino, amount:-Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 페이아웃 회수 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
       clawedBack += Math.abs(r.amount);
     }
   }
-  await db.collection('rounds').doc(roundId).set({cancelled:true, cancelReason:reason, cancelledBy:CURRENT_STAFF?.id||'—', cancelledAt:new Date().toISOString()}, {merge:true});
   if (pushNotice){
     await db.collection('inGameNotices').doc(uuidv4()).set({text:`[${tableId}] 라운드 취소 안내: ${reason}로 인해 해당 라운드가 취소되어 베팅이 전액 환불되었습니다.`, tableType:'all', active:true, dt:new Date().toISOString()});
   }
@@ -1579,10 +1659,26 @@ async function renderPaymentProcessList(){
   });
 }
 async function processPayment(id, status){
-  const p = (await fetchAll('paymentRequests')).find(x=>x.id===id);
-  await db.collection('paymentRequests').doc(id).set({status}, {merge:true});
+  // Reads the request fresh inside the transaction rather than off the cached fetchAll() list -
+  // that cache can be stale, and the transaction is also what makes the status check + flip atomic
+  // (see approveDeposit above for why: prevents a duplicate-credit race on double-click/two staff).
+  const ref = db.collection('paymentRequests').doc(id);
+  let p;
+  try {
+    await db.runTransaction(async tx=>{
+      const doc = await tx.get(ref);
+      if (!doc.exists) throw new Error('NOT_FOUND');
+      p = doc.data();
+      if (p.status !== '대기') throw new Error('ALREADY_PROCESSED');
+      tx.set(ref, {status}, {merge:true});
+    });
+  } catch (e) {
+    if (e.message === 'ALREADY_PROCESSED'){ toast('이미 처리된 요청입니다'); switchView(CURRENT_VIEW); return; }
+    if (e.message === 'NOT_FOUND'){ toast('요청을 찾을 수 없습니다'); switchView(CURRENT_VIEW); return; }
+    throw e;
+  }
   if (status==='승인' && p){
-    await db.collection('memberLedger').doc(uuidv4()).set({memberId:p.memberId, amount: p.type==='출금' ? -Math.abs(p.amount) : Math.abs(p.amount), category: p.type==='출금'?'withdraw':'deposit', memo:'결제처리 승인', staff:CURRENT_STAFF?.id||'—', createdAt:new Date().toISOString()});
+    await writeMemberLedgerEntry(db, {memberId:p.memberId, amount: p.type==='출금' ? -Math.abs(p.amount) : Math.abs(p.amount), category: p.type==='출금'?'withdraw':'deposit', memo:'결제처리 승인', staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
   }
   toast(`${status}되었습니다`); invalidateCaches(); switchView(CURRENT_VIEW);
 }

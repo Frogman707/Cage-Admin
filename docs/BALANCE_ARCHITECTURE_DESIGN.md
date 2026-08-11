@@ -1,11 +1,14 @@
 # 잔액 아키텍처 재설계 (C1 잔여분 / P1 / P2 잔여분 / C4)
 
-> **상태: 설계 검토 대기 중 — 아직 배포되지 않음.** 이 문서는 실물 현금을 다루는 라이브 시스템의
-> 스키마를 바꾸는 작업이라, 사용자 검토·승인 전까지 아래 내용은 `index.html`/
-> `partner-admin/app.js`/`shared/game-engine.js`의 실제 읽기·쓰기 경로에 반영되지 않는다.
-> 이 브랜치에는 프로토타입 코드(트랜잭션 로직, 백필 스크립트, 정합성 감시 잡)와 그것들을 검증한
-> Firestore 에뮬레이터 테스트가 함께 포함되어 있지만, 전부 `functions/index.js`에서 아직
-> export되지 않았고 `firebase deploy`로도 배포되지 않는다 — 코드만 미리 준비해 둔 것.
+> **상태: 설계 검토 대기 중 — 아직 배포되지 않음, 읽기 경로는 아직 하나도 안 바뀜.** 이 브랜치에는
+> §3-1의 1단계(듀얼라이트)가 실제 앱 코드(`index.html`/`partner-admin/app.js`/
+> `shared/game-engine.js`/`avatar/app.js`)에 반영돼 있다 — 모든 원장성 쓰기가 이제 `balanceTotals`도
+> 함께 증분한다. 하지만 **어떤 화면·판단 로직도 아직 그 값을 읽거나 신뢰하지 않는다** — 케이지
+> 출금 승인을 포함한 모든 잔액 조회는 여전히 기존 derive-by-sum 경로 그대로다. §2(백필)~§3(섀도우
+> 리드·컷오버)는 사용자 검토·승인 후, 그리고 이 브랜치가 실제로 배포되어 며칠간 데이터가 쌓인
+> 뒤에만 진행한다. 트랜잭션 프로토타입(출금 디빗, 백필 스크립트, 정합성 감시 잡)도 코드는
+> 준비돼 있지만 `functions/index.js`에서 export되지 않았고 실제 판단 경로에 연결되지 않았다 —
+> 자세한 목록은 §7 참고.
 
 ## 0. 문제 요약
 
@@ -321,20 +324,48 @@ serverTimestamp()`를 먼저 추가해 배포하고(§4에서 어차피 권장�
 
 ## 7. 이 브랜치에 이미 있는 것 / 아직 없는 것
 
-**있음 (설계 검토용, 미배포)**:
+**있음 — §3-1의 1단계(듀얼라이트)까지 실제로 반영됨, 그 이후는 미진행**:
+
+- **듀얼라이트 코드가 실제 앱 파일에 들어가 있다** (§3-1의 1단계): `ledger`/`mainCageLedger`/
+  `rollingEvents`/`shiftEvents`를 쓰는 index.html의 `writeLedgerEntry`/`writeMainCageEntry`/
+  `writeRollingEvent`/`writeShiftEvent`, 그리고 `memberLedger`를 쓰는 8곳(shared/game-engine.js의
+  `playerSignup`/`placeBet`/`settleBet`, avatar/app.js의 `submitTip`, partner-admin/app.js의
+  `submitBalanceAdjust`/`approveDeposit`/`submitRoundCancel`(2곳)/`processPayment`) 전부 이제
+  기존 컬렉션 쓰기와 같은 배치(batch) 안에서 `balanceTotals`(또는 `games/{id}.rolling`)를
+  `FieldValue.increment()`로 함께 갱신한다. `memberLedger` 쪽은 8곳이 각자 인라인으로 쓰던 걸
+  `shared/cage-ui.js`의 `writeMemberLedgerEntry()` 공유 함수 하나로 모았다 — §1-1(c)에서 말한
+  "출금처럼 위험한 경로만 한 곳으로 모은다"는 원칙을 크레딧 계열에도 적용해, 앞으로 이 컬렉션에
+  새 쓰기 지점이 생겨도 증분을 빠뜨리기 훨씬 어렵게 만들었다. `ledger`/`mainCageLedger`/
+  `rollingEvents`/`shiftEvents`에는 §4에서 다룬 대로 `createdAt`/`clientCreatedAt`/`deviceId`도
+  함께 추가했다 (index.html은 `shared/cage-ui.js`를 로드하지 않으므로 `getDeviceId()`를
+  파일 내부에 로컬로 복제).
+  - **읽기 쪽은 전혀 건드리지 않았다** — `hasSufficientTotalBalance`/`accountBalanceFor`/
+    `getPlayerBalance`/`getBalances`/`renderAllGameViews` 등 모든 조회·판단 로직은 여전히 기존
+    derive-by-sum 경로 그대로다. `balanceTotals`는 지금 이 순간부터 조용히 쌓이기 시작할 뿐,
+    아직 아무것도 이 값을 읽거나 신뢰하지 않는다.
+  - 데모/시드 데이터 생성기(`partner-admin/app.js`의 `seedDemoData`)는 의도적으로 손대지
+    않았다 — 실제 금전 흐름이 아니라 데모 프로젝트를 채우는 픽스처 데이터라, 여길 건드려도
+    이번 작업의 목적(C1/P1/P2)에 아무 기여가 없고 표면적만 늘어난다.
+  - `firebase.json`에 로컬 에뮬레이터 포트 설정 추가 (배포 대상 아님).
+- `test/dual-write-compat.test.js` — 실제로 index.html/shared/cage-ui.js가 쓰는 **compat SDK**
+  기준으로 같은 배치 패턴(원장 문서 set + 중첩 필드 `FieldValue.increment()`)을 에뮬레이터에
+  대고 재현해 검증 (`npm run test:dual-write-compat`) — 동시에 20개의 증분이 들어와도 하나도
+  유실되지 않음을 확인했다. (앞서 만든 `functions/balance/withdrawTransaction.js` 쪽 테스트는
+  모듈식(v9+) SDK 기준이라 별도로 검증해 둔 것.)
 - `functions/balance/spillPlan.js` — 분산 출금 순서 계산 (순수 함수, `functions/test/spillPlan.test.js`)
-- `functions/balance/withdrawTransaction.js` — §1-3의 트랜잭션 프로토타입 (모듈식 SDK 기준)
+- `functions/balance/withdrawTransaction.js` — §1-3의 트랜잭션 프로토타입 (모듈식 SDK 기준) — **아직
+  실제 출금 승인/거절 판단에는 연결하지 않음** (§3-1의 4단계, 컷오버 시점의 몫)
 - `functions/balance/backfillBalances.js` — §2의 1회성 백필 스크립트 (`functions/test/backfillBalances.test.js`)
 - `functions/balance/reconcile.js` — §1-1(c)의 정합성 감시 잡 본체 (`functions/test/reconcile.test.js`)
-- `test/balance-emulator.test.js` — 실제 Firestore 에뮬레이터로 동시성 원자성을 증명하는 테스트
-  (`npm run test:balance-emulator`) — **CI에는 연결하지 않음**, 에뮬레이터가 필요해 기존
-  `deploy-functions` 잡(`npm test --prefix functions`, 에뮬레이터 없이 plain `node --test`)이
-  깨지지 않도록 저장소 루트의 별도 `test/` 디렉터리에 분리해 뒀다.
-- `firebase.json`에 로컬 에뮬레이터 포트 설정 추가 (배포 대상 아님).
+- `test/balance-emulator.test.js` — 실제 Firestore 에뮬레이터로 트랜잭션 방식의 동시성 원자성을
+  증명하는 테스트 (`npm run test:balance-emulator`) — **CI에는 연결하지 않음**, 에뮬레이터가
+  필요해 기존 `deploy-functions` 잡(`npm test --prefix functions`, 에뮬레이터 없이 plain
+  `node --test`)이 깨지지 않도록 저장소 루트의 별도 `test/` 디렉터리에 분리해 뒀다
+  (`test:dual-write-compat`도 동일한 이유로 같이 분리).
 
 **없음 (사용자 승인 후 진행)**:
-- `index.html`/`partner-admin/app.js`/`shared/game-engine.js`의 실제 쓰기 지점 변경 (듀얼라이트
-  코드 삽입).
+- 케이지 출금 승인/거절 판단(`hasSufficientTotalBalance` 등)이나 그 외 어떤 화면도
+  `balanceTotals`를 읽거나 신뢰하도록 바꾸는 것 — §3-1의 3~4단계(백필 → 섀도우 리드 → 컷오버) 전부.
 - `functions/index.js`에서 `reconcile.js`를 `onSchedule`로 export.
 - 프로덕션 `backfillBalances.js --commit` 실행.
 - `firestore.rules`에 `balanceTotals` 쓰기 제한 추가 (지금은 다른 모든 컬렉션과 동일하게 열려

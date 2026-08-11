@@ -73,7 +73,7 @@ async function playerSignup(db, data){
     if (e.message === 'DUP') return {ok:false, reason:'dup'};
     throw e;
   }
-  await db.collection('memberLedger').doc(uuidv4()).set({
+  await writeMemberLedgerEntry(db, {
     memberId:id, casino:data.casino, amount:100000, category:'deposit', memo:'가입 축하 포인트', staff:'system',
     createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
   });
@@ -93,7 +93,7 @@ async function getPlayerBalance(db, memberId){
 
 /* ---------------- betting ---------------- */
 async function placeBet(db, {memberId, casino, tableId, roundId, betType, amount, staff}){
-  await db.collection('memberLedger').doc(uuidv4()).set({
+  await writeMemberLedgerEntry(db, {
     memberId, casino, amount: -Math.abs(amount), category:'bet', betType,
     relatedTableId: tableId, relatedRoundId: roundId, staff: staff||'system',
     createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
@@ -108,7 +108,7 @@ async function settleBet(db, {memberId, casino, tableId, roundId, betType, amoun
   else if (betType==='bankerPair') mult = resultInfo.bankerPair ? PAYOUT.bankerPair : 0;
   const payout = Math.round(amount * mult);
   if (payout > 0){
-    await db.collection('memberLedger').doc(uuidv4()).set({
+    await writeMemberLedgerEntry(db, {
       memberId, casino, amount: payout, category:'payout',
       relatedTableId: tableId, relatedRoundId: roundId, staff:'system',
       createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),

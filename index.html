@@ -6477,7 +6477,10 @@ function processIo(){
   }
   requestWithdrawAuth(DB.currentAccount, ()=>_doProcessIo(amt));
  } else {
-  _doProcessIo(amt);
+  // Deposits previously had no auth step at all (only withdraw/transfer required the staff PIN) -
+  // requestPinAuth is the same cage-level PIN check already used for main cage/cutoff/balancing
+  // confirm elsewhere in this file, just applied here too.
+  requestPinAuth(()=>_doProcessIo(amt));
  }
 }
 function hasSufficientBalance(accountId, casino, amount){

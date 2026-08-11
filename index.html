@@ -4171,6 +4171,12 @@ const FIREBASE_CONFIG = {
 // duplicated as its own constant since this one isn't Telegram-specific and login needs it before
 // that section of the file is even reached.
 const FUNCTIONS_BASE = 'https://us-central1-cage-admin-25bbf.cloudfunctions.net';
+// True on a Firebase Hosting preview channel (cage-admin-25bbf--<channel>-<hash>.web.app - see
+// .github/workflows/hosting-preview-link.yml and functions/index.js's matching CORS pattern), false
+// on the live site or local dev. Used to default the login screen's staff picker to Eric so a demo
+// link handed to someone doesn't require them to pick a name first - not something the live cage
+// terminals should default to, since real staff pick their own name every shift.
+const IS_PREVIEW_CHANNEL = /^cage-admin-25bbf--[a-z0-9][a-z0-9-]*\.web\.app$/.test(location.hostname);
 let fbDb = null;
 // A Firestore one-time .get() can, on some networks, neither resolve nor reject - the request just
 // stalls forever instead of erroring out (unlike a normal REST call, which either succeeds or the
@@ -7666,7 +7672,17 @@ function renderShiftList(){
 
 /* ---- Staff Management ---- */
 function renderStaffDropdowns(){
- const rows = DB.staff||[];
+ let rows = DB.staff||[];
+ // A <select> with nothing explicitly chosen yet defaults to its first <option> - moving Eric to
+ // the front on a preview channel is enough on its own to also make it the default selection,
+ // no extra .value assignment needed. Only reorders the dropdown, not DB.staff itself.
+ if(IS_PREVIEW_CHANNEL){
+  rows = rows.slice().sort((a,b)=>{
+   if(a.name==='Eric') return -1;
+   if(b.name==='Eric') return 1;
+   return 0;
+  });
+ }
  const opts = rows.map(s=>`<option>${esc(s.name)}</option>`).join('');
  const loginSel = document.getElementById('loginStaff');
  const shiftSel = document.getElementById('checkInStaffSelect');

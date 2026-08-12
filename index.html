@@ -568,7 +568,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="status-chip dt-only"><span class="status-dot" id="nfcDot"></span><span id="nfcTxt" data-i18n="nfcConnected"></span></div>
   <div class="topbar-meta dt-only">
     <span data-i18n="lastBalancing"></span><b id="lastBalTime" class="num">—</b>
-    <span data-i18n="staff"></span><b id="staffCount" class="num">Kyle, Jena</b>
+    <span data-i18n="staff"></span><b id="staffCount" class="num">Eric</b>
     <span class="pill cc" id="topEventPill" style="display:none;" data-i18n="eventOnTop"></span>
   </div>
   <div class="lang-switch dt-only">
@@ -1302,7 +1302,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openStaffMgmt()" data-i18n="staffMgmtBtn"></button>
             <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openShiftList()" data-i18n="shiftListBtn"></button>
           </div>
-          <div class="stat-line"><span data-i18n="currentWorker"></span><b class="num" id="currentWorker">Kyle, Jena</b></div>
+          <div class="stat-line"><span data-i18n="currentWorker"></span><b class="num" id="currentWorker">Eric</b></div>
           <div class="stat-line"><span data-i18n="shiftDateTimeLabel"></span><b class="num" id="shiftLastDt">—</b></div>
           <div class="field" style="margin-top:12px;"><label data-i18n="checkInStaffLabel"></label>
             <select id="checkInStaffSelect"></select></div>
@@ -4159,7 +4159,7 @@ function phNow(){ return new Date(Date.now() + 8*3600000); }
    FIRESTORE — cloud sync (staff collection, phase 1)
    ============================================================ */
 const FIREBASE_CONFIG = {
- apiKey: "AIzaSyCOZL9qjgYnVPFTZMwGXyVKtRvJv3N0_cw",
+ apiKey: "AIzaSyCOZl9qjgYnVPFTZMwGXyVKtRvJv3N0_cw",
  authDomain: "cage-admin-25bbf.firebaseapp.com",
  projectId: "cage-admin-25bbf",
  storageBucket: "cage-admin-25bbf.firebasestorage.app",
@@ -4171,6 +4171,12 @@ const FIREBASE_CONFIG = {
 // duplicated as its own constant since this one isn't Telegram-specific and login needs it before
 // that section of the file is even reached.
 const FUNCTIONS_BASE = 'https://us-central1-cage-admin-25bbf.cloudfunctions.net';
+// True on a Firebase Hosting preview channel (cage-admin-25bbf--<channel>-<hash>.web.app - see
+// .github/workflows/hosting-preview-link.yml and functions/index.js's matching CORS pattern), false
+// on the live site or local dev. Used to default the login screen's staff picker to Eric so a demo
+// link handed to someone doesn't require them to pick a name first - not something the live cage
+// terminals should default to, since real staff pick their own name every shift.
+const IS_PREVIEW_CHANNEL = /^cage-admin-25bbf--[a-z0-9][a-z0-9-]*\.web\.app$/.test(location.hostname);
 let fbDb = null;
 // A Firestore one-time .get() can, on some networks, neither resolve nor reject - the request just
 // stalls forever instead of erroring out (unlike a normal REST call, which either succeeds or the
@@ -4211,6 +4217,16 @@ let fbStaffUnsub = null;
 // sitting in DB.staff, and get rejected every time. Login now stays disabled until this
 // resolves, with a hard timeout so a genuinely offline session doesn't lock out login forever.
 let staffCloudSynced = false;
+// The global 20s init backstop (armed further down, near the cloud-init sequence) exists only to
+// catch "nothing ever responded at all" - once any real signal has come in through a more specific
+// path (loadLoginStaffNames succeeding or failing, subscribeStaffCloud's own 15s timeout, etc.),
+// its job is done. Left armed, it used to fire unconditionally 20s after page load regardless of
+// what had already happened - so a perfectly successful, already-usable login screen (unlocked in
+// well under 20s by loadLoginStaffNames) could still flip back to showing the offline/"timed-out"
+// warning later, purely because the REST of the cloud-init sequence (six more sequential seed
+// calls after it, each with its own budget) hadn't finished yet. Cleared on the first call here so
+// it can't fire after the fact and revert an already-working screen to a false "offline" state.
+let globalReadyBackstop = null;
 // Called every time sync state changes (first success, the 15s timeout firing, or a later
 // snapshot/error after either of those) - NOT gated to "first call wins". The 15s timeout and the
 // real server round-trip race each other; if the timeout loses that race and shows the offline
@@ -4218,6 +4234,7 @@ let staffCloudSynced = false;
 // warning (and the "try again" prompt) is stuck on screen even though the sync in fact succeeded
 // and login proceeds normally with current data - which is confusing and looks like a bug.
 function markLoginReady(offlineFailure, errorDetail){
+ if(globalReadyBackstop){ clearTimeout(globalReadyBackstop); globalReadyBackstop = null; }
  staffCloudSynced = true;
  const btn = document.getElementById('loginBtn');
  const hint = document.getElementById('loginSyncHint');
@@ -4299,16 +4316,24 @@ async function seedStaffToCloudIfEmpty(){
 // login replaces it with the real thing via subscribeStaffCloud (which needs request.auth != null
 // to succeed, and so can only run after signInWithCustomToken).
 async function loadLoginStaffNames(){
- try{
-  const resp = await fetch(`${FUNCTIONS_BASE}/listStaffNames`);
-  if(!resp.ok) throw new Error('http '+resp.status);
-  const data = await resp.json();
-  DB.staff = data.staff||[];
-  renderStaffDropdowns();
-  markLoginReady();
- }catch(e){
-  markLoginReady(true, 'staff-list-failed');
+ // One retry for a transient blip (same pattern as verifyStaffCredsServer/signInStaffSession) -
+ // this is the very first network call on page load, so it's the most exposed to a cold/flaky
+ // connection; falling back to the offline warning (and the local seed data) on a single failed
+ // attempt was needlessly pessimistic.
+ for(let attempt=0; attempt<2; attempt++){
+  try{
+   const resp = await fetch(`${FUNCTIONS_BASE}/listStaffNames`);
+   if(!resp.ok) throw new Error('http '+resp.status);
+   const data = await resp.json();
+   DB.staff = data.staff||[];
+   renderStaffDropdowns();
+   markLoginReady();
+   return;
+  }catch(e){
+   if(attempt===0) await new Promise(r=>setTimeout(r, 1000));
+  }
  }
+ markLoginReady(true, 'staff-list-failed');
 }
 function subscribeStaffCloud(){
  if(!fbDb) return;
@@ -4877,7 +4902,7 @@ function processBranchTransfer(){
 }
 async function _doProcessBranchTransfer(fromBranch, toBranch, amt){
  const memo = document.getElementById('branchTransferMemo').value.trim() || t('branchTransferTitle');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const okOut = await writeLedgerEntry({accountId: mainAccountIdForCasino(fromBranch), casino:fromBranch, type:'OUT', amount:amt, staff:staffName, memo});
  if(!okOut){ toast(t('toastStaffSyncFailed')); return; }
  const okIn = await writeLedgerEntry({accountId: mainAccountIdForCasino(toBranch), casino:toBranch, type:'IN', amount:amt, staff:staffName, memo});
@@ -5066,7 +5091,7 @@ ko:{
  staffMgmtBtn:"직원 관리", staffMgmtTitle:"직원 관리", staffNameLabel:"이름", staffPinLabel:"PIN", staffGenPinBtn:"PIN 생성", staffRegisterBtn:"등록", staffSaveBtn:"저장", staffCancelEditBtn:"취소",
  colStaffName:"이름", colStaffPin:"PIN", colStaffRegDt:"등록일", editBtn:"수정", regenPinBtn:"PIN 재생성", otpSetupBtn:"OTP 설정",
  toastStaffNameRequired:"이름을 입력하세요.", toastStaffDuplicate:"이미 등록된 이름입니다.", toastStaffRegistered:"직원이 등록되었습니다.", toastStaffUpdated:"직원 정보가 수정되었습니다.",
- toastStaffDeleted:"직원이 삭제되었습니다.", toastPinRegenerated:"PIN이 재발급되었습니다.", toastStaffMinOne:"최소 1명의 직원은 있어야 합니다.", toastStaffSyncFailed:"서버에 저장하지 못했습니다. 연결을 확인하고 다시 시도해주세요.",
+ toastStaffDeleted:"직원이 삭제되었습니다.", toastPinRegenerated:"PIN이 재발급되었습니다.", toastStaffMinOne:"최소 1명의 직원은 있어야 합니다.", toastStaffSyncFailed:"서버에 저장하지 못했습니다. 연결을 확인하고 다시 시도해주세요.", toastAuthSessionFailed:"인증 세션 설정에 실패했습니다. 저장 등 일부 기능이 안 될 수 있으니 새로고침 후 다시 로그인해주세요.", toastLoginOffline:"서버에 연결할 수 없어 로그인 정보를 확인하지 못했습니다. 연결을 확인하고 다시 시도해주세요.",
  loginStaffLabel:"근무자", loginPinLabel:"비밀번호(PIN)", loginErrorMsg:"비밀번호가 일치하지 않습니다.", loginBtn:"로그인", loginSyncHint:"직원 정보를 동기화하는 중입니다. 잠시만 기다려주세요.", loginOfflineWarning:"⚠ 서버 연결에 실패했습니다. Wi-Fi/데이터 연결을 확인하고 새로고침 후 다시 시도해주세요.", loginRetryBtn:"다시 시도",
  masterPwLabel:"마스터 비밀번호", masterLoginBtn:"마스터 로그인", masterBackBtn:"뒤로", masterTotpSetupBtn:"마스터 OTP 설정 / 재설정",
  loginOtpDesc:"Authenticator 앱에 표시된 6자리 인증 코드를 입력하세요.", loginOtpLabel:"인증코드(Authenticator)", loginOtpErrorMsg:"인증 코드가 일치하지 않습니다.",
@@ -5204,7 +5229,7 @@ en:{
  staffMgmtBtn:"Staff Management", staffMgmtTitle:"Staff Management", staffNameLabel:"Name", staffPinLabel:"PIN", staffGenPinBtn:"Generate PIN", staffRegisterBtn:"Register", staffSaveBtn:"Save", staffCancelEditBtn:"Cancel",
  colStaffName:"Name", colStaffPin:"PIN", colStaffRegDt:"Registered", editBtn:"Edit", regenPinBtn:"Regenerate PIN", otpSetupBtn:"OTP Setup",
  toastStaffNameRequired:"Enter a name.", toastStaffDuplicate:"This name is already registered.", toastStaffRegistered:"Staff registered.", toastStaffUpdated:"Staff updated.",
- toastStaffDeleted:"Staff deleted.", toastPinRegenerated:"PIN regenerated.", toastStaffMinOne:"At least one staff member is required.", toastStaffSyncFailed:"Could not save to the server. Check your connection and try again.",
+ toastStaffDeleted:"Staff deleted.", toastPinRegenerated:"PIN regenerated.", toastStaffMinOne:"At least one staff member is required.", toastStaffSyncFailed:"Could not save to the server. Check your connection and try again.", toastAuthSessionFailed:"Could not establish an authenticated session. Some features (like saving) may not work - please refresh and log in again.", toastLoginOffline:"Could not reach the server to verify your login. Check your connection and try again.",
  loginStaffLabel:"Staff", loginPinLabel:"Password (PIN)", loginErrorMsg:"Incorrect password.", loginBtn:"Log In", loginSyncHint:"Syncing staff data - please wait a moment.", loginOfflineWarning:"⚠ Could not reach the server. Check your Wi-Fi/data connection and refresh to try again.", loginRetryBtn:"Retry",
  masterPwLabel:"Master Password", masterLoginBtn:"Master Login", masterBackBtn:"Back", masterTotpSetupBtn:"Master OTP Setup / Reset",
  loginOtpDesc:"Enter the 6-digit code shown in your Authenticator app.", loginOtpLabel:"Auth Code (Authenticator)", loginOtpErrorMsg:"Incorrect authentication code.",
@@ -5342,7 +5367,7 @@ en:{
  staffMgmtBtn:"員工管理", staffMgmtTitle:"員工管理", staffNameLabel:"姓名", staffPinLabel:"PIN", staffGenPinBtn:"產生PIN", staffRegisterBtn:"新增", staffSaveBtn:"儲存", staffCancelEditBtn:"取消",
  colStaffName:"姓名", colStaffPin:"PIN", colStaffRegDt:"登記日期", editBtn:"編輯", regenPinBtn:"重新產生PIN", otpSetupBtn:"OTP 設定",
  toastStaffNameRequired:"請輸入姓名。", toastStaffDuplicate:"此姓名已被登記。", toastStaffRegistered:"員工已新增。", toastStaffUpdated:"員工資料已更新。",
- toastStaffDeleted:"員工已刪除。", toastPinRegenerated:"PIN已重新產生。", toastStaffMinOne:"至少需保留一名員工。", toastStaffSyncFailed:"無法儲存到伺服器，請檢查連線後重試。",
+ toastStaffDeleted:"員工已刪除。", toastPinRegenerated:"PIN已重新產生。", toastStaffMinOne:"至少需保留一名員工。", toastStaffSyncFailed:"無法儲存到伺服器，請檢查連線後重試。", toastAuthSessionFailed:"無法建立驗證工作階段。部分功能（如儲存）可能無法使用，請重新整理並重新登入。", toastLoginOffline:"無法連接伺服器以驗證登入資訊。請檢查連線後重試。",
  loginStaffLabel:"人員", loginPinLabel:"密碼(PIN)", loginErrorMsg:"密碼不正確。", loginBtn:"登入", loginSyncHint:"正在同步員工資料，請稍候。", loginOfflineWarning:"⚠ 無法連接伺服器。請檢查Wi-Fi/行動數據連線後重新整理再試一次。", loginRetryBtn:"重試",
  masterPwLabel:"主管密碼", masterLoginBtn:"主管登入", masterBackBtn:"返回", masterTotpSetupBtn:"主管 OTP 設定／重設",
  loginOtpDesc:"請輸入 Authenticator 應用程式顯示的 6 位數驗證碼。", loginOtpLabel:"驗證碼(Authenticator)", loginOtpErrorMsg:"驗證碼不正確。",
@@ -5480,7 +5505,7 @@ en:{
  staffMgmtBtn:"员工管理", staffMgmtTitle:"员工管理", staffNameLabel:"姓名", staffPinLabel:"PIN", staffGenPinBtn:"生成PIN", staffRegisterBtn:"新增", staffSaveBtn:"保存", staffCancelEditBtn:"取消",
  colStaffName:"姓名", colStaffPin:"PIN", colStaffRegDt:"登记日期", editBtn:"编辑", regenPinBtn:"重新生成PIN", otpSetupBtn:"OTP 设置",
  toastStaffNameRequired:"请输入姓名。", toastStaffDuplicate:"此姓名已被登记。", toastStaffRegistered:"员工已新增。", toastStaffUpdated:"员工资料已更新。",
- toastStaffDeleted:"员工已删除。", toastPinRegenerated:"PIN已重新生成。", toastStaffMinOne:"至少需保留一名员工。", toastStaffSyncFailed:"无法保存到服务器，请检查连接后重试。",
+ toastStaffDeleted:"员工已删除。", toastPinRegenerated:"PIN已重新生成。", toastStaffMinOne:"至少需保留一名员工。", toastStaffSyncFailed:"无法保存到服务器，请检查连接后重试。", toastAuthSessionFailed:"无法建立身份验证会话。部分功能（如保存）可能无法使用，请刷新并重新登录。", toastLoginOffline:"无法连接服务器以验证登录信息。请检查连接后重试。",
  loginStaffLabel:"人员", loginPinLabel:"密码(PIN)", loginErrorMsg:"密码不正确。", loginBtn:"登录", loginSyncHint:"正在同步员工数据，请稍候。", loginOfflineWarning:"⚠ 无法连接服务器。请检查Wi-Fi/移动数据连接后刷新重试。", loginRetryBtn:"重试",
  masterPwLabel:"主管密码", masterLoginBtn:"主管登录", masterBackBtn:"返回", masterTotpSetupBtn:"主管 OTP 设置／重置",
  loginOtpDesc:"请输入 Authenticator 应用中显示的 6 位验证码。", loginOtpLabel:"验证码(Authenticator)", loginOtpErrorMsg:"验证码不正确。",
@@ -5750,18 +5775,16 @@ function seedDB(){
   currentAccount:null,
   ioType:"deposit",
   staff:[
-   {id:"STF-KYLE", name:"Kyle", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
-   {id:"STF-TEDDY", name:"Teddy", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
+   {id:"STF-ERIC", name:"Eric", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-JENA", name:"Jena", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-WONI", name:"Woni", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-LIV", name:"Liv", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-MINAMI", name:"Minami", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
    {id:"STF-MAY", name:"May", pin:"1234", dt:"2025-01-01 00:00", totpSecret: genTotpSecret()},
   ],
-  onDutyStaff:["Kyle","Jena"],
+  onDutyStaff:["Eric"],
   shiftLog:[
-   {dt:"2026-07-29 09:00", staff:"Kyle", action:"in"},
-   {dt:"2026-07-29 09:02", staff:"Jena", action:"in"},
+   {dt:"2026-07-29 09:00", staff:"Eric", action:"in"},
   ],
   eventStart:"2026-07-25T00:00",
   eventEnd:"2026-08-05T23:59",
@@ -6508,7 +6531,10 @@ function processIo(){
   }
   requestWithdrawAuth(DB.currentAccount, ()=>_doProcessIo(amt));
  } else {
-  _doProcessIo(amt);
+  // Deposits previously had no auth step at all (only withdraw/transfer required the staff PIN) -
+  // requestPinAuth is the same cage-level PIN check already used for main cage/cutoff/balancing
+  // confirm elsewhere in this file, just applied here too.
+  requestPinAuth(()=>_doProcessIo(amt));
  }
 }
 function hasSufficientBalance(accountId, casino, amount){
@@ -6548,7 +6574,7 @@ async function applyAccountTransaction(accountId, type, amount, memo){
  // for any account whose actual funds sat in NUSTAR/ONLINE, rejecting valid buy-ins as
  // "insufficient" and, had it gone through, would have wrongly drained the wrong branch's ledger.
  const casino = currentBranch();
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  // Computed here (prior known balance ± amount) rather than read back from the account after
  // writeLedgerEntry - in cloud-sync mode the local balance doesn't update synchronously, so a
  // post-call read would be stale for the notification message below.
@@ -6569,7 +6595,7 @@ async function applyAccountTransaction(accountId, type, amount, memo){
 async function _doProcessIo(amt){
  const casino = currentBranch();
  const memo = document.getElementById('ioMemo').value;
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const acc = DB.accounts[DB.currentAccount];
  // Re-check with the freshest known balance right before writing (narrows, though cannot fully
  // close, the race window between the initial check and PIN confirmation on another terminal).
@@ -6649,7 +6675,7 @@ function doTransfer(){
 }
 async function _doTransfer(amt){
  const casino = currentBranch();
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  if(!hasSufficientBalance(DB.currentAccount, casino, amt)){
   toast(t('toastInsufficientBalance'));
   pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
@@ -6848,7 +6874,7 @@ function seedRollingFromBuyin(g, buyinAmt, workingAmt, staffName){
  }
 }
 async function _doAddBuyin(existing, buyin, workingChip){
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  existing.buyin = (existing.buyin||0) + buyin;
  if(workingChip) existing.workingChip = (existing.workingChip||0) + workingChip;
  existing.staff = staffName;
@@ -6884,7 +6910,7 @@ async function _doAddBuyin(existing, buyin, workingChip){
  toast(acctWriteFailed ? t('toastStaffSyncFailed') : t('toastAddBuyin'));
 }
 async function _doStartGame(account, buyin, workingChip, enteredId){
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const table = document.getElementById('gTable').value;
  const cur = document.getElementById('gCurrency').value;
  const type = document.getElementById('gType').value;
@@ -6927,7 +6953,7 @@ async function _doStartGame(account, buyin, workingChip, enteredId){
 async function cancelGame(gameId){
  const g = DB.games.find(x=>x.gameId===gameId);
  if(!g) return;
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  if(g.startType === 'account' && g.buyin){
   // Refund the account BEFORE touching any local/shift state below - if this fails, bail out
   // entirely and leave the game exactly as it was, rather than deleting the game record (and
@@ -7019,7 +7045,7 @@ function confirmRollingInput(){
  const {gameId, amount} = pendingRolling;
  const g = DB.games.find(x=>x.gameId===gameId);
  if(g){
-  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
   bd().guestRollingGrandTotal = (bd().guestRollingGrandTotal||0) + amount;
   bd().rollingDailyTotal = (bd().rollingDailyTotal||0) + amount;
   DB.gameCCAdjust = (DB.gameCCAdjust||0) + amount;
@@ -7206,7 +7232,7 @@ async function _doSettleGame(){
  const cashout = isEnded ? (g.buyin||0) + (g.winLoss||0) : null;
  const winLoss = isEnded ? g.winLoss : null;
  const dt = isEnded ? g.endDt : phNow().toISOString().slice(0,16).replace('T',' ');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  // Credit the account BEFORE marking the game settled/ended below - if this fails, bail out
  // entirely and leave the game exactly as it was (still selectable, still re-settleable) rather
  // than recording a settlement whose payout never actually reached the customer's account.
@@ -7338,7 +7364,7 @@ async function _doConfirmMidSettle(){
  };
  // NN chip deposit / cashout / marker redeem / working chip returns are all deducted from rolling (win/loss excludes working chip separately below)
  const added = -nn.deposit - nn.cashout - nn.marker - nn.working;
- const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  g.checkpoints = g.checkpoints||[];
  g.checkpoints.unshift({dt:now, added, cc, nn, staff:floorStaff});
@@ -7564,7 +7590,7 @@ async function _doConfirmGameEnd(){
   historicalSum += (n.deposit||0)+(n.cashout||0)+(n.marker||0);
  });
  const winLoss = (historicalSum + ccSum + nn.deposit + nn.cashout + nn.marker) - (g.buyin||0);
- const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const floorStaff = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  if(fbDb){
   if(netNN) writeRollingEvent({gameId:g.gameId, amount:netNN, staff:floorStaff, memo:'game-end'});
@@ -7650,7 +7676,7 @@ function renderGameEndList(){
    ============================================================ */
 function shiftAction(dir){
  const staff = document.getElementById('checkInStaffSelect').value;
- DB.onDutyStaff = DB.onDutyStaff || ['Teddy','Jena'];
+ DB.onDutyStaff = DB.onDutyStaff || ['Eric'];
  if(dir==='in'){
   if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff);
  } else {
@@ -7668,7 +7694,7 @@ function renderShiftStaff(){
  // another device, or straight from Firestore) so the top bar never shows a ghost worker. Only
  // prune once staff data has actually loaded - an empty DB.staff during the brief window before
  // the cloud snapshot arrives must not be mistaken for "nobody is registered".
- const raw = DB.onDutyStaff||['Teddy','Jena'];
+ const raw = DB.onDutyStaff||['Eric'];
  let list = raw;
  if((DB.staff||[]).length){
   const registeredNames = new Set(DB.staff.map(s=>s.name));
@@ -7703,7 +7729,17 @@ function renderShiftList(){
 
 /* ---- Staff Management ---- */
 function renderStaffDropdowns(){
- const rows = DB.staff||[];
+ let rows = DB.staff||[];
+ // A <select> with nothing explicitly chosen yet defaults to its first <option> - moving Eric to
+ // the front on a preview channel is enough on its own to also make it the default selection,
+ // no extra .value assignment needed. Only reorders the dropdown, not DB.staff itself.
+ if(IS_PREVIEW_CHANNEL){
+  rows = rows.slice().sort((a,b)=>{
+   if(a.name==='Eric') return -1;
+   if(b.name==='Eric') return 1;
+   return 0;
+  });
+ }
  const opts = rows.map(s=>`<option>${esc(s.name)}</option>`).join('');
  const loginSel = document.getElementById('loginStaff');
  const shiftSel = document.getElementById('checkInStaffSelect');
@@ -7965,7 +8001,7 @@ function _doProcessMainCage(type, amt){
   DB.mainCageNNAdjust += amt;
  }
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  if(fbDb){
   writeMainCageEntry(type, amt, staffName);
  } else {
@@ -8045,7 +8081,7 @@ function confirmBalancingCheck(){
 }
 function _doConfirmBalancingCheck(){
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  bd().balancingCheckLog = bd().balancingCheckLog||[];
  bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'confirm'});
  bd().lastBalancingDt = now;
@@ -8074,7 +8110,7 @@ function _doInitialSetupBalancing(){
  bd().cashCarryBaseline = (bd().cashCarryBaseline||0) - diffCash;
  bd().rollingCarryBaseline = (bd().rollingCarryBaseline||0) - diffRolling;
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  bd().balancingCheckLog = bd().balancingCheckLog||[];
  bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'setup', diffCash, diffRolling});
  if(fbDb) writeCageConfig({cashCarryBaseline: bd().cashCarryBaseline, rollingCarryBaseline: bd().rollingCarryBaseline});
@@ -8336,7 +8372,7 @@ function correctDiff(){
  if(val===0){ toast(t('toastNoDiffToCorrect')); return; }
  requestPinAuth(()=>{
   const now = phNow().toISOString().slice(0,16).replace('T',' ');
-  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
   DB.correctionLog = DB.correctionLog||[];
   DB.correctionLog.unshift({dt:now, amount:val, staff:staffName});
   DB.memberCompanyDiffVal = 0;
@@ -8362,7 +8398,7 @@ function confirmMonthSettleReset(){
  const ccNow = unformatNum(document.getElementById('ccBreakTotal').textContent);
  const nnNow = unformatNum(document.getElementById('nnBreakTotal').textContent);
  const guestNow = visibleGames().reduce((s,g)=>s+(g.rolling||0),0) + visibleEndedGames().reduce((s,g)=>s+(g.rolling||0),0);
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  const monthRecord = {
   dt: phNow().toISOString().slice(0,16).replace('T',' '),
   cash: cashNow, cashChips: ccNow, rollingChips: nnNow, cum: bd().rollingGrandTotal||0, guest: guestNow,
@@ -8573,7 +8609,7 @@ function applyBlock(){
  const account = document.getElementById('blockAcc').value.trim().toUpperCase();
  const reason = document.getElementById('blockReason').value.trim();
  if(!account) return;
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  DB.blocks.unshift({account, type:"Full", reason, staff:staffName, dt:phNow().toISOString().slice(0,10)});
  document.getElementById('blockAcc').value=''; document.getElementById('blockReason').value='';
  saveDB(); renderBlocks();
@@ -8971,7 +9007,7 @@ function activateEvent(){
  DB.eventEnd = end;
  DB.eventRate = document.getElementById('eventRate').value.trim() || '1.00';
  document.getElementById('eventStartDate').value = nowStr;
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  DB.eventActivationLog = DB.eventActivationLog||[];
  DB.eventActivationLog.unshift({dt: phNow().toISOString().slice(0,16).replace('T',' '), start: DB.eventStart, end: DB.eventEnd, rate: DB.eventRate, staff: staffName});
  saveDB();
@@ -9034,7 +9070,7 @@ async function payEventCommissionForSettle(account, rolling){
  // (rather than a misleading "paid" record) is the right amount of feedback here.
  if(!txn) return;
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Kyle, Jena';
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  DB.eventHistory = DB.eventHistory||[];
  DB.eventHistory.unshift({dt:now, account, rolling, rate, amt, staff:staffName});
  renderMemberCard(); renderLedger(); renderEventHistory();
@@ -9106,15 +9142,47 @@ async function verifyStaffCredsLocally(staffName, pin, otp){
 // Firestore read this replaced) and returns a Firebase custom auth token on success, which is
 // what request.auth != null in firestore.rules checks for on the staff collection from here on.
 async function verifyStaffCredsServer(staffName, pin, otp){
- try{
-  const resp = await fetch(`${FUNCTIONS_BASE}/staffLogin`, {
-   method:'POST', headers:{'Content-Type':'application/json'},
-   body: JSON.stringify({name:staffName, pin, otp}),
-  });
-  return await resp.json();
- }catch(e){
-  return verifyStaffCredsLocally(staffName, pin, otp);
+ for(let attempt=0; attempt<2; attempt++){
+  try{
+   const resp = await fetch(`${FUNCTIONS_BASE}/staffLogin`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name:staffName, pin, otp}),
+   });
+   return await resp.json();
+  }catch(e){
+   if(attempt===0) await new Promise(r=>setTimeout(r, 1000)); // one retry for a transient blip
+  }
  }
+ // Pre-login, DB.staff only ever holds {id, name} from the public listStaffNames function - the
+ // `staff` collection denies unauthenticated reads, so there is no real `pin`/`totpSecret` on
+ // these records to fall back to. Falling through to verifyStaffCredsLocally in that state would
+ // compare the typed PIN against `undefined` and ALWAYS report a mismatch, no matter what's
+ // typed - a real server outage would look identical to a genuinely wrong PIN and mislead the
+ // staff member into re-typing a PIN that was correct the whole time. Only trust the local
+ // fallback when DB.staff demonstrably carries real PIN data (true local/offline-mode operation,
+ // where the whole app runs off local state and DB.staff was never replaced by the name-only list).
+ const hasRealPinData = ((DB && DB.staff) || []).some(s => s.pin !== undefined);
+ if(hasRealPinData) return verifyStaffCredsLocally(staffName, pin, otp);
+ return {ok:false, reason:'offline'};
+}
+// Used by both attemptLogin and attemptMasterLogin. A failed signInWithCustomToken used to be
+// caught and only logged to console - the user would sail past the login gate looking fully
+// logged in (reads off an already-cached/offline-persisted snapshot can look fine), while
+// request.auth stayed null under the hood, so any write to the `staff` collection (PIN edits,
+// registering someone, PIN/OTP regen) would then fail with no indication why. One retry absorbs
+// a transient network blip (the actual cause seen in practice); if it still fails, tell the user
+// outright instead of leaving them to discover it later via an unrelated "couldn't save" toast.
+async function signInStaffSession(token){
+ if(!token) return true; // nothing to sign in with is a no-op success, not a failure
+ for(let attempt=0; attempt<2; attempt++){
+  try{ await firebase.auth().signInWithCustomToken(token); return true; }
+  catch(e){
+   console.error('signInWithCustomToken failed', e);
+   if(attempt===0) await new Promise(r=>setTimeout(r, 1000));
+  }
+ }
+ toast(t('toastAuthSessionFailed'));
+ return false;
 }
 async function attemptLogin(){
  // Enter-to-submit on the PIN/OTP fields calls this directly, bypassing the button's own
@@ -9126,15 +9194,13 @@ async function attemptLogin(){
  const result = fbDb ? await verifyStaffCredsServer(staff, pin, otp) : await verifyStaffCredsLocally(staff, pin, otp);
  document.getElementById('loginError').style.display = result.reason==='pin' ? 'block' : 'none';
  document.getElementById('loginOtpError').style.display = result.reason==='otp' ? 'block' : 'none';
+ if(result.reason==='offline'){ toast(t('toastLoginOffline')); return; }
  if(!result.ok) return;
- if(result.token){
-  try{ await firebase.auth().signInWithCustomToken(result.token); }
-  catch(e){ console.error('signInWithCustomToken failed', e); }
- }
+ await signInStaffSession(result.token);
  if(fbDb){ await seedStaffToCloudIfEmpty(); subscribeStaffCloud(); }
  document.getElementById('login-gate').style.display = 'none';
  if(typeof DB !== 'undefined' && DB){
-  DB.onDutyStaff = DB.onDutyStaff || ['Teddy','Jena'];
+  DB.onDutyStaff = DB.onDutyStaff || ['Eric'];
   if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff);
   if(typeof renderShiftStaff === 'function') renderShiftStaff();
   if(typeof saveDB === 'function') saveDB();
@@ -9185,10 +9251,10 @@ async function attemptMasterLogin(){
  if(hasError) return;
  // Re-verifies the password server-side (Admin SDK bypasses firestore.rules) before minting a
  // real session token - without this, master login has no way to satisfy request.auth != null on
- // the staff collection, and features that need it (staff management, on-duty roster) would fail
- // silently after login. If the function is unreachable, master still gets in (matches staff
- // login's own fall-back-rather-than-lock-out behavior); it just won't be able to reach `staff`
- // until connectivity returns and this is retried.
+ // the staff collection, and features that need it (staff management, on-duty roster) would fail.
+ // If the function is unreachable, master still gets in (matches staff login's own fall-back-
+ // rather-than-lock-out behavior) but signInStaffSession() now warns visibly if the sign-in itself
+ // fails, rather than leaving that failure to surface later as an unexplained "couldn't save".
  if(fbDb){
   try{
    const resp = await fetch(`${FUNCTIONS_BASE}/masterSessionToken`, {
@@ -9196,8 +9262,8 @@ async function attemptMasterLogin(){
     body: JSON.stringify({password: pw}),
    });
    const data = await resp.json();
-   if(data.token) await firebase.auth().signInWithCustomToken(data.token);
-  }catch(e){ console.error('masterSessionToken failed', e); }
+   if(data.token) await signInStaffSession(data.token);
+  }catch(e){ console.error('masterSessionToken failed', e); toast(t('toastAuthSessionFailed')); }
   await seedStaffToCloudIfEmpty();
   subscribeStaffCloud();
  }
@@ -9325,7 +9391,7 @@ function startInactivityTimer(){
   // (e.g. seedStaffToCloudIfEmpty's own network call) is what actually hangs. Widened alongside
   // subscribeStaffCloud's own timer for the same reason - a slow-but-working connection deserves
   // more room before being written off as unreachable.
-  setTimeout(()=>markLoginReady(true, 'timed-out'), 20000);
+  globalReadyBackstop = setTimeout(()=>markLoginReady(true, 'timed-out'), 20000);
   // Each seed call is raced against a timeout (see withTimeout above) so a single hung .get() -
   // which, unlike a normal network error, may never resolve OR reject on some networks - can't
   // block every subscribeXCloud() after it from ever running.

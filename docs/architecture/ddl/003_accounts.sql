@@ -68,18 +68,29 @@ DECLARE
   v_expected ledger.normal_balance;
 BEGIN
   v_expected := CASE NEW.kind
-    WHEN 'member_deposit'    THEN 'credit'
-    WHEN 'player_wallet'     THEN 'credit'
-    WHEN 'chips_outstanding' THEN 'credit'
-    WHEN 'tips_dealer'       THEN 'credit'
-    WHEN 'tips_house'        THEN 'credit'
-    WHEN 'house_gaming'      THEN 'credit'
-    WHEN 'opening_equity'    THEN 'credit'
-    WHEN 'house_cash'        THEN 'debit'
-    WHEN 'marker_receivable' THEN 'debit'
-    WHEN 'promo_expense'     THEN 'debit'
-    WHEN 'suspense'          THEN 'debit'
+    WHEN 'member_deposit'        THEN 'credit'
+    WHEN 'player_wallet'         THEN 'credit'
+    WHEN 'player_points'         THEN 'credit'
+    WHEN 'partner_share_payable' THEN 'credit'
+    WHEN 'chips_outstanding'     THEN 'credit'
+    WHEN 'tips_dealer'           THEN 'credit'
+    WHEN 'tips_house'            THEN 'credit'
+    WHEN 'house_gaming'          THEN 'credit'
+    WHEN 'opening_equity'        THEN 'credit'
+    WHEN 'house_cash'            THEN 'debit'
+    WHEN 'marker_receivable'     THEN 'debit'
+    WHEN 'promo_expense'         THEN 'debit'
+    WHEN 'commission_expense'    THEN 'debit'
+    WHEN 'suspense'              THEN 'debit'
   END::ledger.normal_balance;
+
+  -- 001 의 ENUM 에 값을 추가하고 이 CASE 를 빠뜨리면 v_expected 가 NULL 이 되고,
+  -- 아래 비교가 NULL 이 되어 검사가 조용히 통과한다. 명시적으로 막는다.
+  IF v_expected IS NULL THEN
+    RAISE EXCEPTION 'account kind % has no normal_balance mapping', NEW.kind
+      USING ERRCODE = 'integrity_constraint_violation',
+            HINT = '001 의 ledger.account_kind 에 값을 추가했다면 이 CASE 도 함께 갱신하라';
+  END IF;
 
   IF NEW.normal_balance <> v_expected THEN
     RAISE EXCEPTION 'account kind % requires normal_balance %, got %',
@@ -204,6 +215,61 @@ COMMENT ON COLUMN ledger.member_profiles.rolling_rate IS
   '현행 accounts.rate("1.45%"). 커미션 계산 규칙은 미확정 — 08-adr.md U3.';
 
 -- -----------------------------------------------------------------------------
+-- 파트너 (에이전트 · 쉐어) 프로필
+-- -----------------------------------------------------------------------------
+-- 현행 partners/{partnerCode}
+--   { id, name, parentCode, shareRate, level, status, casino, createdAt }
+--   partner-admin/app.js:864 생성 · :873 요율 수정
+--
+-- 파트너는 partner_share_payable 계정을 소유하는 자금 주체이므로
+-- ledger.parties 에 party_type='partner' 로 들어간다. 인증 주체(파트너 콘솔
+-- 운영자)는 별개이며 identity.staff 쪽에 있다 (002).
+CREATE TABLE ledger.partner_profiles (
+  party_id     BIGINT PRIMARY KEY REFERENCES ledger.parties ON DELETE RESTRICT,
+
+  -- 계층. 현행 parentCode + level. 자기 참조로 트리를 만든다.
+  parent_id    BIGINT REFERENCES ledger.parties,
+  depth        SMALLINT NOT NULL DEFAULT 1 CHECK (depth BETWEEN 1 AND 8),
+
+  -- 현행 shareRate 는 Number. 백분율을 basis point 로 고정해 부동소수점을 없앤다.
+  share_rate_bp INTEGER NOT NULL DEFAULT 0
+    CHECK (share_rate_bp BETWEEN 0 AND 10000),
+
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+
+  -- 자기 자신을 상위로 둘 수 없다. 더 깊은 순환은 애플리케이션이 막는다.
+  CONSTRAINT partner_no_self_parent CHECK (parent_id IS NULL OR parent_id <> party_id)
+);
+
+CREATE INDEX partner_profiles_parent_idx ON ledger.partner_profiles (parent_id);
+
+COMMENT ON COLUMN ledger.partner_profiles.share_rate_bp IS
+  '현행 partners.shareRate(Number). basis point(1bp=0.01%). 커미션 계산 규칙은 미확정 — 08-adr.md U3.';
+
+-- party_type='partner' 인 주체만 프로필을 가질 수 있다.
+CREATE FUNCTION ledger.assert_partner_party() RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ledger, pg_temp
+AS $$
+BEGIN
+  IF (SELECT party_type FROM ledger.parties WHERE id = NEW.party_id) <> 'partner' THEN
+    RAISE EXCEPTION 'partner_profiles.party_id % is not a partner party', NEW.party_id
+      USING ERRCODE = 'integrity_constraint_violation';
+  END IF;
+  IF NEW.parent_id IS NOT NULL
+     AND (SELECT party_type FROM ledger.parties WHERE id = NEW.parent_id) <> 'partner' THEN
+    RAISE EXCEPTION 'partner_profiles.parent_id % is not a partner party', NEW.parent_id
+      USING ERRCODE = 'integrity_constraint_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER partner_profiles_party_kind
+  BEFORE INSERT OR UPDATE ON ledger.partner_profiles
+  FOR EACH ROW EXECUTE FUNCTION ledger.assert_partner_party();
+
+-- -----------------------------------------------------------------------------
 -- 지점 하우스 계정 부트스트랩
 -- -----------------------------------------------------------------------------
 DO $$
@@ -221,9 +287,10 @@ BEGIN
 
     FOREACH v_kind IN ARRAY ARRAY[
       'house_cash','marker_receivable','tips_dealer','tips_house',
-      'promo_expense','suspense','house_gaming'
+      'promo_expense','commission_expense','suspense','house_gaming'
     ]::ledger.account_kind[] LOOP
-      v_normal := CASE WHEN v_kind IN ('house_cash','marker_receivable','promo_expense','suspense')
+      v_normal := CASE WHEN v_kind IN ('house_cash','marker_receivable','promo_expense',
+                                       'commission_expense','suspense')
                        THEN 'debit' ELSE 'credit' END::ledger.normal_balance;
       v_negok  := v_kind IN ('suspense','house_gaming','promo_expense');
 
@@ -241,5 +308,13 @@ BEGIN
   VALUES (v_party, 'opening_equity', 'PHP', 'credit', TRUE);
 END;
 $$;
+
+-- -----------------------------------------------------------------------------
+-- 002 에서 미룬 FK — identity.staff.partner_party_id
+-- -----------------------------------------------------------------------------
+-- 002 시점에는 ledger.parties 가 아직 없어 컬럼만 만들어 두었다. 여기서 잠근다.
+ALTER TABLE identity.staff
+  ADD CONSTRAINT staff_partner_party_fk
+  FOREIGN KEY (partner_party_id) REFERENCES ledger.parties (id);
 
 COMMIT;

@@ -221,7 +221,17 @@ INSERT INTO ledger.posting_rules (kind, category, account_kind, sign) VALUES
   ('bet',             'bet',                  'player_wallet',      1),
   ('bet',             'bet',                  'house_gaming',      -1),
   ('payout',          'payout',               'house_gaming',       1),
-  ('payout',          'payout',               'player_wallet',     -1);
+  ('payout',          'payout',               'player_wallet',     -1),
+  -- §13-2 포인트 — 적립은 프로모션 비용, 전환은 포인트에서 보유금으로
+  ('point_earn',      'point_earn',           'promo_expense',         1),
+  ('point_earn',      'point_earn',           'player_points',        -1),
+  ('point_convert',   'point_convert_out',    'player_points',         1),
+  ('point_convert',   'point_convert_in',     'player_wallet',        -1),
+  -- §13-3 파트너 쉐어 — 적립은 커미션 비용, 지급은 현금 유출
+  ('share_accrue',    'share_accrue',         'commission_expense',    1),
+  ('share_accrue',    'share_accrue',         'partner_share_payable',-1),
+  ('share_settle',    'share_settle',         'partner_share_payable', 1),
+  ('share_settle',    'share_settle',         'house_cash',           -1);
 
 -- §14 기초 잔액 — 전 계정 종류가 양방향으로 가능하다 (마이그레이션 전용)
 INSERT INTO ledger.posting_rules (kind, category, account_kind, sign)

@@ -106,11 +106,12 @@ TO ledger_app;
 
 -- ---- 조회 헬퍼 --------------------------------------------------------------
 -- 순수 조회 함수만. 008 의 기록 계열은 하나도 포함하지 않는다.
+-- 세션 스코프 헬퍼(current_branches · current_partner_id · partner_subtree ·
+-- party_visible)는 이 파일 뒤쪽에서 정의되므로 GRANT 도 그 뒤에 있다.
 GRANT EXECUTE ON FUNCTION
   ledger.business_date_of(ledger.branch_code, TIMESTAMPTZ),
   ledger.account_id_of(TEXT, ledger.account_kind, TEXT),
-  ledger.house_account_id(ledger.branch_code, ledger.account_kind, TEXT),
-  ledger.current_branches()
+  ledger.house_account_id(ledger.branch_code, ledger.account_kind, TEXT)
 TO ledger_app;
 
 -- ---- 조회 SELECT ------------------------------------------------------------
@@ -119,7 +120,7 @@ TO ledger_app;
 GRANT SELECT ON
   ledger.transactions, ledger.entries, ledger.accounts, ledger.parties,
   ledger.account_balances, ledger.accounting_periods, ledger.currencies,
-  ledger.posting_rules,
+  ledger.posting_rules, ledger.partner_profiles,
   ledger.v_account_balances, ledger.v_transaction_detail,
   cage.games, cage.rolling_events, cage.game_settlements,
   cage.main_cage_events, cage.chip_inventory_events, cage.balancing_counts
@@ -138,7 +139,10 @@ GRANT SELECT (party_id, passport_no_enc, passport_exp,
   ON ledger.member_profiles TO ledger_kyc;
 
 -- Identity 조회. pin_hash · withdraw_pw_hash · totp_secret_enc 는 주지 않는다.
-GRANT SELECT (id, external_id, code, name, status, totp_enrolled_at,
+-- 현행 파트너 콘솔은 partnerStaff.pw 를 평문으로 노출한다 (P-12) — 그 재발을
+-- 막는 것이 이 컬럼 단위 GRANT 다.
+GRANT SELECT (id, external_id, code, name, principal_type, partner_party_id,
+              status, totp_enrolled_at,
               failed_attempts, locked_until, created_at, updated_at)
   ON identity.staff TO ledger_app;
 GRANT SELECT ON
@@ -245,6 +249,43 @@ $$;
 COMMENT ON FUNCTION ledger.current_branches IS
   '세션의 app.staff_id 가 실제로 소속된 지점 목록. 미설정이면 빈 배열 → 기본 거부.';
 
+-- 파트너 콘솔 운영자의 소속 파트너. 케이지 직원이면 NULL 이다.
+-- 파트너는 지점이 아니라 계층으로 스코프가 갈리므로 별도 헬퍼가 필요하다.
+CREATE OR REPLACE FUNCTION ledger.current_partner_id() RETURNS BIGINT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ledger, identity, pg_temp
+AS $$
+  SELECT s.partner_party_id
+    FROM identity.staff s
+   WHERE s.id = NULLIF(current_setting('app.staff_id', TRUE), '')::BIGINT
+     AND s.status = 'active'
+     AND s.principal_type = 'partner_operator';
+$$;
+COMMENT ON FUNCTION ledger.current_partner_id IS
+  '세션 주체가 파트너 운영자면 소속 파트너 party_id, 아니면 NULL. '
+  '현행 파트너 콘솔은 모든 파트너의 데이터를 무제한으로 본다 — 이 함수가 그 경계를 만든다.';
+
+-- 자기 자신과 하위 파트너 전체. partner_profiles.parent_id 를 따라 내려간다.
+CREATE OR REPLACE FUNCTION ledger.partner_subtree(p_root BIGINT) RETURNS BIGINT[]
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ledger, pg_temp
+AS $$
+  WITH RECURSIVE sub AS (
+    SELECT p_root AS party_id
+    UNION
+    SELECT pp.party_id
+      FROM ledger.partner_profiles pp
+      JOIN sub ON pp.parent_id = sub.party_id
+  )
+  SELECT COALESCE(array_agg(party_id), ARRAY[]::BIGINT[]) FROM sub;
+$$;
+COMMENT ON FUNCTION ledger.partner_subtree IS
+  '루트 파트너와 그 하위 전체. depth 제약(1~8)이 있어 순환이 없으면 종료가 보장된다.';
+
 -- -----------------------------------------------------------------------------
 -- 정책 부착
 -- -----------------------------------------------------------------------------
@@ -289,26 +330,62 @@ ALTER TABLE ledger.parties          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ledger.accounts         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ledger.account_balances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ledger.member_profiles  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ledger.partner_profiles ENABLE ROW LEVEL SECURITY;
+
+-- 주체 가시성 판정을 한 함수에 모은다. parties · accounts · account_balances 가
+-- 같은 규칙을 세 번 다시 쓰면 party_type 이 늘어날 때 한 곳을 빠뜨리게 된다.
+--   member · internal   전원 (손님은 지점을 옮겨 다닌다)
+--   house · game        소속 지점이 세션 지점 목록에 있을 때
+--   partner             파트너 운영자는 자기 서브트리, 케이지 직원은 지점 소속 파트너
+CREATE OR REPLACE FUNCTION ledger.party_visible(p_party_id BIGINT) RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ledger, pg_temp
+AS $$
+  SELECT CASE p.party_type
+           WHEN 'member'   THEN TRUE
+           WHEN 'internal' THEN TRUE
+           WHEN 'partner'  THEN
+             CASE WHEN ledger.current_partner_id() IS NOT NULL
+                  THEN p.id = ANY (ledger.partner_subtree(ledger.current_partner_id()))
+                  ELSE p.home_branch = ANY (ledger.current_branches())
+             END
+           ELSE p.home_branch = ANY (ledger.current_branches())
+         END
+    FROM ledger.parties p
+   WHERE p.id = p_party_id;
+$$;
+COMMENT ON FUNCTION ledger.party_visible IS
+  'RLS 주체 가시성 단일 판정. ledger.party_type 에 값을 추가하면 이 CASE 를 함께 갱신하라 '
+  '— ELSE 분기가 home_branch 비교로 떨어지므로 home_branch 가 NULL 인 신규 종류는 전면 비가시가 된다.';
+
+-- RLS 의 USING 식은 조회하는 역할의 권한으로 평가된다. 아래 EXECUTE 가 없으면
+-- 정책이 통째로 실패해 조회가 permission denied 로 떨어진다.
+GRANT EXECUTE ON FUNCTION
+  ledger.current_branches(),
+  ledger.current_partner_id(),
+  ledger.partner_subtree(BIGINT),
+  ledger.party_visible(BIGINT)
+TO ledger_app, ledger_read;
 
 CREATE POLICY app_scope ON ledger.parties FOR SELECT TO ledger_app
-  USING (party_type IN ('member', 'internal')
-         OR home_branch = ANY (ledger.current_branches()));
+  USING (ledger.party_visible(id));
 CREATE POLICY read_all ON ledger.parties FOR SELECT TO ledger_read USING (TRUE);
 
 CREATE POLICY app_scope ON ledger.accounts FOR SELECT TO ledger_app
-  USING (EXISTS (SELECT 1 FROM ledger.parties p
-                  WHERE p.id = party_id
-                    AND (p.party_type IN ('member', 'internal')
-                         OR p.home_branch = ANY (ledger.current_branches()))));
+  USING (ledger.party_visible(party_id));
 CREATE POLICY read_all ON ledger.accounts FOR SELECT TO ledger_read USING (TRUE);
 
 CREATE POLICY app_scope ON ledger.account_balances FOR SELECT TO ledger_app
   USING (EXISTS (SELECT 1 FROM ledger.accounts a
-                   JOIN ledger.parties p ON p.id = a.party_id
                   WHERE a.id = account_id
-                    AND (p.party_type IN ('member', 'internal')
-                         OR p.home_branch = ANY (ledger.current_branches()))));
+                    AND ledger.party_visible(a.party_id)));
 CREATE POLICY read_all ON ledger.account_balances FOR SELECT TO ledger_read USING (TRUE);
+
+CREATE POLICY app_scope ON ledger.partner_profiles FOR SELECT TO ledger_app
+  USING (ledger.party_visible(party_id));
+CREATE POLICY read_all ON ledger.partner_profiles FOR SELECT TO ledger_read USING (TRUE);
 
 -- KYC 프로필은 지점이 아니라 '세션에 유효한 직원이 있는가'로 가른다.
 -- 실제 접근 통제는 컬럼 단위 GRANT(ledger_kyc)와 audit.access_log 가 담당한다.

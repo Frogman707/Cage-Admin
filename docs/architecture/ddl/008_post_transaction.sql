@@ -146,15 +146,20 @@ BEGIN
       USING ERRCODE = 'invalid_parameter_value', HINT = 'idempotency-key-required';
   END IF;
 
+  -- PL/pgSQL 의 다중 타깃 INTO 는 스칼라만 받는다. 행 변수는 단독 타깃이어야
+  -- 하므로 삽입 여부만 먼저 받고, 기존 행이면 그때 다시 읽는다. DO UPDATE 가
+  -- 이미 행을 잠갔으므로 같은 트랜잭션 안의 재조회는 일관적이다.
   INSERT INTO ledger.idempotency_keys AS ik (key, request_fingerprint)
   VALUES (p_key, p_fingerprint)
   ON CONFLICT (key) DO UPDATE SET key = EXCLUDED.key
-  RETURNING (xmax::text::bigint = 0), ik.*
-       INTO v_inserted, v_row;
+  RETURNING (xmax::text::bigint = 0)
+       INTO v_inserted;
 
   IF v_inserted THEN
     RETURN ROW(TRUE, NULL::INT, NULL::JSONB, NULL::BIGINT)::ledger.idem_result;
   END IF;
+
+  SELECT * INTO v_row FROM ledger.idempotency_keys WHERE key = p_key;
 
   -- 만료된 키는 새 요청으로 취급한다 (보존 24시간)
   IF v_row.expires_at <= clock_timestamp() THEN
@@ -321,6 +326,8 @@ BEGIN
   -- 예외: branch_transfer 는 정의상 두 지점의 house_cash 를 함께 움직인다
   -- (04-posting-rules.md §4). 이 경우 호출자인 op_branch_transfer() 가
   -- 양쪽 지점 모두에 대한 행위자 권한을 이미 확인했다.
+  -- member 와 partner 는 지점 중립이다. 손님은 지점을 옮겨 다니고, 파트너는
+  -- 여러 지점의 회원을 거느린다. house · game 계정만 지점 일치를 요구한다.
   IF p_kind <> 'branch_transfer' THEN
     SELECT p.code INTO v_bad
       FROM jsonb_array_elements(p_entries) AS e

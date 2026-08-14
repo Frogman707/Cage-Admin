@@ -25,8 +25,8 @@ for f in 0*.sql 1*.sql; do psql -v ON_ERROR_STOP=1 -f "$f" || break; done
 | # | 파일 | 내용 | 설계 문서 |
 |---|---|---|---|
 | 001 | `001_types_and_extensions.sql` | 스키마 · ENUM · 통화 · 영업일 규칙 · 승인 임계 | [03](../03-ledger-model.md) |
-| 002 | `002_identity.sql` | 직원 · 세션 · TOTP · RBAC · 4-eyes 승인 · 인가 함수 | [06](../06-security.md) |
-| 003 | `003_accounts.sql` | 주체 · 계정 · 잔액 프로젝션 · KYC | [03](../03-ledger-model.md) |
+| 002 | `002_identity.sql` | 직원 · **파트너 운영자** · 세션 · TOTP · RBAC · 4-eyes 승인 · 인가 함수 | [06](../06-security.md) |
+| 003 | `003_accounts.sql` | 주체 · 계정 · 잔액 프로젝션 · KYC · **파트너 프로필** | [03](../03-ledger-model.md) |
 | 004 | `004_ledger.sql` | 거래 · 분개 · **분개 정의표** · 불변식 · 멱등키 | [03](../03-ledger-model.md) · [04](../04-posting-rules.md) |
 | 005 | `005_games_rolling.sql` | 게임 · 롤링 · 정산 · 메인케이지 · 칩재고 | [01](../01-current-system.md) |
 | 006 | `006_periods_balancing.sql` | 실사 · 기간 행 확보 | [03](../03-ledger-model.md) |
@@ -41,9 +41,23 @@ for f in 0*.sql 1*.sql; do psql -v ON_ERROR_STOP=1 -f "$f" || break; done
 ## 주의
 
 - **적용 순서가 계약이다.** 파일 간 FK · 함수 의존이 번호 순서를 전제한다.
-  예외 하나: `011` 의 `op_settle_period()` 가 `013` 의 `ledger.integrity_ok()` 를
-  호출한다. plpgsql 본문은 실행 시점에 해석되므로 생성은 성공하지만,
-  `013` 적용 전에는 그 함수를 호출할 수 없다.
+  예외 둘:
+  - `011` 의 `op_settle_period()` 가 `013` 의 `ledger.integrity_ok()` 를
+    호출한다. plpgsql 본문은 실행 시점에 해석되므로 생성은 성공하지만,
+    `013` 적용 전에는 그 함수를 호출할 수 없다.
+  - `002` 의 `identity.staff.partner_party_id` 는 컬럼만 만들고 FK 를 붙이지
+    않는다. 참조 대상 `ledger.parties` 가 `003` 에서 생기기 때문이다.
+    제약은 `003` 말미의 `ALTER TABLE identity.staff ADD CONSTRAINT
+    staff_partner_party_fk` 가 붙인다.
+- **ENUM 에 값을 추가하면 함께 고쳐야 하는 곳이 있다.** 값만 늘리면 조용히
+  틀린 상태가 된다.
+  - `ledger.account_kind` → `003` 의 `ledger.assert_account_kind_consistent()`
+    CASE (누락 시 `v_expected` 가 NULL 이 되어 계정 생성이 막힌다) ·
+    `003` 의 지점 하우스 부트스트랩 배열 · `004` 의 `posting_rules` 시드
+  - `ledger.party_type` → `012` 의 `ledger.party_visible()` CASE
+    (누락 시 `home_branch` 비교로 떨어져 **전면 비가시**가 된다)
+  - `ledger.entry_category` · `ledger.tx_kind` → `004` 의 `posting_rules` 시드 ·
+    [04-posting-rules.md](../04-posting-rules.md) §16 목록
 - 애플리케이션은 커넥션마다 `SET LOCAL app.staff_id = '<staff.id>'` 를 설정한다.
   설정하지 않으면 RLS 기본 거부로 조회 결과가 빈다 — 조용히 새는 게 아니라
   즉시 빈 결과가 된다.
@@ -56,7 +70,18 @@ for f in 0*.sql 1*.sql; do psql -v ON_ERROR_STOP=1 -f "$f" || break; done
   Argon2id 로 해시해 넣는다.** DB 는 형식을 강제하지 않는다.
 - `member_profiles.passport_no_enc` 는 **애플리케이션 계층 KMS 암호화** 값이다.
   DB 관리자가 평문을 볼 수 없어야 한다.
-- **아직 실제 psql 적용으로 검증되지 않았다.** 자체 검토만 거친 상태다.
+- **2026-08-14: PostgreSQL 18 에 전 파일 클린 적용을 확인했다.** 그 과정에서
+  기존 결함 두 건이 드러났고 함께 고쳤다.
+  - `008` `begin_idempotent()` — `RETURNING ... INTO v_inserted, v_row`.
+    PL/pgSQL 의 다중 타깃 `INTO` 는 스칼라만 받는다. 행 변수는 단독 타깃이어야
+    하므로 삽입 여부만 받고 기존 행은 다시 읽도록 분리했다.
+  - `012` — `GRANT EXECUTE ... ledger.current_branches()` 가 그 함수의 정의보다
+    앞에 있었다. 세션 스코프 헬퍼의 GRANT 를 정의 뒤로 옮겼다.
+  - 두 건 모두 `009`~`013` 전체를 적용 불가로 만들고 있었다. **적용해 보지
+    않으면 드러나지 않는 종류의 결함이다.**
+- 스키마 적용은 검증됐으나 **연산 함수의 동작은 아직 골든 테스트로 검증되지
+  않았다.** 계정 종류 일관성 트리거 · 파트너 프로필 트리거 · `posting_rules`
+  시드 · `partner_subtree()` 재귀만 스모크 테스트로 확인했다.
 
 ## 운영 배치
 

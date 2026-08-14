@@ -434,6 +434,70 @@ CREATE TABLE cage.main_cage_events (
 
 > **베팅은 해시 체인 대상에서 제외한다.** 고빈도라 지점 체인의 병목이 된다. 일 단위 머클 앵커링으로 대체한다. [08-adr.md](08-adr.md) ADR-006.
 
+> **13절의 나머지(라운드 취소 · 결과 정정 · 팁 · 가입 보너스)는 아직 정의되지 않았다.** 아바타/스피드 개선 작업이 진행 중이라 라운드·베팅 구조가 확정되지 않았기 때문이다 — [00-system-map.md](00-system-map.md) §8 A1·A2. 아래 13-2·13-3은 파트너 콘솔 측이라 그 영향을 받지 않으므로 먼저 확정한다.
+
+---
+
+## 13-2. 포인트 — `point_earn` · `point_convert`
+
+**현행:** `memberLedger`에 `category: 'point_earn'` · `'point_convert'`로 섞여 들어간다. 보유포인트는 그 둘만 골라 합산한 값이다 (`partner-admin/app.js:255`).
+
+**현행의 결함:** 포인트를 보유금으로 전환하면 `point_convert` 음수 한 줄만 남고 **대응하는 보유금 입금 항목이 없다** ([G-05](../avatar-speed/explanation-known-gaps.md#g-05--point_convert에-대응하는-보유금-입금-항목이-없다)). 포인트는 줄고 보유금은 늘지 않는다.
+
+계정을 나누면 이 결함이 스키마 차원에서 불가능해진다.
+
+### 적립
+
+| 계정 | 부호 | 금액 | `category` |
+|---|---|---|---|
+| `promo_expense[branch]` | `+` | P | `point_earn` |
+| `player_points[member]` | `−` | P | `point_earn` |
+
+포인트 적립은 하우스의 프로모션 비용이다. 회원에게 진 빚(`player_points`는 credit 계정)이 늘고 비용이 함께 잡힌다.
+
+**멱등키:** `point_earn:{member_code}:{source_ref}` — `source_ref`는 적립 근거(라운드 · 기간 · 수동 지급 ID).
+
+### 전환
+
+| 계정 | 부호 | 금액 | `category` |
+|---|---|---|---|
+| `player_points[member]` | `+` | C | `point_convert_out` |
+| `player_wallet[member]` | `−` | C | `point_convert_in` |
+
+**한 트랜잭션의 분개 두 줄이다.** 포인트가 줄고 보유금이 같은 금액 늘어난다. 합이 0이므로 한쪽만 기록하는 것이 불가능하다 — G-05가 재발할 수 없다.
+
+**멱등키:** `point_convert:{member_code}:{client_request_id}`
+
+> **전환 비율은 1:1로 두었다.** 현행에도 비율 개념이 없다. 비율을 도입하면 `point_convert_out`과 `point_convert_in`의 금액이 달라지고 차액을 흡수할 계정(`promo_expense`)이 세 번째 분개로 들어간다. 사업 결정 사항이다.
+
+---
+
+## 13-3. 파트너 쉐어 — `share_accrue` · `share_settle`
+
+**현행:** `shareLedger/{uuid}` `{partnerCode, amount, category:'share_accum', memo, dt}`. **데모 시드에서만 쓰이고**(`partner-admin/app.js:1740`) 실제 적립 코드는 없다. 파트너 쉐어 누계는 이 컬렉션의 합이다.
+
+파트너는 자금 주체다 — `ledger.parties`에 `party_type = 'partner'`로 들어가고 `partner_share_payable` 계정을 소유한다 (`ddl/003_accounts.sql`).
+
+### 적립
+
+| 계정 | 부호 | 금액 | `category` |
+|---|---|---|---|
+| `commission_expense[branch]` | `+` | S | `share_accrue` |
+| `partner_share_payable[partner]` | `−` | S | `share_accrue` |
+
+**멱등키:** `share_accrue:{partner_code}:{period_code}` — 기간별 1회. 같은 기간을 재계산해도 중복 적립이 생기지 않는다.
+
+### 지급
+
+| 계정 | 부호 | 금액 | `category` |
+|---|---|---|---|
+| `partner_share_payable[partner]` | `+` | S | `share_settle` |
+| `house_cash[branch]` | `−` | S | `share_settle` |
+
+**멱등키:** `share_settle:{partner_code}:{client_request_id}`
+
+> **요율 계산 규칙은 미확정이다.** `ledger.partner_profiles.share_rate_bp`에 요율을 basis point로 두었으나(현행 `partners.shareRate`는 부동소수점 `Number`), **무엇에 곱하는지**(롤링 누계인지 순손익인지)와 상위 파트너로의 배분 규칙은 정해지지 않았다 — [08-adr.md](08-adr.md) U3. 계정과 분개는 그 결정과 무관하게 확정할 수 있으므로 먼저 세운다.
+
 ---
 
 ## 14. 기초 잔액 개시 — `opening_balance`
@@ -480,8 +544,12 @@ settle_deposit          settle_cashout        settle_marker_redeem
 settle_dealer_tip       settle_house_tip
 wallet_transfer_out     wallet_transfer_in
 bet                     payout
+point_earn              point_convert_out     point_convert_in
+share_accrue            share_settle
 adjustment              reversal              opening_balance
 ```
+
+> **아직 대응이 없는 현행 카테고리가 셋 남아 있다** — `avatar_tip` · `dealer_tip`(`avatar/app.js:716`)과 가입 보너스(`shared/game-engine.js:76`, 현행은 `deposit`으로 기록). 전부 아바타/스피드 도메인이라 A1과 함께 확정한다. 현행 `correction`(라운드 취소 환불·회수)은 신규 모델에서 `reversal`이 대신하되, **원 `category`를 유지한다**(18절).
 
 ---
 

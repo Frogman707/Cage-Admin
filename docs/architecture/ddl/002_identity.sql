@@ -3,9 +3,14 @@
 -- =============================================================================
 -- 현행 대응:
 --   staff/{id} { id, name, pin, dt, totpSecret }        index.html:5663
+--   partnerStaff/{id} { id, pw, name, role }            partner-admin/app.js:170-172
 --   requestPinAuth() / requestWithdrawAuth()            조작별 재인증 UX (유지)
 --   TOTP 구현 b32encode..verifyTotp                     index.html:5511-5576 (서버 이전)
 --   shiftLog [{dt, staff, action}]                      교대 기록
+--
+-- 케이지 직원과 파트너 콘솔 운영자를 한 테이블에 둔다. 세션 · TOTP · RBAC ·
+-- 4-eyes 승인 · 감사 로그가 전부 staff_id 를 참조하므로 테이블을 나누면 그
+-- FK 를 전부 이중화해야 한다. 구분은 principal_type 컬럼이 한다.
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -20,6 +25,13 @@ CREATE TABLE identity.staff (
   external_id     UUID NOT NULL DEFAULT uuidv7() UNIQUE,
   code            TEXT NOT NULL UNIQUE,          -- 현행 'STF-KYLE'
   name            TEXT NOT NULL,
+
+  -- 케이지 직원 / 파트너 콘솔 운영자 구분. 데이터 가시성 규칙이 갈린다 (012).
+  principal_type  identity.principal_type NOT NULL DEFAULT 'cage_staff',
+
+  -- 파트너 운영자가 소속된 파트너 주체. FK 는 003 에서 붙인다
+  -- (ledger.parties 가 003 에서 생성되므로 이 파일 시점에는 존재하지 않는다).
+  partner_party_id BIGINT,
 
   -- OWASP Password Storage Cheat Sheet: Argon2id m=19456(19MiB), t=2, p=1
   -- 저장 형식은 PHC string (알고리즘 · 파라미터 · salt 포함)
@@ -37,11 +49,26 @@ CREATE TABLE identity.staff (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
 
-  CONSTRAINT staff_code_format CHECK (code ~ '^[A-Z0-9_-]{2,32}$')
+  CONSTRAINT staff_code_format CHECK (code ~ '^[A-Z0-9_-]{2,32}$'),
+
+  -- 파트너 운영자는 소속 파트너가 반드시 있고, 케이지 직원은 반드시 없다.
+  CONSTRAINT staff_partner_link CHECK (
+    (principal_type = 'partner_operator' AND partner_party_id IS NOT NULL) OR
+    (principal_type = 'cage_staff'       AND partner_party_id IS NULL)
+  )
 );
 
 COMMENT ON COLUMN identity.staff.pin_hash IS
   'Argon2id PHC string. 현행 평문 PIN(index.html:5663)의 대체.';
+
+COMMENT ON COLUMN identity.staff.principal_type IS
+  '현행은 staff(케이지)와 partnerStaff(파트너)가 별개 컬렉션이고 인증 방식도 다르다 '
+  '— 케이지는 PIN+TOTP 서버 검증, 파트너는 평문 비밀번호 클라이언트 비교'
+  '(partner-admin/app.js:186). 신규는 인증 경로를 하나로 합치고 가시성만 분리한다.';
+
+COMMENT ON COLUMN identity.staff.partner_party_id IS
+  '파트너 운영자의 소속 파트너. 현행 partnerStaff 에는 대응 필드가 없다 — '
+  '파트너 콘솔이 모든 파트너의 데이터를 무제한으로 본다.';
 
 -- 직원이 조작 가능한 지점. 현행은 클라이언트가 currentBranch()로 정하고
 -- 전 데이터를 받아 필터링한다. 신규는 서버가 강제한다.
@@ -114,8 +141,17 @@ INSERT INTO identity.role_permissions (role_code, permission) VALUES
   ('cage_manager',  'approval.vote'),
 
   ('partner_admin', 'account.open'),
-  ('partner_admin', 'approval.request');
+  ('partner_admin', 'approval.request'),
+  ('partner_admin', 'member.point_earn'),
+  ('partner_admin', 'member.point_convert'),
+  ('partner_admin', 'partner.share_accrue'),
+  ('partner_admin', 'partner.share_settle');
 -- auditor 는 권한을 갖지 않는다. 조회는 ledger_read 역할과 RLS 가 담당한다.
+--
+-- partner_admin 은 principal_type='partner_operator' 인 주체에게 부여하는 역할이다.
+-- 현행 partnerStaff.role 은 'master' 한 종류뿐이고 아무것도 강제하지 않는다
+-- (partner-admin/app.js:172). 플레이어 도메인 권한(베팅 취소 · 아바타 승인 등)은
+-- game 스키마 설계와 함께 추가한다 — 00-system-map.md §8 A1.
 
 -- -----------------------------------------------------------------------------
 -- 세션

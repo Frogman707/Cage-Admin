@@ -40,6 +40,7 @@ CREATE TYPE ledger.party_type AS ENUM (
   'member',    -- 손님 (현행 accounts 중 isMain=false)
   'house',     -- 지점 (현행 MAIN-{branch})
   'game',      -- 게임별 칩 발행 주체
+  'partner',   -- 에이전트 · 쉐어 파트너 (현행 partners/{partnerCode})
   'internal'   -- 개시 자본 · 미결산 등 내부 계정
 );
 
@@ -51,13 +52,16 @@ CREATE TYPE ledger.normal_balance AS ENUM ('debit', 'credit');
 CREATE TYPE ledger.account_kind AS ENUM (
   'member_deposit',     -- credit  손님 예치금 (케이지가 갚을 돈)
   'player_wallet',      -- credit  온라인 회원 보유금 (현행 memberLedger)
+  'player_points',      -- credit  회원 포인트 (현행 memberLedger category point_earn/point_convert)
+  'partner_share_payable', -- credit  파트너 쉐어 미지급금 (현행 shareLedger)
   'chips_outstanding',  -- credit  해당 게임에 발행된 미상환 칩
   'tips_dealer',        -- credit  딜러 팁 미지급금
   'tips_house',         -- credit  하우스 팁
   'house_gaming',       -- credit  온라인 게임 손익
   'house_cash',         -- debit   지점 현금 금고
   'marker_receivable',  -- debit   마커 미수금
-  'promo_expense',      -- debit   워킹칩 등 프로모션 비용
+  'promo_expense',      -- debit   워킹칩 · 포인트 적립 등 프로모션 비용
+  'commission_expense', -- debit   파트너 쉐어 · 롤링 커미션 비용
   'suspense',           -- debit   밸런싱 차액 임시계정 (allow_negative)
   'opening_equity'      -- credit  마이그레이션 개시 균형 계정
 );
@@ -81,6 +85,10 @@ CREATE TYPE ledger.tx_kind AS ENUM (
   'wallet_transfer',   -- §12  케이지 계좌 <-> 회원 보유금
   'bet',               -- §13
   'payout',            -- §13
+  'point_earn',        -- §13-2  포인트 적립
+  'point_convert',     -- §13-2  포인트 -> 보유금 전환
+  'share_accrue',      -- §13-3  파트너 쉐어 적립
+  'share_settle',      -- §13-3  파트너 쉐어 지급
   'opening_balance',   -- §14  마이그레이션 전용
   'reversal'           -- 일반 역분개
 );
@@ -96,6 +104,8 @@ CREATE TYPE ledger.entry_category AS ENUM (
   'settle_dealer_tip',     'settle_house_tip',
   'wallet_transfer_out',   'wallet_transfer_in',
   'bet',                   'payout',
+  'point_earn',            'point_convert_out',     'point_convert_in',
+  'share_accrue',          'share_settle',
   'adjustment',            'reversal',              'opening_balance'
 );
 
@@ -116,6 +126,14 @@ CREATE TYPE identity.auth_method AS ENUM (
   'withdraw_pw',  -- 현행 requestWithdrawAuth
   'approval',     -- 4-eyes 승인 완료
   'system'        -- 배치 · 마이그레이션
+);
+
+-- 인증 주체의 종류. 케이지 직원과 파트너 콘솔 운영자는 같은 인증·세션·RBAC 기반을
+-- 쓰지만 데이터 가시성 규칙이 다르다 (직원=지점 스코프, 파트너=계층 스코프).
+-- 현행 대응: staff/{id}(index.html) · partnerStaff/{id}(partner-admin/app.js:170)
+CREATE TYPE identity.principal_type AS ENUM (
+  'cage_staff',        -- 지점 케이지 직원. staff_branches 로 지점 스코프
+  'partner_operator'   -- 파트너 콘솔 운영자. partner_party_id 계층으로 스코프
 );
 
 CREATE TYPE identity.approval_subject AS ENUM (

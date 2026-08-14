@@ -34,6 +34,8 @@
 | 평문 비밀번호 + 클라이언트 비교 | `index.html` `seedDB()` · `partner-admin/app.js:186` | **부분.** 케이지 직원은 서버 검증으로 이동. **저장은 여전히 평문**이고 **파트너 콘솔은 클라이언트 비교 그대로** |
 | 번들 하드코딩 시크릿 (`APP_API_SECRET`) | `index.html` | **미해결.** 회전 여부 미확인 — Git 히스토리에도 존재 |
 | 자동 생성 마스터 계정 | `partner-admin/app.js:172` · `:185` | **미해결.** `admin` / `0000` 그대로 |
+| **빈 입력 로그인이 마스터가 된다** | `partner-admin/app.js:178-179` | **[신규]** `.value.trim() \|\| 'admin'` · `\|\| '0000'`. ID와 비밀번호를 **비운 채 로그인하면** 기본값이 채워진다 ([P-02](../partner-admin/explanation-known-gaps.md#p-02--빈-입력으로-로그인하면-admin이-된다)) |
+| **`partnerStaff` 평문 비밀번호 공개 노출** | `partner-admin/app.js:172` · `firestore.rules` | **[신규]** `pw`를 평문 저장하는데 **규칙은 `staff`만 잠근다.** `partnerStaff`는 프로젝트 ID만 알면 인증 없이 읽힌다 ([P-12](../partner-admin/explanation-known-gaps.md#p-12--partnerstaff가-평문-비밀번호를-공개-노출한다)) |
 | 솔트 없는 SHA-256 마스터 비밀번호 | `index.html:6487` · **`functions/index.js:172`** | **악화.** 비밀번호는 회전됐고 평문 주석은 삭제됐으나 **방식 동일 + 상수가 두 곳으로 늘었다**(배포 파이프라인이 분리돼 공유 설정이 없음) |
 | 클라이언트 통과 TOTP 시크릿 | `index.html:4352-4353` · `:9296` | **미해결.** 시크릿 생성이 여전히 브라우저에서 일어난다 |
 | **`ERIC` 계정 TOTP 우회** | `index.html:9138` · `functions/index.js:154` | **[신규]** 고정 코드 `'123456'`. 클라이언트·서버 양쪽. 계정 하나가 사실상 2FA 없이 열려 있다 |
@@ -249,6 +251,8 @@ identity: approvals
 ```
 
 계정 체계는 지점으로 가르지 않는다 — **손님은 지점을 옮겨 다니므로 회원 계정은 지점 중립**이다. 하우스·게임 계정만 지점 스코프를 적용한다.
+
+**파트너 계정도 지점 중립**이지만 가시성 규칙은 다르다. 파트너는 지점이 아니라 **계층**으로 가린다 — 파트너 콘솔 운영자는 자기 파트너와 그 하위만 본다(`ledger.partner_subtree()`), 케이지 직원은 자기 지점 소속 파트너만 본다. 판정은 `ledger.party_visible()` 한 함수에 모여 있다(`ddl/012`). 현행 파트너 콘솔은 이 경계가 아예 없어 **모든 파트너의 데이터를 무제한으로 본다.**
 
 **뷰에는 `security_invoker = true`가 필수다.**
 
@@ -507,7 +511,9 @@ SELECT * FROM archive.v_unscrubbed;   -- 0행이어야 운영 준비 완료
 
 - [ ] **`ERIC` 계정 TOTP 우회 제거** (`index.html:9138` · `functions/index.js:154`). 인증 인프라를 구축해 놓고 계정 하나를 열어 둔 상태다
 - [ ] **`staff` 외 전 컬렉션 잠금.** 규칙 파일은 생겼으나 `accounts` · `ledger` · `members`는 여전히 무제한이다. 이것이 지금 가장 큰 노출면이며, 서버 API 없이는 완전히 닫을 수 없다
+- [ ] **`partnerStaff`를 `firestore.rules`로 잠금.** 평문 비밀번호가 인증 없이 읽힌다 (P-12). `staff`와 같은 조치를 적용하면 되므로 **미해결 항목 중 가장 싸다**
 - [ ] `admin` / `0000` 자동 생성 마스터 계정 제거 (`partner-admin/app.js:172` · `:185`)
+- [ ] 빈 입력 폴백 제거 (`partner-admin/app.js:178-179`). `|| 'admin'` · `|| '0000'`을 지우면 끝난다 (P-02)
 - [ ] `TG_APP_API_SECRET` 회전 (Git 히스토리에 존재) — 회전 여부 미확인
 - [ ] Telegram 연동 1회용 토큰 도입 (8절 1~3번)
 - [ ] `partner-admin/app.js` `onclick` 문자열 삽입을 `data-*` + 이벤트 위임으로 교체. 이스케이프는 적용됐으나 구조가 남아 있다

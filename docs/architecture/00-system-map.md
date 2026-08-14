@@ -401,6 +401,7 @@ GRANT/정의 순서 역전이 드러났고 함께 고쳤다 — **둘 다 `009`~
 | 문서 | 내용 |
 | --- | --- |
 | [README.md](README.md) | 이 문서 세트의 목적과 두 트랙 구분 |
+| [design-review.md](design-review.md) | **설계 검토 결과 (DR-01~DR-23).** 위 §8의 `✅` 표기 재검증 대상 포함 |
 | [01-current-system.md](01-current-system.md) | 현행 케이지 어드민 사실 기준선 |
 | [02-target-architecture.md](02-target-architecture.md) | 목표 서비스 경계와 스키마 지도 |
 | [`docs/avatar-speed/`](../avatar-speed/README.md) | 플레이어 사이트 전체 문서 8건 |

@@ -192,7 +192,9 @@ m=7168  (7 MiB),  t=5, p=1
 | [docs/review-security-data-integrity.md](../review-security-data-integrity.md) | **유효.** 보안·정합성 문제 목록이 이 설계의 출발점 중 하나. **Track A가 이 목록을 대상으로 실행됐다** — 항목별 현재 상태는 [01-current-system.md](01-current-system.md) 17절 |
 | [docs/BALANCE_ARCHITECTURE_DESIGN.md](../BALANCE_ARCHITECTURE_DESIGN.md) | **유효 (2026-08-14 추가).** Track A의 유지 잔액 설계. 이 문서 세트와 **경쟁하지 않는다** — 이전 완료 시점까지의 완충이며, 그 감사 도구는 [07-migration.md](07-migration.md) 3단계에서 재사용된다 |
 | [docs/explanation-architecture.md](../explanation-architecture.md) | 현행 구조를 정직하게 서술. 이전 후 갱신 필요 |
-| [docs/FIRESTORE_DATA_MODEL.md](../FIRESTORE_DATA_MODEL.md) | **폐기 대상.** 목표 설계를 현재형으로 서술해 구현과 불일치. **Track A D1이 문서 상단에 불일치 목록 경고를 추가**해 오독 위험은 낮췄으나, 이 문서 세트가 그 역할을 대체한다 |
+| [docs/partner-admin/](../partner-admin/README.md) | **유효 (2026-08-14 추가).** 파트너 콘솔 8건. 화면 58개 · 리스트 엔진 계약 · 결함 P-01~P-14. `01` 13절이 이 세트를 요약 참조한다 |
+| [docs/avatar-speed/](../avatar-speed/README.md) | **유효 (2026-08-14 추가).** 플레이어 사이트 8건. 라운드 흐름 · 게임 룰 · 로드맵 알고리즘 · 결함 G-01~G-12. **`game` 스키마 설계의 입력 자료** — [00-system-map.md](00-system-map.md) §8 A1 |
+| [docs/FIRESTORE_DATA_MODEL.md](../FIRESTORE_DATA_MODEL.md) | **폐기 대상.** 목표 설계를 현재형으로 서술해 구현과 불일치. **TA-D1이 문서 상단에 불일치 목록 경고를 추가**해 오독 위험은 낮췄으나, 이 문서 세트가 그 역할을 대체한다. 특히 `accounts`를 Firestore 컬렉션으로 서술하는데 **구현되지 않았다** — [07-migration.md](07-migration.md) M11 |
 | `docs/cage-guide/` · `docs/cage-spec/` | **폐기 대상** (사용자 지시). 서버 구조 아이디어만 참고 |
 
 ---

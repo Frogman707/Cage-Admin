@@ -135,7 +135,8 @@ Firestore 원장 대조. 3단계 안에 첫 라운드 결과를 봅니다.
 | [보안·데이터 정합성 리뷰](../review-security-data-integrity.md) | 프로젝트 전반 리뷰 |
 | [데모 환경 실행](../tutorial-run-demo.md) | Firebase 프로젝트 설정 |
 | [배포 방법](../how-to-deploy.md) | Firebase Hosting 배포 |
-| [목표 아키텍처](../architecture/) | PostgreSQL 원장 이관 설계와 DDL |
+| [전체 시스템 지도](../architecture/00-system-map.md) | 앱 4개·컬렉션 33종의 구성도. 이 문서 세트가 목표 설계의 어느 빈칸을 채우는지 |
+| [목표 아키텍처](../architecture/README.md) | PostgreSQL 원장 이관 설계와 DDL |
 
 ---
 

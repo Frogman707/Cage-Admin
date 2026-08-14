@@ -410,25 +410,77 @@ staff/{id}   { id, name, pin, dt, totpSecret }     ← 스키마 동일
 
 ## 13. 플레이어 · 파트너 측 (케이지와 완전 분리)
 
-`partner-admin/app.js` · `avatar/app.js` · `shared/game-engine.js`가 사용하는 컬렉션:
+이 절이 케이지 어드민 전체(§1~§12)와 같은 분량이 되지는 않는다. 이쪽 서브시스템의 상세는 전용 문서 세트 두 벌에 있다 — [`docs/partner-admin/`](../partner-admin/README.md) 8건과 [`docs/avatar-speed/`](../avatar-speed/README.md) 8건. **여기서는 목표 설계가 필요로 하는 것만 확정한다**: 컬렉션 전수, 자금 쓰기 지점 전수, 원장 카테고리 전수.
+
+### 13-1. 컬렉션 전수 — 24종
+
+저장소 전체에서 `db.collection('...')`과 데모 시드 헬퍼 `set('...')`을 전수 조사한 결과 컬렉션은 **33종**이다. 그중 케이지 측 8종(`staff` · `ledger` · `games` · `rollingEvents` · `mainCageLedger` · `shiftEvents` · `cageConfig` · `branchTransfers`)과 양측 공유 1종(`balanceTotals`)을 빼면 **24종이 파트너·플레이어 측**이다.
+
+| 컬렉션 | 쓰는 곳 | 성격 |
+|---|---|---|
+| `members` | 파트너 · 플레이어 | 회원 KYC · 상태 · **평문 비밀번호** |
+| `memberLedger` | 파트너 · 플레이어 | **회원 자금 원장.** append-only, 부호 있는 `amount` |
+| `partners` | 파트너 | 에이전트 계층 · 쉐어 요율 |
+| `partnerStaff` | 파트너 | 콘솔 운영자 계정. **평문 비밀번호** ([06](06-security.md) §1) |
+| `shareLedger` | 파트너 | 파트너 쉐어 누계. **데모 시드에서만 쓰이고 실제 적립 코드가 없다** |
+| `rounds` | 플레이어 | 라운드(핸드) 결과 |
+| `tables` | 파트너 · 플레이어 | 테이블 메타데이터 |
+| `avatarRequests` | 파트너 · 플레이어 | 아바타 대리베팅 신청 · 승인 |
+| `avatarServiceRequests` | 플레이어 | 슈체인지 등. **소비자가 없다** |
+| `avatarMissCorrections` | 파트너 | 아바타 미스 수정 이력 |
+| `chatMessages` | 파트너 · 플레이어 | 테이블 채팅 |
+| `depositRequests` | 파트너 | 디파짓 신청 · 승인 |
+| `paymentRequests` | 파트너 | 결제처리 신청 · 승인 |
+| `memberActionLogs` · `adminLogs` | 파트너 | 감사 로그 2종 |
+| `notices` · `tickerNotices` · `inGameNotices` · `noticeGuide` · `events` | 파트너 | 공지 계열 5종 |
+| `inquiries` · `csContacts` · `bannedWords` | 파트너 | 고객센터 3종 |
+| `cageConfigPartner` | 파트너 | 파트너 콘솔 설정 |
+
+화면별로 어느 컬렉션을 읽는지는 [`docs/partner-admin/reference-screens.md`](../partner-admin/reference-screens.md)에 58개 화면 전수 표가 있다.
+
+### 13-2. 자금 쓰기 지점 — 9곳
+
+`memberLedger`에 쓰는 지점 전부. 전수 조사 기준은 `writeMemberLedgerEntry(` 호출이다.
+
+| 앱 | 함수 | 위치 | `category` |
+|---|---|---|---|
+| 파트너 | `submitBalanceAdjust` | `partner-admin/app.js:416` | `deposit` / `withdraw` |
+| 파트너 | `approveDeposit` | `:906` | `deposit` |
+| 파트너 | `processPayment` | `:1681` | `deposit` / `withdraw` |
+| 파트너 | `submitRoundCancel` — 베팅 환불 | `:1304` | `correction` |
+| 파트너 | `submitRoundCancel` — 페이아웃 회수 | `:1307` | `correction` |
+| 플레이어 | `playerSignup` 가입 보너스 | `shared/game-engine.js:76` | `deposit` |
+| 플레이어 | `placeBet` | `:96` | `bet` |
+| 플레이어 | `settleBet` | `:111` | `payout` |
+| 플레이어 | 팁 | `avatar/app.js:714` | `avatar_tip` / `dealer_tip` |
+
+**데모 시드(`seedDemoData`, `partner-admin/app.js:1800`)만 이 함수를 거치지 않고** `batch.set()`으로 직접 쓴다 — 시드 데이터는 `balanceTotals`에 반영되지 않는다.
+
+### 13-3. `category` 전수 — 10종
 
 ```
-members · memberLedger · rounds · tables · avatarRequests · avatarServiceRequests · chatMessages
-partners · partnerStaff · depositRequests · paymentRequests
-adminLogs · memberActionLogs · notices · tickerNotices · noticeGuide · inquiries
-inGameNotices · csContacts · bannedWords · events · cageConfigPartner
+bet   payout   deposit   withdraw   correction
+point_earn   point_convert   share_accum   avatar_tip   dealer_tip
 ```
+
+`share_accum`은 `memberLedger`가 아니라 `shareLedger`에 쓰인다. 나머지 9종이 `memberLedger`에 섞여 들어가고, 보유금·포인트는 그중 일부만 골라 합산한 값이다 (`partner-admin/app.js:255`).
+
+목표 설계의 대응 관계는 [04-posting-rules.md](04-posting-rules.md) §16에 있다. `point_earn` · `point_convert` · `share_accum`은 §13-2·§13-3으로 확정됐고, `avatar_tip` · `dealer_tip`과 가입 보너스는 아바타 도메인 확정 후로 미뤄져 있다.
+
+### 13-4. 케이지와의 관계
 
 `memberLedger`는 케이지 `ledger`와 **필드 구조도 다르고 계정 체계도 분리**되어 있다. 부호 있는 단일 `amount` + `category`를 쓴다(케이지 원장보다 정규화되어 있다).
 
 **현재 케이지 계좌 ↔ 회원 보유금 간 자금 이동은 불가능하다.** 두 원장이 연결되어 있지 않다.
 
-### 13-1. [Track A] 이 측에서 바뀐 것
+파트너 콘솔과 플레이어 사이트는 **Cloud Function을 한 번도 호출하지 않는다.** `functions/`의 7개 함수는 전부 케이지 어드민(`index.html`) 전용이며, 이쪽은 브라우저에서 Firestore를 직접 읽고 쓴다.
 
-- **신규 컬렉션 `balanceTotals`** — 유지 잔액 문서. `acct_{accountId}` · `maincage_{branch}` · `shift_{branch}` · `member_{memberId}` 4종. 위 컬렉션 목록에 추가된다. **파생값이며 진실의 원천이 아니다** — 원장 컬렉션이 여전히 유일한 진실이다. 현재 쓰기만 되고 읽히지 않는다.
+### 13-5. [Track A] 이 측에서 바뀐 것
+
+- **신규 컬렉션 `balanceTotals`** — 유지 잔액 문서. `acct_{accountId}` · `maincage_{branch}` · `shift_{branch}` · `member_{memberId}` 4종. **케이지와 파트너·플레이어 양측이 공유하는 유일한 컬렉션**이며, 위 24종 표에는 넣지 않았다. **파생값이며 진실의 원천이 아니다** — 원장 컬렉션이 여전히 유일한 진실이다. 현재 쓰기만 되고 읽히지 않는다.
 - **5개 흐름이 Firestore 트랜잭션으로 원자화됐다** — `approveDeposit` · `rejectDeposit` · `processPayment`(`partner-admin/app.js:894`·`:912`·`:1289`·`:1668`) · `submitRoundCancel` · `playerSignup`(`shared/game-engine.js:67`). 이전에는 "상태 확인 후 갱신"이 두 개의 분리된 쓰기라 동시 승인이 통과했다.
   - **이 트랜잭션들이 지키는 것은 요청 문서의 `status` 필드이지 잔액이 아니다.** 케이지 측 원장 쓰기 경로(`writeLedgerEntry` · `applyAccountTransaction`)는 여전히 트랜잭션이 아니다.
-- **`memberLedger` 쓰기 8곳이 한 함수로 모였다** — `shared/cage-ui.js`의 `writeMemberLedgerEntry()`. 새 쓰기 지점이 잔액 증분을 빠뜨리기 어렵게 만드는 조치다.
+- **`memberLedger` 쓰기가 한 함수로 모였다** — `shared/cage-ui.js`의 `writeMemberLedgerEntry()`. 새 쓰기 지점이 잔액 증분을 빠뜨리기 어렵게 만드는 조치다. **호출 지점은 9곳이다**(13-2절 표). 데모 시드만 예외로 남았다.
 
 > **경계는 그대로다.** 이 정리는 파트너·플레이어 측 컬렉션 안에서만 일어났다. 케이지 원장과 회원 보유금은 여전히 별개 체계이며, 둘을 하나의 원장으로 합치는 것은 [08-adr.md](08-adr.md) ADR-011의 몫이다.
 

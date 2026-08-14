@@ -165,6 +165,8 @@ Firestore 원장 대조. 3단계 안에 대시보드가 채워집니다.
 | [보유금 아키텍처 설계](../BALANCE_ARCHITECTURE_DESIGN.md) | `balanceTotals` 이중 쓰기와 컷오버 계획 |
 | [아키텍처와 운영 경계](../explanation-architecture.md) | 저장소 전체 구조 |
 | [보안·데이터 정합성 리뷰](../review-security-data-integrity.md) | 프로젝트 전반 리뷰 |
+| [전체 시스템 지도](../architecture/00-system-map.md) | 앱 4개·컬렉션 33종의 구성도. 이 문서 세트가 목표 설계의 어느 빈칸을 채우는지 |
+| [목표 아키텍처](../architecture/README.md) | PostgreSQL 원장 이관 설계와 DDL |
 | [Cloud Functions 레퍼런스](../reference-cloud-functions.md) | 본체 어드민이 쓰는 서버 API |
 | [데모 환경 실행](../tutorial-run-demo.md) | Firebase 프로젝트 설정 |
 | [배포 방법](../how-to-deploy.md) | Firebase Hosting 배포 |

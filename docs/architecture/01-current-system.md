@@ -51,6 +51,15 @@ const order = [casino, ...['HANN','NUSTAR','ONLINE'].filter(c=>c!==casino)];
 
 ## 3. 계좌 (`accounts`)
 
+> **`accounts`는 Firestore 컬렉션이 아니다.** 각 운영자 브라우저의 `localStorage`에만 존재한다.
+> `db.collection('accounts')` 호출이 저장소 전체에 **0건**이고, 실시간 구독 8채널(15절)에도 없다.
+> 생성 위치는 `seedDB()` (`index.html:5706-5720`)이며 이후 `localStorage`로만 영속된다.
+>
+> 이 절이 서술하는 구조는 **메모리·로컬 구조**이지 클라우드 스키마가 아니다. 원장(`ledger`)은
+> Firestore에 있는데 그 항목이 가리키는 계좌의 신원 정보는 브라우저에만 있다는 뜻이며,
+> **단말마다 계좌 목록이 다를 수 있다.** 이관 시 결정적 문제다 —
+> [07-migration.md](07-migration.md) M11.
+
 두 종류가 서로 다른 잔액 형태를 가진다. `index.html:4589-4604`가 이 구분을 한 곳에 모아 놓았다.
 
 | 종류 | 판별 | 잔액 형태 | 지점 가시성 |
@@ -79,7 +88,7 @@ openedCasino, openedDt, currency, remark, withdrawPw, telegramLinks[], isMain
 ```
 
 - `rate` — 롤링 요율. 문자열 `"1.45%"` 형태로 저장 (`index.html:5597`). **커미션 계산 코드를 저장소에서 찾지 못했다.** 미구현으로 보인다.
-- `passportPhoto` · `sitePhoto` · `signaturePhoto` — KYC 이미지. Firestore 문서 필드에 직접 저장.
+- `passportPhoto` · `sitePhoto` · `signaturePhoto` — KYC 이미지. base64 문자열로 계좌 객체 안에 직접 들어간다. **`localStorage`에만 남으므로 브라우저 용량 한도(보통 5~10MB)의 영향을 받는다** — 실제로 몇 건이 저장돼 있는지가 단말마다 다르다.
 - `currency` — 전 계좌 `"PHP"` 고정. 필드는 존재하나 다통화 사용처 없음.
 
 ---

@@ -211,18 +211,20 @@ game       라운드 · 테이블 · 아바타 · 채팅          ← 플레이�
 
 백엔드와 **병렬 트랙**이며 API 계약 확정 후 착수한다.
 
-현행 제약:
-- `index.html` 9,211줄 단일 파일, 빌드 시스템 없음, 전역 함수 314개
-- `partner-admin/app.js` 1,771줄, `escapeHtml` 누락으로 저장형 XSS 존재
+현행 제약 (2026-08-14 기준):
+- `index.html` **9,422줄 / 518 KB** 단일 파일, 빌드 시스템 없음
+- `partner-admin/app.js` **1,867줄**. **[Track A]** `escapeHtml`이 도입돼 접속자 목록·계좌 테이블·회원 상세 3개 영역의 저장형 XSS는 막혔다. **그러나 `onclick="fn('${id}')"` 문자열 삽입 구조가 그대로 남아 있어** 이스케이프만으로는 완전히 방어되지 않는다 — 신규 프런트엔드는 이 구조를 이식하지 않는다([06-security.md](06-security.md) 8절).
+- **[Track A]** 개발 도구가 생겼다: ESLint + Prettier(`eslint.config.js`, `.prettierrc.json`), CI lint 게이트. **빌드 단계는 여전히 없다** — 도입 직후 i18n 4개 언어 사전의 중복 키(`cancelBtn`/`colReason`) 등 실제 버그 8건을 잡았다.
 
 재작성이 불가피하다. 다만 **화면 구성과 조작 흐름은 현행을 스펙으로 삼는다.** 재사용 자산:
 
 | 자산 | 위치 | 판단 |
 |---|---|---|
-| 다국어 사전 | `shared/i18n.js` (ko / en / zh-TW / zh-CN) | 그대로 이식 |
-| TOTP 구현 | `index.html:5511-5576` | 서버로 이전 후 재사용 |
+| 다국어 사전 | `shared/i18n.js` (ko / en / zh-TW / zh-CN) | 그대로 이식. **[Track A]** 중복 키 정리 완료 |
+| TOTP 구현 | **`functions/index.js:66-105`** (서버) · `index.html:5652` 이하 (클라이언트) | **[Track A] 서버 이전 완료.** 신규 Identity 서비스가 이 구현을 그대로 가져간다 — `functions/test/totp.test.js`가 동작을 고정해 뒀다 |
 | 화면 레이아웃 · 조작 흐름 | 전체 | 스펙으로 참조 |
-| 지점 전환 UX | `switchBranch()` `index.html:4626` | 동작 규칙 그대로 |
+| 지점 전환 UX | `switchBranch()` | 동작 규칙 그대로 |
+| 잔액 감사 도구 | `functions/balance/backfillBalances.js` · `reconcile.js` | **[Track A]** 이관 감사([07-migration.md](07-migration.md) 3-1절 3단계)에 재사용 |
 
 ---
 

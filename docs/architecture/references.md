@@ -167,26 +167,32 @@ m=7168  (7 MiB),  t=5, p=1
 
 ## 코드 기준선
 
-문서 세트의 도메인 사실은 전부 저장소 코드에서 추출했다. 기준 커밋: `e8469a1` (브랜치 `claude/cage-admin-5-features-75k9ac`).
+문서 세트의 도메인 사실은 전부 저장소 코드에서 추출했다.
 
-| 파일 | 규모 | 역할 |
+- **초판 기준 커밋:** `e8469a1` (브랜치 `claude/cage-admin-5-features-75k9ac`)
+- **2026-08-14 갱신 기준:** 브랜치 `backend`, 커밋 `1bd7ef6`
+
+| 파일 | 규모 (2026-08-14) | 역할 |
 |---|---|---|
-| [index.html](../../index.html) | 9,211줄 / 502 KB | 케이지 운영 화면 + Firestore 동기화 |
-| [partner-admin/app.js](../../partner-admin/app.js) | 1,771줄 | 파트너 운영 콘솔 |
-| [avatar/app.js](../../avatar/app.js) | 1,201줄 | 플레이어 화면 |
-| [shared/game-engine.js](../../shared/game-engine.js) | 286줄 | 게임 시뮬레이션 · 회원 원장 |
-| [shared/cage-ui.js](../../shared/cage-ui.js) | 178줄 | Firebase 초기화 · 공통 유틸 |
-| [functions/index.js](../../functions/index.js) | 206줄 | Telegram 연동 Cloud Functions |
+| [index.html](../../index.html) | 9,422줄 / 518 KB | 케이지 운영 화면 + Firestore 동기화 |
+| [partner-admin/app.js](../../partner-admin/app.js) | 1,867줄 | 파트너 운영 콘솔 |
+| [avatar/app.js](../../avatar/app.js) | 1,202줄 | 플레이어 화면 |
+| [shared/game-engine.js](../../shared/game-engine.js) | 300줄 | 게임 시뮬레이션 · 회원 원장 |
+| [shared/cage-ui.js](../../shared/cage-ui.js) | — | Firebase 초기화 · 공통 유틸 · `writeMemberLedgerEntry()` |
+| [functions/index.js](../../functions/index.js) | 365줄 | Telegram 연동 **+ 스태프 인증** Cloud Functions |
+| [functions/balance/](../../functions/balance/) | 4개 파일 | 유지 잔액 프로토타입 · 백필 · 대사 — **미배포·미연결** |
+| [firestore.rules](../../firestore.rules) | 28줄 | `staff` 컬렉션만 인증 요구, 나머지 무제한 |
 
-추출 결과는 [01-current-system.md](01-current-system.md)에 코드 위치와 함께 정리했다.
+추출 결과는 [01-current-system.md](01-current-system.md)에 코드 위치와 함께 정리했다. **라인 번호는 위 스냅샷 기준이며 함수명이 권위 있는 참조다.**
 
 ### 저장소 내 선행 문서
 
 | 문서 | 판단 |
 |---|---|
-| [docs/review-security-data-integrity.md](../review-security-data-integrity.md) | **유효.** 보안·정합성 문제 목록이 이 설계의 출발점 중 하나 |
+| [docs/review-security-data-integrity.md](../review-security-data-integrity.md) | **유효.** 보안·정합성 문제 목록이 이 설계의 출발점 중 하나. **Track A가 이 목록을 대상으로 실행됐다** — 항목별 현재 상태는 [01-current-system.md](01-current-system.md) 17절 |
+| [docs/BALANCE_ARCHITECTURE_DESIGN.md](../BALANCE_ARCHITECTURE_DESIGN.md) | **유효 (2026-08-14 추가).** Track A의 유지 잔액 설계. 이 문서 세트와 **경쟁하지 않는다** — 이전 완료 시점까지의 완충이며, 그 감사 도구는 [07-migration.md](07-migration.md) 3단계에서 재사용된다 |
 | [docs/explanation-architecture.md](../explanation-architecture.md) | 현행 구조를 정직하게 서술. 이전 후 갱신 필요 |
-| [docs/FIRESTORE_DATA_MODEL.md](../FIRESTORE_DATA_MODEL.md) | **폐기 대상.** 목표 설계를 현재형으로 서술해 구현과 8곳 불일치 |
+| [docs/FIRESTORE_DATA_MODEL.md](../FIRESTORE_DATA_MODEL.md) | **폐기 대상.** 목표 설계를 현재형으로 서술해 구현과 불일치. **Track A D1이 문서 상단에 불일치 목록 경고를 추가**해 오독 위험은 낮췄으나, 이 문서 세트가 그 역할을 대체한다 |
 | `docs/cage-guide/` · `docs/cage-spec/` | **폐기 대상** (사용자 지시). 서버 구조 아이디어만 참고 |
 
 ---

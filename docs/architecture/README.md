@@ -1,8 +1,30 @@
 # Cage Admin — 서버 · 데이터베이스 재설계 아키텍처
 
 **상태:** 설계 제안 (구현 착수 전)
-**작성일:** 2026-08-10
-**기준 브랜치:** `claude/cage-admin-5-features-75k9ac`
+**작성일:** 2026-08-10 · **최종 갱신:** 2026-08-14
+**기준 브랜치:** `backend` — 현행 시스템 서술의 기준 스냅샷
+
+> **2026-08-14 갱신.** 이 설계와 **별개로** 현행 Firestore 시스템에 보안·정합성 하드닝이 진행됐다(아래 "두 개의 트랙"). 목표 설계인 [02](02-target-architecture.md)~[05](05-api-contract.md)와 [`ddl/`](ddl/)는 영향받지 않았다. 현행 시스템을 서술하는 [01](01-current-system.md), [06](06-security.md) 1·3-2·8·11절, [07](07-migration.md), [02](02-target-architecture.md) 7절이 갱신됐다.
+
+---
+
+## 두 개의 트랙
+
+이 저장소에는 지금 **서로 다른 목적의 설계 문서 두 벌**이 있다. 충돌하는 제안이 아니라 시간축이 다른 것이다.
+
+| | **Track A — 현행 하드닝** | **Track B — 이 문서 세트** |
+|---|---|---|
+| 대상 | 지금 돌아가는 Firestore 시스템 | 신규 PostgreSQL 시스템 |
+| 목적 | 이전이 끝날 때까지의 **완충** | 최종 목표 아키텍처 |
+| 문서 | [`docs/review-security-data-integrity.md`](../review-security-data-integrity.md) · [`docs/BALANCE_ARCHITECTURE_DESIGN.md`](../BALANCE_ARCHITECTURE_DESIGN.md) | `docs/architecture/` 전체 |
+| 상태 | 일부 배포 완료 (01번 문서에 반영) | 미착수 |
+
+**Track A가 만든 것은 Track B에서 대부분 소멸한다.** `balanceTotals` 유지 잔액은 `ledger.account_balances`가, `staffLogin` Cloud Function은 Identity 서비스가 대체한다. 그럼에도 Track A를 진행하는 이유는 **이전에 걸리는 기간 동안 실제 현금이 계속 움직이기 때문**이다.
+
+다만 Track A의 산출물 중 두 가지는 Track B에서 **그대로 쓰인다**:
+
+- `functions/index.js`의 서버 측 TOTP 구현 — [06](06-security.md) 3-2절이 계획했던 "서버로 이전"이 이미 끝났다
+- `functions/balance/backfillBalances.js` · `reconcile.js` — [07](07-migration.md) 3-1절 **3단계(감사)** 가 요구하는 계좌별 잔액 산출·불일치 탐지 도구 그 자체다
 
 ---
 
@@ -80,9 +102,9 @@ if(!okIn){
 | 잔액 하한 | 없음 (메모리 변수 검사) | 지연 제약 트리거 + 행 잠금 |
 | 금액 타입 | JS `number` (IEEE 754 배정밀도) | `BIGINT` 최소 단위 정수 |
 | 시각 | 클라이언트 시계 문자열 | `clock_timestamp()` + 영업일 엔티티 |
-| 멱등성 | 호출 시점 랜덤 ID | `Idempotency-Key` + 자연키 |
+| 멱등성 | 호출 시점 생성 UUID. **앱 레벨 재시도는 여전히 중복 문서를 만든다** | `Idempotency-Key` + 자연키 |
 | 정정 | 문서 삭제 | 역분개 (`reverses_tx_id`) |
-| 인증 | 평문 비밀번호, 클라이언트 비교 | Argon2id, 서버 검증 |
+| 인증 | PIN·마스터 비밀번호 평문/무솔트 저장. 검증 위치만 Cloud Functions로 이동 | Argon2id, 서버 검증 |
 | 실시간 | `onSnapshot` × 8 | WebSocket × 8 채널 (Outbox 기반) |
 
 ### 무엇을 바꾸지 않는가

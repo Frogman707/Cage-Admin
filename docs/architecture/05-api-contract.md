@@ -395,6 +395,14 @@ Content-Type: application/problem+json
 | 계좌 개설 | `POST /v1/accounts` | `ledger.op_open_account` |
 | `writeShiftEvent` / `applyShift` | **폐기.** 카운터는 파생값 | `cage.v_shift_counters` |
 | `deleteMainCageEntry` | **폐기.** 정정은 상쇄 이벤트 | — |
+| `listStaffNames` (Cloud Function) | `GET /v1/auth/staff-names` | — (Identity 서비스) |
+| `staffLogin` (Cloud Function) | `POST /v1/auth/login` | `identity.op_login` |
+| `masterSessionToken` (Cloud Function) | `POST /v1/auth/login` (role=master) | `identity.op_login` |
+| `balanceTotals` 증분 쓰기 | **폐기.** 잔액은 원장 파생 | `ledger.account_balances` |
+
+> **[Track A] 2026-08-14 추가.** 위 3개 Cloud Function 행은 현행 시스템에 실재한다([01-current-system.md](01-current-system.md) 12절). 신규 시스템에서는 Identity 서비스의 로그인 엔드포인트 하나로 합쳐지며, **서버 측 TOTP 검증 코드(`functions/index.js:66-105`)는 그대로 이식한다.**
+>
+> `balanceTotals` 행이 중요하다. 현행의 유지 잔액 문서는 Firestore가 "잔액 확인과 차감을 한 트랜잭션에 넣을 방법"을 달리 제공하지 않아 만든 **우회 구조물**이다. PostgreSQL에서는 `ledger.account_balances` + 행 잠금 + 지연 제약 트리거가 같은 일을 하며, **별도 컬렉션도 정합성 감시 잡도 필요 없다.** 이관 시 데이터로 옮기지 않는다 ([07-migration.md](07-migration.md) M10).
 
 **`writeLedgerEntry`에 해당하는 범용 엔드포인트를 만들지 않는다.** 임의 분개를 외부에서 주입할 수 있으면 분개 정의표가 무의미해진다.
 

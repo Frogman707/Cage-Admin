@@ -5,7 +5,7 @@
 > **대상**: [`ddl/004_ledger.sql`](ddl/004_ledger.sql) 전량 (556줄) + [references.md](references.md) · 교차 검증 `006`·`008`·`010`·`012`·`013`
 > **상태**: 미해결 11건. **차단 1 · 높음 1 · 중간 5 · 낮음 4**
 > **선행 문서**: [design-review.md](design-review.md) DR-01~DR-23 · [design-review-2.md](design-review-2.md) DR-24~DR-37 · [design-review-3.md](design-review-3.md) DR-38~DR-49
-> **후속**: [design-review-5.md](design-review-5.md) — 5차 `DR-61`~`DR-65` (높음 2 · 중간 2 · 낮음 1) · [design-review-6.md](design-review-6.md) — 6차 `DR-66`~`DR-72` (차단 1 · 높음 2 · 중간 3 · 낮음 1). 여섯 문서 합계 **72건 · 차단 13**
+> **후속**: [design-review-5.md](design-review-5.md) — 5차 `DR-61`~`DR-65` (높음 2 · 중간 2 · 낮음 1) · [design-review-6.md](design-review-6.md) — 6차 `DR-66`~`DR-72` (차단 1 · 높음 2 · 중간 3 · 낮음 1) · [design-review-7.md](design-review-7.md) — 7차 `DR-73`~`DR-77` (높음 1 · 중간 2 · 낮음 2) · [design-review-8.md](design-review-8.md) — 8차 `DR-78`~`DR-82` (높음 2 · 중간 2 · 낮음 1) · [design-review-9.md](design-review-9.md) — 9차 `DR-83`~`DR-86` (높음 2 · 중간 2). 아홉 문서 합계 **86건 · 차단 13**
 
 ---
 

@@ -5,7 +5,7 @@
 > **대상**: `ddl/002` · `006` · `007` · `012` · `013` 전량 (1,589줄) + `011` 일부 + `08-adr.md`
 > **상태**: 미해결 14건. **차단 4 · 높음 3 · 중간 5 · 낮음 2**
 > **선행 문서**: [design-review.md](design-review.md) — DR-01~DR-23 (차단 5 · 높음 7 · 중간 9 · 낮음 2)
-> **후속**: [design-review-3.md](design-review-3.md) — 3차 검토 `DR-38`~`DR-49` (차단 2 · 높음 3 · 중간 5 · 낮음 2) · [design-review-4.md](design-review-4.md) — 4차 `DR-50`~`DR-60` (차단 1) · [design-review-5.md](design-review-5.md) — 5차 `DR-61`~`DR-65` (높음 2 · 중간 2 · 낮음 1) · [design-review-6.md](design-review-6.md) — 6차 `DR-66`~`DR-72` (차단 1). 여섯 문서 합계 **72건 · 차단 13**
+> **후속**: [design-review-3.md](design-review-3.md) — 3차 검토 `DR-38`~`DR-49` (차단 2 · 높음 3 · 중간 5 · 낮음 2) · [design-review-4.md](design-review-4.md) — 4차 `DR-50`~`DR-60` (차단 1) · [design-review-5.md](design-review-5.md) — 5차 `DR-61`~`DR-65` (높음 2 · 중간 2 · 낮음 1) · [design-review-6.md](design-review-6.md) — 6차 `DR-66`~`DR-72` (차단 1) · [design-review-7.md](design-review-7.md) — 7차 `DR-73`~`DR-77` (차단 0) · [design-review-8.md](design-review-8.md) — 8차 `DR-78`~`DR-82` (차단 0) · [design-review-9.md](design-review-9.md) — 9차 `DR-83`~`DR-86` (차단 0 · 높음 2 · 중간 2). 아홉 문서 합계 **86건 · 차단 13**
 
 1차 검토([design-review.md](design-review.md))는 **원장 코어와 연산 함수**(`003`~`005`, `008`~`011`)를
 중심으로 훑었다. 이 문서는 그때 얕게 지나간 **인증 · 권한 · RLS · 대사 · 감사 계층**을 전량 정독한

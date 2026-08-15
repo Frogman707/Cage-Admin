@@ -4,7 +4,13 @@
 
 > **2026-08-14 갱신.** 초판(2026-08-10) 이후 현행 시스템에 Track A 하드닝이 적용됐다([README](README.md) "두 개의 트랙"). 바뀐 사실을 반영했으며 각 항목에 `[Track A]` 표시를 남겼다. **하드닝은 이전 필요성을 없애지 않는다** — 17절 요약표에 무엇이 닫혔고 무엇이 남았는지 정리했다.
 >
-> **라인 번호 규약:** 이 문서의 `index.html:NNNN` 참조는 `backend` 브랜치 2026-08-14 스냅샷 기준이다. `index.html`은 9,211줄에서 9,422줄로 자랐고 앞으로도 자란다. **함수명이 권위 있는 참조이고 라인 번호는 보조다** — 어긋나면 함수명으로 찾아라.
+> **2026-08-15 갱신 — 기준선 정정.** [설계 검토 6차](design-review-6.md)가 **이 문서가 서술하지 않은 케이지 도메인 다섯 개**를 코드에서 찾아냈다(`DR-66`~`DR-70`). 그중 둘은 실제 자금 이동이다. 이번 개정이 그 다섯을 채운다 — 롤링 커미션 정산(§7-0) · 이벤트 커미션(§7-4) · 케이지 포인트(§3-1) · 컨시어지(§3-2) · 계좌 차단(§3-3). 동시에 `DR-72`가 지적한 라인 참조 어긋남을 §7·§9에서 재고정했다.
+>
+> **기존 절 번호(§1~§17)는 하나도 바꾸지 않았다.** 인바운드 참조(`00 §A7` · `04 §16` · 검토 문서들이 가리키는 `01 §4-4` · `§9` · `§13-2`)를 깨지 않기 위해 **하위 절 삽입만** 했다. 그 대신 §3·§7 아래의 줄 번호는 밀렸다(581줄 → 771줄). 기존 인바운드 줄 참조의 새 위치: `01:90` → **`01:96`**(§3 `rate`, 5차 `DR-62`) · `01:425` → **`01:612`**(§13-1 `shareLedger`) · `01:457` → **`01:644`**(§13-2 데모 시드, 5차 `DR-65`). 절 참조(`01 §4-4` · `§9` · `§13-2`)는 전부 유효하다.
+>
+> **왜 서술 누락이 위험한지가 이번 개정의 교훈이다.** 6차 결론: *"서술이 없으면 대조 자체가 일어나지 않는다."* 실제로 5차 검토는 §3 `rate` 항목의 옛 문장("커미션 계산 코드를 찾지 못했다")만 읽고 **롤링 커미션 지급이 아예 없다고 판정했다.** 매 정산마다 실제 돈이 나가고 있었다.
+>
+> **라인 번호 규약:** 이 문서의 `index.html:NNNN` 참조는 `backend` 브랜치 2026-08-15 스냅샷(HEAD `cdad312`, 9,422줄) 기준이다. `index.html`은 계속 자란다. **함수명이 권위 있는 참조이고 라인 번호는 보조다** — 어긋나면 함수명으로 찾아라.
 
 ---
 
@@ -87,9 +93,106 @@ passportNo, passportExp, passportPhoto, sitePhoto, signaturePhoto,
 openedCasino, openedDt, currency, remark, withdrawPw, telegramLinks[], isMain
 ```
 
-- `rate` — 롤링 요율. 문자열 `"1.45%"` 형태로 저장 (`index.html:5597`). **커미션 계산 코드를 저장소에서 찾지 못했다.** 미구현으로 보인다.
+- `rate` — 롤링 요율. 문자열 `"1.45%"` 형태로 저장 (`index.html:5597`). **읽힌다** — `applyAccountRateToGameType()` (`:6770`)가 바이인 화면에서 이 값을 게임 종류 select의 옵션 라벨로 주입한다.
+  > **초판 서술 정정 (`DR-66` · 5차 `DR-62` 정정).** 초판은 여기에 "커미션 계산 코드를 저장소에서 찾지 못했다 — 미구현으로 보인다"라고 적었고, [5차 검토](design-review-5.md)가 이 문장을 근거로 **롤링 커미션 지급 자체가 없다**고 판정했다. **둘 다 틀렸다. 자동 계산이 있고, 매 정산마다 손님 계좌로 실제 돈이 들어간다.**
+  >
+  > 초판이 못 찾은 이유가 이 결함의 핵심이다 — **정산 코드는 `rate`를 직접 읽지 않는다.** 값이 `accounts.rate` → select 옵션 문자열 → `games.type` → 정규식 파싱을 거쳐 전달되므로 `rate`를 grep해도 정산 지점에 닿지 않는다. 전체 사슬은 §7-0에 있다.
 - `passportPhoto` · `sitePhoto` · `signaturePhoto` — KYC 이미지. base64 문자열로 계좌 객체 안에 직접 들어간다. **`localStorage`에만 남으므로 브라우저 용량 한도(보통 5~10MB)의 영향을 받는다** — 실제로 몇 건이 저장돼 있는지가 단말마다 다르다.
 - `currency` — 전 계좌 `"PHP"` 고정. 필드는 존재하나 다통화 사용처 없음.
+
+### 3-1. 케이지 포인트 (`DB.pointsByAccount`) — 파트너 포인트와 별개 시스템
+
+> **`DR-68`으로 등록된 누락.** 7개 네비 뷰 중 하나(`points`)가 통째로 이 시스템인데 초판에 절이 없었다.
+
+케이지 계좌(`SE7419`류)에 붙는 **포인트 잔액**이다. `memberLedger`의 `point_earn` · `point_convert`(§13-3)와 **주체도 저장소도 완전히 다르다** — 저쪽은 파트너·플레이어 측 회원의 것이고 Firestore에 있으며, 이쪽은 케이지 손님의 것이고 `localStorage`에만 있다.
+
+```js
+// index.html:8976-8986  grantPoints() — 적립
+const balAfter = (DB.pointsByAccount[pointsTargetAcc]||0) + amt;
+DB.pointsByAccount[pointsTargetAcc] = balAfter;
+DB.pointsHistory.unshift({dt:now, account:pointsTargetAcc, reason: reason||'—', change:amt, balance:balAfter});
+```
+
+| 항목 | 사실 |
+|---|---|
+| 저장소 | `DB.pointsByAccount{accountId: number}` · `DB.pointsHistory[]` — **`localStorage` 전용** |
+| 적립 | `grantPoints()` (`index.html:8976`) — 금액·사유 수동 입력, 상한 없음 |
+| 사용 | `usePoints()` (`:8958`) — 잔액 하한 검사 있음 (`amt>balBefore` → 거부, `:8965`) |
+| 이력 | `{dt, account, reason, change, balance}` — **잔액 스냅샷을 행마다 저장한다** (`:8970`·`:8986`) |
+| 재인증 | **없다.** PIN 확인 없이 포인트를 발행할 수 있다 |
+| 원장 연계 | **없다.** `ledger`에도 `memberLedger`에도 기록되지 않는다 |
+
+- 이력 행이 `balance`를 직접 들고 있으므로 **잔액과 이력이 독립적으로 틀어질 수 있다.** §9 교대 카운터와 같은 종류의 문제다.
+- 조회는 계좌 검색으로 대상을 고른 뒤 표시하며(`pickPointsAcc` `:8948`), 목록은 지점 가시성으로 거른다(`accountVisibleInBranch` `:8995`).
+
+### 3-2. 컨시어지 — 호텔 · 차량 · 항공
+
+> **`DR-69`로 등록된 누락.** 초판은 §전체에서 프록시 CORS 한 줄로만 언급했다. 자금과 무관하지만 **손님 응대 기록**이므로 이관 판정이 필요하다.
+
+세 도메인이 동일한 형태를 갖는다 — 계좌 ID를 키로 붙고, `localStorage`에만 있고, 취소가 상태 변경(삭제 아님)이고, 영수증 모달과 알림을 낸다.
+
+| 도메인 | 생성 | ID 형식 | 문서 |
+|---|---|---|---|
+| 호텔 | `bookHotel()` (`index.html:8781`) | `'HTL-'+Math.floor(1000+Math.random()*9000)` | `{id, account, guest, roomType, bedType, checkin, checkout, remark, status}` |
+| 차량 | `reserveCar()` (`:8830`) | `'CAR-'+...` | `{id, account, guest, dt, pickup, dropoff, carType, pax, remark, status}` |
+| 항공 | `requestAero()` (`:8883`) | `'AER-'+...` | `{id, account, guest, direction, flight, airline, airport, pax, dt, status}` |
+
+- `status` ∈ `'confirmed'` · `'cancelled'`. 취소는 상태만 바꾼다 (`cancelHotelBooking` `:8806`) — **§3-3 계좌 차단과 달리 이력이 보존된다.**
+- 목록은 계좌 기준 지점 가시성으로 거른다 (`recordVisibleInBranch(b.account)` `:8823`).
+- **ID가 `Math.random()` 4자리다.** 계좌 원장이 `crypto.randomUUID()`로 옮겨간 뒤에도(§4) 이쪽은 그대로다. 1만 분의 1 충돌 공간이며 중복 검사가 없다.
+- 자금 원장과 무관하므로 목표 설계에서 `cage` 스키마 밖에 두는 것이 자연스럽다.
+
+### 3-3. 계좌 차단 (`DB.blocks`)
+
+> **`DR-70`으로 등록된 누락.** 목표 측 `ledger.account_status`에 `'suspended'` 값은 이미 있는데(`ddl/001:69`) 상태를 바꿀 경로가 설계에 없다 — 현행에 조작이 있다는 사실이 서술되지 않았기 때문이다.
+
+```js
+// index.html:8608-8619
+function applyBlock(){
+ ...
+ DB.blocks.unshift({account, type:"Full", reason, staff:staffName, dt:phNow().toISOString().slice(0,10)});
+ saveDB(); renderBlocks();
+ pushNotification('notifBlock', account);
+}
+function unblock(idx){ DB.blocks.splice(idx,1); saveDB(); renderBlocks(); }
+```
+
+| 항목 | 사실 |
+|---|---|
+| 저장소 | `DB.blocks[]` — **`localStorage` 전용** |
+| 필드 | `{account, type, reason, staff, dt}` · `type`은 **`"Full"` 하드코딩** — 부분 차단이 없다 |
+| 재인증 | **없다.** PIN 없이 실행된다 |
+| 해제 | `unblock(idx)` — **배열 인덱스로 `splice` 삭제.** 해제 이력이 소멸한다 |
+| 강제력 | **없다.** 차단 목록은 표시만 되고, 입출금·게임 경로 어디에서도 이 목록을 조회하지 않는다 |
+
+- 해제가 삭제인 것이 핵심 결함이다 — "누가 언제 왜 풀었는가"가 남지 않는다. 감사 대상 조작인데 감사 흔적이 없다.
+- 인덱스 기반 삭제라 목록이 재정렬되는 동안 조작하면 다른 행을 지울 수 있다.
+
+### 3-4. 계좌 해지가 부속 데이터를 연쇄 삭제한다
+
+위 세 절과 §7-4 이벤트 이력이 "계좌에 붙은 부속 데이터"라는 사실의 코드 증거가 계좌 해지 경로에 있다.
+
+```js
+// index.html:6231-6248  _doWithdrawAccount(id)
+delete DB.accounts[id];
+if(fbDb){
+ const snap = await fbDb.collection('ledger').where('accountId','==',id).get();
+ const batch = fbDb.batch();
+ snap.forEach(d=>batch.delete(d.ref));      // ← 원장 문서 전량 삭제
+ await batch.commit();
+}
+delete DB.pointsByAccount[id];
+DB.pointsHistory = (DB.pointsHistory||[]).filter(h=>h.account!==id);
+DB.eventHistory  = (DB.eventHistory ||[]).filter(h=>h.account!==id);
+DB.hotels = (DB.hotels||[]).filter(b=>b.account!==id);
+DB.cars   = (DB.cars  ||[]).filter(c=>c.account!==id);
+DB.aero   = (DB.aero  ||[]).filter(a=>a.account!==id);
+```
+
+> **여기서 두 가지를 읽어야 한다.**
+>
+> 1. **계좌 해지가 Firestore 원장을 물리 삭제한다** (`:6234-6237`). append-only 원장에 대한 `batch.delete()`이며 **감사 추적이 소멸한다.** §17 10번(게임 취소가 문서 삭제)과 같은 부류이지만 대상이 자금 원장 그 자체다. 게다가 이 삭제는 상대 계정(`MAIN-{branch}`, §4-1)의 미러 행을 지우지 않으므로 **해지 후 복식부기 균형이 깨진 채로 남는다.**
+> 2. **`DB.blocks`만 이 연쇄에서 빠져 있다.** 해지된 계좌의 차단 기록은 남는다. §3-3의 `splice` 해제와 합치면, 차단 도메인은 **살아 있는 계좌의 이력은 지우고 죽은 계좌의 이력은 남긴다.**
 
 ---
 
@@ -240,36 +343,108 @@ rollingEvents/{id}
 
 ---
 
-## 7. 정산 — 중간정산과 게임종료
+## 7. 정산 — 롤링 커미션 · 중간정산 · 게임종료
 
-두 연산이 동일한 입력 구조를 공유한다.
+**정산 연산은 세 개다.** 초판은 이 절을 "중간정산과 게임종료"로 열었고, 그 결과 세 번째인 **롤링 커미션 정산의 존재 자체가 문서에서 사라졌다**(`DR-66`, 차단). 실행 순서는 7-1 → 7-2 → 7-0이지만 아래에서 7-0을 먼저 두는 이유는 하나다 — **손님 계좌로 돈이 나가는 연산은 7-0뿐이고, 그것이 빠졌던 항목이기 때문이다.**
+
+중간정산(7-1)과 게임종료(7-2)는 동일한 입력 구조를 공유한다.
 
 ```
 cc { deposit, cashout, marker, dealerTips, houseTips }    CC칩(현금성 칩)
 nn { deposit, cashout, marker, working }                  NN칩(논네고 칩)
 ```
 
-### 7-1. 중간정산 `_doConfirmMidSettle` (`index.html:7219-7298`)
+### 7-0. 롤링 커미션 정산 `_doSettleGame` (`index.html:7224`)
+
+> **`DR-66`(차단)으로 등록된 누락.** 초판 `01`·`04`·`05`·`ddl/` 전부에 이 흐름이 없었다. 최초 커밋(`9a1c559`, 2026-08-01)부터 존재하는 기능이다.
+
+**손님 계좌로 실제 돈이 나가는 연산이다.** 진입은 `settleGame()` (`:7218`) → `requestPinAuth(_doSettleGame)` — PIN 재인증 필수(§12-3).
+
+| 입력 | 출처 | 성격 |
+|---|---|---|
+| `commission` | `#settleRolling` (`:7229`) | **자동 계산으로 프리필된 뒤 운영자가 덮어쓸 수 있다** — 계산은 `loadSettleGame()` (`:7127-7130`) |
+| `fb` | `#settleFb` F&B 차감액 (`:7230`) | 수동 입력 |
+| `result` | `#settleResult` 최종 지급액 (`:7228`) | 화면에 표시된 값을 **텍스트로 되읽는다** (`textContent`에서 콤마 제거) |
+
+#### 요율 전달 사슬 — 숫자가 UI 위젯 라벨을 통과한다
+
+```
+accounts.rate  "1.45%"                          계좌 등록 · 정보 수정에서 입력
+  ↓  applyAccountRateToGameType()   :6770       바이인 화면에서 계좌 조회 시
+#gType <option> "Rolling 1.45%"                 select 옵션 라벨로 주입 (프리셋에 없으면 동적 생성)
+  ↓  :6916 · :6923                              바이인 확정
+games.type  "Rolling 1.45%"                     게임 문서에 문자열로 복사 (§5)
+  ↓  loadSettleGame()  :7127-7130               정산 화면 로드
+rate = Number(/([\d.]+)%/ 첫 매치)/100
+comm = Math.round((g.rolling||0) * rate)        #settleRolling 프리필
+  ↓  recalcSettle()  :7137-7139
+result = Math.max(0, comm - fb)                 #settleResult 텍스트
+  ↓  :7228
+지급액                                           textContent를 되읽어 계좌 입금
+```
+
+**다섯 홉이고, 그중 셋이 문자열이다.** §6의 `memo` 의미론 캐리어와 같은 부류인데 이쪽은 **UI 위젯의 옵션 라벨**을 경유한다. 중간에 사람이 개입할 수 있는 것은 설계 의도이기도 하다 — `:6767-6769` 주석이 "Staff can still override the selection manually afterward (e.g. for a Share-based deal)"라고 밝힌다.
+
+> **`Share 40%` 프리셋에서 사슬이 깨진다.** `#gType` 프리셋은 3종이다 (`index.html:703`):
+>
+> | 프리셋 | 정규식 첫 매치 | 프리필 커미션 |
+> |---|---|---|
+> | `Rolling 1.5%` | `1.5` | 롤링 × 1.5% ✅ |
+> | `Rolling 1% + Share 10%` | `1` | 롤링 × 1% ✅ *(롤링이 앞이라 우연히 맞는다)* |
+> | **`Share 40%`** | **`40`** | **롤링 × 40%** ❌ |
+>
+> 셰어 딜의 배분율이 **롤링 커미션 요율로 읽힌다.** 자릿수 단위로 틀린 기본값이며, 운영자가 매번 덮어쓰는 것이 유일한 방어다.
+
+`result`를 DOM 텍스트에서 되읽는 것도 기록해 둔다 — 지급액의 권위가 **화면 렌더 결과**에 있다. 목표 설계에서는 서버가 산출해야 한다.
+
+지급:
 
 ```js
-// index.html:7237 — 롤링 차감액
+// index.html:7240-7244
+if(result > 0){
+ settleTxn = await applyAccountTransaction(g.account, 'IN', result, `${t('memoRollingSettle')} (${g.gameId})`);
+ if(!settleTxn){ toast(t('toastStaffSyncFailed')); return; }
+ renderMemberCard(); renderLedger();
+}
+```
+
+**입금을 먼저 하고 정산 레코드를 나중에 쓴다.** 주석(`:7236-7238`)이 의도를 명시한다 — 입금이 실패하면 게임을 손대지 않고 빠져나가 재정산 가능한 상태로 남긴다. §4-2의 반쪽 거래 패턴과 방향이 반대이며 **이쪽이 더 안전한 순서다.**
+
+정산 레코드는 `DB.settled`에 push된다 (`:7249-7250`) — **`localStorage` 전용**:
+
+```
+{gameId, account, cur, branch, dt, buyin, cashout, winLoss, rolling, commission, fb, result, staff}
+```
+
+- **종료된 게임뿐 아니라 진행 중 게임도 정산 대상이다.** `isEnded`(`:7231`)로 분기한다. 종료 게임이면 `g.settled = true`를 세우고 게임 문서를 되쓰며(`:7245-7248`), 진행 중이면 `cashout`·`winLoss`가 `null`로 기록된다.
+- 텔레그램 통지: 종료 게임 2건(정산 영수증 + R/C), 진행 중 1건 (`:7254-7258`).
+- 마지막에 **이벤트 커미션을 자동 트리거한다** (`:7259`) — §7-4.
+
+파생 지점: `reportCommissionPaid()` (`:8142`), `computePeriodMetrics()`의 `rollingCommPaid`, 월정산 개시일 판정(`:8254`). 조회는 `renderSettleList()` (`:7273`), 영수증 재출력은 `printSettledRow()` (`:7208`).
+
+> **재정산을 막는 장치가 종료 게임에만 있다.** `g.settled` 플래그로 종료 게임은 정산 드롭다운에서 빠진다(`:7246`, `:7260-7263` 주석). **진행 중 게임에는 이 플래그를 세우지 않으며**, `DB.settled`는 push-only라 같은 `gameId`의 중복 정산을 막는 검사를 `_doSettleGame` 안에서 찾지 못했다.
+
+### 7-1. 중간정산 `_doConfirmMidSettle` (`index.html:7348`)
+
+```js
+// index.html:7366 — 롤링 차감액
 const added = -nn.deposit - nn.cashout - nn.marker - nn.working;
 
-// index.html:7276-7279 — 계좌 입금
+// index.html:7405 — 계좌 입금
 const depositSum = cc.deposit + nn.deposit;
 if(depositSum > 0){
   const txn = await applyAccountTransaction(g.account, 'IN', depositSum, ...);
 }
 ```
 
-`g.checkpoints`에 `{dt, added, cc, nn, staff}`를 누적한다 (`index.html:7241`).
+`g.checkpoints`에 `{dt, added, cc, nn, staff}`를 **`unshift`로** 누적한다 (`index.html:7369-7370`) — 최신이 배열 앞이다.
 
-### 7-2. 게임종료 `_doConfirmGameEnd` (`index.html:7437-7515`)
+### 7-2. 게임종료 `_doConfirmGameEnd` (`index.html:7566`)
 
 중간정산과 동일한 처리에 **두 가지 사전 검증**이 추가된다.
 
 ```js
-// index.html:7449-7453
+// index.html:7578-7581
 const returnedWorking = workingChipReturnedTotal(g) + nn.working;
 if(Math.abs(returnedWorking - (g.workingChip||0)) > 0.001){ toast(t('toastWorkingChipNotReturned')); return; }
 const netNN = -nn.deposit - nn.cashout - nn.marker - nn.working;
@@ -282,7 +457,7 @@ if(totalRolling < 0){ toast(t('toastRollingNegative')); return; }
 
 `Math.abs(...) > 0.001` 비교는 금액이 부동소수점이기 때문에 필요한 허용 오차다. 정수 최소 단위로 바꾸면 이 허용치 자체가 불필요해진다.
 
-### 7-3. 윈로스 계산 (`index.html:7457-7463`)
+### 7-3. 윈로스 계산 (`index.html:7586-7592`)
 
 ```js
 let historicalSum = 0;
@@ -295,6 +470,43 @@ const winLoss = (historicalSum + ccSum + nn.deposit + nn.cashout + nn.marker) - 
 ```
 
 **의미: 회수된 칩 총액 − 바이인.** 워킹칩은 회수 항목에서 제외된다(공짜로 준 칩이므로 손님 성과가 아니다).
+
+### 7-4. 이벤트 커미션 — 계산식이 있는 자동 지급
+
+> **`DR-67`로 등록된 누락.** §7-0과 달리 **계산식이 있고 자동으로 실행된다.** 이것이 §3 `rate` 항목의 옛 서술("커미션 계산 코드를 찾지 못했다")에 대한 직접 반례다. 자동화 커밋 `c749806`(2026-08-02).
+
+기간 이벤트가 활성인 동안, **롤링 커미션 정산(§7-0)이 끝날 때마다 보너스 커미션을 자동으로 추가 지급한다.**
+
+```js
+// index.html:7259 — §7-0 말미의 트리거 (await 없음)
+payEventCommissionForSettle(g.account, g.rolling||0);
+
+// index.html:9062-9067
+async function payEventCommissionForSettle(account, rolling){
+ if(!isEventActiveNow() || !rolling) return;
+ const rate = Number(document.getElementById('eventRate').value||0);
+ const amt = Math.round(rolling*rate/100);
+ if(amt<=0) return;
+ const txn = await applyAccountTransaction(account, 'IN', amt, t('memoEventCommission'));
+```
+
+| 항목 | 사실 |
+|---|---|
+| 기간 설정 | `activateEvent()` (`:9001`) — 시작은 **현재 시각으로 강제**, 종료·요율은 입력. 과거 종료일 거부 |
+| 상태 | `DB.eventStart` · `DB.eventEnd` · `DB.eventRate` — **`localStorage` 전용** |
+| 활성 판정 | `isEventActiveNow()` (`:9028`) — `'YYYY-MM-DDTHH:mm'` **문자열 비교** |
+| 조기 종료 | `endEventNow()` (`:9051`) — `eventEnd`를 1분 전으로 되돌린다 (`:9056`) |
+| 활성화 감사 | `DB.eventActivationLog[]` `{dt, start, end, rate, staff}` (`:9011-9012`) — **설정 이력은 남는다** |
+| 지급 이력 | `DB.eventHistory[]` `{dt, account, rolling, rate, amt, staff}` (`:9074-9075`) |
+| 재인증 | **없다.** §7-0의 PIN을 통과한 뒤 배경에서 실행된다 |
+
+**세 가지를 기록해 둔다.**
+
+1. **요율의 권위가 DOM 입력 필드에 있다.** `payEventCommissionForSettle`은 `DB.eventRate`가 아니라 `document.getElementById('eventRate').value`를 읽는다 (`:9064`). 화면 값과 저장 값이 갈라지면 **지급액은 화면 쪽을 따른다.**
+2. **`await` 없이 트리거된다** (`:7259`). §7-0은 이벤트 커미션의 성공 여부를 모른 채 완료 토스트를 낸다.
+3. **실패가 조용하다.** `if(!txn) return` (`:9071`) — 주석이 의도를 밝힌다: 계좌에 닿지 못한 보너스를 "지급됨"으로 기록하는 것보다 무음이 낫다는 판단이다. 결과적으로 **지급 실패가 어디에도 남지 않는다.**
+
+리포트의 `eventComm` 항목(`:8158`)이 `DB.eventHistory`에서 파생된다.
 
 ---
 
@@ -319,7 +531,7 @@ function mainCageSignedEffect(type, amt){
 ## 9. 교대 카운터 (`shiftEvents`) — 9개 필드
 
 ```js
-// index.html:4828
+// index.html:4935
 const SHIFT_FIELDS = ['rollingCashShift','nnChipInShift','buyinRollingShift','workingChipRollingShift',
                       'nnCashoutShift','nnMarkerShift','cashBuyinShift','ccChipInShift','ccMarkerShift'];
 ```
@@ -328,19 +540,23 @@ const SHIFT_FIELDS = ['rollingCashShift','nnChipInShift','buyinRollingShift','wo
 shiftEvents/{id}   { id, field, delta, dt, staff, branch }
 ```
 
-지점별·필드별 델타 합산으로 현재값을 구한다 (`index.html:4852-4858`).
+지점별·필드별 델타 합산으로 현재값을 구한다 (`index.html:4945`).
+
+증가 지점은 전부 `applyShift(field, delta, staff)` 호출이다. **정산 계열 6개 필드는 중간정산(§7-1)과 게임종료(§7-2)에서 각각 한 번씩, 총 두 곳에서 증가한다** — 아래 표의 두 번째 줄번호가 게임종료 쪽이다.
 
 | 필드 | 증가 지점 | 의미 |
 |---|---|---|
-| `cashBuyinShift` | 현금 바이인 `index.html:6808` | 현금 바이인 누계 |
-| `buyinRollingShift` | 바이인 `index.html:6802` | 바이인으로 발행한 칩 |
-| `workingChipRollingShift` | 워킹칩 발행 `:6803` / 반환 `:7256`(음수) | 워킹칩 순발행 |
-| `nnChipInShift` | 정산 NN 입금 `:7253` | NN칩 금고 유입 |
-| `nnCashoutShift` | 정산 NN 캐시아웃 `:7267` | NN칩 현금 환전 |
-| `nnMarkerShift` | 정산 NN 마커 `:7271` | NN 마커 리딤 |
-| `ccChipInShift` | 정산 CC 입금 `:7259` | CC칩 금고 유입 |
-| `ccMarkerShift` | 정산 CC 마커 `:7274` | CC 마커 리딤 |
-| `rollingCashShift` | 롤링 입력 `:6924` | 관측 롤링 누계 |
+| `cashBuyinShift` | 현금 바이인 `index.html:6894` · `:6937` / 취소 `:6986`(음수) | 현금 바이인 누계 |
+| `buyinRollingShift` | 바이인 `:6887` · `:6931` / 취소 `:6967`(음수) | 바이인으로 발행한 칩 |
+| `workingChipRollingShift` | 발행 `:6888` · `:6932` / 반환 `:7385` · `:7609`(음수) / 취소 `:6969` | 워킹칩 순발행 |
+| `nnChipInShift` | 정산 NN 입금 `:7382` · `:7606` | NN칩 금고 유입 |
+| `nnCashoutShift` | 정산 NN 캐시아웃 `:7396` · `:7619` | NN칩 현금 환전 |
+| `nnMarkerShift` | 정산 NN 마커 `:7400` · `:7622` | NN 마커 리딤 |
+| `ccChipInShift` | 정산 CC 입금 `:7388` · `:7612` | CC칩 금고 유입 |
+| `ccMarkerShift` | 정산 CC 마커 `:7403` · `:7625` | CC 마커 리딤 |
+| `rollingCashShift` | 롤링 입력 `:7053` / 취소 `:6982`(음수) | 관측 롤링 누계 |
+
+> **`DR-72` 정정.** 초판 표의 줄번호는 정산 블록(§7-0, `7218-7341`) 삽입 전 값이었다. 어긋난 폭이 필드마다 달라(`+85` ~ `+129`) 일괄 오프셋으로는 복구되지 않는다 — 위 값은 HEAD `cdad312`에서 `applyShift` 호출을 전수 재조사한 결과다. **게임 취소(`cancelGame()` `:6953`) 경로의 음수 증가 4곳은 초판 표에 아예 없었다** — 카운터를 되돌리는 유일한 경로인데 빠져 있었다.
 
 **설계 관찰:** 이 9개 카운터는 서로 독립적으로 누적되며, **상호 정합성을 검증할 수단이 없다.** 하나가 어긋나도 조용히 어긋난다. [03-ledger-model.md](03-ledger-model.md)에서 이 카운터들을 원장 계정과 재고 원장으로 승격해 회계 항등식이 자동 검증하도록 재설계한다.
 
@@ -569,8 +785,11 @@ function scheduleFirestoreResubscribe(key, resubscribeFn){ ... }
 | 9 | 비밀번호 평문, 검증이 클라이언트 | **부분.** 검증은 서버로 이동, **저장은 여전히 평문/무솔트**. `ERIC` TOTP 우회 신설(12절) | DB 침해 시 전 직원 PIN 노출 |
 | 10 | 게임 취소가 문서 삭제 | **그대로** | 감사 추적 소멸 |
 | 11 | 보안 규칙 파일 부재 | **부분 해소.** 파일 존재·배포됨. **`staff` 외 전 컬렉션은 여전히 무제한** | 자금 컬렉션에 권한 검증 주체 없음 |
+| 12 | *(초판 미기재)* | **2026-08-15 신규 기록.** 자금 이력 두 종(롤링 커미션 정산 `DB.settled` §7-0 · 이벤트 커미션 `DB.eventHistory` §7-4)과 잔액 한 종(케이지 포인트 §3-1)이 **`localStorage` 전용** | 실자금 이력이 단말에만 존재 — 정본 판별 불가 |
+| 13 | *(초판 미기재)* | **2026-08-15 신규 기록.** 계좌 해지가 해당 계좌의 Firestore `ledger` 문서를 **전량 물리 삭제**하고 상대 계정 미러는 남긴다 (§3-4) | append-only 원장에 삭제 경로 + 복식부기 파손 |
+| 14 | *(초판 미기재)* | **2026-08-15 신규 기록.** 계좌 차단 해제가 `splice` 삭제 (§3-3), 포인트 발행·차단 조작에 재인증 없음 (§3-1·§3-3) | 감사 대상 조작에 감사 흔적 없음 |
 
-1~7은 **Firestore의 엔진 제약**이라 애플리케이션 수정으로 해결되지 않는다. 8~11은 설계 문제이며 이전과 함께 해소한다.
+1~7은 **Firestore의 엔진 제약**이라 애플리케이션 수정으로 해결되지 않는다. 8~11은 설계 문제이며 이전과 함께 해소한다. **12~14는 6차 검토가 찾아낸 것으로, 초판이 서술하지 않아 이전 계획에 잡히지 않았던 항목이다** — 12는 [07-migration.md](07-migration.md)의 이관 대상 목록(`DR-71`), 13·14는 목표 설계의 조작 경로 정의를 요구한다.
 
 > **Track A가 바꾼 것을 정확히 읽어라.** 완전히 닫힌 항목은 **하나도 없다.** 5번이 가장 가깝지만 멱등성 문제의 절반(재시도 중복)은 남았고, 3·6·9·11번은 "가장 값싼 실패 모드만 막고 근본 원인은 그대로"인 상태다.
 >

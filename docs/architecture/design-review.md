@@ -4,7 +4,7 @@
 > **작성일**: 2026-08-15 · 브랜치 `backend`
 > **대상**: `docs/architecture/` 문서 10건 + `ddl/` 13개 파일 (총 9,862줄)
 > **상태**: 미해결 23건. **차단 5 · 높음 7 · 중간 9 · 낮음 2**
-> **후속**: [design-review-2.md](design-review-2.md) `DR-24`~`DR-37` (차단 4) · [design-review-3.md](design-review-3.md) `DR-38`~`DR-49` (차단 2) · [design-review-4.md](design-review-4.md) `DR-50`~`DR-60` (차단 1) · [design-review-5.md](design-review-5.md) `DR-61`~`DR-65` (차단 0) · [design-review-6.md](design-review-6.md) `DR-66`~`DR-72` (차단 1). 여섯 문서 합계 **72건 · 차단 13**
+> **후속**: [design-review-2.md](design-review-2.md) `DR-24`~`DR-37` (차단 4) · [design-review-3.md](design-review-3.md) `DR-38`~`DR-49` (차단 2) · [design-review-4.md](design-review-4.md) `DR-50`~`DR-60` (차단 1) · [design-review-5.md](design-review-5.md) `DR-61`~`DR-65` (차단 0) · [design-review-6.md](design-review-6.md) `DR-66`~`DR-72` (차단 1) · [design-review-7.md](design-review-7.md) `DR-73`~`DR-77` (차단 0) · [design-review-8.md](design-review-8.md) `DR-78`~`DR-82` (차단 0) · [design-review-9.md](design-review-9.md) `DR-83`~`DR-86` (차단 0). 아홉 문서 합계 **86건 · 차단 13**
 
 이 문서는 **설계 문서 세트의 일부가 아니라 그것에 대한 검토 결과**다. 각 항목이 해소되면
 해당 설계 문서에 반영하고 여기서는 `해소`로 표시한다. 반영 대상 문서·절은 [§4](#4-문서-반영-필요-목록)에 있다.

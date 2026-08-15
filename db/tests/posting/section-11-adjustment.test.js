@@ -5,14 +5,21 @@
 //
 // 한 파일에 두 절이 있는 이유: op_resolve_suspense 는 금액을 인자로 받지
 // 않는다. 현재 suspense 잔액을 직접 읽어 그만큼을 해소한다(04 §11-2). suspense
-// 는 지점 단위 공유 계정이고 이 하니스의 모든 테스트가 커밋하므로, 이 파일의
-// 첫 번째 테스트가 §11 로 그 잔액을 스스로 만들고 §11-2 로 바로 해소해야만
-// §11-2 가 읽는 잔액이 §11 이 만든 것이라고 보장할 수 있다. node:test 는
-// concurrency 옵션이 없는 한 파일 안 최상위 test() 를 선언 순서대로 순차
-// 실행하므로, suspense 를 다시 건드리는 두 번째 테스트(교차 검증)는 반드시
-// 첫 번째 테스트 뒤에 실행된다 — 파일 안에 suspense 를 건드리는 테스트는 이
-// 둘뿐이고 순서가 고정되어 있으므로 첫 번째 테스트의 리터럴 기대값이
-// 어지럽혀지지 않는다.
+// 는 지점 단위 공유 계정이고 이 하니스의 모든 테스트가 커밋하므로, §11-2 를
+// 검사하는 테스트는 자신이 §11 로 만든 잔액이 아닌 다른 무언가를 해소해
+// 버릴 수 있다.
+//
+// 실제 불변식: **이 파일의 모든 테스트는 끝나기 전에 자신이 만든 만큼을
+// 정확히 해소해, HANN 의 suspense 를 0 으로 되돌려야 한다.** 아래 첫 번째
+// 테스트의 §11-2 리터럴 기대값(정확히 variance)은 진입 시점에 그 계정이
+// 0 이라는 것을 전제하고, 그 전제는 "이 파일의 다른 모든 테스트도 자기
+// 몫을 남기지 않는다"는 규율에서만 나온다 — node:test 가 test() 를 선언
+// 순서대로 실행한다는 사실에서 나오는 게 아니다. 실패 경로도 이 불변식을
+// 지킨다: op_* 호출이 있는 트랜잭션은 전부 asOwner/asStaff 안에서 돌고,
+// 어느 assert 든 던지면 runIn 이 통째로 ROLLBACK 한다(db.mjs) — 그래서
+// 두 번째 테스트가 먼저 돌거나 --test-name-pattern 으로 혼자 돌아도
+// 안전하다. 새 테스트를 이 파일에 더할 때는 이 규율을 유지해야 한다:
+// suspense 를 건드리면 같은 테스트 안에서 반드시 되돌린다.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { asOwner, asStaff, query, uniq, uniqCode, closePool } from '../helpers/db.mjs';
@@ -39,6 +46,32 @@ function triplesOf(rows) {
 }
 function amountsOf(rows) {
   return rows.map((r) => r.amount_minor);
+}
+
+// branch 의 suspense 잔액. 계정 가시성을 먼저 확인한다 — entries 만 보고
+// sum() 하면(COALESCE(sum(...), 0)) RLS 가 house suspense 계정 자체를 가릴 때
+// (party_visible 정책) "계정 없음"과 "잔액 0"을 구분하지 못해 조용히 0 을
+// 돌려준다. entries.mjs 의 계정 가시성 가드(45-51행)와 같은 함정이다. 이
+// 파일에서는 entryRowsOf 가 같은 트랜잭션 안에서 이미 이 계정을 성공적으로
+// 읽은 뒤라 실제로 걸릴 일은 없지만, 헬퍼 자체도 크게 실패해야 한다.
+async function suspenseBalance(client, branch) {
+  const { rows: acct } = await client.query(
+    `SELECT 1 FROM ledger.accounts a
+       JOIN ledger.parties p ON p.id = a.party_id
+      WHERE a.kind = 'suspense' AND p.home_branch = $1`,
+    [branch]
+  );
+  if (acct.length === 0) {
+    throw new Error(`지점 ${branch} 의 suspense 계정이 안 보인다 (RLS 로 계정 가시성이 막혔을 가능성)`);
+  }
+  const { rows } = await client.query(
+    `SELECT COALESCE(sum(e.amount_minor), 0)::bigint AS balance
+       FROM ledger.entries e
+       JOIN ledger.accounts a ON a.id = e.account_id
+      WHERE a.kind = 'suspense' AND e.branch = $1`,
+    [branch]
+  );
+  return BigInt(rows[0].balance);
 }
 
 test('R-12-02 · AC-12-2 04 §11 현금 과잉 조정 → §11-2 과잉분 확정', async () => {
@@ -125,14 +158,7 @@ test('R-12-02 · AC-12-2 04 §11 현금 과잉 조정 → §11-2 과잉분 확�
     assert.deepEqual(amountsOf(resRows), [-BigInt(variance), BigInt(variance)]);
 
     // 해소 후 suspense 잔액은 정확히 0 이어야 한다 (§11-2 규약).
-    const { rows: bal } = await client.query(
-      `SELECT COALESCE(sum(e.amount_minor), 0)::bigint AS balance
-         FROM ledger.entries e
-         JOIN ledger.accounts a ON a.id = e.account_id
-        WHERE a.kind = 'suspense' AND e.branch = $1`,
-      [BRANCH]
-    );
-    assert.equal(BigInt(bal[0].balance), 0n);
+    assert.equal(await suspenseBalance(client, BRANCH), 0n);
   });
 });
 
@@ -208,7 +234,10 @@ test('R-12-02 cage.op_record_balancing 이 ledger.op_adjustment 와 같은 분�
       variance,
       adjApproval,
     ]);
-    const adjRows = await entryRowsOf(client, adj.rows[0].result);
+    // 콜백 안의 이 바인딩은 위 asStaff 를 감싼 바깥쪽 adjRows 를 가리지 않는다
+    // (별개 이름) — entryRowsOf 의 결과는 asStaff 콜백이 반환할 때까지 여기
+    // 안에서만 쓰고, 바깥에는 return 문으로 넘긴다.
+    const adjStored = await entryRowsOf(client, adj.rows[0].result);
 
     // ---- 진입점 2: cage.op_record_balancing ----
     // 스텝업 scope 는 'balancing.count' 다 (011:174). 'cage.balancing' 이 아니다.
@@ -218,6 +247,16 @@ test('R-12-02 cage.op_record_balancing 이 ledger.op_adjustment 와 같은 분�
       scope: 'balancing.count',
       method: 'totp',
     });
+    // cage.balancing_counts 는 UNIQUE (branch, business_date, count_kind) 다
+    // (006_periods_balancing.sql:36) — 실사는 하루에 종류당 한 번만 기록할 수
+    // 있다는 실제 업무 규칙이고, business_date 는 이 함수가 호출 시점에 서버
+    // 에서 직접 정한다(v_bdate := ledger.business_date_of(...),
+    // 011_operations_admin.sql:175) — 호출자가 인자로 넘길 수 없어 테스트가
+    // 우회할 방법이 없다. 오늘 이미 이 지점·count_kind 로 이 테스트를 한 번
+    // 성공시켰다면 재실행은 SQLSTATE 23505(duplicate key)로 거부된다 — 신선한
+    // DB 로 CI 를 한 번 도는 것은 문제없지만, 이 파일을 같은 날 두 번 이상
+    // 로컬에서 돌리려면 먼저 `npm run db:reset` 으로 DB 를 초기화해야 한다
+    // (재초기화는 이 파일이 전제하는 "suspense = 0" 상태도 함께 되돌린다).
     const { rows } = await client.query(
       'SELECT cage.op_record_balancing($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) AS result',
       [
@@ -239,7 +278,7 @@ test('R-12-02 cage.op_record_balancing 이 ledger.op_adjustment 와 같은 분�
     // op_record_balancing 은 조정 거래를 result **자체**가 아니라
     // result.adjustment 아래에 tx_response 로 담는다(011:229-231). entryRowsOf
     // 가 찾는 transaction.external_id 는 그 안에 있다.
-    const balRows = await entryRowsOf(client, rows[0].result.adjustment);
+    const balStored = await entryRowsOf(client, rows[0].result.adjustment);
 
     // ---- 정리: 이 테스트가 두 진입점으로 쌓은 suspense 를 §11-2 로 해소한다 ----
     // 위 주석 참고 — 남기면 이 지점의 suspense 잔여가 다른 실행에 새어 나간다.
@@ -258,16 +297,9 @@ test('R-12-02 cage.op_record_balancing 이 ledger.op_adjustment 와 같은 분�
       'test cleanup: 교차 검증에서 쌓인 조정분 해소',
       resApproval,
     ]);
-    const { rows: bal } = await client.query(
-      `SELECT COALESCE(sum(e.amount_minor), 0)::bigint AS balance
-         FROM ledger.entries e
-         JOIN ledger.accounts a ON a.id = e.account_id
-        WHERE a.kind = 'suspense' AND e.branch = $1`,
-      [BRANCH]
-    );
-    assert.equal(BigInt(bal[0].balance), 0n);
+    assert.equal(await suspenseBalance(client, BRANCH), 0n);
 
-    return [adjRows, balRows];
+    return [adjStored, balStored];
   });
 
   const EXPECTED = [

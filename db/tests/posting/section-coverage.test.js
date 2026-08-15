@@ -218,6 +218,91 @@ test('R-12-02 합성 · 절의 op_* 가 전부 소스에 등장하면 sectionsWi
   assert.deepEqual(sectionsWithUncitedOps(sections, ops, sourceOf), []);
 });
 
+test('R-12-02 합성 · op_* 가 주석에만 있으면 sectionsWithUncitedOps 가 잡는다 (프로즈는 인용이 아니다)', () => {
+  // §5 가 실제로 겪은 모양이다: 파일 첫 줄 헤더 주석에만 이름이 있고 실제 호출은 없다.
+  const sections = [{ id: 'X', title: '가상 절', posting: true, ops: ['cage.op_open_game'], test: './x.test.js' }];
+  const ops = new Set(['cage.op_open_game']);
+  const sourceOf = () => '// R-12-02 04 §X — cage.op_open_game 를 부른다\nimport { test } from \'node:test\';';
+  assert.deepEqual(sectionsWithUncitedOps(sections, ops, sourceOf), [
+    { section: sections[0], missing: ['cage.op_open_game'] },
+  ]);
+});
+
+test('R-12-02 합성 · 호출 형태 언급도 주석 안이면 인용이 아니다 (주석 제거 자체를 고정한다)', () => {
+  // 위 테스트는 이름 뒤에 괄호가 없는 프로즈라, "호출 형태" 검사만으로도 이미
+  // 걸린다 — 주석 제거가 빠져도 통과해 버려 그 부분의 회귀를 못 잡는다. 여기서는
+  // 주석 안에 괄호까지 갖춘 호출 형태 문자열을 넣어, 주석을 지우지 않으면
+  // (잘못) 통과하고 지우면 (옳게) 잡히도록 만든다.
+  const sections = [{ id: 'X', title: '가상 절', posting: true, ops: ['cage.op_open_game'], test: './x.test.js' }];
+  const ops = new Set(['cage.op_open_game']);
+  const sourceOf = () =>
+    "// 예시: client.query('SELECT cage.op_open_game($1)') 처럼 부르면 된다\nimport { test } from 'node:test';";
+  assert.deepEqual(sectionsWithUncitedOps(sections, ops, sourceOf), [
+    { section: sections[0], missing: ['cage.op_open_game'] },
+  ]);
+});
+
+test('R-12-02 합성 · 이름 뒤에 여는 괄호가 없으면 호출로 치지 않는다', () => {
+  const sections = [{ id: 'X', title: '가상 절', posting: true, ops: ['cage.op_open_game'], test: './x.test.js' }];
+  const ops = new Set(['cage.op_open_game']);
+  const sourceOf = () => "const note = 'cage.op_open_game is documented elsewhere';"; // 괄호가 없다
+  assert.deepEqual(sectionsWithUncitedOps(sections, ops, sourceOf), [
+    { section: sections[0], missing: ['cage.op_open_game'] },
+  ]);
+});
+
+test('R-12-02 합성 · 이름과 여는 괄호 사이 공백은 호출로 인정한다', () => {
+  const sections = [{ id: 'X', title: '가상 절', posting: true, ops: ['cage.op_a'], test: './x.test.js' }];
+  const ops = new Set(['cage.op_a']);
+  const sourceOf = () => 'client.query("SELECT cage.op_a  ($1)")';
+  assert.deepEqual(sectionsWithUncitedOps(sections, ops, sourceOf), []);
+});
+
+test('R-12-02 합성 · 절 자신이 아니라 한 겹 아래 fixture 에서 op_* 를 부르면 통과한다', () => {
+  // §5 가 games.mjs 를 거쳐 cage.op_open_game 을 부르는 모양을 재현한다.
+  const sections = [{ id: 'X', title: '가상 절', posting: true, ops: ['cage.op_open_game'], test: './x.test.js' }];
+  const ops = new Set(['cage.op_open_game']);
+  const sourceOf = (p) => {
+    if (p === './x.test.js') {
+      return "import { openGame } from '../fixtures/games.mjs';\nawait openGame(client, ctx, {});";
+    }
+    if (p === '../fixtures/games.mjs') {
+      return "client.query('SELECT cage.op_open_game($1)')";
+    }
+    throw new Error(`합성 sourceOf 가 예상 못한 경로를 받았다: ${p}`);
+  };
+  assert.deepEqual(sectionsWithUncitedOps(sections, ops, sourceOf), []);
+});
+
+test('R-12-02 합성 · 따라간 fixture 안에도 없으면 여전히 잡힌다', () => {
+  const sections = [{ id: 'X', title: '가상 절', posting: true, ops: ['cage.op_never_called'], test: './x.test.js' }];
+  const ops = new Set(['cage.op_never_called']);
+  const sourceOf = (p) => {
+    if (p === './x.test.js') return "import { helper } from '../fixtures/helper.mjs';\nhelper();";
+    if (p === '../fixtures/helper.mjs') return '// helper 는 아무 op_* 도 안 부른다';
+    throw new Error(`합성 sourceOf 가 예상 못한 경로를 받았다: ${p}`);
+  };
+  assert.deepEqual(sectionsWithUncitedOps(sections, ops, sourceOf), [
+    { section: sections[0], missing: ['cage.op_never_called'] },
+  ]);
+});
+
+test('R-12-02 합성 · 두 겹 아래(import 의 import) 는 따라가지 않는다', () => {
+  // helper.mjs 는 op_* 를 직접 안 부르고, 그 자신이 한 겹 더 아래(second.mjs)를
+  // import 해서 거기서 부른다. "한 겹만" 규칙대로면 second.mjs 는 읽지 않으므로
+  // 여전히 잡혀야 한다 — sourceOf 가 second.mjs 경로로 불리면 그 자체가 회귀다.
+  const sections = [{ id: 'X', title: '가상 절', posting: true, ops: ['cage.op_deep'], test: './x.test.js' }];
+  const ops = new Set(['cage.op_deep']);
+  const sourceOf = (p) => {
+    if (p === './x.test.js') return "import { helper } from '../fixtures/helper.mjs';\nhelper();";
+    if (p === '../fixtures/helper.mjs') return "import { second } from './second.mjs';\nsecond();"; // op_* 를 직접 안 부른다
+    throw new Error(`한 겹을 넘어 ${p} 까지 읽었다 — 재귀하지 않기로 한 규칙 위반`);
+  };
+  assert.deepEqual(sectionsWithUncitedOps(sections, ops, sourceOf), [
+    { section: sections[0], missing: ['cage.op_deep'] },
+  ]);
+});
+
 test('R-12-02 합성 · posting 이 false 이거나 test 가 이미 있으면 sectionsMissingReason 에서 빠진다', () => {
   // sectionsMissingReason 의 세 절 중 !s.pending 만 :131·:138 에서 이미 걸린다.
   // 아래 두 절은 각각 s.posting 과 !s.test 절을 지웠을 때만 결과가 달라지도록

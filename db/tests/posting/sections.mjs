@@ -7,6 +7,8 @@
 //
 // 스키마의 모든 op_* 가 여기 어딘가에 있어야 한다 (역방향 검사).
 // 분개를 만들지 않는 연산도 §15 에 등재한다.
+import path from 'node:path';
+
 export const POSTING_SECTIONS = [
   { id: '0', title: '읽는 법', posting: false, ops: [], test: null },
   { id: '1', title: '입금', posting: true, ops: ['ledger.op_deposit'], test: './section-01-deposit.test.js' },
@@ -166,17 +168,61 @@ export function unclaimedOps(sections, opNames) {
 // uncoveredSections 는 통과한다(§9: op_cancel_game 은 테스트가 있고
 // op_reverse_transaction 은 대장에만 적혀 있던 경우가 그것이다).
 //
-// sourceOf(testPath) -> 그 테스트 파일의 소스 텍스트. 실사용은 fs 읽기,
-// 합성 테스트는 in-memory 맵을 주입해 DB·파일시스템 없이 검증한다.
+// 이름이 소스에 "등장"하는 것만으로는 부족하다. 헤더 주석에 op 이름을 적어 두면
+// 실제로는 아무것도 부르지 않고도 이 검사를 통과했다(§5 의 cage.op_open_game 이
+// 파일 첫 줄 주석에만 있고 실제 호출은 fixtures/games.mjs 안에 있던 경우) — 그래서
+// 아래 세 가지를 강제한다:
+//   1. 주석(줄·블록)을 지운 소스에서 찾는다 — 이름이 프로즈에만 살아 있으면 인용이
+//      아니다. 문자열 리터럴은 그대로 둔다 — SQL 호출은 대개 문자열 안에 있다.
+//   2. "호출 형태" 만 인용으로 친다 — 이름 뒤에 (공백 있어도) 여는 괄호가 와야 한다.
+//   3. 상대 import(`./` · `../`) 를 한 겹만 따라간다 — 절이 fixture 를 거쳐 op_* 를
+//      부르는 경우(§5 → games.mjs, fundedAccount 를 쓰는 절 → members.mjs)를 덮는다.
+//      바깥 패키지 import 는 따라가지 않는다. 더 깊이 재귀하지 않는다.
+//
+// sourceOf(path) -> 그 파일의 소스 텍스트. path 는 절의 test 필드처럼 posting/ 기준
+// 상대 경로이거나, 그 소스 안에서 찾은 import 특정자를 절 test 의 디렉터리에 대해
+// 다시 합친 경로다. 실사용은 fs 읽기, 합성 테스트는 in-memory 맵을 주입해
+// DB·파일시스템 없이 검증한다.
 // opNames 로 존재 여부를 먼저 거른다 — 아직 없는 op_* 를 인용 못 했다고 잡으면
 // pending 절의 test:null 케이스와 목적이 겹친다(그건 uncoveredSections 의 몫이다).
 export function sectionsWithUncitedOps(sections, opNames, sourceOf) {
   return sections
     .filter((s) => s.test)
     .map((s) => {
-      const source = sourceOf(s.test);
-      const missing = s.ops.filter((op) => opNames.has(op) && !source.includes(op));
+      const ownSource = stripComments(sourceOf(s.test));
+      const importedSources = relativeImportsOf(ownSource).map((spec) =>
+        stripComments(sourceOf(path.join(path.dirname(s.test), spec)))
+      );
+      const allSource = [ownSource, ...importedSources].join('\n');
+      const missing = s.ops.filter((op) => opNames.has(op) && !isCalledIn(allSource, op));
       return { section: s, missing };
     })
     .filter((r) => r.missing.length > 0);
+}
+
+// 문자열 리터럴(작은·큰따옴표·백틱)은 그대로 두고, 줄·블록 주석만 지운다.
+// 문자열 안의 // 같은 패턴을 주석으로 오인하지 않도록 문자열을 먼저 통째로 매칭해
+// 캡처 그룹으로 보존한다 — 그 그룹이 잡히면 그대로 돌려주고, 아니면(주석이 매칭된
+// 것이므로) 빈 문자열로 지운다.
+function stripComments(source) {
+  return source.replace(
+    /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|\/\/[^\n]*|\/\*[\s\S]*?\*\//g,
+    (match, str) => (str !== undefined ? str : '')
+  );
+}
+
+// op 이름 뒤에 (공백을 사이에 두고라도) 여는 괄호가 와야 "호출"로 친다.
+function isCalledIn(source, op) {
+  const escaped = op.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`${escaped}\\s*\\(`).test(source);
+}
+
+// 소스 안의 상대 경로 import 특정자를 모은다. bare specifier(패키지 이름)는
+// 무시한다 — 따라갈 필요도, 안전하게 따라갈 방법도 없다.
+function relativeImportsOf(source) {
+  const specs = new Set();
+  for (const m of source.matchAll(/from\s+['"](\.\.?\/[^'"]+)['"]/g)) {
+    specs.add(m[1]);
+  }
+  return [...specs];
 }

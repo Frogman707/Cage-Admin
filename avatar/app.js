@@ -893,14 +893,15 @@ function speedTileHtml(tb){
     <div class="head"><span class="name">${escapeHtml(tb.name)}</span><span class="shoe">SHOE #${tb.shoeNo||1} · ${tb.casino}</span></div>
     <div id="hotbadge-${tb.id}"></div>
     <div class="speed-thumb"></div>
-    <div class="speed-tile-state">
-      <span class="phase-txt" id="phase-${tb.id}">${t('phaseBetting')}</span>
-      <span class="score-txt" id="score-${tb.id}"></span>
-      <span class="speed-timer" id="timer-${tb.id}">15</span>
+    <div class="speed-tile-body">
+      <div class="speed-tile-state">
+        <span class="score-txt" id="score-${tb.id}"></span>
+        <span class="speed-timer" id="timer-${tb.id}">15</span>
+      </div>
+      <button class="btn btn-gold btn-sm btn-block" style="margin-bottom:9px;" onclick="event.stopPropagation();openSpeedTableDetail('${tb.id}')" data-i18n="openTable">${t('openTable')}</button>
+      <div class="speed-mini-road" id="road-${tb.id}"></div>
+      <div class="speed-tile-stats" id="stats-${tb.id}"></div>
     </div>
-    <button class="btn btn-gold btn-sm btn-block" style="margin-bottom:9px;" onclick="event.stopPropagation();openSpeedTableDetail('${tb.id}')" data-i18n="openTable">${t('openTable')}</button>
-    <div class="speed-mini-road" id="road-${tb.id}"></div>
-    <div class="speed-tile-stats" id="stats-${tb.id}"></div>
   </div>`;
 }
 function renderSpeedTileRoad(tableId){
@@ -1111,9 +1112,10 @@ function setSpeedTileTimer(tableId, v){
   const el = document.getElementById('timer-'+tableId); if (el) el.textContent = v;
   if (SPEED.detailTableId===tableId){ const d = document.getElementById('timer-detail'); if (d) d.textContent = v; }
 }
+// The list no longer captions the phase - only the open table does.
 function setSpeedTilePhaseText(tableId, txt){
-  const el = document.getElementById('phase-'+tableId); if (el && txt) el.textContent = txt;
-  if (SPEED.detailTableId===tableId){ const d = document.getElementById('phase-detail'); if (d && txt) d.textContent = txt; }
+  if (SPEED.detailTableId!==tableId || !txt) return;
+  const d = document.getElementById('phase-detail'); if (d) d.textContent = txt;
 }
 function beginSpeedBetting(tableId){
   const s = SPEED.tstate[tableId];

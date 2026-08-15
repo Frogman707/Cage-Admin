@@ -12,9 +12,9 @@
    the app's --danger / accent tints, so they read as ink on white paper rather than as UI
    chrome; kept here so every road, bead, tally badge and legend mark shares one value. */
 :root{
-  --road-blue:#1668B8;
-  --road-red:#CE3A2C;
-  --road-green:#1E9E7E;
+  --road-blue:#0F5C9E;
+  --road-red:#BE2E20;
+  --road-green:#17886B;
 }
 
 .game-header{
@@ -443,7 +443,7 @@
 .speed-detail-head .meta{font-size:11.5px;color:var(--ink-faint);font-family:var(--mono);}
 .speed-detail-close{margin-left:auto;}
 .speed-detail-grid{
-  display:grid;gap:12px;grid-template-columns:1.35fr 1fr;grid-template-rows:auto 265px;
+  display:grid;gap:12px;grid-template-columns:1.35fr 1fr;grid-template-rows:auto 285px;
   grid-template-areas:
     "stage bets"
     "tally road";
@@ -502,11 +502,9 @@
    marks in every band keep landing on the ruling instead of drifting a few pixels per band. */
 .sd-road-band{padding-bottom:9px;min-height:0;overflow:hidden;}
 .sd-road-band + .sd-road-band{border-top:1px solid #e4e4e4;padding-top:8px;}
-.sd-road-band:first-child{flex:0 0 auto;}
-.sd-road-band:not(:first-child){flex:1;}
-.sd-road-split{display:flex;}
-.sd-road-split > *{flex:1;min-width:0;padding-right:9px;}
-.sd-road-split > * + *{border-left:1px solid #e4e4e4;padding-left:8px;padding-right:0;}
+/* every band sizes to its own content: stretching them to share the leftover space made the
+   leftover (not a whole square) land inside the offsets and knocked the lower bands off the ruling */
+.sd-road-band{flex:0 0 auto;}
 .sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;padding-bottom:2px;}
 .sd-road .br-col{gap:2px;}
 .sd-road .br-cell{width:16px;height:16px;border-width:2px;}
@@ -517,8 +515,11 @@
    reads as a stray dark smudge above the ring, so give it a light pill here instead. */
 .sd-road .br-tie span{background:#fff;box-shadow:0 0 0 1px #fff;}
 .sd-road .derived-road-grid{overflow-x:auto;}
-/* half the Big Road mark, on half its pitch: two derived marks span one ruled square */
+/* half the Big Road mark, on half its pitch: two derived marks span one ruled square.
+   The column gap has to be re-stated at this depth - `.sd-road .br-col` matches the derived
+   columns too, at equal specificity but later in the file, so it otherwise wins with 2px. */
 .sd-road .derived-road-grid .dr-cell{width:8px;height:8px;}
+.sd-road .derived-road-grid .br-col{gap:1px;}
 /* legend rail: a small key explaining the three marks used on the board (hollow
    ring = Big Road/Big Eye Boy/Small Road, solid dot = Bead Plate, diagonal = tie),
    grouped into a P (blue) pill and a B (red) pill stacked on the right edge. */

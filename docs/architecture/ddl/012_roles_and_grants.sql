@@ -27,8 +27,9 @@ DECLARE
   r TEXT;
 BEGIN
   FOREACH r IN ARRAY ARRAY[
-    'ledger_app', 'ledger_read', 'ledger_kyc',
-    'audit_writer', 'archive_reader', 'ledger_migrator'
+    'ledger_app', 'identity_app', 'ledger_read', 'ledger_kyc',
+    'audit_writer', 'audit_reader', 'audit_anchorer',
+    'archive_reader', 'ledger_migrator'
   ] LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
       EXECUTE format('CREATE ROLE %I NOLOGIN', r);
@@ -37,10 +38,13 @@ BEGIN
 END;
 $$;
 
-COMMENT ON ROLE ledger_app      IS '애플리케이션. op_* 함수 EXECUTE + 조회 SELECT 만. 테이블 DML 없음.';
+COMMENT ON ROLE ledger_app      IS '애플리케이션. op_* 함수 EXECUTE + 조회 SELECT 만. 테이블 DML 없음. step-up 토큰을 발급할 수 없다.';
+COMMENT ON ROLE identity_app    IS 'Identity 서비스 전용. step-up 토큰 발급 · 세션 관리. 자금 op_* 는 하나도 못 부른다.';
 COMMENT ON ROLE ledger_read     IS '리포팅 · 대사 전용. 원장 · 케이지 조회만.';
 COMMENT ON ROLE ledger_kyc      IS 'KYC 열람 전용. 여권 · 사진 참조 컬럼 접근권. 감사 대상.';
 COMMENT ON ROLE audit_writer    IS 'audit 스키마 INSERT 전용. 조회 · 삭제 권한 없음.';
+COMMENT ON ROLE audit_reader    IS '감사 로그 · 체인 앵커 조회 전용. 감사 담당자와 대사 배치에만 부여. INSERT 권한 없음.';
+COMMENT ON ROLE audit_anchorer  IS '해시 체인 앵커 기록 전용. 야간 배치에만 부여. ledger_app 이 상속하지 않는다.';
 COMMENT ON ROLE archive_reader  IS '레거시 아카이브 조회 전용. 이관 담당자에게만 부여.';
 COMMENT ON ROLE ledger_migrator IS '마이그레이션 전용. 평시 사용 금지.';
 
@@ -58,34 +62,40 @@ GRANT USAGE ON SCHEMA ledger, cage, identity TO ledger_app;
 
 -- ---- 자금 연산 (009) --------------------------------------------------------
 GRANT EXECUTE ON FUNCTION
-  ledger.op_deposit(TEXT, BIGINT, identity.auth_method, TEXT,
+  ledger.op_deposit(TEXT, BIGINT, BIGINT, TEXT,
                     ledger.branch_code, TEXT, BIGINT, TEXT, TEXT),
-  ledger.op_withdraw(TEXT, BIGINT, identity.auth_method, TEXT,
+  ledger.op_withdraw(TEXT, BIGINT, BIGINT, TEXT,
                      ledger.branch_code, TEXT, BIGINT, TEXT, TEXT, BIGINT),
-  ledger.op_transfer(TEXT, BIGINT, identity.auth_method, TEXT,
+  ledger.op_transfer(TEXT, BIGINT, BIGINT, TEXT,
                      ledger.branch_code, TEXT, TEXT, BIGINT, TEXT, TEXT),
-  ledger.op_branch_transfer(TEXT, BIGINT, identity.auth_method, TEXT,
+  ledger.op_branch_transfer(TEXT, BIGINT, BIGINT, TEXT,
                             ledger.branch_code, ledger.branch_code, BIGINT,
                             TEXT, TEXT, BIGINT),
-  ledger.op_wallet_transfer(TEXT, BIGINT, identity.auth_method, TEXT,
+  ledger.op_wallet_transfer(TEXT, BIGINT, BIGINT, TEXT,
                             ledger.branch_code, TEXT, TEXT, BIGINT, BOOLEAN, TEXT, TEXT),
-  ledger.op_adjustment(TEXT, BIGINT, identity.auth_method, TEXT,
-                       ledger.branch_code, BIGINT, BIGINT, TEXT, TEXT)
+  ledger.op_adjustment(TEXT, BIGINT, BIGINT, TEXT,
+                       ledger.branch_code, BIGINT, BIGINT, TEXT, TEXT),
+  -- design-review.md DR-01. 이것이 없으면 실사 차액이 난 지점은 영원히 마감되지 않는다.
+  ledger.op_resolve_suspense(TEXT, BIGINT, BIGINT, TEXT,
+                             ledger.branch_code, TEXT, BIGINT, TEXT)
 TO ledger_app;
 
 -- ---- 게임 연산 (010) --------------------------------------------------------
 GRANT EXECUTE ON FUNCTION
-  cage.op_open_game(TEXT, BIGINT, identity.auth_method, TEXT, ledger.branch_code,
+  cage.op_open_game(TEXT, BIGINT, BIGINT, TEXT, ledger.branch_code,
                     TEXT, TEXT, TEXT, TEXT, cage.game_start_type, cage.game_start_kind,
                     BIGINT, BIGINT, TEXT, TEXT),
-  cage.op_add_buyin(TEXT, BIGINT, identity.auth_method, TEXT, TEXT,
+  cage.op_add_buyin(TEXT, BIGINT, BIGINT, TEXT, TEXT,
                     cage.game_start_type, BIGINT, BIGINT, TEXT),
-  cage.op_record_rolling(TEXT, BIGINT, identity.auth_method, TEXT, TEXT, BIGINT),
-  cage.op_settle_game(TEXT, BIGINT, identity.auth_method, TEXT, TEXT,
+  cage.op_record_rolling(TEXT, BIGINT, BIGINT, TEXT, TEXT, BIGINT),
+  cage.op_settle_game(TEXT, BIGINT, BIGINT, TEXT, TEXT,
                       cage.settlement_kind, BIGINT, BIGINT, BIGINT, BIGINT, BIGINT,
                       BIGINT, BIGINT, BIGINT, BIGINT, TEXT),
-  cage.op_cancel_game(TEXT, BIGINT, identity.auth_method, TEXT, TEXT, TEXT),
-  cage.op_main_cage_entry(TEXT, BIGINT, identity.auth_method, TEXT,
+  cage.op_cancel_game(TEXT, BIGINT, BIGINT, TEXT, TEXT, TEXT),
+  -- design-review-6.md DR-66. 롤링 커미션 지급 — 칩 정산과 별개의 자금 이동이다.
+  cage.op_settle_commission(TEXT, BIGINT, BIGINT, TEXT, TEXT,
+                            BIGINT, BIGINT, BIGINT, TEXT),
+  cage.op_main_cage_entry(TEXT, BIGINT, BIGINT, TEXT,
                           ledger.branch_code, cage.main_cage_kind, BIGINT)
 TO ledger_app;
 
@@ -93,15 +103,19 @@ TO ledger_app;
 GRANT EXECUTE ON FUNCTION
   identity.op_request_approval(BIGINT, ledger.branch_code, identity.approval_subject,
                                TEXT, JSONB, SMALLINT, INTERVAL),
-  identity.op_cast_vote(BIGINT, BIGINT, identity.approval_decision, identity.auth_method),
+  identity.op_cast_vote(BIGINT, BIGINT, identity.approval_decision, BIGINT, TEXT),
   identity.op_shift_event(BIGINT, ledger.branch_code, identity.shift_action),
-  cage.op_record_balancing(TEXT, BIGINT, identity.auth_method, TEXT, ledger.branch_code,
+  cage.op_record_balancing(TEXT, BIGINT, BIGINT, TEXT, ledger.branch_code,
                            cage.count_kind, JSONB, BIGINT, BIGINT, BIGINT, BIGINT, TEXT),
-  ledger.op_freeze_period(TEXT, BIGINT, identity.auth_method, TEXT,
+  ledger.op_freeze_period(TEXT, BIGINT, BIGINT, TEXT,
                           ledger.branch_code, DATE, BIGINT),
-  ledger.op_settle_period(TEXT, BIGINT, identity.auth_method, TEXT,
+  ledger.op_settle_period(TEXT, BIGINT, BIGINT, TEXT,
                           ledger.branch_code, DATE, BIGINT),
-  ledger.op_open_account(TEXT, BIGINT, ledger.branch_code, TEXT, TEXT, JSONB, TEXT)
+  ledger.op_open_account(TEXT, BIGINT, ledger.branch_code, TEXT, TEXT, JSONB, TEXT),
+  -- design-review-4.md DR-50. 008 의 reverse_transaction 자체는 계속 비부여다.
+  -- 부여 대상은 011 의 래퍼뿐이고, 그 래퍼가 인가 · 승인 · 멱등을 강제한다.
+  ledger.op_reverse_transaction(TEXT, BIGINT, BIGINT, TEXT,
+                                UUID, BIGINT, TEXT)
 TO ledger_app;
 
 -- ---- 조회 헬퍼 --------------------------------------------------------------
@@ -120,9 +134,13 @@ TO ledger_app;
 GRANT SELECT ON
   ledger.transactions, ledger.entries, ledger.accounts, ledger.parties,
   ledger.account_balances, ledger.accounting_periods, ledger.currencies,
-  ledger.posting_rules, ledger.partner_profiles,
+  -- chain_policy 는 004 의 assert_transaction_sealed 지연 트리거가 커밋 시점에
+  -- 읽는다. 지연 트리거는 세션 컨텍스트로 실행되므로 ledger_app 이 SELECT 를
+  -- 가져야 한다 (design-review.md DR-05).
+  ledger.posting_rules, ledger.chain_policy, ledger.partner_profiles,
   ledger.v_account_balances, ledger.v_transaction_detail,
   cage.games, cage.rolling_events, cage.game_settlements,
+  cage.commission_settlements,
   cage.main_cage_events, cage.chip_inventory_events, cage.balancing_counts
 TO ledger_app;
 
@@ -180,14 +198,74 @@ GRANT  SELECT (party_id, member_no, vip, agent_code, rolling_rate,
   ON ledger.member_profiles TO ledger_read;
 
 -- =============================================================================
+-- identity_app — step-up 토큰 발급 전용 (design-review.md DR-03)
+-- =============================================================================
+-- **이 역할 분리가 DR-03 대책의 핵심이다.** 한 역할이 발급과 소비를 모두 할 수
+-- 있으면 원래 문제로 돌아간다 — 앱이 재인증 사실을 스스로 만들어 낼 수 있게 된다.
+--
+--   identity_app  PIN · TOTP · 출금비밀번호를 실제로 검증한 뒤 토큰 행을 만든다.
+--                 자금 op_* 는 하나도 부를 수 없다.
+--   ledger_app    토큰을 **소비만** 한다 (op_* 안에서 consume_step_up 경유).
+--                 step_up_tokens 에 INSERT 권한이 없다.
+--
+-- 배포상 두 서비스가 서로 다른 DB 자격증명으로 접속해야 한다는 뜻이다.
+-- 같은 자격증명을 쓰면 이 분리가 무의미해진다.
+GRANT USAGE  ON SCHEMA identity TO identity_app;
+GRANT INSERT ON identity.step_up_tokens TO identity_app;
+GRANT USAGE  ON ALL SEQUENCES IN SCHEMA identity TO identity_app;
+GRANT SELECT (id, external_id, code, name, status, locked_until,
+              pin_hash, withdraw_pw_hash, totp_secret_enc)
+  ON identity.staff TO identity_app;
+-- 소비 · 수정 권한은 주지 않는다. 발급한 토큰을 발급자가 되돌릴 수 없다.
+
+-- ledger_app 은 토큰을 소비만 한다. consume_step_up 은 SECURITY DEFINER 가 아니라
+-- op_* (SECURITY DEFINER) 안에서만 불리므로 소유자 권한으로 UPDATE 가 통과한다.
+-- ledger_app 에게 step_up_tokens 의 INSERT · UPDATE · SELECT 는 주지 않는다.
+
+-- =============================================================================
 -- audit_writer — 삽입 전용
 -- =============================================================================
 GRANT USAGE  ON SCHEMA audit TO audit_writer;
-GRANT INSERT ON audit.access_log, audit.chain_anchors TO audit_writer;
+GRANT INSERT ON audit.access_log TO audit_writer;
 GRANT USAGE  ON ALL SEQUENCES IN SCHEMA audit TO audit_writer;
 -- SELECT · UPDATE · DELETE 를 주지 않는다. 앱은 감사 로그를 읽거나 지울 수 없다.
+--
+-- chain_anchors 는 이 역할에서 뺐다 (design-review-2.md DR-26).
+-- 역할 상속 기본값이 INHERIT 이므로 audit_writer 에 앵커 INSERT 가 있으면
+-- ledger_app 이 그것을 물려받는다. 침해된 앱 자격증명 하나로 거래 위조와
+-- 앵커 기록을 함께 만들 수 있다면 외부 앵커의 독립성이 성립하지 않는다.
+-- 앵커는 아래 audit_anchorer 전용이다.
 
 GRANT audit_writer TO ledger_app;
+
+-- =============================================================================
+-- audit_anchorer — 해시 체인 앵커 기록 전용 (design-review-2.md DR-26)
+-- =============================================================================
+-- 야간 배치에만 부여한다. 애플리케이션 서비스 계정에는 주지 않는다.
+-- 이 역할은 ledger_app 이 상속하지 않는다 — 그것이 이 역할이 존재하는 이유다.
+GRANT USAGE  ON SCHEMA audit TO audit_anchorer;
+GRANT INSERT ON audit.chain_anchors, audit.merkle_anchors TO audit_anchorer;
+GRANT USAGE  ON ALL SEQUENCES IN SCHEMA audit TO audit_anchorer;
+-- 앵커를 읽으려면 audit_reader 가 따로 필요하다. 쓰기와 읽기를 분리한다.
+
+-- =============================================================================
+-- audit_reader — 조회 전용 (design-review-2.md DR-25)
+-- =============================================================================
+-- 이 역할이 없던 동안 audit 스키마에 USAGE 를 가진 역할은 audit_writer 하나였고
+-- 그 역할은 INSERT 만 가졌다. 즉 access_log 와 chain_anchors 를 **슈퍼유저 외에는
+-- 아무도 읽을 수 없었다** — 감사 추적을 만들어 놓고 감사관에게 주지 않은 상태였다.
+-- 사건 조사에 슈퍼유저 자격증명을 꺼내야 했고, 그건 정확히 감사가 감시해야 할 대상이다.
+--
+-- ledger_read 에 합치지 않는다. 리포팅 서비스는 상시 접속하고, 감사 로그에는
+-- 인증 시도와 KYC 열람 기록이 들어간다. 두 접근을 같은 자격증명으로 묶으면
+-- 감사 로그 조회 자체가 감사되지 않는다.
+--
+-- 002 의 RBAC 역할 'auditor' (애플리케이션 권한)와는 다른 층이다.
+-- 관계는 06-security.md 에 명시한다.
+GRANT USAGE  ON SCHEMA audit TO audit_reader;
+GRANT SELECT ON audit.access_log, audit.chain_anchors, audit.merkle_anchors TO audit_reader;
+-- INSERT · UPDATE · DELETE 는 주지 않는다. 읽기와 쓰기를 분리한다.
+-- ledger_app 에는 이 역할을 주지 않는다 (audit_writer 와 달리 GRANT ... TO ledger_app 없음).
 
 -- =============================================================================
 -- archive_reader · ledger_migrator
@@ -199,6 +277,17 @@ GRANT INSERT, SELECT  ON ALL TABLES    IN SCHEMA archive TO ledger_migrator;
 GRANT USAGE           ON ALL SEQUENCES IN SCHEMA archive TO ledger_migrator;
 GRANT EXECUTE ON FUNCTION archive.scrub_secrets() TO ledger_migrator;
 
+-- 개시 잔액 적재 (design-review-3.md DR-38).
+-- **ledger_app 에는 주지 않는다.** 이 함수는 임의 금액을 무에서 만들 수 있다.
+-- 상시 접속하는 앱이 가지면 그 자체가 화폐 발행 API 이므로, 컷오버 기간에만
+-- 쓰는 ledger_migrator 전용으로 둔다. 07-migration.md 가 실행 절차를 정한다.
+GRANT USAGE ON SCHEMA ledger, identity TO ledger_migrator;
+GRANT EXECUTE ON FUNCTION
+  ledger.op_load_opening_balance(TEXT, BIGINT, TEXT, ledger.branch_code, JSONB, TEXT),
+  ledger.account_id_of(TEXT, ledger.account_kind, TEXT)
+TO ledger_migrator;
+GRANT SELECT ON ledger.accounts, ledger.parties TO ledger_migrator;
+
 -- =============================================================================
 -- 향후 생성 객체 기본 권한
 -- =============================================================================
@@ -207,6 +296,12 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA ledger, cage, identity, archive
   REVOKE ALL ON FUNCTIONS FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES IN SCHEMA ledger, cage
   GRANT SELECT ON TABLES TO ledger_read;
+-- audit 스키마에 테이블이 하나 늘 때마다 두 역할을 다시 챙기지 않아도 되게 한다
+-- (design-review-2.md DR-25 가 정확히 그 누락이었다).
+ALTER DEFAULT PRIVILEGES IN SCHEMA audit
+  GRANT SELECT ON TABLES TO audit_reader;
+ALTER DEFAULT PRIVILEGES IN SCHEMA audit
+  GRANT INSERT ON TABLES TO audit_writer;
 
 -- =============================================================================
 -- Row Level Security — 지점 스코프
@@ -310,8 +405,14 @@ END;
 $$;
 
 -- 게임 경유 테이블: 게임의 지점을 따른다
-ALTER TABLE cage.rolling_events   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cage.game_settlements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cage.rolling_events         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cage.game_settlements       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cage.commission_settlements ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY app_branch_scope ON cage.commission_settlements FOR SELECT TO ledger_app
+  USING (EXISTS (SELECT 1 FROM cage.games g
+                  WHERE g.id = game_id AND g.branch = ANY (ledger.current_branches())));
+CREATE POLICY read_all ON cage.commission_settlements FOR SELECT TO ledger_read USING (TRUE);
 
 CREATE POLICY app_branch_scope ON cage.rolling_events FOR SELECT TO ledger_app
   USING (EXISTS (SELECT 1 FROM cage.games g

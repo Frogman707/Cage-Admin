@@ -82,6 +82,8 @@ BEGIN
     WHEN 'promo_expense'         THEN 'debit'
     WHEN 'commission_expense'    THEN 'debit'
     WHEN 'suspense'              THEN 'debit'
+    WHEN 'shortage_expense'      THEN 'debit'
+    WHEN 'overage_income'        THEN 'credit'
   END::ledger.normal_balance;
 
   -- 001 의 ENUM 에 값을 추가하고 이 CASE 를 빠뜨리면 v_expected 가 NULL 이 되고,
@@ -287,10 +289,12 @@ BEGIN
 
     FOREACH v_kind IN ARRAY ARRAY[
       'house_cash','marker_receivable','tips_dealer','tips_house',
-      'promo_expense','commission_expense','suspense','house_gaming'
+      'promo_expense','commission_expense','suspense','house_gaming',
+      -- 실사 차액 종착지 (design-review.md DR-01). 지점별로 있어야 한다.
+      'shortage_expense','overage_income'
     ]::ledger.account_kind[] LOOP
       v_normal := CASE WHEN v_kind IN ('house_cash','marker_receivable','promo_expense',
-                                       'commission_expense','suspense')
+                                       'commission_expense','suspense','shortage_expense')
                        THEN 'debit' ELSE 'credit' END::ledger.normal_balance;
       v_negok  := v_kind IN ('suspense','house_gaming','promo_expense');
 

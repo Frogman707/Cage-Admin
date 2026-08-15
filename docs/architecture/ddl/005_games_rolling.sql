@@ -28,7 +28,20 @@ CREATE TABLE cage.games (
 
   table_code          TEXT,
   currency            TEXT NOT NULL REFERENCES ledger.currencies(code),
-  bet_type            TEXT,                                        -- 현행 type
+
+  -- 표시용 라벨이다. 현행 games.type 은 "Rolling 1.45%" 같은 문자열이고
+  -- 정산 화면이 여기서 정규식으로 요율을 뽑아 썼다 (design-review-9.md DR-84).
+  -- 이 컬럼을 파싱해 금액을 계산하는 코드는 만들지 않는다. 요율의 권위는
+  -- 아래 commission_rate_bp 다.
+  bet_type            TEXT,
+
+  -- 롤링 커미션 요율 스냅샷. 게임 개설 시점의 계좌 요율을 bp(1/100 %)로
+  -- 고정한다 — 145 = 1.45%. 계좌 요율이 나중에 바뀌어도 이미 시작한 게임의
+  -- 정산 근거는 흔들리지 않는다 (design-review-8.md DR-77 의 bp 규약).
+  -- NULL 은 "이 게임에 요율이 정해지지 않았다" 는 뜻이고, 그 상태에서는
+  -- op_settle_commission 이 자동 산출을 하지 않는다.
+  commission_rate_bp  INT CHECK (commission_rate_bp BETWEEN 0 AND 10000),
+
   start_type          cage.game_start_type NOT NULL,
   start_kind          cage.game_start_kind NOT NULL,
 
@@ -213,6 +226,109 @@ CREATE TRIGGER game_settlements_immutable
 
 COMMENT ON COLUMN cage.game_settlements.rolling_delta_minor IS
   '현행 index.html:7237 공식 그대로. 생성 열이라 코드가 다시 계산하지 않는다.';
+
+-- -----------------------------------------------------------------------------
+-- 롤링 커미션 정산 (design-review-6.md DR-66)
+-- -----------------------------------------------------------------------------
+-- 위 game_settlements 와 다른 조작이다. 저쪽은 칩을 회수하고, 이쪽은 손님에게
+-- 롤링 커미션을 **지급한다.** 현행 _doSettleGame(index.html:7218-7267) 이 매 정산마다
+-- 실제 돈을 계좌로 넣는데 01·04·05·DDL 어디에도 서술이 없었다.
+-- 현행 DB.settled 레코드({gameId, account, branch, dt, buyin, cashout, winLoss,
+-- rolling, commission, fb, result, staff}) 가 이 테이블의 원형이다.
+--
+-- 한 게임에 여러 번 지급할 수 있다 (현행도 진행 중 게임을 반복 정산할 수 있다).
+-- 위험한 것은 "두 번" 이 아니라 "같은 롤링에 두 번" 이므로, 아래 트리거가
+-- 게임별 rolling_base_minor 합이 games.rolling_total_minor 를 넘지 못하게 막는다.
+CREATE TABLE cage.commission_settlements (
+  id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  external_id         UUID NOT NULL DEFAULT uuidv7() UNIQUE,
+  game_id             BIGINT NOT NULL REFERENCES cage.games,
+  seq                 INT NOT NULL,
+
+  -- 순지급액이 0이면 원장 거래를 만들지 않는다 (entries_amount_nonzero).
+  -- 그래도 정산 이력은 남긴다 — "정산했고 지급액이 0이었다" 와 "정산한 적 없다" 는
+  -- 다른 사실이다. 현행은 result<=0 이면 아무 기록도 남기지 않았다.
+  transaction_id      BIGINT REFERENCES ledger.transactions,
+
+  -- 이번 정산이 대상으로 삼은 롤링 구간
+  rolling_base_minor  BIGINT NOT NULL CHECK (rolling_base_minor >= 0),
+
+  -- 산출 근거. games.commission_rate_bp 스냅샷을 다시 복사한다 —
+  -- 게임 행이 나중에 어떻게 되든 이 정산의 근거는 이 행 안에서 닫힌다.
+  commission_rate_bp  INT NOT NULL CHECK (commission_rate_bp BETWEEN 0 AND 10000),
+
+  -- 총커미션. 운영자가 산출값을 덮어쓸 수 있으므로(현행 스펙) 별도 컬럼이다.
+  -- rate_overridden 이 참이면 rate_bp 와 금액이 일치하지 않는다는 뜻이고,
+  -- 그 자체가 감사 대상 사실이다.
+  commission_minor    BIGINT NOT NULL CHECK (commission_minor >= 0),
+  rate_overridden     BOOLEAN NOT NULL DEFAULT FALSE,
+
+  fb_deduction_minor  BIGINT NOT NULL DEFAULT 0 CHECK (fb_deduction_minor >= 0),
+  payout_minor        BIGINT NOT NULL CHECK (payout_minor >= 0),
+
+  staff_id            BIGINT NOT NULL REFERENCES identity.staff,
+  business_date       DATE NOT NULL,
+  recorded_at         TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+
+  UNIQUE (game_id, seq),
+
+  -- 커미션은 롤링을 넘지 못한다. 현행 Share 40% 프리셋이 롤링의 40%를 커미션으로
+  -- 프리필하던 사고(design-review-9.md DR-84)는 이 제약만으로는 안 막히지만,
+  -- 자릿수 단위 오지급은 여기서 걸린다.
+  CONSTRAINT commission_within_rolling CHECK (commission_minor <= rolling_base_minor),
+
+  -- F&B 차감은 커미션을 넘지 못한다. 현행은 넘으면 result<=0 이 되어 조용히
+  -- 아무것도 하지 않았다 — 차감분이 어디로 갔는지 기록이 남지 않았다.
+  CONSTRAINT commission_payout_arith CHECK (payout_minor = commission_minor - fb_deduction_minor)
+);
+
+CREATE INDEX commission_settlements_game_idx
+  ON cage.commission_settlements (game_id, seq);
+CREATE INDEX commission_settlements_date_idx
+  ON cage.commission_settlements (business_date, game_id);
+
+CREATE TRIGGER commission_settlements_immutable
+  BEFORE UPDATE OR DELETE ON cage.commission_settlements
+  FOR EACH ROW EXECUTE FUNCTION ledger.deny_mutation();
+
+-- 같은 롤링에 두 번 커미션을 주지 못한다.
+CREATE FUNCTION cage.assert_commission_base_available() RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = cage, pg_temp
+AS $$
+DECLARE
+  v_rolling_total BIGINT;
+  v_already       BIGINT;
+BEGIN
+  -- op_settle_commission 이 이미 games 행을 FOR UPDATE 로 잠근 뒤에 들어온다.
+  -- 그 잠금이 이 검사를 check-then-act 가 아니게 만든다. 잠금 없이 이 테이블에
+  -- 직접 쓰는 경로는 012 가 막는다 (ledger_app 은 INSERT 권한이 없다).
+  SELECT g.rolling_total_minor INTO v_rolling_total
+    FROM cage.games g WHERE g.id = NEW.game_id;
+
+  SELECT COALESCE(sum(cs.rolling_base_minor), 0) INTO v_already
+    FROM cage.commission_settlements cs WHERE cs.game_id = NEW.game_id;
+
+  IF v_already + NEW.rolling_base_minor > v_rolling_total THEN
+    RAISE EXCEPTION
+      'commission base % exceeds unsettled rolling (total %, already settled %)',
+      NEW.rolling_base_minor, v_rolling_total, v_already
+      USING ERRCODE = 'object_not_in_prerequisite_state',
+            HINT = '이미 커미션을 지급한 롤링에 다시 지급하려 한다';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER commission_settlements_base_available
+  BEFORE INSERT ON cage.commission_settlements
+  FOR EACH ROW EXECUTE FUNCTION cage.assert_commission_base_available();
+
+COMMENT ON TABLE cage.commission_settlements IS
+  '롤링 커미션 지급 이력. 현행 DB.settled(localStorage) 의 목표 대응. design-review-6.md DR-66.';
+COMMENT ON COLUMN cage.commission_settlements.rolling_base_minor IS
+  '이번 지급이 소진한 롤링. 게임별 합이 games.rolling_total_minor 를 넘을 수 없다.';
 
 -- -----------------------------------------------------------------------------
 -- 게임 종료 불변식 — chips_outstanding 잔액 = 0

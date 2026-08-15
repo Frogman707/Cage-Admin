@@ -63,6 +63,11 @@ CREATE TYPE ledger.account_kind AS ENUM (
   'promo_expense',      -- debit   워킹칩 · 포인트 적립 등 프로모션 비용
   'commission_expense', -- debit   파트너 쉐어 · 롤링 커미션 비용
   'suspense',           -- debit   밸런싱 차액 임시계정 (allow_negative)
+  -- 실사 차액의 **종착지**. 이 둘이 없어서 suspense 를 0으로 되돌릴 방법이 없었고,
+  -- 차액이 한 번 나면 그 지점은 영원히 마감되지 않았다 (design-review.md DR-01).
+  -- op_adjustment 를 다시 불러도 house_cash <-> suspense 를 왕복할 뿐이었다.
+  'shortage_expense',   -- debit   실사 부족분 확정 손실 (하우스 부담)
+  'overage_income',     -- credit  실사 과잉분 확정 이익
   'opening_equity'      -- credit  마이그레이션 개시 균형 계정
 );
 
@@ -72,6 +77,22 @@ CREATE TYPE ledger.account_status AS ENUM ('active', 'suspended', 'closed');
 -- 거래 · 분개
 -- -----------------------------------------------------------------------------
 -- 각 값이 04-posting-rules.md 의 절 하나에 대응한다.
+-- ⚠️ 선언 ≠ 실행 경로 (design-review-3.md DR-38).
+-- ADR-013 때문에 op_* 함수가 없는 tx_kind 는 애플리케이션이 기록할 방법이 없다.
+-- 아래 값 중 **아직 op 함수가 없는 것**을 여기 명시한다. 다음 사람이 "선언돼 있으니
+-- 구현됐다" 고 읽는 것이 이 결함의 발생 원인 그 자체였다.
+--
+--   bet · payout             플레이어 도메인. 00-system-map.md §8 A1·A2 보류 중
+--                            (아바타/스피드 개선이 진행 중이라 스키마가 흔들린다)
+--   point_earn · point_convert  같은 이유로 보류 + design-review-6.md DR-68
+--                            (케이지 포인트를 흡수/분리/폐기 중 무엇으로 할지 미결정)
+--   share_accrue · share_settle 파트너 쉐어. 현행 구현이 없어 (a) op 추가와
+--                            (c) 타입 삭제 사이 결정이 남아 있다
+--
+-- 해소된 것: opening_balance (ledger.op_load_opening_balance, 011),
+--            commission_payout (cage.op_settle_commission, 010).
+-- 013 의 v_check_view_security 처럼 이 공백을 자동 검출하는 대사는 아직 없다 —
+-- DR-38 의 검증 쿼리(pg_proc.prosrc LIKE) 를 CI 에 넣는 것이 남은 일이다.
 CREATE TYPE ledger.tx_kind AS ENUM (
   'deposit',           -- §1   _doProcessIo IN
   'withdraw',          -- §2   _doProcessIo OUT
@@ -82,6 +103,7 @@ CREATE TYPE ledger.tx_kind AS ENUM (
   'game_end',          -- §8   _doConfirmGameEnd
   'game_cancel',       -- §9   cancelGame (역분개)
   'adjustment',        -- §11  밸런싱 차액
+  'suspense_resolve',  -- §11-2 차액 확정 해소 (design-review.md DR-01)
   'wallet_transfer',   -- §12  케이지 계좌 <-> 회원 보유금
   'bet',               -- §13
   'payout',            -- §13
@@ -89,6 +111,7 @@ CREATE TYPE ledger.tx_kind AS ENUM (
   'point_convert',     -- §13-2  포인트 -> 보유금 전환
   'share_accrue',      -- §13-3  파트너 쉐어 적립
   'share_settle',      -- §13-3  파트너 쉐어 지급
+  'commission_payout', -- §6-1  롤링 커미션 정산 지급 (design-review-6.md DR-66)
   'opening_balance',   -- §14  마이그레이션 전용
   'reversal'           -- 일반 역분개
 );
@@ -106,7 +129,9 @@ CREATE TYPE ledger.entry_category AS ENUM (
   'bet',                   'payout',
   'point_earn',            'point_convert_out',     'point_convert_in',
   'share_accrue',          'share_settle',
-  'adjustment',            'reversal',              'opening_balance'
+  'commission_payout',
+  'adjustment',            'suspense_resolve_out',  'suspense_resolve_in',
+  'reversal',              'opening_balance'
 );
 
 -- -----------------------------------------------------------------------------
@@ -136,8 +161,15 @@ CREATE TYPE identity.principal_type AS ENUM (
   'partner_operator'   -- 파트너 콘솔 운영자. partner_party_id 계층으로 스코프
 );
 
+-- 'reversal' 은 design-review-4.md DR-50 에서 추가됐다. 역분개는 금액과 무관하게
+-- 항상 4-eyes 이므로 branch_config 임계 검사를 거치지 않고 op_reverse_transaction 이
+-- 직접 consume_approval 을 부른다 (011).
+--
+-- 'account_status' 는 여전히 발동하는 조작이 없다 — design-review-9.md DR-83.
+-- 계좌 상태를 바꾸는 op 함수가 만들어질 때 함께 해소된다.
 CREATE TYPE identity.approval_subject AS ENUM (
-  'withdrawal', 'adjustment', 'period_settle', 'account_status'
+  'withdrawal', 'adjustment', 'period_settle', 'account_status', 'reversal',
+  'suspense_resolve'   -- 실사 차액 확정 (design-review.md DR-01). 금액 무관 4-eyes
 );
 CREATE TYPE identity.approval_status   AS ENUM ('pending', 'approved', 'rejected', 'expired');
 CREATE TYPE identity.approval_decision AS ENUM ('approve', 'reject');
@@ -199,14 +231,27 @@ CREATE TABLE ledger.branch_config (
   cutoff_time  TIME NOT NULL DEFAULT '06:00',
 
   -- 이 금액 이상의 출금 · 지점이체는 4-eyes 승인이 없으면 거부된다.
-  -- NULL 이면 임계 없음. 009 의 require_approval_if_over_threshold() 가 읽는다.
+  -- 009 의 require_approval_if_over_threshold() 가 읽는다.
   -- 05-api-contract.md §6-2 의 "임계 금액 초과 → approval" 이 여기서 실체를 갖는다.
-  approval_threshold_minor BIGINT CHECK (approval_threshold_minor > 0),
+  --
+  -- NOT NULL 이고 기본값도 없다 (design-review-3.md DR-39). 지점을 만들 때
+  -- 임계를 반드시 정하게 한다. 예전에는 NULL 허용 + 시드 미지정이어서 신규 설치가
+  -- "임계 없음" 상태로 출발했고, 그 상태에서는 금액이 얼마든 승인 없이 통과했다.
+  -- 오류도 로그도 없이 4-eyes 통제 전체가 비활성이었다.
+  --
+  -- 임계를 실제로 끄려는 지점은 9223372036854775807 (BIGINT 최댓값) 을 넣는다.
+  -- "끄기로 했다" 가 데이터로 남는다. 침묵으로는 못 끈다.
+  approval_threshold_minor BIGINT NOT NULL CHECK (approval_threshold_minor > 0),
 
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
 
-INSERT INTO ledger.branch_config (branch) VALUES ('HANN'), ('NUSTAR'), ('ONLINE');
+-- 아래 세 값은 **잠정값이다.** 운영이 확정하기 전까지의 자리 표시자이며,
+-- 확정 시 이 시드와 07-migration.md 의 컷오버 체크리스트를 함께 고친다.
+INSERT INTO ledger.branch_config (branch, approval_threshold_minor) VALUES
+  ('HANN',   50000000),   -- ₱500,000.00  (잠정)
+  ('NUSTAR', 50000000),   -- ₱500,000.00  (잠정)
+  ('ONLINE', 20000000);   -- ₱200,000.00  (잠정)
 
 -- 컷오프 이전 시각은 전일 영업일로 귀속한다.
 CREATE FUNCTION ledger.business_date_of(p_branch ledger.branch_code, p_ts TIMESTAMPTZ)

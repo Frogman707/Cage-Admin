@@ -64,13 +64,17 @@ CREATE FUNCTION identity.op_cast_vote(
   p_actor_staff_id BIGINT,
   p_approval_id    BIGINT,
   p_decision       identity.approval_decision,
-  p_auth_method    identity.auth_method
+  -- design-review.md DR-03. 토큰은 단말에 묶인다 — consume_step_up 이 device_id 를
+  -- 대조하므로 이 함수도 단말을 받아야 한다.
+  p_step_up_id     BIGINT,
+  p_device_id      TEXT
 ) RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = identity, ledger, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_a       identity.approvals;
   v_approve INT;
 BEGIN
@@ -80,6 +84,8 @@ BEGIN
   END IF;
 
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, v_a.branch, 'approval.vote');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'approval.vote');
 
   IF v_a.status <> 'pending' THEN
     RAISE EXCEPTION 'approval % is %', p_approval_id, v_a.status
@@ -94,13 +100,13 @@ BEGIN
   END IF;
 
   -- 재인증 없이 승인할 수 없다
-  IF p_auth_method NOT IN ('pin', 'totp', 'withdraw_pw') THEN
-    RAISE EXCEPTION 'approval vote requires re-authentication, got %', p_auth_method
+  IF v_auth NOT IN ('pin', 'totp', 'withdraw_pw') THEN
+    RAISE EXCEPTION 'approval vote requires re-authentication, got %', v_auth
       USING ERRCODE = 'insufficient_privilege', HINT = 'step-up-required';
   END IF;
 
   INSERT INTO identity.approval_votes (approval_id, staff_id, decision, auth_method)
-  VALUES (p_approval_id, p_actor_staff_id, p_decision, p_auth_method);
+  VALUES (p_approval_id, p_actor_staff_id, p_decision, v_auth);
 
   IF p_decision = 'reject' THEN
     UPDATE identity.approvals SET status = 'rejected', resolved_at = clock_timestamp()
@@ -130,7 +136,7 @@ $$;
 CREATE FUNCTION cage.op_record_balancing(
   p_idempotency_key     TEXT,
   p_actor_staff_id      BIGINT,
-  p_auth_method         identity.auth_method,
+  p_step_up_id          BIGINT,
   p_device_id           TEXT,
   p_branch              ledger.branch_code,
   p_count_kind          cage.count_kind,
@@ -146,6 +152,7 @@ SECURITY DEFINER
 SET search_path = cage, ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object(
                     'branch', p_branch, 'count_kind', p_count_kind,
                     'counted_total_minor', p_counted_total_minor,
@@ -163,6 +170,8 @@ BEGIN
   IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
 
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'balancing.count');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'balancing.count');
   v_bdate := ledger.business_date_of(p_branch, clock_timestamp());
 
   IF p_counted_total_minor < 0 THEN
@@ -183,7 +192,7 @@ BEGIN
 
     v_tx := ledger.post_transaction(
       p_idempotency_key || ':adj', 'adjustment', p_branch,
-      p_actor_staff_id, p_auth_method, p_device_id,
+      p_actor_staff_id, v_auth, p_device_id,
       jsonb_build_array(
         jsonb_build_object('account_id',
           ledger.house_account_id(p_branch, 'house_cash', p_currency),
@@ -236,7 +245,7 @@ COMMENT ON FUNCTION cage.op_record_balancing IS
 CREATE FUNCTION ledger.op_freeze_period(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_auth_method     identity.auth_method,
+  p_step_up_id      BIGINT,
   p_device_id       TEXT,
   p_branch          ledger.branch_code,
   p_business_date   DATE,
@@ -247,10 +256,10 @@ SECURITY DEFINER
 SET search_path = ledger, cage, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object('branch', p_branch, 'business_date', p_business_date);
   v_idem       ledger.idem_result;
   v_status     ledger.period_status;
-  v_open_games INT;
   v_suspense   BIGINT;
   v_unsealed   INT;
   v_body       JSONB;
@@ -260,6 +269,8 @@ BEGIN
   IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
 
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'period.freeze');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'period.freeze');
 
   IF p_approval_id IS NOT NULL THEN
     PERFORM identity.consume_approval(p_approval_id, 'period_settle', p_branch, v_args);
@@ -280,20 +291,30 @@ BEGIN
       USING ERRCODE = 'object_not_in_prerequisite_state';
   END IF;
 
-  -- 진행 중 게임이 있으면 마감할 수 없다
-  SELECT count(*) INTO v_open_games
-    FROM cage.games
-   WHERE branch = p_branch AND business_date = p_business_date AND status = 'ongoing';
-  IF v_open_games > 0 THEN
-    RAISE EXCEPTION 'cannot freeze %/%: % ongoing game(s)',
-      p_branch, p_business_date, v_open_games
-      USING ERRCODE = 'object_not_in_prerequisite_state';
-  END IF;
+  -- 진행 중 게임 검사는 **제거했다** (design-review.md DR-02).
+  --
+  -- cage.games.business_date 는 개설 시점에 확정된다. 카지노에서 게임이 영업일
+  -- 경계를 넘는 것은 예외가 아니라 정상 운영이고, 게임 종료는 chips_outstanding = 0
+  -- 을 요구하므로(005) 손님이 칩을 들고 있으면 끝낼 수도 없다. 그 결과 새벽에 시작한
+  -- VIP 세션 하나가 그 영업일을 영구히 동결 불가로 만들었고, op_settle_period 가
+  -- frozen 을 전제하므로 월정산까지 연쇄로 막혔다.
+  --
+  -- 동결이 보장해야 하는 것은 "이 영업일에 새 거래가 들어오지 않는다" 이지
+  -- "이 영업일에 시작한 모든 활동이 끝났다" 가 아니다. 게임 정산 거래는 이미
+  -- **정산 시점의** 영업일로 귀속된다 (008 이 business_date_of(clock_timestamp())
+  -- 를 쓴다). 진행 중 게임의 미래 거래는 미래 기간으로 간다.
+  --
+  -- 받아들이는 것: 한 게임의 정산 이력이 여러 기간에 걸칠 수 있다.
+  -- 005 의 game_settlements 가 이미 그렇게 설계돼 있어 모순이 없다.
+  -- games.business_date 는 통계 · 조회용으로 남고 마감 판정에서 빠진다.
 
   -- 봉인되지 않은 거래가 있으면 마감할 수 없다 (있어서는 안 되는 상태)
+  -- **체인 대상만 본다** (design-review.md DR-05). bet · payout 은 hash 가 NULL 인
+  -- 것이 정상이므로, 필터가 없으면 온라인 지점이 영구히 마감 불가가 된다.
   SELECT count(*) INTO v_unsealed
-    FROM ledger.transactions
-   WHERE branch = p_branch AND business_date = p_business_date AND hash IS NULL;
+    FROM ledger.transactions t
+    JOIN ledger.chain_policy cp ON cp.kind = t.kind AND cp.chained
+   WHERE t.branch = p_branch AND t.business_date = p_business_date AND t.hash IS NULL;
   IF v_unsealed > 0 THEN
     RAISE EXCEPTION 'cannot freeze %/%: % unsealed transaction(s)',
       p_branch, p_business_date, v_unsealed
@@ -333,7 +354,7 @@ COMMENT ON FUNCTION ledger.op_freeze_period IS
 CREATE FUNCTION ledger.op_settle_period(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_auth_method     identity.auth_method,
+  p_step_up_id      BIGINT,
   p_device_id       TEXT,
   p_branch          ledger.branch_code,
   p_business_date   DATE,
@@ -344,6 +365,7 @@ SECURITY DEFINER
 SET search_path = ledger, cage, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object('branch', p_branch, 'business_date', p_business_date);
   v_idem   ledger.idem_result;
   v_status ledger.period_status;
@@ -354,6 +376,8 @@ BEGIN
   IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
 
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'period.settle');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'period.settle');
 
   IF p_approval_id IS NULL THEN
     RAISE EXCEPTION 'period settlement always requires a 4-eyes approval'
@@ -477,5 +501,160 @@ $$;
 
 COMMENT ON FUNCTION ledger.op_open_account IS
   'KYC 사진 · 여권번호는 이 경로로 받지 않는다. 암호화 · 객체스토리지 업로드를 거친 뒤 별도 갱신한다.';
+
+-- =============================================================================
+-- 6. 역분개 — 정정의 유일한 경로 (design-review-4.md DR-50)
+-- =============================================================================
+-- ledger.reverse_transaction() 은 008:511 에 온전히 구현돼 있었지만 008 은 내부
+-- 전용이고 012 의 GRANT 목록에 없었다. 그래서 잘못 입력한 입금 · 출금 · 계좌이체 ·
+-- 지점이체 · 지갑이체를 되돌릴 수단이 애플리케이션에 하나도 없었다.
+-- DELETE 는 004:433 이, UPDATE 는 004:437 이 막고, 004:439 의 오류 메시지는
+-- "정정은 역분개로만 가능하다" 고 지시하는데 그 역분개에 권한이 없었다.
+--
+-- 유일한 예외적 호출자였던 cage.op_cancel_game 은 해당 게임의 칩 계정을 건드린
+-- 거래만 되돌린다. 그 밖의 거래에는 경로가 없었다.
+--
+-- 이 래퍼는 원 거래를 external_id (UUID) 로 지목한다. 내부 BIGINT id 를 API 표면에
+-- 노출하지 않기 위해서다 — 05 의 다른 엔드포인트와 같은 규약이다.
+CREATE FUNCTION ledger.op_reverse_transaction(
+  p_idempotency_key TEXT,
+  p_actor_staff_id  BIGINT,
+  p_step_up_id      BIGINT,
+  p_device_id       TEXT,
+  p_original_ext_id UUID,
+  p_approval_id     BIGINT,
+  p_memo            TEXT DEFAULT NULL
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ledger, identity, pg_temp
+AS $$
+DECLARE
+  v_auth identity.auth_method;
+  v_args   JSONB := jsonb_build_object('original_external_id', p_original_ext_id);
+  v_idem   ledger.idem_result;
+  v_tx_id  BIGINT;
+  v_branch ledger.branch_code;
+  v_rev    ledger.posted_tx;
+  v_body   JSONB;
+BEGIN
+  v_idem := ledger.begin_idempotent(
+              p_idempotency_key, ledger.request_fingerprint('reverse', v_args));
+  IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
+
+  SELECT t.id, t.branch INTO v_tx_id, v_branch
+    FROM ledger.transactions t WHERE t.external_id = p_original_ext_id;
+
+  IF v_tx_id IS NULL THEN
+    RAISE EXCEPTION 'transaction % not found', p_original_ext_id
+      USING ERRCODE = 'no_data_found';
+  END IF;
+
+  -- 인가는 원 거래의 지점 기준이다. 호출자가 지점을 지정하지 않는다 —
+  -- 지정하게 하면 다른 지점 거래를 자기 지점 권한으로 되돌릴 여지가 생긴다.
+  PERFORM identity.assert_actor_authorized(p_actor_staff_id, v_branch, 'ledger.reverse');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'ledger.reverse');
+
+  -- 역분개는 금액과 무관하게 항상 4-eyes 다. branch_config 임계 검사에 맡기지
+  -- 않는다 — 임계 미만 거래를 잘못 찍고 조용히 되돌리는 경로를 남기지 않기 위해서다.
+  IF p_approval_id IS NULL THEN
+    RAISE EXCEPTION 'reversal always requires a 4-eyes approval'
+      USING ERRCODE = 'insufficient_privilege', HINT = 'approval-required';
+  END IF;
+
+  PERFORM identity.consume_approval(p_approval_id, 'reversal', v_branch, v_args);
+
+  -- 중복 역분개 방어는 reverse_transaction 안에 있다 (원 거래 행 FOR UPDATE 잠금 +
+  -- 004 의 transactions_reverses_uq 부분 UNIQUE). 여기서 다시 검사하지 않는다.
+  v_rev := ledger.reverse_transaction(
+             p_idempotency_key, v_tx_id, p_actor_staff_id,
+             v_auth, p_device_id, p_memo, 'reversal', p_approval_id);
+
+  v_body := ledger.tx_response(v_rev);
+  PERFORM ledger.complete_idempotent(p_idempotency_key, 201, v_body, v_rev.transaction_id);
+  RETURN v_body;
+END;
+$$;
+
+COMMENT ON FUNCTION ledger.op_reverse_transaction IS
+  '008 의 reverse_transaction 에 대한 유일한 애플리케이션 진입점. 승인 필수. design-review-4.md DR-50.';
+
+-- =============================================================================
+-- 7. 마이그레이션 개시 잔액 (design-review-3.md DR-38)
+-- =============================================================================
+-- 003:303-308 이 OPENING-EQUITY 주체와 계정을 부트스트랩에서 만들어 두고
+-- 07-migration.md 전체가 이 계정에 개시 잔액을 싣는 것을 전제로 서 있었는데,
+-- **그 분개를 발행할 함수가 없었다.** ADR-013 이 post_transaction 을 앱에 열지
+-- 않기로 했으므로 op 함수가 없는 자금은 기록할 방법 자체가 없다.
+-- 마이그레이션 계획 문서가 실행 불가능한 상태였다.
+--
+-- ledger_app 에는 부여하지 않는다 (012). 이 함수는 임의 금액을 무에서 만들 수 있으므로
+-- 상시 접속하는 앱이 가지면 그 자체가 화폐 발행 API 다.
+-- ledger_migrator 전용이고, 07-migration.md 가 실행 주체 · 시점 · 감사 방법을 정한다.
+CREATE FUNCTION ledger.op_load_opening_balance(
+  p_idempotency_key TEXT,
+  p_actor_staff_id  BIGINT,
+  p_device_id       TEXT,
+  p_branch          ledger.branch_code,
+  p_balances        JSONB,          -- [{"account_id": 12, "amount_minor": -55000000}, ...]
+  p_memo            TEXT DEFAULT NULL
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ledger, identity, pg_temp
+AS $$
+DECLARE
+  v_args    JSONB := jsonb_build_object('branch', p_branch, 'balances', p_balances);
+  v_idem    ledger.idem_result;
+  v_sum     BIGINT;
+  v_equity  BIGINT;
+  v_entries JSONB;
+  v_tx      ledger.posted_tx;
+  v_body    JSONB;
+BEGIN
+  v_idem := ledger.begin_idempotent(
+              p_idempotency_key, ledger.request_fingerprint('opening_balance', v_args));
+  IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
+
+  PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'ledger.opening_balance');
+
+  IF jsonb_typeof(p_balances) <> 'array' OR jsonb_array_length(p_balances) = 0 THEN
+    RAISE EXCEPTION 'opening balance requires a non-empty array'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  -- 대상 계정 분개를 그대로 쓰고, 균형은 opening_equity 한 행이 맞춘다.
+  -- 04-posting-rules.md §14 — "전 계정의 개시 잔액을 하나의 거래로 세운다."
+  SELECT jsonb_agg(jsonb_build_object(
+           'account_id',   (b->>'account_id')::BIGINT,
+           'amount_minor', (b->>'amount_minor')::BIGINT,
+           'category',     'opening_balance')),
+         sum((b->>'amount_minor')::BIGINT)
+    INTO v_entries, v_sum
+    FROM jsonb_array_elements(p_balances) AS b;
+
+  v_equity := -v_sum;
+
+  IF v_equity <> 0 THEN
+    v_entries := v_entries || jsonb_build_array(jsonb_build_object(
+      'account_id',
+        ledger.account_id_of('OPENING-EQUITY', 'opening_equity', 'PHP'),
+      'amount_minor', v_equity, 'category', 'opening_balance'));
+  END IF;
+
+  v_tx := ledger.post_transaction(
+    p_idempotency_key, 'opening_balance', p_branch,
+    p_actor_staff_id, 'system', p_device_id, v_entries,
+    COALESCE(p_memo, 'opening balance load for ' || p_branch));
+
+  v_body := ledger.tx_response(v_tx);
+  PERFORM ledger.complete_idempotent(p_idempotency_key, 201, v_body, v_tx.transaction_id);
+  RETURN v_body;
+END;
+$$;
+
+COMMENT ON FUNCTION ledger.op_load_opening_balance IS
+  '마이그레이션 전용. ledger_migrator 에만 부여한다. 앱에 열면 화폐 발행 API 가 된다. design-review-3.md DR-38.';
 
 COMMIT;

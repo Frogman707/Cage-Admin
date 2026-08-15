@@ -196,6 +196,66 @@
 
 ---
 
+## 6-1. 롤링 커미션 정산 — `commission_payout`
+
+**현행:** `settleGame()` → `_doSettleGame()` (`index.html:7218-7267`)
+
+롤링 입력(§6)은 자금 이동이 없지만 **그 롤링에 대한 커미션 지급은 실제 자금 이동이다.** 매 정산마다 손님 계좌로 돈이 들어간다. [design-review-6.md `DR-66`](design-review-6.md) — 이 흐름은 `01`·`04`·`05`·DDL 어디에도 없었다.
+
+| 계정 | 부호 | 금액 | `category` |
+|---|---|---|---|
+| `commission_expense[branch]` | `+` | P | `commission_payout` |
+| `member_deposit[acct]` | `−` | P | `commission_payout` |
+
+```
+롤링 1,000,000 · 요율 1.45% · F&B 차감 5,000
+
+  총커미션 C = 14,500
+  F&B      F =  5,000
+  순지급   P =  9,500
+
+  commission_expense[HANN]   +950,000
+  member_deposit[SE7419]     −950,000
+  ─────────────────────────────────────
+  합계                              0  ✓
+  손님 표시 잔액 증가: +9,500
+```
+
+**멱등키:** `commission:{game_no}:{client_request_id}`
+
+### 원장에 들어가는 것과 안 들어가는 것
+
+**원장은 순지급액 P만 본다.** 총커미션 C와 F&B 차감 F는 `cage.commission_settlements`가 보존한다. F&B를 매출로 인식하려면 전용 계정 종류가 필요하고 이번 범위 밖이다 — [README](README.md) 미확정 항목.
+
+`P = 0`이면 **원장 거래를 만들지 않는다.** `entries_amount_nonzero`가 0원 분개를 막는다. 그래도 `commission_settlements` 행은 남는다 — "정산했고 지급액이 0이었다"와 "정산한 적 없다"는 다른 사실이고, 현행은 둘을 구분할 수 없었다.
+
+`F > C`는 거부한다. 현행은 `result <= 0`이 되어 조용히 아무것도 하지 않았고, 초과 차감분의 행방이 어디에도 남지 않았다.
+
+### 요율의 권위
+
+**`games.commission_rate_bp` 스냅샷이다.** 게임 개설 시점의 계좌 요율을 bp(1/100 %)로 고정한다 — `145` = 1.45%. 계좌 요율이 나중에 바뀌어도 이미 시작한 게임의 정산 근거는 흔들리지 않는다.
+
+현행은 요율이 다섯 홉을 거쳤고 그중 셋이 문자열이었다 ([design-review-9.md `DR-84`](design-review-9.md)):
+
+```
+accounts.rate "1.45%" → select 옵션 라벨 "Rolling 1.45%" → games.type 문자열
+  → 정규식 /([\d.]+)%/ → #settleRolling 프리필 → DOM textContent 되읽기
+```
+
+`games.bet_type`(현행 `type`)은 **표시용 라벨로 격하한다.** 이 컬럼을 파싱해 금액을 계산하는 코드는 만들지 않는다. `Share 40%` 프리셋이 롤링 커미션 40%를 프리필하던 사고가 이 파싱에서 나왔다.
+
+운영자가 산출값을 덮어쓸 수 있다(현행 스펙). 덮어쓰면 `commission_settlements.rate_overridden = true`로 남는다 — 덮어썼다는 사실 자체가 감사 대상이다.
+
+### 반복 지급 방지
+
+한 게임에 여러 번 지급할 수 있다. 현행도 진행 중 게임을 반복 정산할 수 있고, 긴 게임에 커미션을 나눠 주는 것은 정상 업무일 수 있다.
+
+**막아야 하는 것은 "두 번"이 아니라 "같은 롤링에 두 번"이다.** `cage.commission_settlements.rolling_base_minor`의 게임별 합이 `games.rolling_total_minor`를 넘지 못한다 (`005`의 `assert_commission_base_available` 트리거). 현행은 종료된 게임에만 재정산 방지가 있었고 진행 중 게임에는 아무 키도 없었다 ([design-review-9.md `DR-85`](design-review-9.md)).
+
+취소된 게임은 지급 대상이 아니다. 잘못 지급한 커미션은 삭제가 아니라 역분개로 되돌린다 ([05 §3-6](05-api-contract.md)).
+
+---
+
 ## 7. 중간정산 — `mid_settle`
 
 **현행:** `_doConfirmMidSettle()` (`index.html:7219-7298`)
@@ -395,6 +455,41 @@ CREATE TABLE cage.main_cage_events (
 
 ---
 
+## 11-2. 차액 확정 해소 — `suspense_resolve`
+
+위 §11이 말한 **"확정 분개"가 이것이다.** 정의되어 있지 않았다 — [design-review.md `DR-01`](design-review.md).
+
+`adjustment`는 차액을 `suspense`에 옮겨 담을 뿐이고, `suspense`가 등장하는 분개 조합은 `adjustment` 하나뿐이었다. 그래서 `op_adjustment`를 다시 불러도 `house_cash ↔ suspense`를 왕복할 뿐 **차액을 최종 귀착시킬 계정이 없었다.** 결과: 실사 차액이 한 번 발생하면 `op_freeze_period`가 영구히 거부하고 그 지점은 다시 마감되지 않았다.
+
+실사 차액은 예외가 아니라 **실사의 정상 산출물이다.** 차액이 나지 않는다면 실사할 이유가 없다.
+
+### 부족분 확정 (`suspense` 차변 잔액 V > 0)
+
+| 계정 | 부호 | 금액 | `category` |
+|---|---|---|---|
+| `shortage_expense[branch]` | `+` | V | `suspense_resolve_in` |
+| `suspense[branch]` | `−` | V | `suspense_resolve_out` |
+
+### 과잉분 확정 (`suspense` 대변 잔액 V < 0)
+
+| 계정 | 부호 | 금액 | `category` |
+|---|---|---|---|
+| `suspense[branch]` | `+` | \|V\| | `suspense_resolve_out` |
+| `overage_income[branch]` | `−` | \|V\| | `suspense_resolve_in` |
+
+**멱등키:** `suspense_resolve:{branch}:{client_request_id}`
+
+### 규약
+
+- **금액을 호출자가 정하지 않는다.** `ledger.op_resolve_suspense()`가 현재 잔액을 직접 읽어 정한다. 부분 해소는 없고, 호출 후 `suspense` 잔액은 정확히 0이다.
+- **조사 결과(`p_resolution`)가 필수다.** NULL·빈 문자열은 거부된다. 차액을 확정 손실·이익으로 넘기는 조작이므로 근거 없이 통과시키지 않는다.
+- **금액과 무관하게 항상 4-eyes다.** 임계 검사에 맡기지 않는다.
+- **`op_freeze_period`의 `suspense ≠ 0` 거부는 그대로 둔다.** 해소 경로가 생겼으므로 이제 그 제약이 정당하다.
+
+> **탈출구 없는 제약은 우회를 만든다.** 마감이 막힌 상태에서 사람이 하는 일은 정해져 있다 — DBA에게 직접 `UPDATE`를 요청한다. 그 순간 이 문서의 불변식 전체가 무의미해진다.
+
+---
+
 ## 12. 케이지 계좌 ↔ 회원 보유금 — `wallet_transfer` (신규 기능)
 
 **현행에는 존재하지 않는다.** 케이지 `accounts`/`ledger`와 플레이어 `members`/`memberLedger`가 완전히 분리되어 있어 이체가 불가능하다.
@@ -546,7 +641,9 @@ wallet_transfer_out     wallet_transfer_in
 bet                     payout
 point_earn              point_convert_out     point_convert_in
 share_accrue            share_settle
-adjustment              reversal              opening_balance
+commission_payout
+adjustment              suspense_resolve_out  suspense_resolve_in
+reversal                opening_balance
 ```
 
 > **아직 대응이 없는 현행 카테고리가 셋 남아 있다** — `avatar_tip` · `dealer_tip`(`avatar/app.js:716`)과 가입 보너스(`shared/game-engine.js:76`, 현행은 `deposit`으로 기록). 전부 아바타/스피드 도메인이라 A1과 함께 확정한다. 현행 `correction`(라운드 취소 환불·회수)은 신규 모델에서 `reversal`이 대신하되, **원 `category`를 유지한다**(18절).

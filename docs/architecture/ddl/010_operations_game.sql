@@ -42,7 +42,7 @@ $$;
 CREATE FUNCTION cage.op_open_game(
   p_idempotency_key    TEXT,
   p_actor_staff_id     BIGINT,
-  p_auth_method        identity.auth_method,
+  p_step_up_id         BIGINT,
   p_device_id          TEXT,
   p_branch             ledger.branch_code,
   p_game_no            TEXT,
@@ -61,6 +61,7 @@ SECURITY DEFINER
 SET search_path = cage, ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object(
                     'branch', p_branch, 'game_no', p_game_no,
                     'member_code', p_member_code, 'start_type', p_start_type,
@@ -83,6 +84,8 @@ BEGIN
   IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
 
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'game.open');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'game.open');
   PERFORM ledger.assert_positive(p_buyin_minor, 'buyin_minor');
 
   IF p_working_chip_minor < 0 THEN
@@ -91,8 +94,8 @@ BEGIN
   END IF;
 
   -- 계좌 바이인은 손님 잔액을 건드리므로 재인증을 요구한다 (현행 requestWithdrawAuth)
-  IF p_start_type = 'account' AND p_auth_method NOT IN ('withdraw_pw','totp','approval') THEN
-    RAISE EXCEPTION 'account buy-in requires step-up auth, got %', p_auth_method
+  IF p_start_type = 'account' AND v_auth NOT IN ('withdraw_pw','totp','approval') THEN
+    RAISE EXCEPTION 'account buy-in requires step-up auth, got %', v_auth
       USING ERRCODE = 'insufficient_privilege', HINT = 'step-up-required';
   END IF;
 
@@ -155,7 +158,7 @@ BEGIN
 
   v_tx := ledger.post_transaction(
     p_idempotency_key, 'game_buyin', p_branch,
-    p_actor_staff_id, p_auth_method, p_device_id, v_entries, p_memo);
+    p_actor_staff_id, v_auth, p_device_id, v_entries, p_memo);
 
   -- §5-5 롤링 시드 (자금 아님). 지점 누계에는 산입하지 않는다.
   INSERT INTO cage.rolling_events
@@ -186,7 +189,7 @@ $$;
 CREATE FUNCTION cage.op_add_buyin(
   p_idempotency_key    TEXT,
   p_actor_staff_id     BIGINT,
-  p_auth_method        identity.auth_method,
+  p_step_up_id         BIGINT,
   p_device_id          TEXT,
   p_game_no            TEXT,
   p_start_type         cage.game_start_type,
@@ -199,6 +202,7 @@ SECURITY DEFINER
 SET search_path = cage, ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object(
                     'game_no', p_game_no, 'start_type', p_start_type,
                     'buyin_minor', p_buyin_minor,
@@ -218,12 +222,14 @@ BEGIN
 
   v_g := cage.lock_ongoing_game(p_game_no);
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, v_g.branch, 'game.buyin');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'game.buyin');
   PERFORM ledger.assert_positive(p_buyin_minor, 'buyin_minor');
 
   SELECT code INTO v_member FROM ledger.parties WHERE id = v_g.member_party_id;
 
-  IF p_start_type = 'account' AND p_auth_method NOT IN ('withdraw_pw','totp','approval') THEN
-    RAISE EXCEPTION 'account buy-in requires step-up auth, got %', p_auth_method
+  IF p_start_type = 'account' AND v_auth NOT IN ('withdraw_pw','totp','approval') THEN
+    RAISE EXCEPTION 'account buy-in requires step-up auth, got %', v_auth
       USING ERRCODE = 'insufficient_privilege', HINT = 'step-up-required';
   END IF;
 
@@ -257,7 +263,7 @@ BEGIN
 
   v_tx := ledger.post_transaction(
     p_idempotency_key, 'game_buyin', v_g.branch,
-    p_actor_staff_id, p_auth_method, p_device_id, v_entries, p_memo);
+    p_actor_staff_id, v_auth, p_device_id, v_entries, p_memo);
 
   UPDATE cage.games
      SET buyin_minor        = buyin_minor + p_buyin_minor,
@@ -294,7 +300,7 @@ $$;
 CREATE FUNCTION cage.op_record_rolling(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_auth_method     identity.auth_method,
+  p_step_up_id      BIGINT,
   p_device_id       TEXT,
   p_game_no         TEXT,
   p_amount_minor    BIGINT               -- 정정은 음수
@@ -304,6 +310,7 @@ SECURITY DEFINER
 SET search_path = cage, ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object('game_no', p_game_no, 'amount_minor', p_amount_minor);
   v_idem ledger.idem_result;
   v_g    cage.games;
@@ -316,6 +323,8 @@ BEGIN
 
   v_g := cage.lock_ongoing_game(p_game_no);
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, v_g.branch, 'game.rolling');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'game.rolling');
 
   IF p_amount_minor IS NULL OR p_amount_minor = 0 THEN
     RAISE EXCEPTION 'amount_minor must be non-zero' USING ERRCODE = 'invalid_parameter_value';
@@ -349,7 +358,7 @@ $$;
 CREATE FUNCTION cage.op_settle_game(
   p_idempotency_key      TEXT,
   p_actor_staff_id       BIGINT,
-  p_auth_method          identity.auth_method,
+  p_step_up_id           BIGINT,
   p_device_id            TEXT,
   p_game_no              TEXT,
   p_kind                 cage.settlement_kind,
@@ -369,6 +378,7 @@ SECURITY DEFINER
 SET search_path = cage, ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object(
     'game_no', p_game_no, 'kind', p_kind,
     'cc', jsonb_build_object('deposit', p_cc_deposit_minor, 'cashout', p_cc_cashout_minor,
@@ -400,9 +410,11 @@ BEGIN
 
   v_g := cage.lock_ongoing_game(p_game_no);
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, v_g.branch, 'game.settle');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'game.settle');
 
-  IF p_auth_method NOT IN ('pin','totp','withdraw_pw','approval') THEN
-    RAISE EXCEPTION 'settlement requires re-authentication, got %', p_auth_method
+  IF v_auth NOT IN ('pin','totp','withdraw_pw','approval') THEN
+    RAISE EXCEPTION 'settlement requires re-authentication, got %', v_auth
       USING ERRCODE = 'insufficient_privilege', HINT = 'step-up-required';
   END IF;
 
@@ -461,7 +473,7 @@ BEGIN
 
   v_tx := ledger.post_transaction(
     p_idempotency_key, v_txkind, v_g.branch,
-    p_actor_staff_id, p_auth_method, p_device_id, v_entries, p_memo);
+    p_actor_staff_id, v_auth, p_device_id, v_entries, p_memo);
 
   -- 정산 이력 (현행 g.checkpoints 배열의 정규화)
   SELECT COALESCE(max(seq), 0) + 1 INTO v_seq
@@ -543,7 +555,7 @@ COMMENT ON FUNCTION cage.op_settle_game IS
 CREATE FUNCTION cage.op_cancel_game(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_auth_method     identity.auth_method,
+  p_step_up_id      BIGINT,
   p_device_id       TEXT,
   p_game_no         TEXT,
   p_memo            TEXT DEFAULT NULL
@@ -553,6 +565,7 @@ SECURITY DEFINER
 SET search_path = cage, ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args     JSONB := jsonb_build_object('game_no', p_game_no);
   v_idem     ledger.idem_result;
   v_g        cage.games;
@@ -570,6 +583,8 @@ BEGIN
 
   v_g := cage.lock_ongoing_game(p_game_no);
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, v_g.branch, 'game.cancel');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'game.cancel');
 
   v_bdate := ledger.business_date_of(v_g.branch, clock_timestamp());
 
@@ -587,7 +602,7 @@ BEGIN
   LOOP
     v_rev := ledger.reverse_transaction(
                p_idempotency_key || ':' || v_tx_id::text,
-               v_tx_id, p_actor_staff_id, p_auth_method, p_device_id,
+               v_tx_id, p_actor_staff_id, v_auth, p_device_id,
                COALESCE(p_memo, 'cancel game ' || p_game_no),
                'game_cancel');
     v_n := v_n + 1;
@@ -632,7 +647,7 @@ COMMENT ON FUNCTION cage.op_cancel_game IS
 CREATE FUNCTION cage.op_main_cage_entry(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_auth_method     identity.auth_method,
+  p_step_up_id      BIGINT,
   p_device_id       TEXT,
   p_branch          ledger.branch_code,
   p_kind            cage.main_cage_kind,
@@ -643,6 +658,7 @@ SECURITY DEFINER
 SET search_path = cage, ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object(
                     'branch', p_branch, 'kind', p_kind, 'amount_minor', p_amount_minor);
   v_idem   ledger.idem_result;
@@ -655,6 +671,8 @@ BEGIN
   IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
 
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'maincage.write');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'maincage.write');
 
   IF p_amount_minor IS NULL OR p_amount_minor < 0 THEN
     RAISE EXCEPTION 'amount_minor must be an absolute (non-negative) value'
@@ -679,5 +697,162 @@ BEGIN
   RETURN v_body;
 END;
 $$;
+
+-- =============================================================================
+-- 롤링 커미션 정산 — 손님에게 커미션을 지급한다 (design-review-6.md DR-66)
+-- =============================================================================
+-- op_settle_game 과 다른 조작이다. 저쪽은 칩을 회수하고 이쪽은 돈을 내보낸다.
+-- 현행 _doSettleGame(index.html:7218-7267) 의 목표 대응.
+--
+-- 현행과 달라지는 것 넷:
+--  (1) 요율이 UI select 옵션 라벨을 경유하지 않는다. games.commission_rate_bp
+--      스냅샷이 유일한 권위다 (design-review-9.md DR-84). 현행은 "Share 40%"
+--      프리셋에서 정규식이 40%를 잡아 롤링 커미션 40%를 프리필했다.
+--  (2) 같은 롤링에 두 번 지급할 수 없다 (005 의 base_available 트리거).
+--      현행은 종료 게임에만 재정산 방지가 있었다 (design-review-9.md DR-85).
+--  (3) F&B 차감이 커미션을 넘으면 거부한다. 현행은 result<=0 이 되어 조용히
+--      아무것도 하지 않았고 차감분의 행방이 기록되지 않았다.
+--  (4) 지급액이 0이어도 정산 이력은 남는다. "정산했고 0이었다" 와 "정산한 적 없다" 는
+--      다른 사실이다.
+CREATE FUNCTION cage.op_settle_commission(
+  p_idempotency_key    TEXT,
+  p_actor_staff_id     BIGINT,
+  p_step_up_id         BIGINT,
+  p_device_id          TEXT,
+  p_game_no            TEXT,
+  p_rolling_base_minor BIGINT,
+  p_commission_minor   BIGINT,
+  p_fb_deduction_minor BIGINT DEFAULT 0,
+  p_memo               TEXT   DEFAULT NULL
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = cage, ledger, identity, pg_temp
+AS $$
+DECLARE
+  v_auth identity.auth_method;
+  v_args JSONB := jsonb_build_object(
+    'game_no', p_game_no,
+    'rolling_base_minor', p_rolling_base_minor,
+    'commission_minor',   p_commission_minor,
+    'fb_deduction_minor', p_fb_deduction_minor);
+  v_idem     ledger.idem_result;
+  v_g        cage.games;
+  v_member   TEXT;
+  v_expected BIGINT;
+  v_override BOOLEAN;
+  v_payout   BIGINT;
+  v_tx       ledger.posted_tx;
+  v_tx_id    BIGINT;
+  v_bdate    DATE;
+  v_seq      INT;
+  v_body     JSONB;
+BEGIN
+  v_idem := ledger.begin_idempotent(
+              p_idempotency_key, ledger.request_fingerprint('settle_commission', v_args));
+  IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
+
+  -- 진행 중 · 종료 게임 모두 정산 대상이다. 취소된 게임은 아니다.
+  -- lock_ongoing_game 을 쓰지 않는 이유가 이것이다. FOR UPDATE 잠금은
+  -- 005 의 base_available 트리거가 check-then-act 가 되지 않게 만든다.
+  SELECT * INTO v_g FROM cage.games WHERE game_no = p_game_no FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'game % not found', p_game_no USING ERRCODE = 'no_data_found';
+  END IF;
+  IF v_g.status = 'cancelled' THEN
+    RAISE EXCEPTION 'game % is cancelled — 커미션을 지급할 수 없다', p_game_no
+      USING ERRCODE = 'object_not_in_prerequisite_state';
+  END IF;
+
+  PERFORM identity.assert_actor_authorized(p_actor_staff_id, v_g.branch, 'game.commission');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'game.commission');
+
+  IF v_auth NOT IN ('pin','totp','withdraw_pw','approval') THEN
+    RAISE EXCEPTION 'commission settlement requires re-authentication, got %', v_auth
+      USING ERRCODE = 'insufficient_privilege', HINT = 'step-up-required';
+  END IF;
+
+  IF LEAST(p_rolling_base_minor, p_commission_minor, p_fb_deduction_minor) < 0 THEN
+    RAISE EXCEPTION 'commission settlement amounts must not be negative'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  IF v_g.commission_rate_bp IS NULL THEN
+    RAISE EXCEPTION 'game % has no commission rate snapshot', p_game_no
+      USING ERRCODE = 'object_not_in_prerequisite_state',
+            HINT = '게임 개설 시 commission_rate_bp 를 기록하라. 요율은 화면 라벨에서 파싱하지 않는다';
+  END IF;
+
+  -- 산출값. 반올림 방향은 손님에게 유리한 쪽(반올림)으로 고정한다.
+  -- 절사 · 절상은 지점마다 달라질 수 있는 사업 규칙이므로 바꾸려면
+  -- branch_config 에 항목을 두고 여기서 읽어야 한다 (미확정).
+  v_expected := ROUND(p_rolling_base_minor::NUMERIC * v_g.commission_rate_bp / 10000)::BIGINT;
+  v_override := (p_commission_minor <> v_expected);
+
+  v_payout := p_commission_minor - p_fb_deduction_minor;
+  IF v_payout < 0 THEN
+    RAISE EXCEPTION
+      'F&B deduction % exceeds commission % — 차감이 커미션을 넘을 수 없다',
+      p_fb_deduction_minor, p_commission_minor
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  SELECT code INTO v_member FROM ledger.parties WHERE id = v_g.member_party_id;
+
+  -- 지급액이 0이면 원장 거래를 만들지 않는다. 004 의 entries_amount_nonzero 가
+  -- 0원 분개를 막고, 0원 거래는 원장에 남길 사실이 없다.
+  IF v_payout > 0 THEN
+    v_tx := ledger.post_transaction(
+      p_idempotency_key, 'commission_payout', v_g.branch,
+      p_actor_staff_id, v_auth, p_device_id,
+      jsonb_build_array(
+        jsonb_build_object('account_id',
+          ledger.house_account_id(v_g.branch, 'commission_expense', v_g.currency),
+          'amount_minor',  v_payout, 'category', 'commission_payout'),
+        jsonb_build_object('account_id',
+          ledger.account_id_of(v_member, 'member_deposit', v_g.currency),
+          'amount_minor', -v_payout, 'category', 'commission_payout')
+      ),
+      COALESCE(p_memo, 'rolling commission ' || v_g.game_no));
+    v_tx_id := v_tx.transaction_id;
+    v_bdate := v_tx.business_date;
+  ELSE
+    v_tx_id := NULL;
+    v_bdate := ledger.business_date_of(v_g.branch, clock_timestamp());
+  END IF;
+
+  SELECT COALESCE(max(seq), 0) + 1 INTO v_seq
+    FROM cage.commission_settlements WHERE game_id = v_g.id;
+
+  INSERT INTO cage.commission_settlements (
+    game_id, seq, transaction_id, rolling_base_minor, commission_rate_bp,
+    commission_minor, rate_overridden, fb_deduction_minor, payout_minor,
+    staff_id, business_date
+  ) VALUES (
+    v_g.id, v_seq, v_tx_id, p_rolling_base_minor, v_g.commission_rate_bp,
+    p_commission_minor, v_override, p_fb_deduction_minor, v_payout,
+    p_actor_staff_id, v_bdate
+  );
+
+  v_body := jsonb_build_object(
+    'game_no',            v_g.game_no,
+    'seq',                v_seq,
+    'rolling_base_minor', p_rolling_base_minor,
+    'commission_rate_bp', v_g.commission_rate_bp,
+    'commission_minor',   p_commission_minor,
+    'expected_minor',     v_expected,
+    'rate_overridden',    v_override,
+    'fb_deduction_minor', p_fb_deduction_minor,
+    'payout_minor',       v_payout,
+    'transaction',        CASE WHEN v_tx_id IS NULL THEN NULL ELSE ledger.tx_response(v_tx) END);
+
+  PERFORM ledger.complete_idempotent(p_idempotency_key, 201, v_body, v_tx_id);
+  RETURN v_body;
+END;
+$$;
+
+COMMENT ON FUNCTION cage.op_settle_commission IS
+  '롤링 커미션 지급. 요율의 권위는 games.commission_rate_bp 스냅샷이다. design-review-6.md DR-66 · design-review-9.md DR-84·DR-85.';
 
 COMMIT;

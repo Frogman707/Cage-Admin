@@ -156,13 +156,40 @@ BEGIN
        INTO v_inserted;
 
   IF v_inserted THEN
+    -- 캐시 행이 없다고 해서 처음 보는 키라는 뜻은 아니다 (design-review.md DR-04).
+    -- purge_expired_idempotency() 가 24시간 지난 행을 지우기 때문에, 이미 커밋된
+    -- 거래의 키도 여기로 들어온다. 거래 쪽 UNIQUE 는 영구이므로 그대로 두면
+    -- post_transaction 이 매핑되지 않은 23505 로 터진다.
+    IF EXISTS (SELECT 1 FROM ledger.transactions WHERE idempotency_key = p_key) THEN
+      RAISE EXCEPTION 'idempotency key % was already used by a committed transaction', p_key
+        USING ERRCODE = 'invalid_parameter_value', HINT = 'idempotency-key-reused';
+    END IF;
     RETURN ROW(TRUE, NULL::INT, NULL::JSONB, NULL::BIGINT)::ledger.idem_result;
   END IF;
 
   SELECT * INTO v_row FROM ledger.idempotency_keys WHERE key = p_key;
 
-  -- 만료된 키는 새 요청으로 취급한다 (보존 24시간)
+  -- 만료 처리 (design-review.md DR-04)
+  --
+  -- 이 테이블은 두 가지 일을 한다. **수명이 서로 다르다.**
+  --   응답 캐시    재시도에 저장된 응답을 재생한다        24시간 (IETF 초안 요구)
+  --   거래 유일성  같은 사건을 두 번 기록하지 않는다      영구 (004:64 UNIQUE)
+  --
+  -- 예전에는 만료를 무조건 "새 요청" 으로 취급해 fresh=TRUE 를 돌려줬다. 그런데
+  -- 원 거래는 24시간이 지나도 그 키를 들고 있으므로 post_transaction 의 INSERT 가
+  -- 매핑되지 않은 23505 로 터졌고 API 가 500 을 뱉었다.
+  -- 자연키(game_end:{game_no} 등)는 애초에 영구 유일해야 하는 값이라 24시간
+  -- 만료 개념 자체가 맞지 않는다.
+  --
+  -- 만료된 것은 **응답 본문**이지 키가 아니다.
   IF v_row.expires_at <= clock_timestamp() THEN
+    IF EXISTS (SELECT 1 FROM ledger.transactions WHERE idempotency_key = p_key) THEN
+      RAISE EXCEPTION 'idempotency key % was already used by a committed transaction', p_key
+        USING ERRCODE = 'invalid_parameter_value', HINT = 'idempotency-key-reused';
+    END IF;
+
+    -- 거래가 없으면 진짜로 새 요청이다 — 원 요청이 롤백됐거나
+    -- 자금 이동이 없는 연산(롤링 입력 · 교대 등)이었다는 뜻이다.
     UPDATE ledger.idempotency_keys
        SET request_fingerprint = p_fingerprint,
            state = 'in_progress',
@@ -266,6 +293,7 @@ DECLARE
   v_leg_count  INT;
   v_prev_hash  BYTEA;
   v_hash       BYTEA;
+  v_chained    BOOLEAN;      -- design-review.md DR-05
   v_currency   TEXT;
   v_bad        TEXT;
 BEGIN
@@ -384,12 +412,25 @@ BEGIN
   END LOOP;
 
   -- ---- 잠금 3: 해시 체인 헤드 ----------------------------------------------
-  SELECT last_hash INTO v_prev_hash
-    FROM ledger.chain_heads WHERE branch = p_branch FOR UPDATE;
+  -- 체인 대상만 잠근다 (design-review.md DR-05). chain_heads 는 지점당 1행이라
+  -- 여기를 무조건 잠그면 ONLINE 지점의 고빈도 베팅이 전역 단일 잠금에 직렬화된다.
+  -- 03-ledger-model.md §7-5 · ADR-006 이 예외를 명시했는데 구현에 없었다.
+  SELECT cp.chained INTO v_chained
+    FROM ledger.chain_policy cp WHERE cp.kind = p_kind;
 
-  IF v_prev_hash IS NULL THEN
-    RAISE EXCEPTION 'chain head missing for branch %', p_branch
-      USING ERRCODE = 'foreign_key_violation';
+  IF v_chained IS NULL THEN
+    RAISE EXCEPTION 'no chain policy for tx_kind % — 004 의 chain_policy 를 갱신하라', p_kind
+      USING ERRCODE = 'integrity_constraint_violation';
+  END IF;
+
+  IF v_chained THEN
+    SELECT last_hash INTO v_prev_hash
+      FROM ledger.chain_heads WHERE branch = p_branch FOR UPDATE;
+
+    IF v_prev_hash IS NULL THEN
+      RAISE EXCEPTION 'chain head missing for branch %', p_branch
+        USING ERRCODE = 'foreign_key_violation';
+    END IF;
   END IF;
 
   -- ---- 거래 (해시는 아직 NULL) ---------------------------------------------
@@ -442,15 +483,21 @@ BEGIN
   -- ---- 봉인 ---------------------------------------------------------------
   -- 분개가 다 들어온 뒤에 해시를 계산한다. 저장된 행에서 만들므로
   -- 013 의 R3 재계산과 정확히 같은 입력을 쓴다.
-  v_hash := sha256(v_prev_hash || convert_to(ledger.canonical_digest(v_tx_id), 'UTF8'));
+  --
+  -- 체인 밖 거래(chain_policy.chained = false)는 prev_hash · hash 가 NULL 로 남는다
+  -- (design-review.md DR-05). 004 의 assert_transaction_sealed 와 013 의 R3 가
+  -- 같은 정책 테이블을 보고 그 행을 건너뛴다. 무결성은 일 단위 머클 앵커가 맡는다.
+  IF v_chained THEN
+    v_hash := sha256(v_prev_hash || convert_to(ledger.canonical_digest(v_tx_id), 'UTF8'));
 
-  UPDATE ledger.transactions
-     SET prev_hash = v_prev_hash, hash = v_hash
-   WHERE id = v_tx_id;
+    UPDATE ledger.transactions
+       SET prev_hash = v_prev_hash, hash = v_hash
+     WHERE id = v_tx_id;
 
-  UPDATE ledger.chain_heads
-     SET last_tx_id = v_tx_id, last_hash = v_hash, updated_at = v_now
-   WHERE branch = p_branch;
+    UPDATE ledger.chain_heads
+       SET last_tx_id = v_tx_id, last_hash = v_hash, updated_at = v_now
+     WHERE branch = p_branch;
+  END IF;
 
   -- ---- 잔액 프로젝션 -------------------------------------------------------
   -- 하한 검사는 지연 제약 트리거가 커밋 시점에 수행한다 (004 · I2).

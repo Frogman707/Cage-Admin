@@ -5,7 +5,7 @@
 > **대상**: [`ddl/004_ledger.sql`](ddl/004_ledger.sql) 전량 (556줄) + [references.md](references.md) · 교차 검증 `006`·`008`·`010`·`012`·`013`
 > **상태**: 미해결 11건. **차단 1 · 높음 1 · 중간 5 · 낮음 4**
 > **선행 문서**: [design-review.md](design-review.md) DR-01~DR-23 · [design-review-2.md](design-review-2.md) DR-24~DR-37 · [design-review-3.md](design-review-3.md) DR-38~DR-49
-> **후속**: [design-review-5.md](design-review-5.md) — 5차 `DR-61`~`DR-65` (높음 2 · 중간 2 · 낮음 1) · [design-review-6.md](design-review-6.md) — 6차 `DR-66`~`DR-72` (차단 1 · 높음 2 · 중간 3 · 낮음 1) · [design-review-7.md](design-review-7.md) — 7차 `DR-73`~`DR-77` (높음 1 · 중간 2 · 낮음 2) · [design-review-8.md](design-review-8.md) — 8차 `DR-78`~`DR-82` (높음 2 · 중간 2 · 낮음 1) · [design-review-9.md](design-review-9.md) — 9차 `DR-83`~`DR-86` (높음 2 · 중간 2). 아홉 문서 합계 **86건 · 차단 13**
+> **후속**: [design-review-5.md](design-review-5.md) — 5차 `DR-61`~`DR-65` (높음 2 · 중간 2 · 낮음 1) · [design-review-6.md](design-review-6.md) — 6차 `DR-66`~`DR-72` (차단 1 · 높음 2 · 중간 3 · 낮음 1) · [design-review-7.md](design-review-7.md) — 7차 `DR-73`~`DR-77` (높음 1 · 중간 2 · 낮음 2) · [design-review-8.md](design-review-8.md) — 8차 `DR-78`~`DR-82` (높음 2 · 중간 2 · 낮음 1) · [design-review-9.md](design-review-9.md) — 9차 `DR-83`~`DR-86` (높음 2 · 중간 2). 아홉 문서 합계 **86건 · 차단 13 — 2026-08-15 전부 해소** (`DR-38`만 부분 해소)
 
 ---
 
@@ -23,11 +23,15 @@
 
 ---
 
+> **진행 (2026-08-15) — 이 회차의 차단 1건이 해소됐다.** `DR-50`: `ledger.op_reverse_transaction()`(`011`) + `approval_subject.reversal` + `ledger.reverse` 권한 + `012` GRANT + [05 §3-6](05-api-contract.md). 원 거래는 `external_id`로 지목하고, 인가는 **원 거래의 지점** 기준이며, 승인은 금액과 무관하게 항상 요구한다. `008`의 `reverse_transaction`은 계속 비부여다.
+>
+> §6 착수 순서의 **0번(`DR-39`)과 1번(`DR-50`)이 끝났다.** 2번(권한·감사)·3번(분개 정의표) 중 차단 부분도 함께 처리했다. 반영 내역 전체는 [design-review.md](design-review.md) 머리말의 진행 표에 있다.
+
 ## 1. 요약
 
 | ID | 항목 | 등급 | 영향 | 근거 |
 |---|---|---|---|---|
-| **DR-50** | 역분개를 부를 애플리케이션 경로가 없다 | **차단** | M5 · M6 | [`008:518`](ddl/008_post_transaction.sql#L518) · [`012:7`](ddl/012_roles_and_grants.sql#L7) · [05:173](05-api-contract.md) |
+| **DR-50** | 역분개를 부를 애플리케이션 경로가 없다 | ~~차단~~ **해소** | M5 · M6 | [`008:518`](ddl/008_post_transaction.sql#L518) · [`012:7`](ddl/012_roles_and_grants.sql#L7) · [05:173](05-api-contract.md) |
 | **DR-51** | `posting_rules` 와일드카드가 3개 kind로 전파된다 | **높음** | — | [`004:237-251`](ddl/004_ledger.sql#L237) |
 | **DR-52** | 분개 0개 거래는 스키마 그물 밖이다 | 중간 | M6 | [`004:331`](ddl/004_ledger.sql#L331) · [`004:489`](ddl/004_ledger.sql#L489) |
 | **DR-53** | `reverses_tx_id`와 `kind`가 묶여 있지 않다 | 중간 | — | [`004:74`](ddl/004_ledger.sql#L74) · [`004:100`](ddl/004_ledger.sql#L100) |

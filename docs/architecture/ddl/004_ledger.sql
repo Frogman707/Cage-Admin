@@ -173,6 +173,32 @@ CREATE TABLE ledger.posting_rules (
 COMMENT ON TABLE ledger.posting_rules IS
   '04-posting-rules.md 의 각 표가 여기 행으로 들어온다. 문서와 DB 가 갈라지지 않는다.';
 
+-- -----------------------------------------------------------------------------
+-- 해시 체인 대상 판정 (design-review.md DR-05)
+-- -----------------------------------------------------------------------------
+-- 03-ledger-model.md §7-5 와 04-posting-rules.md §13 이 "베팅은 체인 대상에서
+-- 제외하고 일 단위 머클 앵커링으로 대체한다"(ADR-006) 고 명시했는데 DDL 에 그
+-- 예외가 없었다. post_transaction 이 p_kind 를 보지 않고 무조건 chain_heads 를
+-- FOR UPDATE 로 잠갔다.
+--
+-- chain_heads 는 **지점당 1행**이다. ONLINE 지점의 모든 자금 거래가 그 한 행 뒤에
+-- 직렬화된다. 아바타 39초 · 스피드 21초 루프에서 라운드마다 bet + payout 이
+-- 발생하므로, 테이블 수 x 회원 수만큼의 거래가 전역 단일 잠금을 통과해야 했다.
+--
+-- posting_rules 와 같은 방식으로 데이터화한다 — tx_kind 에 값이 추가될 때
+-- 정책을 빠뜨릴 수 없다.
+CREATE TABLE ledger.chain_policy (
+  kind    ledger.tx_kind PRIMARY KEY,
+  chained BOOLEAN NOT NULL
+);
+
+INSERT INTO ledger.chain_policy
+SELECT k, k NOT IN ('bet', 'payout')
+  FROM unnest(enum_range(NULL::ledger.tx_kind)) AS k;
+
+COMMENT ON TABLE ledger.chain_policy IS
+  'chained=false 인 거래는 해시 체인에 넣지 않는다. 무결성은 일 단위 머클 앵커(audit.merkle_anchors)가 담당한다. ADR-006 · design-review.md DR-05.';
+
 INSERT INTO ledger.posting_rules (kind, category, account_kind, sign) VALUES
   -- §1 입금
   ('deposit',         'deposit_cash',         'house_cash',         1),
@@ -212,6 +238,13 @@ INSERT INTO ledger.posting_rules (kind, category, account_kind, sign) VALUES
   ('adjustment',      'adjustment',           'house_cash',        -1),
   ('adjustment',      'adjustment',           'suspense',           1),
   ('adjustment',      'adjustment',           'suspense',          -1),
+  -- §11-2 차액 확정 해소 (design-review.md DR-01)
+  -- suspense 다리는 언제나 suspense_resolve_out, 종착지는 suspense_resolve_in.
+  -- 부족분(suspense 차변 잔액)은 shortage_expense 로, 과잉분(대변)은 overage_income 으로.
+  ('suspense_resolve','suspense_resolve_out', 'suspense',          -1),
+  ('suspense_resolve','suspense_resolve_in',  'shortage_expense',   1),
+  ('suspense_resolve','suspense_resolve_out', 'suspense',           1),
+  ('suspense_resolve','suspense_resolve_in',  'overage_income',    -1),
   -- §12 케이지 계좌 <-> 회원 보유금 (양방향)
   ('wallet_transfer', 'wallet_transfer_out',  'member_deposit',     1),
   ('wallet_transfer', 'wallet_transfer_in',   'player_wallet',     -1),
@@ -231,7 +264,15 @@ INSERT INTO ledger.posting_rules (kind, category, account_kind, sign) VALUES
   ('share_accrue',    'share_accrue',         'commission_expense',    1),
   ('share_accrue',    'share_accrue',         'partner_share_payable',-1),
   ('share_settle',    'share_settle',         'partner_share_payable', 1),
-  ('share_settle',    'share_settle',         'house_cash',           -1);
+  ('share_settle',    'share_settle',         'house_cash',           -1),
+  -- §6-1 롤링 커미션 정산 지급 (design-review-6.md DR-66)
+  -- 차변 커미션 비용 / 대변 손님 예치금. 현행 _doSettleGame(index.html:7240)의
+  -- applyAccountTransaction(account,'IN',result) 가 이 두 행이 된다.
+  -- 원장에 들어가는 금액은 F&B 차감 후 **순지급액**이다. 총커미션과 F&B 차감액은
+  -- cage.commission_settlements 가 따로 보존한다 — F&B 매출 인식에는 전용 계정
+  -- 종류가 필요하고 이번 범위 밖이다 (README 미확정).
+  ('commission_payout','commission_payout',   'commission_expense',    1),
+  ('commission_payout','commission_payout',   'member_deposit',       -1);
 
 -- §14 기초 잔액 — 전 계정 종류가 양방향으로 가능하다 (마이그레이션 전용)
 INSERT INTO ledger.posting_rules (kind, category, account_kind, sign)
@@ -475,8 +516,20 @@ LANGUAGE plpgsql
 SET search_path = ledger, pg_temp
 AS $$
 DECLARE
-  v_hash BYTEA;
+  v_hash    BYTEA;
+  v_chained BOOLEAN;
 BEGIN
+  -- 체인 밖 거래(chain_policy.chained = false)는 hash 가 NULL 인 것이 정상이다
+  -- (design-review.md DR-05). 이 분기를 빠뜨리면 bet · payout 이 전부 커밋 거부된다.
+  SELECT cp.chained INTO v_chained
+    FROM ledger.transactions t
+    JOIN ledger.chain_policy cp ON cp.kind = t.kind
+   WHERE t.id = NEW.id;
+
+  IF NOT COALESCE(v_chained, TRUE) THEN
+    RETURN NULL;
+  END IF;
+
   SELECT hash INTO v_hash FROM ledger.transactions WHERE id = NEW.id;
   IF v_hash IS NULL THEN
     RAISE EXCEPTION 'transaction % was never sealed (hash is NULL)', NEW.id

@@ -83,12 +83,52 @@ for f in 0*.sql 1*.sql; do psql -v ON_ERROR_STOP=1 -f "$f" || break; done
   않았다.** 계정 종류 일관성 트리거 · 파트너 프로필 트리거 · `posting_rules`
   시드 · `partner_subtree()` 재귀만 스모크 테스트로 확인했다.
 
+### ⚠️ 2026-08-15 변경분은 적용 검증 전이다
+
+[design-review.md](../design-review.md)의 **차단 13건**을 반영하면서 001~013 대부분을
+고쳤다. **위 2026-08-14 클린 적용 확인은 이 변경 이전 상태에 대한 것이다.**
+
+가장 큰 것이 `DR-03`이다 — `op_*` **함수 19개의 시그니처**에서
+`p_auth_method identity.auth_method` 를 `p_step_up_id BIGINT` 로 바꾸고,
+`012` 의 `GRANT EXECUTE` 인자 목록을 같은 폭으로 바꿨다. 함수 정의와 GRANT 의
+인자 타입이 **한 글자라도** 어긋나면 그 GRANT 가 `function does not exist` 로
+실패하고, 위 두 건이 그랬듯 `009`~`013` 전체가 적용 불가가 된다.
+
+적용 전 반드시 확인한다.
+
+```bash
+for f in 0*.sql; do psql -v ON_ERROR_STOP=1 -f "$f" || break; done
+```
+
+그다음 세 가지를 본다.
+
+```sql
+-- (1) op_* 와 GRANT 의 인자 타입이 맞물렸는가
+SELECT p.proname
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname IN ('ledger','cage','identity') AND p.proname LIKE 'op\_%'
+   AND NOT has_function_privilege('ledger_app', p.oid, 'EXECUTE')
+   AND p.proname <> 'op_load_opening_balance';        -- 이것만 migrator 전용
+-- 기대: 0행
+
+-- (2) 정의자 뷰가 남았는가 (DR-24)
+SELECT * FROM ledger.v_check_view_security;           -- 기대: 0행
+
+-- (3) 008 의 코어 함수가 앱에 새지 않았는가 (DR-50)
+SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'ledger' AND p.proname NOT LIKE 'op\_%'
+   AND has_function_privilege('ledger_app', p.oid, 'EXECUTE');
+-- 기대: business_date_of · account_id_of · house_account_id 셋뿐
+```
+
 ## 운영 배치
 
 | 주기 | 작업 |
 |---|---|
 | 1분 | `SELECT * FROM ledger.v_integrity_status WHERE violations > 0` |
 | 야간 | `ledger.verify_hash_chain(branch, from_id, to_id)` — 해시 재계산. **위조를 잡는 것은 이쪽뿐이다** |
-| 야간 | 재계산 통과 후 `audit.chain_anchors` 앵커링 |
+| 야간 | 재계산 통과 후 `audit.chain_anchors` 앵커링 — **`audit_anchorer` 역할로** (`ledger_app` 아님) |
+| 야간 | 체인 밖 거래(`chain_policy.chained = false`)의 `audit.merkle_anchors` 앵커링. 루트는 `audit.merkle_root_for()` 로만 계산한다 |
+| 야간 | 앵커 기록 후 R8 · R9 대조 + 외부 서명 검증 — **연쇄 재작성 위조를 잡는 것은 이쪽뿐이다** |
 | 일 1회 | `SELECT ledger.purge_expired_idempotency()` |
 | 이관 완료 시 1회 | `SELECT archive.scrub_secrets()` — 되돌릴 수 없다 |

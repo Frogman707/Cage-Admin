@@ -6,7 +6,7 @@
 **상태:** 미해결 5건. **차단 0 · 높음 1 · 중간 2 · 낮음 2** · 반증 6건
 
 > **선행 문서**: [design-review.md](design-review.md) DR-01~DR-23 · [design-review-2.md](design-review-2.md) DR-24~DR-37 · [design-review-3.md](design-review-3.md) DR-38~DR-49 · [design-review-4.md](design-review-4.md) DR-50~DR-60 · [design-review-5.md](design-review-5.md) DR-61~DR-65 · [design-review-6.md](design-review-6.md) DR-66~DR-72
-> **후속**: [design-review-8.md](design-review-8.md) — 8차 `DR-78`~`DR-82` (차단 0 · 높음 2 · 중간 2 · 낮음 1). §6이 이월한 avatar/speed 전수 대조를 수행 — **아바타 개선으로 바뀌지 않는 축만** 추렸다. `DR-75`와 짝인 `DR-79`(거래 행위자 모델) 포함 · [design-review-9.md](design-review-9.md) — 9차 `DR-83`~`DR-86` (차단 0 · 높음 2 · 중간 2). 기준선 정정 작업에서 파생. 아홉 문서 합계 **86건 · 차단 13**
+> **후속**: [design-review-8.md](design-review-8.md) — 8차 `DR-78`~`DR-82` (차단 0 · 높음 2 · 중간 2 · 낮음 1). §6이 이월한 avatar/speed 전수 대조를 수행 — **아바타 개선으로 바뀌지 않는 축만** 추렸다. `DR-75`와 짝인 `DR-79`(거래 행위자 모델) 포함 · [design-review-9.md](design-review-9.md) — 9차 `DR-83`~`DR-86` (차단 0 · 높음 2 · 중간 2). 기준선 정정 작업에서 파생. 아홉 문서 합계 **86건 · 차단 13 — 2026-08-15 전부 해소** (`DR-38`만 부분 해소)
 
 ---
 

@@ -177,7 +177,9 @@ GRANT EXECUTE ON FUNCTION ledger.op_withdraw(...) TO ledger_app;
 | `ledger_app` | **`op_*` 연산 함수 EXECUTE + 조회 SELECT.** 자금 테이블 DML 없음, `post_transaction` EXECUTE 없음 |
 | `ledger_read` | 조회 전용 (리포팅·대사). 인증 비밀값·KYC 컬럼 제외 |
 | `ledger_kyc` | 여권번호·사진 참조 컬럼 열람 전용. 컬럼 단위 GRANT |
-| `audit_writer` | `audit` 스키마 INSERT만. SELECT·UPDATE·DELETE 없음 |
+| `audit_writer` | `audit.access_log` INSERT만. SELECT·UPDATE·DELETE 없음. **앵커는 못 쓴다** |
+| `audit_reader` | `audit` 조회 전용. 감사 담당자·대사 배치에만. `ledger_read`에 상속시키지 않는다 |
+| `audit_anchorer` | `audit.chain_anchors` INSERT 전용. 야간 배치에만. `ledger_app`이 상속하지 않는다 |
 | `archive_reader` | 레거시 아카이브 조회 전용. `ledger_read`에는 주지 않는다 |
 | `ledger_migrator` | 마이그레이션 전용. 평시 사용 금지 |
 
@@ -472,9 +474,37 @@ SELECT * FROM archive.v_unscrubbed;   -- 0행이어야 운영 준비 완료
 
 `audit` 스키마는 **별도 역할**이 쓰며, 애플리케이션 역할은 삭제 권한이 없다. 필요하면 별도 인스턴스로 분리한다.
 
+`audit`에는 역할이 셋이고 셋 다 서로 상속하지 않는다 — 쓰기(`audit_writer`)·앵커 쓰기(`audit_anchorer`)·읽기(`audit_reader`). `ledger_app`은 첫 번째만 상속한다.
+
+> **`002`의 RBAC `auditor`와 DB 역할 `audit_reader`는 다른 층이다.** 전자는 애플리케이션 권한(`identity.role_permissions`)이고 후자는 PostgreSQL 역할이다. `auditor`는 애플리케이션 권한을 하나도 갖지 않으며(`002` 주석), 감사 담당자가 실제로 감사 로그를 보는 경로는 `audit_reader`로 DB에 직접 접속하는 것이다. 두 이름이 비슷해 같은 것으로 읽히기 쉬우므로 여기 적어 둔다.
+
 ### 9-2. 변조 탐지
 
 지점별 해시 체인 + 일 단위 외부 앵커링. [03-ledger-model.md](03-ledger-model.md) 7-5절.
+
+#### 왜 해시 체인만으로는 부족한가
+
+DB 쓰기 권한을 쥔 공격자는 **체인 전체를 자기 정합적으로 재작성할 수 있다.** 거래 N의 내용을 고치고 `hash`를 재계산한 뒤, N+1의 `prev_hash`를 새 `hash`로 갱신하고 N+1의 `hash`도 재계산한다. 마지막 거래까지 반복하면 링크 검사(R3a)와 내용 재계산(R3b)이 **둘 다 통과한다.** [design-review-2.md `DR-26`](design-review-2.md) · [08-adr.md ADR-006](08-adr.md)이 예상한 시나리오다.
+
+이 재작성을 잡는 것은 **앵커 대조 R8**뿐이다 (`ledger.v_check_chain_anchor`). 앵커 시점의 체인 헤드 해시와 현재 해시를 비교한다.
+
+**체인 밖 거래는 R8도 보지 못한다.** `bet`·`payout`은 처리량 때문에 해시 체인에서 제외된다 (`ledger.chain_policy`, [design-review.md `DR-05`](design-review.md)). 그 공백은 **R9 머클 앵커**가 메운다 (`ledger.v_check_merkle_anchor`) — 지점·영업일·거래종류별 머클 루트를 하루 한 번 기록하고 대조한다. 루트 계산은 `audit.merkle_root_for()` 하나로 고정한다. 기록하는 쪽과 검증하는 쪽이 각자 계산하면 나온 차이가 위조인지 산식 드리프트인지 구분할 수 없다.
+
+#### 외부 앵커 서명 규약
+
+앵커가 DB 안에만 있으면 DB를 침해한 공격자가 앵커까지 함께 고친다. R8은 **외부 서명 대조까지 해야** 완결된다.
+
+| 항목 | 규약 |
+|---|---|
+| 서명 대상 | 체인 앵커 `(branch, business_date, last_tx_id, chain_hash)` · 머클 앵커 `(branch, business_date, tx_kind, tx_count, merkle_root)`의 정규 직렬화 |
+| 서명 키 | DB와 분리된 KMS. **애플리케이션 자격증명으로 접근 불가** |
+| 보관 위치 | append-only 외부 저장소. `audit.chain_anchors.anchor_ref`가 그 위치를 가리킨다 |
+| 기록 주체 | `audit_anchorer` 역할의 야간 배치. `ledger_app`은 이 역할을 상속하지 않는다 |
+| 대조 주기 | 야간 배치가 R3(b) 통과를 확인한 뒤 서명 검증까지 수행 |
+
+**기록 주체 분리가 핵심이다.** 침해된 앱 자격증명 하나로 거래 위조와 앵커 기록을 함께 만들 수 있다면 외부 앵커의 독립성이 성립하지 않는다.
+
+> 서명 알고리즘·KMS 제품·외부 저장소 선정은 미확정이다. 위 네 항목이 그 선택의 **요구사항**이다.
 
 ### 9-3. 보존
 
@@ -487,6 +517,7 @@ SELECT * FROM archive.v_unscrubbed;   -- 0행이어야 운영 준비 완료
 | 사건 | 자동 대응 |
 |---|---|
 | 대사 위반 (R1/R2/R3) | **신규 거래 차단** (`503 ledger-integrity-halt`) + 즉시 호출 |
+| **앵커 불일치 (R8 · R9)** | **신규 거래 차단 + 침해 대응 절차 개시.** 과거 거래가 재작성됐다는 뜻이고, DB 쓰기 권한이 이미 남의 손에 있다는 뜻이다. 자격증명 전면 회전 |
 | `suspense` 잔액 ≠ 0 | 알람. 기간 마감 차단 |
 | `unbalanced-transaction` 발생 | 즉시 호출. 서버 버그 신호 |
 | 리프레시 토큰 재사용 감지 | 세션 계열 전체 무효화 |

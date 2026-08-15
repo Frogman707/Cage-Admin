@@ -190,8 +190,9 @@ M8(로컬/클라우드 이중 경로)은 "일부 데이터가 로컬에만 있�
        이 시점의 계좌별 잔액이 "확정 개시 잔액"
 
 5단계  개시
-       ledger.post_transaction(kind='opening_balance') 1건으로
+       ledger.op_load_opening_balance() 1회 호출로
        전 계정 잔액을 세운다 (균형 계정: opening_equity)
+       ※ 실행 주체 · 권한 요건은 아래 3-1 참조
 
 6단계  진행 중 게임 이관
        status='ongoing' 게임은 chips_outstanding 계정을 만들고
@@ -216,6 +217,26 @@ M8(로컬/클라우드 이중 경로)은 "일부 데이터가 로컬에만 있�
 > 마지막 항목이 중요하다. 감사가 앱과 **다른 방식으로** 잔액을 계산하면, 나온 차이가 실제 결함인지 산식 드리프트인지 구분할 수 없다. 이 테스트가 그 구분을 미리 해결해 둔다.
 >
 > 이 도구들은 Admin SDK 기반이며 사람이 로컬에서 수동 실행한다. 상세는 [`docs/BALANCE_ARCHITECTURE_DESIGN.md`](../BALANCE_ARCHITECTURE_DESIGN.md) 2절.
+
+### 3-1. 개시 잔액 적재 — 실행 주체와 권한
+
+5단계를 실행할 함수가 **없었다.** [design-review-3.md `DR-38`](design-review-3.md) — `003`이 `OPENING-EQUITY` 주체와 계정을 부트스트랩에서 만들어 두고 이 문서 전체가 그 계정에 개시 잔액을 싣는 것을 전제로 서 있었는데, `opening_balance` 분개를 발행할 `op_*` 함수가 없었다. [ADR-013](08-adr.md)이 `post_transaction()`을 앱에 노출하지 않기로 했으므로 op 함수가 없는 자금은 기록할 경로 자체가 없다. **이관 계획이 실행 불가능한 상태였다.**
+
+`ledger.op_load_opening_balance()`([`011`](ddl/011_operations_admin.sql))가 그 경로다.
+
+| 항목 | 값 |
+|---|---|
+| DB 역할 | `ledger_migrator` — **`ledger_app`에는 부여하지 않는다** |
+| RBAC 역할 | `migrator` (`identity.roles`) + 권한 `ledger.opening_balance` |
+| 인증 방식 | `system` (`transactions.auth_method`에 그대로 기록된다) |
+| 호출 횟수 | 지점당 1회. 멱등키가 재실행을 막는다 |
+| 균형 | `opening_equity` 행은 함수가 자동으로 만든다. 호출자가 넣지 않는다 |
+
+**앱에 열지 않는 이유.** 이 함수는 임의 금액을 무에서 만든다. 상시 접속하는 애플리케이션 자격증명이 이것을 가지면 그 자체가 화폐 발행 API다. 컷오버 기간에만 쓰는 역할로 격리하고, 끝나면 회수한다.
+
+**컷오버 담당자에게 필요한 것 셋.** DB 역할 `ledger_migrator`, RBAC 역할 `migrator`, 그리고 세 지점 전부에 대한 `identity.staff_branches` 행 — `assert_actor_authorized()`가 지점 소속을 검사하기 때문이다. 셋 중 하나라도 없으면 5단계에서 막힌다.
+
+> 컷오버 종료 후 `migrator` 역할 배정을 회수하고 `ledger_migrator` 자격증명을 폐기한다. §9 체크리스트에 항목이 있다.
 
 ### 3-2. 병행 운영 금지
 
@@ -395,10 +416,16 @@ F4  플레이어 화면 (Avatar · Speed)                     [설계 보류 중
 - [ ] 롤링 판정 불가 건 처리 방침 확정
 - [ ] 진행 중 게임 목록 확정 및 개시 분개 반영
 - [ ] R1 · R2 대사 통과
+- [ ] **R8 앵커 대조 통과 + 외부 서명 검증 1회 성공** (`DR-26`)
+- [ ] **`SELECT * FROM ledger.v_check_view_security` 0행** — 정의자 뷰가 남아 있으면 RLS가 우회된다 (`DR-24`)
+- [ ] **`SELECT branch FROM ledger.branch_config WHERE approval_threshold_minor IS NULL` 0행** + 임계 금액에 운영 책임자 확정 (`DR-39` — 시드는 잠정값이다)
+- [ ] **`audit_reader`로 `audit.access_log` 조회 성공, `ledger_app`으로는 `permission denied`** (`DR-25`)
+- [ ] **`ledger_app`으로 `INSERT INTO audit.chain_anchors` 시도 → `permission denied`** (`DR-26`)
 - [ ] 계좌별 표시 잔액 전수 대조 완료
 - [ ] 마이그레이션 리허설 1회 이상 성공
 - [ ] 롤백 절차 문서화 및 담당자 지정
 - [ ] 현행 시스템 읽기 전용 보존 계획 확정
+- [ ] **컷오버 종료 후 `migrator` RBAC 역할 배정 회수 + `ledger_migrator` 자격증명 폐기** (§3-1)
 
 ---
 

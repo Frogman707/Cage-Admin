@@ -16,7 +16,8 @@ BEGIN;
 -- =============================================================================
 -- R1 · 전역 복식부기 항등식 — 통화별 분개 합이 0이어야 한다
 -- =============================================================================
-CREATE VIEW ledger.v_check_double_entry AS
+CREATE VIEW ledger.v_check_double_entry
+  WITH (security_invoker = true) AS
 SELECT
   currency,
   sum(amount_minor)     AS imbalance_minor,
@@ -34,7 +35,8 @@ COMMENT ON VIEW ledger.v_check_double_entry IS
 -- 잔액을 별도 저장하는 것은 "잔액을 저장하지 않는다"는 원칙의 의도적 예외다.
 -- (행 잠금 대상이 있어야 오버드래프트를 원자적으로 막을 수 있다.)
 -- 그 예외를 이 대사가 상시 보완한다.
-CREATE VIEW ledger.v_check_balance_projection AS
+CREATE VIEW ledger.v_check_balance_projection
+  WITH (security_invoker = true) AS
 SELECT
   a.id                                        AS account_id,
   p.code                                      AS party_code,
@@ -64,12 +66,17 @@ COMMENT ON VIEW ledger.v_check_balance_projection IS
 -- 링크만 검사하면 원문과 해시를 함께 고쳤을 때 탐지하지 못한다.
 -- 재계산은 008 의 canonical_digest() 를 그대로 쓴다 — 기록 경로와 같은 함수다.
 
-CREATE VIEW ledger.v_check_hash_chain AS
+CREATE VIEW ledger.v_check_hash_chain
+  WITH (security_invoker = true) AS
+-- 체인 대상 거래만 본다 (design-review.md DR-05). chain_policy.chained = false 인
+-- 거래(bet · payout)는 hash 가 NULL 인 것이 정상이고, 여기 끼면 lag() 연결이
+-- 끊어져 멀쩡한 체인이 전부 위반으로 잡힌다.
 WITH ordered AS (
   SELECT
     t.id, t.branch, t.external_id, t.recorded_at, t.prev_hash, t.hash,
     lag(t.hash) OVER (PARTITION BY t.branch ORDER BY t.id) AS expected_prev
   FROM ledger.transactions t
+  JOIN ledger.chain_policy cp ON cp.kind = t.kind AND cp.chained
 )
 SELECT
   o.id               AS transaction_id,
@@ -127,7 +134,8 @@ COMMENT ON FUNCTION ledger.verify_hash_chain IS
 -- =============================================================================
 -- R4 · 게임 롤링 프로젝션 대사
 -- =============================================================================
-CREATE VIEW cage.v_check_rolling_projection AS
+CREATE VIEW cage.v_check_rolling_projection
+  WITH (security_invoker = true) AS
 SELECT
   g.id                                             AS game_id,
   g.game_no,
@@ -145,7 +153,8 @@ LEFT JOIN (
 -- =============================================================================
 -- R5 · 미해소 차액 — suspense 잔액은 0이어야 한다
 -- =============================================================================
-CREATE VIEW ledger.v_check_suspense AS
+CREATE VIEW ledger.v_check_suspense
+  WITH (security_invoker = true) AS
 SELECT
   p.home_branch       AS branch,
   a.currency,
@@ -165,7 +174,8 @@ COMMENT ON VIEW ledger.v_check_suspense IS
 -- =============================================================================
 -- entries.branch 는 RLS 와 파생 뷰를 위해 중복 저장한다.
 -- 계정 귀속 지점(하우스 · 게임) 또는 거래 지점과 일치해야 한다.
-CREATE VIEW ledger.v_check_entry_branch AS
+CREATE VIEW ledger.v_check_entry_branch
+  WITH (security_invoker = true) AS
 SELECT
   e.id          AS entry_id,
   e.transaction_id,
@@ -188,7 +198,8 @@ COMMENT ON VIEW ledger.v_check_entry_branch IS
 -- =============================================================================
 -- entries_posting_rule 트리거가 삽입 시점에 막지만, 트리거를 우회하는 경로
 -- (session_replication_role='replica' 슈퍼유저 세션 등)가 남긴 흔적을 잡는다.
-CREATE VIEW ledger.v_check_posting_rules AS
+CREATE VIEW ledger.v_check_posting_rules
+  WITH (security_invoker = true) AS
 SELECT
   e.id AS entry_id,
   e.transaction_id,
@@ -213,7 +224,114 @@ COMMENT ON VIEW ledger.v_check_posting_rules IS
 -- =============================================================================
 -- 종합 상태 — 배치 · 헬스체크가 이 하나만 본다
 -- =============================================================================
-CREATE VIEW ledger.v_integrity_status AS
+-- R8 — 앵커 대조 (design-review-2.md DR-26)
+-- =============================================================================
+-- R3(a) 링크 검사와 R3(b) 내용 재계산은 **연쇄 재작성을 통과시킨다.**
+-- R3(b)가 저장된 prev_hash 를 그대로 입력으로 쓰기 때문이다. 공격 절차:
+--   1. 거래 N 의 내용을 고친다
+--   2. N.hash 를 canonical_digest(N) 으로 재계산해 덮는다        → R3(b) 통과
+--   3. N+1.prev_hash 를 N 의 새 hash 로 갱신한다                 → R3(a) 통과
+--   4. N+1.hash 도 재계산한다                                    → R3(b) 통과
+--   5. 마지막 거래까지 반복하면 체인 전체가 자기 정합적이 된다
+-- 이 재작성을 잡는 것은 앵커 대조뿐이다. 08-adr.md ADR-006 이 예상한 바로 그 시나리오다.
+--
+-- 앵커 자체가 DB 안에 있으므로 이 뷰만으로는 부족하다. 외부 서명 대조까지 해야
+-- 완결된다 — 06-security.md 의 외부 앵커 서명 절.
+CREATE VIEW ledger.v_check_chain_anchor
+  WITH (security_invoker = true) AS
+SELECT
+  a.branch,
+  a.business_date,
+  a.last_tx_id,
+  a.chain_hash          AS anchored_hash,
+  t.hash                AS current_hash,
+  a.anchored_at,
+  a.anchor_ref,
+  t.hash = a.chain_hash AS ok
+  FROM audit.chain_anchors a
+  JOIN ledger.transactions t ON t.id = a.last_tx_id;
+
+COMMENT ON VIEW ledger.v_check_chain_anchor IS
+  'R8. ok=false 는 앵커 시점 이후 과거 거래가 재작성됐다는 뜻이다. R3(a)·R3(b) 는 연쇄 재작성을 통과시키므로 위조를 잡는 것은 이 검사뿐이다.';
+
+-- R9 — 머클 앵커 대조 (design-review.md DR-05)
+-- =============================================================================
+-- 체인 밖 거래(chain_policy.chained = false)는 hash 가 없으므로 R3 · R8 이 보지
+-- 않는다. 그 공백을 메우는 것이 일 단위 머클 앵커다 (ADR-006).
+--
+-- 루트 계산을 함수 하나로 고정한다. 기록하는 쪽과 검증하는 쪽이 각자 계산하면
+-- 산식이 갈리고, 그러면 나온 차이가 위조인지 산식 드리프트인지 구분할 수 없다.
+-- 008 의 canonical_digest() 가 같은 이유로 함수 하나에 모여 있다.
+--
+-- SECURITY DEFINER 인 이유: canonical_digest() 는 012 에서 조회 역할에 EXECUTE 가
+-- 회수돼 있다. verify_hash_chain() 과 같은 사정이다.
+CREATE FUNCTION audit.merkle_root_for(
+  p_branch        ledger.branch_code,
+  p_business_date DATE,
+  p_kind          ledger.tx_kind
+) RETURNS BYTEA
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = audit, ledger, pg_temp
+AS $$
+DECLARE
+  v_level BYTEA[];
+  v_next  BYTEA[];
+  i       INT;
+BEGIN
+  -- 리프: 거래 id 오름차순. 정렬 기준이 곧 규약이다.
+  SELECT array_agg(sha256(convert_to(ledger.canonical_digest(t.id), 'UTF8')) ORDER BY t.id)
+    INTO v_level
+    FROM ledger.transactions t
+   WHERE t.branch = p_branch
+     AND t.business_date = p_business_date
+     AND t.kind = p_kind;
+
+  IF v_level IS NULL THEN
+    RETURN NULL;                        -- 그날 그 종류의 거래가 없다
+  END IF;
+
+  WHILE array_length(v_level, 1) > 1 LOOP
+    v_next := ARRAY[]::BYTEA[];
+    i := 1;
+    WHILE i <= array_length(v_level, 1) LOOP
+      IF i + 1 <= array_length(v_level, 1) THEN
+        v_next := v_next || sha256(v_level[i] || v_level[i + 1]);
+      ELSE
+        -- 홀수 개면 마지막 노드를 자기 자신과 짝짓는다 (Bitcoin 과 같은 관례).
+        v_next := v_next || sha256(v_level[i] || v_level[i]);
+      END IF;
+      i := i + 2;
+    END LOOP;
+    v_level := v_next;
+  END LOOP;
+
+  RETURN v_level[1];
+END;
+$$;
+
+COMMENT ON FUNCTION audit.merkle_root_for IS
+  '체인 밖 거래의 일 단위 머클 루트. 기록과 검증이 같은 산식을 쓰게 하는 유일한 정의다. design-review.md DR-05.';
+
+CREATE VIEW ledger.v_check_merkle_anchor
+  WITH (security_invoker = true) AS
+SELECT
+  m.branch,
+  m.business_date,
+  m.tx_kind,
+  m.tx_count,
+  m.merkle_root                                                    AS anchored_root,
+  audit.merkle_root_for(m.branch, m.business_date, m.tx_kind)      AS current_root,
+  m.anchored_at,
+  m.merkle_root = audit.merkle_root_for(m.branch, m.business_date, m.tx_kind) AS ok
+  FROM audit.merkle_anchors m;
+
+COMMENT ON VIEW ledger.v_check_merkle_anchor IS
+  'R9. ok=false 는 앵커 시점 이후 체인 밖 거래(bet · payout)가 변조됐다는 뜻이다. R3 · R8 은 그 거래를 보지 않는다.';
+
+CREATE VIEW ledger.v_integrity_status
+  WITH (security_invoker = true) AS
 SELECT 'R1_double_entry' AS check_name,
        count(*) FILTER (WHERE NOT ok) AS violations
   FROM ledger.v_check_double_entry
@@ -234,16 +352,30 @@ SELECT 'R6_entry_branch',
        count(*) FILTER (WHERE NOT ok) FROM ledger.v_check_entry_branch
 UNION ALL
 SELECT 'R7_posting_rules',
-       count(*) FILTER (WHERE NOT ok) FROM ledger.v_check_posting_rules;
+       count(*) FILTER (WHERE NOT ok) FROM ledger.v_check_posting_rules
+UNION ALL
+SELECT 'R8_chain_anchor',
+       count(*) FILTER (WHERE NOT ok) FROM ledger.v_check_chain_anchor
+UNION ALL
+SELECT 'R9_merkle_anchor',
+       count(*) FILTER (WHERE NOT ok) FROM ledger.v_check_merkle_anchor;
 
 COMMENT ON VIEW ledger.v_integrity_status IS
   'violations 가 0이 아닌 행이 하나라도 있으면 신규 거래를 차단한다.';
 
 -- 거래 차단 판정. 011 의 op_settle_period() 가 마감 전에 호출한다.
 -- API 요청마다 호출하기에는 비싸므로 배치가 결과를 캐시한다.
+--
+-- SECURITY DEFINER 인 이유 (design-review-2.md DR-24): 이 파일의 뷰가 전부
+-- security_invoker 가 되면서 v_integrity_status 는 호출자 권한으로 하위 v_check_*
+-- 일곱 개를 읽는다. 그 일곱 개는 ledger_read 에만 부여돼 있으므로 ledger_app 이
+-- 그대로 부르면 permission denied 로 깨진다.
+-- 하위 뷰 일곱 개를 앱에 여는 것보다 판정 결과 하나만 돌려주는 쪽이 노출면이 작다.
+-- 위 verify_hash_chain() 이 같은 이유로 이미 정의자 함수다.
 CREATE FUNCTION ledger.integrity_ok() RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
 SET search_path = ledger, cage, pg_temp
 AS $$
   SELECT NOT EXISTS (SELECT 1 FROM ledger.v_integrity_status WHERE violations > 0);
@@ -259,7 +391,8 @@ $$;
 -- 역분개가 자동 반영된다: reverse_transaction() 이 원 category 를 유지하므로
 -- 부호가 뒤집힌 같은 category 분개가 합계에서 상쇄된다.
 -- (category 를 'reversal' 로 덮으면 여기서 정정이 사라진다.)
-CREATE VIEW cage.v_shift_counters AS
+CREATE VIEW cage.v_shift_counters
+  WITH (security_invoker = true) AS
 WITH scope AS (
   SELECT branch, business_date FROM ledger.accounting_periods
 ),
@@ -328,7 +461,8 @@ COMMENT ON VIEW cage.v_shift_counters IS
   '현행 9개 shift 카운터를 원장 · 재고에서 재구성. API 응답 형태를 유지해 화면 변경을 최소화한다.';
 
 -- 지점 롤링 누계 (현행 getGuestRollingGrandTotal, index.html:4547)
-CREATE VIEW cage.v_branch_rolling_total AS
+CREATE VIEW cage.v_branch_rolling_total
+  WITH (security_invoker = true) AS
 SELECT
   g.branch,
   sum(r.amount_minor) FILTER (WHERE r.counts_toward_branch_total) AS observed_rolling_minor,
@@ -338,7 +472,8 @@ JOIN cage.games g ON g.id = r.game_id
 GROUP BY g.branch;
 
 -- 메인케이지 누계 (현행 deriveMainCageForBranch, index.html:4718)
-CREATE VIEW cage.v_main_cage_total AS
+CREATE VIEW cage.v_main_cage_total
+  WITH (security_invoker = true) AS
 SELECT branch, sum(amount_minor) AS grand_total_minor
   FROM cage.main_cage_events
  GROUP BY branch;
@@ -347,7 +482,8 @@ SELECT branch, sum(amount_minor) AS grand_total_minor
 --   회수 총액(chips_redeem) + 발행 총액(chips_issue, 바이인 거래분만)
 -- chips_issue 는 대변(음수)이므로 더하면 차감된다.
 -- 취소로 역분개된 게임은 같은 category 의 반대 부호 분개가 들어와 0으로 수렴한다.
-CREATE VIEW cage.v_game_win_loss AS
+CREATE VIEW cage.v_game_win_loss
+  WITH (security_invoker = true) AS
 SELECT
   g.id      AS game_id,
   g.game_no,
@@ -369,18 +505,56 @@ LEFT JOIN ledger.transactions t ON t.id = e.transaction_id
 GROUP BY g.id, g.game_no, g.branch, g.status, g.buyin_minor;
 
 -- =============================================================================
+-- 설정 드리프트 검사 — security_invoker 누락 (design-review-2.md DR-24)
+-- =============================================================================
+-- 08-adr.md ADR-014 와 06-security.md §257 이 "모든 뷰에 security_invoker = true"
+-- 를 규칙으로 정해 뒀는데도 이 파일의 뷰 12개가 전부 빠져 있었다. ADR 을 쓴 사람과
+-- 013 을 쓴 사람이 같은데도 그랬다 — 사람이 지키는 규칙은 다시 빠진다.
+--
+-- 위 R1~R7 과 달리 v_integrity_status 에 넣지 않는다. 이것은 원장 정합성이 아니라
+-- 배포 설정의 결함이고, 거래를 차단할 일이 아니라 배포를 막을 일이다.
+-- 07-migration.md 의 컷오버 체크리스트와 CI 가 이 뷰를 본다.
+CREATE VIEW ledger.v_check_view_security
+  WITH (security_invoker = true) AS
+SELECT c.relnamespace::regnamespace::text AS schema_name,
+       c.relname                          AS view_name
+  FROM pg_class c
+ WHERE c.relkind = 'v'
+   AND c.relnamespace::regnamespace::text IN ('ledger', 'cage', 'archive', 'identity')
+   AND NOT COALESCE((SELECT option_value::boolean
+                       FROM pg_options_to_table(c.reloptions)
+                      WHERE option_name = 'security_invoker'), FALSE);
+
+COMMENT ON VIEW ledger.v_check_view_security IS
+  '행이 하나라도 나오면 정의자 뷰가 있다는 뜻이고, 그 뷰는 RLS 를 우회한다. 배포 전 0행이어야 한다.';
+
+-- =============================================================================
 -- 권한 — 012 가 이미 실행됐으므로 여기서 부여한다
 -- =============================================================================
 GRANT SELECT ON
   ledger.v_check_double_entry, ledger.v_check_balance_projection,
   ledger.v_check_hash_chain, ledger.v_check_suspense,
   ledger.v_check_entry_branch, ledger.v_check_posting_rules,
+  ledger.v_check_chain_anchor, ledger.v_check_merkle_anchor,
   ledger.v_integrity_status,
+  ledger.v_check_view_security,
   cage.v_check_rolling_projection
 TO ledger_read;
 
+-- R8 은 audit.chain_anchors 를 읽는다. security_invoker 뷰이므로 뷰에 SELECT 가
+-- 있어도 그것만으로는 부족하고 호출자가 **기반 테이블에도** SELECT 를 가져야 한다.
+--
+-- audit_reader 를 ledger_read 에 상속시키지 않는다. 012 가 두 접근을 분리한 이유가
+-- 그대로 적용된다 — 상시 접속하는 리포팅 자격증명에 감사 로그를 얹으면 감사 로그
+-- 조회 자체가 감사되지 않는다. R8 을 직접 조회할 사람에게는 두 역할을 **각각** 부여한다.
+-- 배치는 정의자 함수 integrity_ok() 를 쓰면 되고, 그 경로는 이 제약을 받지 않는다.
+GRANT USAGE ON SCHEMA ledger TO audit_reader;
+
+-- design-review-2.md DR-24. v_integrity_status 는 ledger_app 에 주지 않는다.
+-- security_invoker 가 붙은 뒤로는 이 뷰가 호출자 권한으로 하위 v_check_* 를 읽는데,
+-- 그 일곱 개는 ledger_read 전용이다. 앱은 대신 integrity_ok() 를 부른다 (정의자 함수).
+-- 아래 네 개는 그대로 둔다 — 이제 security_invoker 라서 RLS 지점 스코프가 적용된다.
 GRANT SELECT ON
-  ledger.v_integrity_status,
   cage.v_shift_counters, cage.v_branch_rolling_total,
   cage.v_main_cage_total, cage.v_game_win_loss
 TO ledger_app;

@@ -102,6 +102,28 @@ CREATE TRIGGER chain_anchors_immutable
   BEFORE UPDATE OR DELETE ON audit.chain_anchors
   FOR EACH ROW EXECUTE FUNCTION ledger.deny_mutation();
 
+-- 체인 밖 거래의 무결성 대체 수단 — 일 단위 머클 앵커 (design-review.md DR-05)
+-- ADR-006 이 "베팅은 체인 제외 + 일 단위 머클 앵커링" 이라고 정해 놓고 이 테이블이
+-- 없었다. 위 chain_anchors 는 체인 **헤드**용이라 대체가 되지 않는다.
+-- chain_policy.chained = false 인 거래 종류가 여기 걸린다.
+CREATE TABLE audit.merkle_anchors (
+  branch        ledger.branch_code NOT NULL,
+  business_date DATE NOT NULL,
+  tx_kind       ledger.tx_kind NOT NULL,
+  tx_count      BIGINT NOT NULL CHECK (tx_count > 0),
+  merkle_root   BYTEA NOT NULL,
+  anchored_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  anchor_ref    TEXT,                     -- 외부 저장소 위치 · 서명 참조
+  PRIMARY KEY (branch, business_date, tx_kind)
+);
+
+CREATE TRIGGER merkle_anchors_immutable
+  BEFORE UPDATE OR DELETE ON audit.merkle_anchors
+  FOR EACH ROW EXECUTE FUNCTION ledger.deny_mutation();
+
+COMMENT ON TABLE audit.merkle_anchors IS
+  '해시 체인에 넣지 않는 거래 종류의 일 단위 무결성 앵커. 루트 계산은 013 의 merkle_root_for() 하나로 고정한다. ADR-006 · design-review.md DR-05.';
+
 -- -----------------------------------------------------------------------------
 -- 레거시 아카이브 (07-migration.md §6)
 -- -----------------------------------------------------------------------------
@@ -126,7 +148,9 @@ CREATE TABLE archive.firestore_snapshot (
 CREATE INDEX firestore_snapshot_collection_idx ON archive.firestore_snapshot (collection);
 
 -- 남아 있는 원본 스냅샷 개수. 0이 아니면 운영 준비가 끝나지 않은 것이다.
-CREATE VIEW archive.v_unscrubbed AS
+-- security_invoker: 08-adr.md ADR-014 의 규칙이다 (design-review-2.md DR-24).
+CREATE VIEW archive.v_unscrubbed
+  WITH (security_invoker = true) AS
 SELECT collection, count(*) AS documents, min(snapshot_at) AS oldest
   FROM archive.firestore_snapshot
  WHERE scrubbed_at IS NULL

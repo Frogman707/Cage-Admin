@@ -104,7 +104,10 @@ INSERT INTO identity.roles (code, description) VALUES
   ('cage_operator',  '케이지 단말 조작 — 입출금 · 게임 · 롤링'),
   ('cage_manager',   '케이지 관리 — 정산 · 실사 · 승인'),
   ('partner_admin',  '파트너 콘솔'),
-  ('auditor',        '조회 전용');
+  ('auditor',        '조회 전용'),
+  -- 마이그레이션 담당자. 컷오버 기간에만 부여하고 끝나면 회수한다.
+  -- DB 역할 ledger_migrator 와 짝을 이룬다 — 둘 다 있어야 개시 잔액을 실을 수 있다.
+  ('migrator',       '마이그레이션 전용 — 개시 잔액 적재. 평시 부여 금지');
 
 -- 권한 목록. 009~011 의 각 연산 함수가 이 문자열 하나를 요구한다.
 -- 함수 안에서 identity.assert_actor_authorized() 로 검사하므로
@@ -117,6 +120,9 @@ INSERT INTO identity.role_permissions (role_code, permission) VALUES
   ('cage_operator', 'game.buyin'),
   ('cage_operator', 'game.rolling'),
   ('cage_operator', 'game.settle'),
+  -- design-review-6.md DR-66. 칩 정산(game.settle)과 다른 권한이다 —
+  -- 이쪽은 손님 계좌로 돈이 나간다. 현행은 PIN 만 있으면 누구나 했다.
+  ('cage_operator', 'game.commission'),
   ('cage_operator', 'maincage.write'),
   ('cage_operator', 'shift.write'),
 
@@ -126,14 +132,21 @@ INSERT INTO identity.role_permissions (role_code, permission) VALUES
   ('cage_manager',  'ledger.branch_transfer'),
   ('cage_manager',  'ledger.wallet_transfer'),
   ('cage_manager',  'ledger.adjustment'),
+  -- design-review-4.md DR-50. 역분개는 정정의 유일한 수단이다 (004:439 의 오류
+  -- 메시지가 그렇게 지시한다). cage_operator 에게는 주지 않는다 — 자금을 되돌리는
+  -- 조작이고 op_reverse_transaction 이 4-eyes 승인을 무조건 요구한다.
+  ('cage_manager',  'ledger.reverse'),
   ('cage_manager',  'game.open'),
   ('cage_manager',  'game.buyin'),
   ('cage_manager',  'game.rolling'),
   ('cage_manager',  'game.settle'),
+  ('cage_manager',  'game.commission'),
   ('cage_manager',  'game.cancel'),
   ('cage_manager',  'maincage.write'),
   ('cage_manager',  'shift.write'),
   ('cage_manager',  'balancing.count'),
+  -- design-review.md DR-01. 차액을 확정 손실 · 이익으로 넘긴다. 조작자 권한이 아니다.
+  ('cage_manager',  'ledger.suspense_resolve'),
   ('cage_manager',  'period.freeze'),
   ('cage_manager',  'period.settle'),
   ('cage_manager',  'account.open'),
@@ -145,7 +158,11 @@ INSERT INTO identity.role_permissions (role_code, permission) VALUES
   ('partner_admin', 'member.point_earn'),
   ('partner_admin', 'member.point_convert'),
   ('partner_admin', 'partner.share_accrue'),
-  ('partner_admin', 'partner.share_settle');
+  ('partner_admin', 'partner.share_settle'),
+
+  -- design-review-3.md DR-38. 개시 잔액은 임의 금액을 무에서 만든다.
+  -- 케이지 역할 어디에도 넣지 않는다 — 컷오버 담당자에게만 한시 부여한다.
+  ('migrator',      'ledger.opening_balance');
 -- auditor 는 권한을 갖지 않는다. 조회는 ledger_read 역할과 RLS 가 담당한다.
 --
 -- partner_admin 은 principal_type='partner_operator' 인 주체에게 부여하는 역할이다.
@@ -401,5 +418,113 @@ CREATE INDEX shift_events_branch_date_idx
 CREATE TRIGGER shift_events_immutable
   BEFORE UPDATE OR DELETE ON identity.shift_events
   FOR EACH ROW EXECUTE FUNCTION ledger.deny_mutation();
+
+-- =============================================================================
+-- Step-up 토큰 — 재인증을 DB 가 검증한다 (design-review.md DR-03)
+-- =============================================================================
+-- 예전에는 op_* 함수가 p_auth_method 파라미터를 **그 값 자체로** 검사했다.
+-- ledger_app 이 'withdraw_pw' 라는 문자열을 넘기면 통과했고, 그 값이
+-- transactions.auth_method 에 그대로 저장됐다. 즉:
+--   · 침해된 앱 자격증명이 재인증 없이 출금을 실행할 수 있었다
+--   · 감사 컬럼이 "어떤 인증으로 승인됐는가" 가 아니라 "앱이 무엇이라 주장했는가" 였다
+--
+-- 같은 문서 안에서 4-eyes 는 다르게 처리된다 — consume_approval() 이 투표 행을 실제로
+-- 세고 payload 를 대조한다. **승인은 DB 가 검증하는데 재인증은 앱이 자기신고했다.**
+-- 신뢰 모델이 두 갈래였다. 이 테이블이 그 갈래를 하나로 합친다.
+--
+-- 발급 주체는 Identity 서비스뿐이다. PIN · TOTP · 출금비밀번호를 실제로 검증한
+-- 직후에만 행을 만든다. **ledger_app 은 이 테이블에 INSERT 권한이 없다** (012).
+-- 발급과 소비를 한 역할이 모두 할 수 있으면 원래 문제로 돌아가므로, 012 가
+-- identity_app 역할을 따로 만든다. 그 역할 분리가 이 대책의 핵심이다.
+CREATE TABLE identity.step_up_tokens (
+  id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  staff_id    BIGINT NOT NULL REFERENCES identity.staff,
+  method      identity.auth_method NOT NULL,
+  device_id   TEXT NOT NULL,
+  scope       TEXT NOT NULL,          -- role_permissions.permission 과 같은 문자열
+  issued_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  expires_at  TIMESTAMPTZ NOT NULL,
+  consumed_at TIMESTAMPTZ,
+  -- 거래 id 는 담지 않는다. consume_step_up() 은 post_transaction() **앞에서** 돌아
+  -- 그 시점에 거래 id 가 없고, 사후에 채우려면 op_* 19개에 UPDATE 를 하나씩
+  -- 더 넣어야 한다. 토큰과 거래의 연결은 (staff_id, device_id, consumed_at) 과
+  -- transactions 의 같은 세 값으로 사후 대조한다.
+
+  CONSTRAINT step_up_not_system CHECK (method <> 'system'),
+  CONSTRAINT step_up_lifetime   CHECK (expires_at > issued_at)
+);
+
+CREATE INDEX step_up_tokens_staff_idx
+  ON identity.step_up_tokens (staff_id, expires_at DESC) WHERE consumed_at IS NULL;
+
+COMMENT ON TABLE identity.step_up_tokens IS
+  '1회용 재인증 증거. Identity 서비스만 발급하고 op_* 함수만 소비한다. design-review.md DR-03.';
+COMMENT ON COLUMN identity.step_up_tokens.scope IS
+  '이 토큰으로 실행할 수 있는 연산. op_* 가 요구하는 permission 문자열과 정확히 같아야 한다.';
+
+-- consume_approval() 과 같은 구조다. 잠그고, 검사하고, 소비 표시하고, 사실을 돌려준다.
+-- 반환값이 transactions.auth_method 에 저장된다 — 앱이 주장한 값이 아니라
+-- Identity 서비스가 실제로 검증한 값이다.
+CREATE FUNCTION identity.consume_step_up(
+  p_token_id   BIGINT,
+  p_staff_id   BIGINT,
+  p_device_id  TEXT,
+  p_scope      TEXT
+) RETURNS identity.auth_method
+LANGUAGE plpgsql
+SET search_path = identity, pg_temp
+AS $$
+DECLARE
+  v_t identity.step_up_tokens;
+BEGIN
+  IF p_token_id IS NULL THEN
+    RAISE EXCEPTION 'operation % requires a step-up token', p_scope
+      USING ERRCODE = 'insufficient_privilege', HINT = 'step-up-required';
+  END IF;
+
+  SELECT * INTO v_t FROM identity.step_up_tokens WHERE id = p_token_id FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'step-up token % not found', p_token_id
+      USING ERRCODE = 'no_data_found', HINT = 'step-up-required';
+  END IF;
+
+  IF v_t.consumed_at IS NOT NULL THEN
+    RAISE EXCEPTION 'step-up token % is already used — 1회용이다', p_token_id
+      USING ERRCODE = 'object_not_in_prerequisite_state', HINT = 'step-up-required';
+  END IF;
+
+  IF v_t.expires_at <= clock_timestamp() THEN
+    RAISE EXCEPTION 'step-up token % expired at %', p_token_id, v_t.expires_at
+      USING ERRCODE = 'object_not_in_prerequisite_state', HINT = 'step-up-required';
+  END IF;
+
+  IF v_t.staff_id <> p_staff_id THEN
+    RAISE EXCEPTION 'step-up token % belongs to another staff', p_token_id
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  -- 다른 단말의 토큰을 훔쳐 쓰는 경로를 막는다.
+  IF v_t.device_id <> p_device_id THEN
+    RAISE EXCEPTION 'step-up token % was issued for another device', p_token_id
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF v_t.scope <> p_scope THEN
+    RAISE EXCEPTION 'step-up token % scope % does not cover %',
+      p_token_id, v_t.scope, p_scope
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  UPDATE identity.step_up_tokens
+     SET consumed_at = clock_timestamp()
+   WHERE id = p_token_id;
+
+  RETURN v_t.method;
+END;
+$$;
+
+COMMENT ON FUNCTION identity.consume_step_up IS
+  '재인증 증거를 소비하고 실제 인증 방식을 돌려준다. 앱이 auth_method 를 날조할 수 없게 한다. design-review.md DR-03.';
 
 COMMIT;

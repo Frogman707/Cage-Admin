@@ -50,19 +50,34 @@ CREATE FUNCTION cage.assert_variance_adjusted() RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = cage, pg_temp
 AS $$
+DECLARE
+  -- design-review-2.md DR-27.
+  -- PostgreSQL 은 STORED 생성 열을 BEFORE 행 트리거가 끝난 뒤에 계산한다.
+  -- 따라서 여기서 NEW.variance_minor 를 읽으면 항상 NULL 이고, NULL <> 0 은 NULL 이라
+  -- IF 조건이 어떤 입력에서도 참이 되지 않았다 — 강제가 통째로 죽은 코드였다.
+  -- 생성 열과 같은 식을 직접 평가한다. 둘은 함께 고쳐야 한다.
+  v_variance BIGINT := NEW.counted_total_minor - NEW.system_total_minor;
 BEGIN
   IF NEW.verified_by IS NOT NULL
-     AND NEW.variance_minor <> 0
+     AND v_variance <> 0
      AND NEW.adjustment_tx_id IS NULL THEN
     RAISE EXCEPTION
       'balancing variance % 가 있는데 조정 거래가 없다. adjustment 거래를 먼저 기록하라.',
-      NEW.variance_minor
+      v_variance
       USING ERRCODE = 'object_not_in_prerequisite_state';
   END IF;
   RETURN NEW;
 END;
 $$;
 
+-- BEFORE 로 남긴다. 함수가 식을 직접 평가하므로 생성 열 계산 시점에 의존하지 않고,
+-- AFTER + DEFERRABLE 로 옮기면 ADR-005 의 지연 제약 트리거 목록만 늘어난다.
+--
+-- DR-27 전수 확인 (2026-08-15): ddl/ 전체에서 IDENTITY 가 아닌 STORED 생성 열은
+-- 이 컬럼과 cage.game_settlements.rolling_delta_minor (005:187) 둘뿐이다.
+-- 후자를 참조하는 트리거는 없다 (그 테이블의 BEFORE 트리거 두 개는
+-- assert_game_ongoing · deny_mutation 이고 둘 다 그 컬럼을 읽지 않는다).
+-- 같은 함정은 여기 한 곳이었다.
 CREATE TRIGGER balancing_variance_adjusted
   BEFORE INSERT OR UPDATE ON cage.balancing_counts
   FOR EACH ROW EXECUTE FUNCTION cage.assert_variance_adjusted();

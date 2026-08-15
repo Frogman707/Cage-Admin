@@ -3,11 +3,37 @@
 > **분류**: 작업 문서 (Issue Register)
 > **작성일**: 2026-08-15 · 브랜치 `backend`
 > **대상**: `docs/architecture/` 문서 10건 + `ddl/` 13개 파일 (총 9,862줄)
-> **상태**: 미해결 23건. **차단 5 · 높음 7 · 중간 9 · 낮음 2**
-> **후속**: [design-review-2.md](design-review-2.md) `DR-24`~`DR-37` (차단 4) · [design-review-3.md](design-review-3.md) `DR-38`~`DR-49` (차단 2) · [design-review-4.md](design-review-4.md) `DR-50`~`DR-60` (차단 1) · [design-review-5.md](design-review-5.md) `DR-61`~`DR-65` (차단 0) · [design-review-6.md](design-review-6.md) `DR-66`~`DR-72` (차단 1) · [design-review-7.md](design-review-7.md) `DR-73`~`DR-77` (차단 0) · [design-review-8.md](design-review-8.md) `DR-78`~`DR-82` (차단 0) · [design-review-9.md](design-review-9.md) `DR-83`~`DR-86` (차단 0). 아홉 문서 합계 **86건 · 차단 13**
+> **상태**: 미해결 18건. ~~차단 5~~ **해소 (2026-08-15)** · 높음 7 · 중간 9 · 낮음 2
+> **후속**: [design-review-2.md](design-review-2.md) `DR-24`~`DR-37` (차단 4) · [design-review-3.md](design-review-3.md) `DR-38`~`DR-49` (차단 2) · [design-review-4.md](design-review-4.md) `DR-50`~`DR-60` (차단 1) · [design-review-5.md](design-review-5.md) `DR-61`~`DR-65` (차단 0) · [design-review-6.md](design-review-6.md) `DR-66`~`DR-72` (차단 1) · [design-review-7.md](design-review-7.md) `DR-73`~`DR-77` (차단 0) · [design-review-8.md](design-review-8.md) `DR-78`~`DR-82` (차단 0) · [design-review-9.md](design-review-9.md) `DR-83`~`DR-86` (차단 0). 아홉 문서 합계 **86건 · 차단 13 — 2026-08-15 전부 해소** (`DR-38`만 부분 해소)
 
 이 문서는 **설계 문서 세트의 일부가 아니라 그것에 대한 검토 결과**다. 각 항목이 해소되면
 해당 설계 문서에 반영하고 여기서는 `해소`로 표시한다. 반영 대상 문서·절은 [§4](#4-문서-반영-필요-목록)에 있다.
+
+> ## 진행 — 1단계 차단 13건 반영 (2026-08-15)
+>
+> 아홉 회차의 **차단 13건을 설계 문서와 `ddl/`에 반영했다.** `DR-38`만 부분 해소다.
+>
+> | 항목 | 반영 | 위치 |
+> |---|---|---|
+> | `DR-01` suspense 해소 경로 | `shortage_expense`·`overage_income` 계정 + `suspense_resolve` 거래종류 + `op_resolve_suspense()` | `001`·`003`·`004`·`009`·`012` · [04 §11-2](04-posting-rules.md) · [05 §3-3](05-api-contract.md) |
+> | `DR-02` 자정 넘긴 게임 | `op_freeze_period`의 진행 중 게임 검사 제거 (판정 기준을 "새 거래 유입 없음"으로) | `011` |
+> | `DR-03` 재인증 자기신고 | `identity.step_up_tokens` + `consume_step_up()` + `identity_app` 역할 분리. **`op_*` 19개의 `p_auth_method`를 `p_step_up_id`로 교체** | `002`·`009`·`010`·`011`·`012` · [05 §6-2](05-api-contract.md) |
+> | `DR-04` 멱등키 만료 모순 | `begin_idempotent`가 캐시 만료·삭제 양쪽에서 `transactions`를 확인 → `422` | `008` · [05 §2-3](05-api-contract.md) |
+> | `DR-05` 해시 체인 직렬화 | `ledger.chain_policy` + `post_transaction` 분기 + 봉인 검사·R3·마감 검사 필터 + `audit.merkle_anchors`·R9 | `004`·`007`·`008`·`011`·`013` |
+> | `DR-24` 정의자 뷰 | 뷰 13개에 `security_invoker` + `integrity_ok()` 정의자화 + 드리프트 검사 뷰 | `007`·`013` |
+> | `DR-25` audit 조회 역할 부재 | `audit_reader` 신설 | `012` · [06 §4-1](06-security.md) |
+> | `DR-26` 앵커 대조 부재 | R8 `v_check_chain_anchor` + `audit_anchorer` 분리 + 외부 서명 규약 | `007`·`012`·`013` · [06 §9-2](06-security.md) |
+> | `DR-27` 생성 열 함정 | 트리거가 식을 직접 평가 + 저장소 전수 확인(같은 함정 1곳뿐) | `006` |
+> | `DR-38` op 없는 도메인 | **부분** — `op_load_opening_balance()` 추가. 베팅·포인트·쉐어는 `A1`·`A2` 보류와 `DR-68` 사업 결정에 묶여 남는다 | `001`·`002`·`011`·`012` · [07 §3-1](07-migration.md) |
+> | `DR-39` 승인 임계 NULL | `NOT NULL` + 시드 값(잠정) + NULL 거부 | `001`·`009` · [05 §6-4](05-api-contract.md) |
+> | `DR-50` 역분개 경로 | `op_reverse_transaction()` + `approval_subject.reversal` + `ledger.reverse` 권한 + GRANT | `001`·`002`·`011`·`012` · [05 §3-6](05-api-contract.md) |
+> | `DR-66` 롤링 커미션 정산 | `commission_payout` 거래종류 + 분개 2행 + `cage.commission_settlements` + `op_settle_commission()` | `001`·`002`·`004`·`005`·`010`·`012` · [04 §6-1](04-posting-rules.md) · [05 §3-2](05-api-contract.md) |
+>
+> **함께 해소된 것**: [9차](design-review-9.md) `DR-84`(요율 권위 — `games.commission_rate_bp` 스냅샷, `bet_type`은 표시용 격하)와 `DR-85`(재정산 방지 — 롤링 소진량 제약)는 `DR-66` 설계에 편입됐다.
+>
+> ⚠️ **검증되지 않았다.** 이 환경에 PostgreSQL이 없다. `ddl/README.md`가 기록한 마지막 클린 적용 확인은 2026-08-14이고 **위 변경은 그 이후다.** 특히 `DR-03`은 함수 19개의 시그니처와 `012`의 `GRANT` 인자 목록을 함께 바꾼 기계적 일괄 변경이라, 실제 `psql` 적용 확인 전에는 완료로 보지 않는다. 검증 방법은 [ddl/README.md](ddl/README.md) 참조.
+>
+> **바뀌지 않은 것**: 높음 이하 73건. 그것들이 [2단계](00-system-map.md)의 대상이다.
 
 ID 접두사 `DR-`는 저장소의 기존 체계(`TA-` · `G-` · `P-` · `M*` · `A*` · `U*`)와 충돌하지 않는다
 — [`00-system-map.md` §7](00-system-map.md) 참조.
@@ -27,11 +53,11 @@ ID 접두사 `DR-`는 저장소의 기존 체계(`TA-` · `G-` · `P-` · `M*` �
 
 | ID | 항목 | 등급 | 영향 | 근거 |
 |---|---|---|---|---|
-| [DR-01](#dr-01) | `suspense` 해소 경로 부재 → 기간 마감 영구 불가 | **차단** | M1 | `011:309` · `004:213` |
-| [DR-02](#dr-02) | 자정 넘긴 게임이 기간 동결을 막는다 | **차단** | M1 | `011:284` · `005:236` |
-| [DR-03](#dr-03) | 재인증(`auth_method`)을 애플리케이션이 자기신고한다 | **차단** | M1 | `009:206` · `06 §2` |
-| [DR-04](#dr-04) | 멱등키 24시간 만료가 `transactions` UNIQUE와 모순 | **차단** | M1 | `008:165` · `004:64` |
-| [DR-05](#dr-05) | 해시 체인이 전 거래를 직렬화 — 베팅 제외 미구현 | **차단** | M1 | `008:387` · `03 §7-5` |
+| [DR-01](#dr-01) | `suspense` 해소 경로 부재 → 기간 마감 영구 불가 | ~~차단~~ **해소** | M1 | `011:309` · `004:213` |
+| [DR-02](#dr-02) | 자정 넘긴 게임이 기간 동결을 막는다 | ~~차단~~ **해소** | M1 | `011:284` · `005:236` |
+| [DR-03](#dr-03) | 재인증(`auth_method`)을 애플리케이션이 자기신고한다 | ~~차단~~ **해소** | M1 | `009:206` · `06 §2` |
+| [DR-04](#dr-04) | 멱등키 24시간 만료가 `transactions` UNIQUE와 모순 | ~~차단~~ **해소** | M1 | `008:165` · `004:64` |
+| [DR-05](#dr-05) | 해시 체인이 전 거래를 직렬화 — 베팅 제외 미구현 | ~~차단~~ **해소** | M1 | `008:387` · `03 §7-5` |
 | [DR-06](#dr-06) | 다통화가 반쪽 — 하우스 계정 PHP만, 환전 연산 없음 | 높음 | M1 | `003:298` |
 | [DR-07](#dr-07) | 포인트 · 파트너 쉐어 연산 함수가 전무 | 높음 | M2 | `ddl/` 전체 |
 | [DR-08](#dr-08) | 파트너 · 회원지갑 · 포인트 계정 개설 경로 없음 | 높음 | M2 | `011:455` |

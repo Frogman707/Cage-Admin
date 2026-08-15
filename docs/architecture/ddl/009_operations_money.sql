@@ -99,7 +99,17 @@ BEGIN
   SELECT approval_threshold_minor INTO v_threshold
     FROM ledger.branch_config WHERE branch = p_branch;
 
-  IF v_threshold IS NULL OR p_amount_minor < v_threshold THEN
+  -- design-review-3.md DR-39. 001 에서 이 컬럼이 NOT NULL 이 됐으므로 NULL 은
+  -- 더 이상 "임계 없음" 을 뜻하지 않는다 — branch_config 행 자체가 없다는 뜻이다.
+  -- 설정 누락은 통과가 아니라 거부다. 통제가 조용히 꺼지는 경로를 남기지 않는다.
+  IF v_threshold IS NULL THEN
+    RAISE EXCEPTION
+      'branch % has no approval threshold configured', p_branch
+      USING ERRCODE = 'configuration_limit_exceeded',
+            HINT = 'ledger.branch_config.approval_threshold_minor 를 설정하라';
+  END IF;
+
+  IF p_amount_minor < v_threshold THEN
     RETURN;                       -- 임계 미만 — 승인 불필요
   END IF;
 
@@ -120,7 +130,7 @@ $$;
 CREATE FUNCTION ledger.op_deposit(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_auth_method     identity.auth_method,
+  p_step_up_id      BIGINT,
   p_device_id       TEXT,
   p_branch          ledger.branch_code,
   p_account_code    TEXT,
@@ -133,6 +143,7 @@ SECURITY DEFINER
 SET search_path = ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object(
                     'branch', p_branch, 'account_code', p_account_code,
                     'amount_minor', p_amount_minor, 'currency', p_currency);
@@ -145,11 +156,13 @@ BEGIN
   IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
 
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'ledger.deposit');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'ledger.deposit');
   PERFORM ledger.assert_positive(p_amount_minor, 'amount_minor');
 
   v_tx := ledger.post_transaction(
     p_idempotency_key, 'deposit', p_branch,
-    p_actor_staff_id, p_auth_method, p_device_id,
+    p_actor_staff_id, v_auth, p_device_id,
     jsonb_build_array(
       jsonb_build_object('account_id',
         ledger.house_account_id(p_branch, 'house_cash', p_currency),
@@ -174,7 +187,7 @@ $$;
 CREATE FUNCTION ledger.op_withdraw(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_auth_method     identity.auth_method,
+  p_step_up_id      BIGINT,
   p_device_id       TEXT,
   p_branch          ledger.branch_code,
   p_account_code    TEXT,
@@ -188,6 +201,7 @@ SECURITY DEFINER
 SET search_path = ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object(
                     'branch', p_branch, 'account_code', p_account_code,
                     'amount_minor', p_amount_minor, 'currency', p_currency);
@@ -200,12 +214,14 @@ BEGIN
   IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
 
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'ledger.withdraw');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'ledger.withdraw');
   PERFORM ledger.assert_positive(p_amount_minor, 'amount_minor');
 
   -- 출금은 재인증이 필수다. 현행 requestWithdrawAuth() 흐름을 서버가 강제한다.
-  IF p_auth_method NOT IN ('withdraw_pw', 'totp', 'approval') THEN
+  IF v_auth NOT IN ('withdraw_pw', 'totp', 'approval') THEN
     RAISE EXCEPTION 'withdraw requires step-up auth (withdraw_pw · totp · approval), got %',
-      p_auth_method
+      v_auth
       USING ERRCODE = 'insufficient_privilege', HINT = 'step-up-required';
   END IF;
 
@@ -214,7 +230,7 @@ BEGIN
 
   v_tx := ledger.post_transaction(
     p_idempotency_key, 'withdraw', p_branch,
-    p_actor_staff_id, p_auth_method, p_device_id,
+    p_actor_staff_id, v_auth, p_device_id,
     jsonb_build_array(
       jsonb_build_object('account_id',
         ledger.account_id_of(p_account_code, 'member_deposit', p_currency),
@@ -239,7 +255,7 @@ $$;
 CREATE FUNCTION ledger.op_transfer(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_auth_method     identity.auth_method,
+  p_step_up_id      BIGINT,
   p_device_id       TEXT,
   p_branch          ledger.branch_code,
   p_from_code       TEXT,
@@ -253,6 +269,7 @@ SECURITY DEFINER
 SET search_path = ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object(
                     'branch', p_branch, 'from', p_from_code, 'to', p_to_code,
                     'amount_minor', p_amount_minor, 'currency', p_currency);
@@ -265,6 +282,8 @@ BEGIN
   IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
 
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'ledger.transfer');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'ledger.transfer');
   PERFORM ledger.assert_positive(p_amount_minor, 'amount_minor');
 
   IF p_from_code = p_to_code THEN
@@ -272,14 +291,14 @@ BEGIN
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
 
-  IF p_auth_method NOT IN ('withdraw_pw', 'totp', 'approval') THEN
-    RAISE EXCEPTION 'transfer requires step-up auth, got %', p_auth_method
+  IF v_auth NOT IN ('withdraw_pw', 'totp', 'approval') THEN
+    RAISE EXCEPTION 'transfer requires step-up auth, got %', v_auth
       USING ERRCODE = 'insufficient_privilege', HINT = 'step-up-required';
   END IF;
 
   v_tx := ledger.post_transaction(
     p_idempotency_key, 'transfer', p_branch,
-    p_actor_staff_id, p_auth_method, p_device_id,
+    p_actor_staff_id, v_auth, p_device_id,
     jsonb_build_array(
       jsonb_build_object('account_id',
         ledger.account_id_of(p_from_code, 'member_deposit', p_currency),
@@ -308,7 +327,7 @@ $$;
 CREATE FUNCTION ledger.op_branch_transfer(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_auth_method     identity.auth_method,
+  p_step_up_id      BIGINT,
   p_device_id       TEXT,
   p_from_branch     ledger.branch_code,
   p_to_branch       ledger.branch_code,
@@ -322,6 +341,7 @@ SECURITY DEFINER
 SET search_path = ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args   JSONB := jsonb_build_object(
                       'from_branch', p_from_branch, 'to_branch', p_to_branch,
                       'amount_minor', p_amount_minor, 'currency', p_currency);
@@ -336,6 +356,8 @@ BEGIN
   -- 양쪽 지점 모두에 대한 권한을 요구한다
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_from_branch,
                                            'ledger.branch_transfer');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'ledger.branch_transfer');
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_to_branch,
                                            'ledger.branch_transfer');
   PERFORM ledger.assert_positive(p_amount_minor, 'amount_minor');
@@ -350,7 +372,7 @@ BEGIN
 
   v_tx := ledger.post_transaction(
     p_idempotency_key, 'branch_transfer', p_from_branch,
-    p_actor_staff_id, p_auth_method, p_device_id,
+    p_actor_staff_id, v_auth, p_device_id,
     jsonb_build_array(
       jsonb_build_object('account_id',
         ledger.house_account_id(p_to_branch, 'house_cash', p_currency),
@@ -377,7 +399,7 @@ COMMENT ON FUNCTION ledger.op_branch_transfer IS
 CREATE FUNCTION ledger.op_wallet_transfer(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_auth_method     identity.auth_method,
+  p_step_up_id      BIGINT,
   p_device_id       TEXT,
   p_branch          ledger.branch_code,
   p_account_code    TEXT,
@@ -392,6 +414,7 @@ SECURITY DEFINER
 SET search_path = ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object(
                     'branch', p_branch, 'account_code', p_account_code,
                     'member_code', p_member_code, 'amount_minor', p_amount_minor,
@@ -408,6 +431,8 @@ BEGIN
 
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch,
                                            'ledger.wallet_transfer');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'ledger.wallet_transfer');
   PERFORM ledger.assert_positive(p_amount_minor, 'amount_minor');
 
   v_cage := ledger.account_id_of(p_account_code, 'member_deposit', p_currency);
@@ -415,7 +440,7 @@ BEGIN
 
   v_tx := ledger.post_transaction(
     p_idempotency_key, 'wallet_transfer', p_branch,
-    p_actor_staff_id, p_auth_method, p_device_id,
+    p_actor_staff_id, v_auth, p_device_id,
     CASE WHEN p_to_wallet THEN
       jsonb_build_array(
         jsonb_build_object('account_id', v_cage,
@@ -445,7 +470,7 @@ $$;
 CREATE FUNCTION ledger.op_adjustment(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_auth_method     identity.auth_method,
+  p_step_up_id      BIGINT,
   p_device_id       TEXT,
   p_branch          ledger.branch_code,
   p_variance_minor  BIGINT,               -- 실사 − 시스템. 양수면 과잉, 음수면 부족
@@ -458,6 +483,7 @@ SECURITY DEFINER
 SET search_path = ledger, identity, pg_temp
 AS $$
 DECLARE
+  v_auth identity.auth_method;
   v_args JSONB := jsonb_build_object(
                     'branch', p_branch, 'variance_minor', p_variance_minor,
                     'currency', p_currency);
@@ -470,6 +496,8 @@ BEGIN
   IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
 
   PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'ledger.adjustment');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'ledger.adjustment');
 
   IF p_variance_minor IS NULL OR p_variance_minor = 0 THEN
     RAISE EXCEPTION 'variance_minor must be non-zero'
@@ -485,7 +513,7 @@ BEGIN
 
   v_tx := ledger.post_transaction(
     p_idempotency_key, 'adjustment', p_branch,
-    p_actor_staff_id, p_auth_method, p_device_id,
+    p_actor_staff_id, v_auth, p_device_id,
     jsonb_build_array(
       jsonb_build_object('account_id',
         ledger.house_account_id(p_branch, 'house_cash', p_currency),
@@ -501,5 +529,106 @@ BEGIN
   RETURN v_body;
 END;
 $$;
+
+-- =============================================================================
+-- 실사 차액 확정 해소 — suspense 를 0으로 되돌린다 (design-review.md DR-01)
+-- =============================================================================
+-- 이 함수가 없던 동안 실사 차액이 한 번 발생하면 그 지점은 **다시 마감되지 않았다.**
+--   1. 실사 차액 → op_record_balancing 이 adjustment 거래 생성 (house_cash <-> suspense)
+--   2. suspense 잔액 <> 0
+--   3. op_freeze_period 거부 (011:304-313)
+--   4. suspense 를 0으로 되돌릴 경로가 없다 → 3으로
+-- op_adjustment 를 다시 불러도 house_cash <-> suspense 를 왕복할 뿐이었다.
+-- 차액을 최종 귀착시킬 계정 자체가 account_kind 에 없었다.
+--
+-- 탈출구 없는 제약은 우회를 만든다. 멈춘 상태에서 사람이 하는 일은 정해져 있다 —
+-- DBA 에게 직접 UPDATE 를 요청하고, 그 순간 불변식 전체가 무의미해진다.
+--
+-- 금액을 호출자가 지정하지 않는다. 함수가 현재 잔액을 직접 읽어 정한다.
+-- 부분 해소도 없다. 호출 후 suspense 잔액은 정확히 0 이다.
+CREATE FUNCTION ledger.op_resolve_suspense(
+  p_idempotency_key TEXT,
+  p_actor_staff_id  BIGINT,
+  p_step_up_id      BIGINT,
+  p_device_id       TEXT,
+  p_branch          ledger.branch_code,
+  p_resolution      TEXT,             -- 조사 결과. NULL · 빈 문자열 불가
+  p_approval_id     BIGINT,           -- NULL 불가. 금액과 무관하게 항상 4-eyes
+  p_currency        TEXT DEFAULT 'PHP'
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ledger, identity, pg_temp
+AS $$
+DECLARE
+  v_auth identity.auth_method;
+  v_args      JSONB := jsonb_build_object('branch', p_branch, 'currency', p_currency);
+  v_idem      ledger.idem_result;
+  v_suspense  BIGINT;
+  v_susp_acct BIGINT;
+  v_dest_kind ledger.account_kind;
+  v_tx        ledger.posted_tx;
+  v_body      JSONB;
+BEGIN
+  v_idem := ledger.begin_idempotent(
+              p_idempotency_key, ledger.request_fingerprint('resolve_suspense', v_args));
+  IF NOT v_idem.fresh THEN RETURN v_idem.response_body; END IF;
+
+  PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'ledger.suspense_resolve');
+  v_auth := identity.consume_step_up(
+            p_step_up_id, p_actor_staff_id, p_device_id, 'ledger.suspense_resolve');
+
+  IF p_resolution IS NULL OR btrim(p_resolution) = '' THEN
+    RAISE EXCEPTION 'suspense resolution requires a written finding'
+      USING ERRCODE = 'invalid_parameter_value',
+            HINT = '차액을 확정 손실 · 이익으로 넘기는 조작이다. 조사 결과 없이 통과시키지 않는다';
+  END IF;
+
+  IF p_approval_id IS NULL THEN
+    RAISE EXCEPTION 'suspense resolution always requires a 4-eyes approval'
+      USING ERRCODE = 'insufficient_privilege', HINT = 'approval-required';
+  END IF;
+
+  v_susp_acct := ledger.house_account_id(p_branch, 'suspense', p_currency);
+
+  -- 잔액 행을 잠근다. 잠그지 않으면 동시 요청 두 건이 같은 잔액을 각각 해소해
+  -- suspense 를 반대 방향으로 넘긴다.
+  SELECT b.balance_minor INTO v_suspense
+    FROM ledger.account_balances b
+   WHERE b.account_id = v_susp_acct
+   FOR UPDATE;
+
+  IF COALESCE(v_suspense, 0) = 0 THEN
+    RAISE EXCEPTION 'branch % has no suspense balance to resolve', p_branch
+      USING ERRCODE = 'object_not_in_prerequisite_state';
+  END IF;
+
+  PERFORM identity.consume_approval(p_approval_id, 'suspense_resolve', p_branch, v_args);
+
+  -- 차변 잔액(양수) = 부족분 → 확정 손실. 대변 잔액(음수) = 과잉분 → 확정 이익.
+  v_dest_kind := CASE WHEN v_suspense > 0 THEN 'shortage_expense' ELSE 'overage_income' END;
+
+  v_tx := ledger.post_transaction(
+    p_idempotency_key, 'suspense_resolve', p_branch,
+    p_actor_staff_id, v_auth, p_device_id,
+    jsonb_build_array(
+      jsonb_build_object('account_id', v_susp_acct,
+        'amount_minor', -v_suspense, 'category', 'suspense_resolve_out'),
+      jsonb_build_object('account_id',
+        ledger.house_account_id(p_branch, v_dest_kind, p_currency),
+        'amount_minor',  v_suspense, 'category', 'suspense_resolve_in')
+    ),
+    p_resolution, NULL, p_approval_id);
+
+  v_body := ledger.tx_response(v_tx) || jsonb_build_object(
+              'resolved_minor', v_suspense,
+              'destination',    v_dest_kind);
+  PERFORM ledger.complete_idempotent(p_idempotency_key, 201, v_body, v_tx.transaction_id);
+  RETURN v_body;
+END;
+$$;
+
+COMMENT ON FUNCTION ledger.op_resolve_suspense IS
+  '실사 차액을 확정 손실 · 이익으로 귀착시켜 suspense 를 0으로 만든다. 승인 · 조사 결과 필수. design-review.md DR-01.';
 
 COMMIT;

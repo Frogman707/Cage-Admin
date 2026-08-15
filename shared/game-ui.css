@@ -458,15 +458,16 @@
   background-position:14px 10px;
   border:1px solid #e4e4e4;border-radius:12px;color:#1a1a1a;
 }
-.sd-tally{grid-area:tally;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
+/* the board rules the bead side in bigger squares than the road side */
+.sd-tally{grid-area:tally;--rc:22px;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
 .sd-tally-head{display:flex;justify-content:space-between;align-items:center;height:var(--rc);font-size:10.5px;color:#8a8a8a;flex-shrink:0;}
 .sd-tally-head b{color:#1a1a1a;font-family:var(--mono);font-weight:700;}
 .sd-tally-body{display:flex;flex:1;min-height:0;}
 .sd-tally-list{display:flex;flex-direction:column;flex-shrink:0;padding-right:14px;border-right:1px solid #e4e4e4;margin-right:14px;}
 .sd-tally-list .tl-row{display:flex;align-items:center;gap:6px;height:var(--rc);font-size:13px;font-weight:800;font-family:var(--mono);}
 .sd-tally-list .tl-badge{
-  width:16px;height:16px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
-  display:flex;align-items:center;justify-content:center;color:#fff;font-size:9.5px;font-weight:800;font-family:var(--sans);
+  width:20px;height:20px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;font-family:var(--sans);
 }
 .sd-tally-list .tl-row.player .tl-badge{background:#2f7fbf;} .sd-tally-list .tl-row.player b{color:#2f7fbf;}
 .sd-tally-list .tl-row.banker .tl-badge{background:var(--danger);} .sd-tally-list .tl-row.banker b{color:var(--danger);}
@@ -477,11 +478,22 @@
 .sd-tally-list .tl-row.pair .br-pair{width:6px;height:6px;}
 .sd-tally-list .tl-row.pair.player b{color:#2f7fbf;}
 .sd-tally-list .tl-row.pair.banker b{color:var(--danger);}
-/* bead pitch == one graph square: 16px bead + 2px gutter = the 18px ruling */
+/* bead pitch == one graph square: 20px bead + 2px gutter = the 22px ruling */
 .sd-tally .bead-road{flex:1;gap:2px;}
 .sd-tally .bead-road .br-col{gap:2px;}
-.sd-tally .bead-road .bd-cell{width:16px;height:16px;font-size:9.5px;}
-.sd-road{grid-area:road;padding:10px 14px;display:flex;flex-direction:column;overflow:hidden;}
+.sd-tally .bead-road .bd-cell{width:20px;height:20px;font-size:11px;}
+.sd-tally .bead-road .br-pair{width:5px;height:5px;}
+.sd-road{grid-area:road;--rc:18px;padding:10px 14px;display:flex;gap:10px;overflow:hidden;}
+/* Three stacked bands, ruled off from each other: Big Road, then Big Eye Boy, then a band
+   split down the middle for Small Road | Cockroach Road. */
+.sd-road-main{display:flex;flex-direction:column;flex:1;min-width:0;}
+.sd-road-band{padding:5px 0;min-height:0;overflow:hidden;}
+.sd-road-band + .sd-road-band{border-top:1px solid #e4e4e4;}
+.sd-road-band:first-child{flex:0 0 auto;padding-top:0;}
+.sd-road-band:not(:first-child){flex:1;}
+.sd-road-split{display:flex;gap:0;}
+.sd-road-split > *{flex:1;min-width:0;padding-right:12px;}
+.sd-road-split > * + *{border-left:1px solid #e4e4e4;padding-left:12px;padding-right:0;}
 .sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;}
 .sd-road .br-col{gap:2px;}
 .sd-road .br-cell{width:16px;height:16px;border-width:2px;}
@@ -491,13 +503,6 @@
    backgrounds it was designed for) - on this panel's white/graph-paper background that
    reads as a stray dark smudge above the ring, so give it a light pill here instead. */
 .sd-road .br-tie span{background:#fff;box-shadow:0 0 0 1px #fff;}
-/* vertical offsets are kept to whole/half graph squares so the roads below stay on the ruling */
-.sd-road-body{display:flex;flex:1;min-height:0;gap:10px;margin-top:5px;padding-top:12px;border-top:1px solid #e4e4e4;}
-.sd-road-roads{display:flex;flex-direction:column;flex:1;min-width:0;}
-/* Big Eye Boy + Small Road sit close together (same hollow-ring style), then a
-   divider before Cockroach Road (the visually distinct diagonal-tick style). */
-.sd-road-ring-roads{display:flex;flex-direction:column;gap:9px;}
-.sd-road-roads .diagonal-road{border-top:1px solid #e4e4e4;padding-top:12px;margin-top:5px;}
 .sd-road .derived-road-grid{overflow-x:auto;}
 .sd-road .derived-road-grid .dr-cell{width:7px;height:7px;}
 /* legend rail: a small key explaining the three marks used on the board (hollow

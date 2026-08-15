@@ -18,7 +18,9 @@ export async function createStaff(client, { code, branches, roles = ['cage_opera
      RETURNING id`,
     [staffCode, `TEST ${staffCode}`, FIXTURE_PIN_HASH]
   );
-  const staffId = rows[0].id;
+  // BIGINT 는 pg 드라이버가 문자열로 돌려준다(setTypeParser 미등록, 의도적 —
+  // harness note 참고). 브리프의 선언 Promise<number> 를 지키려면 여기서 변환한다.
+  const staffId = Number(rows[0].id);
 
   for (const branch of branches) {
     await client.query('INSERT INTO identity.staff_branches (staff_id, branch) VALUES ($1, $2)', [staffId, branch]);
@@ -47,6 +49,14 @@ export async function createStaff(client, { code, branches, roles = ['cage_opera
 // 별도 트랜잭션이라도 문제없다. 토큰은 op_* 호출 **전에** 커밋되므로 뒤이은
 // 자금 트랜잭션에서 보인다. consume_step_up 의 소비는 그 트랜잭션 안에서 일어나
 // 롤백하면 함께 되돌아간다.
+//
+// **선행 조건: staffId 가 이미 커밋돼 있어야 한다.** 이 함수는 별도 커넥션에서
+// 즉시 커밋하므로, 아직 커밋되지 않은(같은 asOwner/withRollback 트랜잭션 안에서
+// 막 만든) 직원을 참조하면 그 커넥션에는 안 보여
+// `insert or update on table "step_up_tokens" violates foreign key constraint
+// "step_up_tokens_staff_id_fkey"` 로 거부된다. 호출 전에 staff 생성을 먼저
+// asOwner 로 커밋해 둔다 — createActor 의 setup 훅 안에서 이 함수(또는 approve)를
+// 부르면 안 되는 이유도 같다(scenario.mjs 참고).
 export async function issueStepUp({ staffId, deviceId, scope, method = 'pin' }) {
   return asOwner(async (client) => {
     const { rows } = await client.query(
@@ -55,7 +65,8 @@ export async function issueStepUp({ staffId, deviceId, scope, method = 'pin' }) 
        RETURNING id`,
       [staffId, method, deviceId, scope]
     );
-    return rows[0].id;
+    // BIGINT → pg 는 문자열로 돌려준다. 브리프의 Promise<number> 를 지킨다.
+    return Number(rows[0].id);
   });
 }
 

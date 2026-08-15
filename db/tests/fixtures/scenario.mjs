@@ -18,6 +18,11 @@ import { createStaff } from './actors.mjs';
 export async function createActor({ branches = ['HANN'], roles = ['cage_manager'], setup, as = 'app' } = {}) {
   return asOwner(async (client) => {
     const staffId = await createStaff(client, { code: uniq('T-MGR'), branches, roles });
+    // setup 은 이 asOwner 트랜잭션이 커밋되기 **전에** 돈다 — staffId 는 아직
+    // 이 커넥션 밖에서 보이지 않는다. issueStepUp·approve 는 별도 커넥션에서
+    // 즉시 커밋하므로, 여기서 부르면 staffId 가 안 보여
+    // step_up_tokens_staff_id_fkey 위반으로 거부된다(actors.mjs 의 issueStepUp
+    // 참고). setup 은 커밋을 필요로 하지 않는 픽스처(계좌 개설 등)에만 쓴다.
     const extra = setup ? await setup(client, { staffId }) : {};
     return { staffId, device: uniq('dev'), branch: branches[0], as, ...extra };
   });

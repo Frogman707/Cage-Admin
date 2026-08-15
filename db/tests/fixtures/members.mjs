@@ -13,7 +13,9 @@ export async function createMember(client, { code, branch, currency = 'PHP', kin
      RETURNING id`,
     [partyCode, `TEST ${partyCode}`, branch]
   );
-  const partyId = rows[0].id;
+  // BIGINT → pg 는 문자열로 돌려준다(setTypeParser 미등록). 브리프의
+  // Promise<number> 를 지키려면 여기서 변환한다 — createStaff 참고.
+  const partyId = Number(rows[0].id);
 
   for (const kind of kinds) {
     await client.query(

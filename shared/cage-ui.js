@@ -6,7 +6,7 @@
    ============================================================ */
 
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCOZL9qjgYnVPFTZMwGXyVKtRvJv3N0_cw",
+  apiKey: "AIzaSyCOZl9qjgYnVPFTZMwGXyVKtRvJv3N0_cw",
   authDomain: "cage-admin-25bbf.firebaseapp.com",
   projectId: "cage-admin-25bbf",
   storageBucket: "cage-admin-25bbf.firebasestorage.app",
@@ -26,10 +26,20 @@ function cageInitFirebase(){
 }
 
 function uuidv4(){
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
-    const r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
-    return v.toString(16);
-  });
+  return crypto.randomUUID();
+}
+
+// Stable per-browser identifier for audit trails on money-relevant writes (see
+// shared/game-engine.js) - not a security boundary, just lets a later investigation tell "same
+// device, different sessions" apart from "different devices" when a client's wall clock (or the
+// createdAt it wrote) turns out to have been wrong.
+function getDeviceId(){
+  let id = localStorage.getItem('cage-device-id');
+  if (!id){
+    id = crypto.randomUUID();
+    localStorage.setItem('cage-device-id', id);
+  }
+  return id;
 }
 
 function fmtNum(n){

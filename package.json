@@ -1,0 +1,16 @@
+{
+  "name": "cage-admin",
+  "private": true,
+  "description": "Dev tooling only (lint/format) - the app itself has no build step; index.html and the other pages deploy as-is via Firebase Hosting.",
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.0",
+    "eslint": "^9.9.0",
+    "eslint-plugin-html": "^8.1.4",
+    "prettier": "^3.3.3"
+  }
+}

@@ -9,13 +9,33 @@ on:
       - "index.html"
       - "firebase.json"
       - ".firebaserc"
+      - "firestore.rules"
       - "partner-admin/**"
       - "avatar/**"
       - "speed/**"
       - "shared/**"
+      - "functions/**"
+      - "package.json"
+      - "package-lock.json"
+      - "eslint.config.js"
       - ".github/workflows/firebase-hosting-deploy.yml"
 
 jobs:
+  # Independent of every deploy job below (same pattern as deploy-functions/deploy-firestore-rules
+  # being kept separate) - a lint failure here shows up as a red check on the commit/PR without
+  # blocking Hosting or Functions from deploying. Only eslint, not `prettier --check`: the existing
+  # codebase predates Prettier's config and isn't formatted to its rules yet, so gating on that
+  # would fail on files nobody touched rather than catching an actual regression.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm install
+      - run: npm run lint
+
   deploy:
     # retrigger: previous run stuck queued with no runner assigned
     runs-on: ubuntu-latest
@@ -27,3 +47,40 @@ jobs:
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_CAGE_ADMIN_25BBF }}"
           projectId: cage-admin-25bbf
           channelId: live
+
+  # Deploys Cloud Functions (functions/index.js) on every trigger of this workflow - redeploying
+  # unchanged function code is a harmless no-op, so this doesn't bother filtering by which file in
+  # the push actually changed. Kept as its own job, separate from Hosting above, so a failure here
+  # (e.g. the service account lacking the IAM roles Functions deploy needs, which Hosting-only
+  # deploy doesn't require) never blocks the Hosting deploy. Deliberately does NOT include
+  # `firestore:rules` here - that deploy is a one-way access change (the staff collection starts
+  # requiring a signed-in session) that should only happen once these functions are confirmed live
+  # and working, not as a side effect of a routine push.
+  deploy-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_CAGE_ADMIN_25BBF }}"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm install --prefix functions
+      - run: npm test --prefix functions
+      - run: npx firebase-tools deploy --only functions --project cage-admin-25bbf --non-interactive
+
+  # Locks the `staff` collection down to signed-in sessions only (see firestore.rules). Kept as its
+  # own job/step, deployed manually/deliberately rather than automatically on every push, since
+  # this is a one-way access change - the listStaffNames/staffLogin/masterSessionToken functions
+  # above must already be confirmed live and working before this runs, or staff login breaks
+  # entirely with no fallback (unlike the client's graceful degrade for a merely-unreachable
+  # function, a permission-denied read is not something the client can silently work around).
+  deploy-firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_CAGE_ADMIN_25BBF }}"
+      - run: npx firebase-tools deploy --only firestore:rules --project cage-admin-25bbf --non-interactive

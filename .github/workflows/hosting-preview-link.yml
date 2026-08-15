@@ -1,0 +1,29 @@
+name: Create Hosting Preview Link
+
+# Manual-only (workflow_dispatch) - deploys the current branch's static files to a temporary
+# Firebase Hosting preview channel URL, separate from the live site, that self-deletes after
+# `expires`. This does NOT create an isolated demo environment: the preview URL serves different
+# static files but talks to the exact same live Firestore/Cloud Functions backend as production
+# (cage-admin-25bbf) - same real data, same real writes. Fine for showing the app to someone
+# trusted; not a sandbox.
+on:
+  workflow_dispatch:
+    inputs:
+      channel_id:
+        description: "Preview channel ID (becomes part of the URL, e.g. cage-admin-25bbf--<channel_id>-xxxx.web.app)"
+        required: false
+        default: "demo"
+      expires:
+        description: "Expiry, Firebase duration format (e.g. 3d, 7d, 30d - 30d is the max Firebase allows)"
+        required: false
+        default: "3d"
+
+jobs:
+  preview-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_CAGE_ADMIN_25BBF }}"
+      - run: npx firebase-tools hosting:channel:deploy "${{ github.event.inputs.channel_id }}" --expires "${{ github.event.inputs.expires }}" --project cage-admin-25bbf --non-interactive

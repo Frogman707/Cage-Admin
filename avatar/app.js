@@ -701,7 +701,8 @@ async function submitTip(){
     memberId: PLAYER.id, casino: PLAYER.casino, amount: -amount,
     category: target==='avatar' ? 'avatar_tip' : 'dealer_tip',
     relatedRequestId: AVATAR.request.id, relatedTableId: AVATAR.table.id,
-    staff: 'member', createdAt: new Date().toISOString(),
+    staff: 'member', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
   });
   STATE.balance -= amount;
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);

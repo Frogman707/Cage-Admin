@@ -18,9 +18,8 @@ function cardValue(rank){
   if (['10','J','Q','K'].includes(rank)) return 0;
   return Number(rank);
 }
-function dealHand(){
-  const c1 = randCard(), c2 = randCard();
-  return {cards:[c1,c2], score:(cardValue(c1.rank)+cardValue(c2.rank))%10};
+function handTotal(cards){
+  return cards.reduce((sum,c)=>sum+cardValue(c.rank), 0) % 10;
 }
 function randCard(){
   const rank = CARD_RANKS[Math.floor(Math.random()*CARD_RANKS.length)];
@@ -28,14 +27,44 @@ function randCard(){
   return {rank, suit};
 }
 function simulateRound(){
-  const player = dealHand();
-  const banker = dealHand();
-  let result = 'tie';
-  if (player.score > banker.score) result = 'player';
-  else if (banker.score > player.score) result = 'banker';
+  // Punto banco tableau: both hands get two cards, then the fixed drawing rules decide any
+  // third card. Nobody chooses - the sequence is entirely determined by the totals.
+  const player = {cards:[randCard(), randCard()]};
+  const banker = {cards:[randCard(), randCard()]};
+  // pair side bets are settled on the first two cards, before any draw
   const playerPair = player.cards[0].rank === player.cards[1].rank;
   const bankerPair = banker.cards[0].rank === banker.cards[1].rank;
+
+  let pt = handTotal(player.cards), bt = handTotal(banker.cards);
+  // a natural 8 or 9 on either side stands both hands
+  if (pt < 8 && bt < 8){
+    let p3 = null;
+    if (pt <= 5){ p3 = randCard(); player.cards.push(p3); pt = handTotal(player.cards); }
+    const v = p3 ? cardValue(p3.rank) : null;
+    // with no player draw the banker follows the player's own rule; otherwise the tableau
+    // keys off the banker total and the value of the player's third card
+    const bankerDraws =
+      p3 === null ? bt <= 5 :
+      bt <= 2     ? true :
+      bt === 3    ? v !== 8 :
+      bt === 4    ? v >= 2 && v <= 7 :
+      bt === 5    ? v >= 4 && v <= 7 :
+      bt === 6    ? v === 6 || v === 7 :
+                    false; // 7 stands
+    if (bankerDraws){ banker.cards.push(randCard()); bt = handTotal(banker.cards); }
+  }
+  player.score = pt; banker.score = bt;
+  const result = pt > bt ? 'player' : bt > pt ? 'banker' : 'tie';
   return {player, banker, result, playerPair, bankerPair};
+}
+
+/* Order the cards hit the felt: one each alternating, then the player's third, then the
+   banker's - so the reveal animation follows the deal rather than assuming four cards. */
+function dealSequence(sim){
+  const seq = [['player',0],['banker',0],['player',1],['banker',1]];
+  if (sim.player.cards[2]) seq.push(['player',2]);
+  if (sim.banker.cards[2]) seq.push(['banker',2]);
+  return seq;
 }
 
 /* ---------------- member session (lite auth against `members`) ---------------- */
@@ -166,7 +195,11 @@ function renderBigRoad(cols, maxRows){
         let dots = '';
         if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
         if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
-        colHtml += `<div class="br-cell ${it}">${showTie?`<span class="br-tie">${col.ties}</span>`:''}${dots}</div>`;
+        // A tie is the diagonal through the ring; the count rides along only when the same
+        // spot took more than one, and must sit in its own <span> for the badge styling
+        // (and the mini-roads' hide rule) to apply to it.
+        const tie = showTie ? `<span class="br-tie">${col.ties>1?`<span>${col.ties}</span>`:''}</span>` : '';
+        colHtml += `<div class="br-cell ${it}">${tie}${dots}</div>`;
       });
       cells.push(`<div class="br-col">${colHtml}</div>`);
     }
@@ -174,25 +207,35 @@ function renderBigRoad(cols, maxRows){
   return cells.join('');
 }
 
-/* ---------------- Bead Road (진주로드) — strictly chronological, unlike every other road:
-   results fill straight down a column of 6 and then wrap to the next column, so one column
-   freely mixes P/B/T. (The value-change-starts-a-new-column rule applies to Big Road and the
-   derived roads, never here.) Each bead carries its result letter and any pair corner dot. */
+/* ---------------- Bead Road (진주로드) — follows the same column rule as Big Road on this
+   board: a result keeps stacking down the current column until the value changes, then a new
+   column starts, so a column only ever holds one of P/B/T. Runs deeper than the board wrap
+   into the next column. Each bead carries its result letter and any pair corner dot. */
 const BEAD_ROWS = 6;
+// how many recent results the Bead Plate keeps in view (grouping makes a full shoe far
+// wider than the panel)
+const BEAD_WINDOW = 40;
 const RESULT_LETTER = {player:'P', banker:'B', tie:'T'};
 function renderBeadRoad(results, pairFlags){
+  const cols = [];
+  results.forEach((r,i)=>{
+    const pf = (pairFlags && pairFlags[i]) || null;
+    if (cols.length && cols[cols.length-1].value===r) cols[cols.length-1].items.push(pf);
+    else cols.push({value:r, items:[pf]});
+  });
   let html = '';
-  for (let start=0; start<results.length; start+=BEAD_ROWS){
-    let colHtml = '';
-    results.slice(start, start+BEAD_ROWS).forEach((r,ri)=>{
-      const pf = pairFlags && pairFlags[start+ri];
-      let dots = '';
-      if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
-      if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
-      colHtml += `<div class="bd-cell ${r}">${RESULT_LETTER[r]}${dots}</div>`;
-    });
-    html += `<div class="br-col">${colHtml}</div>`;
-  }
+  cols.forEach(col=>{
+    for (let start=0; start<col.items.length; start+=BEAD_ROWS){
+      let colHtml = '';
+      col.items.slice(start, start+BEAD_ROWS).forEach(pf=>{
+        let dots = '';
+        if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
+        if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
+        colHtml += `<div class="bd-cell ${col.value}">${RESULT_LETTER[col.value]}${dots}</div>`;
+      });
+      html += `<div class="br-col">${colHtml}</div>`;
+    }
+  });
   return html;
 }
 
@@ -261,7 +304,10 @@ function deriveRoad(cols, offset){
         if (i<offset+1) continue;
         mark = cols[i-offset].items.length === cols[i-offset-1].items.length ? 'red' : 'blue';
       } else {
-        mark = cols[i-offset].items.length > j ? 'red' : 'blue';
+        // the streak continued: compare the cell one column back on this row with the one
+        // above it. Both filled or both empty means the pattern repeated (red); exactly one
+        // filled means it broke (blue) - which is only when that column ends at this row.
+        mark = cols[i-offset].items.length === j ? 'blue' : 'red';
       }
       out.push(mark);
     }

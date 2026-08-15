@@ -4,9 +4,9 @@
 
 **Goal:** 모든 PR에서 PostgreSQL 18에 `db/schema/` 13개 파일을 처음부터 적용하고, 분개 계약 · 드리프트 · 문서 정합성을 자동 검사하는 테스트 하니스를 만든다.
 
-**Architecture:** GitHub Actions의 `postgres:18-alpine` 서비스 컨테이너에 `db/scripts/apply.sh`로 스키마를 적용한 뒤 `node --test db/tests/`를 돌린다. 테스트는 `pg` 풀로 붙어 `op_*` 함수를 호출하고 **커밋한 뒤 `ledger.entries`를 다시 읽어** 분개 집합 `(account_kind, sign, category)`을 [`04-posting-rules.md`](../../architecture/04-posting-rules.md)의 표와 대조한다. 커밋하는 이유는 두 가지다 — 잔액·균형 불변식이 지연 제약이라 COMMIT 때만 발화하고, 함수의 반환 JSON이 아니라 저장된 행을 봐야 저장 경로의 결함이 잡힌다. 문서 정합성 검사 2종(`tools/`)은 DB 없이 도는 별도 스텝이다.
+**Architecture:** GitHub Actions의 `postgres:18.6-alpine` 서비스 컨테이너에 `db/scripts/apply.sh`로 스키마를 적용한 뒤 `node --test db/tests/`를 돌린다. 테스트는 `pg` 풀로 붙어 `op_*` 함수를 호출하고 **커밋한 뒤 `ledger.entries`를 다시 읽어** 분개 집합 `(account_kind, sign, category)`을 [`04-posting-rules.md`](../../architecture/04-posting-rules.md)의 표와 대조한다. 커밋하는 이유는 두 가지다 — 잔액·균형 불변식이 지연 제약이라 COMMIT 때만 발화하고, 함수의 반환 JSON이 아니라 저장된 행을 봐야 저장 경로의 결함이 잡힌다. 문서 정합성 검사 2종(`tools/`)은 DB 없이 도는 별도 스텝이다.
 
-**Tech Stack:** Node 24 내장 `node:test` · `pg` 8 · GitHub Actions · PostgreSQL 18.6 (`postgres:18-alpine`) · 확장 없음
+**Tech Stack:** Node 24 내장 `node:test` · `pg` 8 · GitHub Actions · PostgreSQL 18.6 (`postgres:18.6-alpine`) · 확장 없음
 
 ## Global Constraints
 
@@ -14,6 +14,8 @@
 - **스키마 파일은 제자리에서 고친다.** `db/schema/014_*.sql`을 만들지 않는다. 검증은 빈 DB 전체 재적용이다 ([`00-decisions`](../../spec/00-decisions.md) §12).
 - **`SET CONSTRAINTS ALL IMMEDIATE` 금지.** 지연 제약 트리거 I1·I2가 삽입 순서 의존이 된다 (`R-01-50`). 유일한 예외는 **그 금지를 증명하는 테스트 한 건**이다 (`R-01-52`, Task 9).
 - **`op_*`는 애플리케이션 역할로 부른다.** 소유자(`postgres`)로 부르면 RLS와 테이블 권한이 우회되어 GRANT 실수·REVOKE 누락·지점 격리 실패가 초록으로 통과한다. 픽스처 생성만 소유자로 한다.
+- **테스트 로그인 역할 하나가 `ledger_app`과 `identity_app`을 겸하지 않는다.** 겸하면 자금 경로가 자기 스텝업 토큰을 발급할 수 있게 되어 DR-03(발급자 ≠ 소비자)이 테스트에서 사라진다 — [`db/schema/012_roles_and_grants.sql:214`](../../../db/schema/012_roles_and_grants.sql)가 "같은 자격증명을 쓰면 이 분리가 무의미해진다"고 못박아 두었다. 레인은 셋이다: `cage_test_app`(`ledger_app`) · `cage_test_identity`(`identity_app`, 경계 테스트 전용) · `cage_test_migrator`(`ledger_migrator`). **픽스처 스텝업 토큰은 소유자가 발급한다** — `identity_app`은 `step_up_tokens`에 SELECT가 없어 `INSERT ... RETURNING id`가 거부된다.
+- **DB 이미지는 마이너 버전까지 고정한다** — CI와 로컬 모두 `postgres:18.6-alpine`. `postgres:18-alpine`은 움직이는 태그라서 저장소 변경 없이 결과가 바뀐다. 버전 올리기는 의도된 기준선 변경이어야 한다.
 - **연산 함수는 세 스키마에 있다** — `ledger` 12 · `cage` 8 · `identity` 3. 게임·실사 연산은 `cage.op_*`다. `ledger`만 보면 절반을 놓친다.
 - **`op_*` 를 부르는 테스트는 COMMIT 한다.** 잔액 하한(I2) · 차대 균형(I1) · 봉인 트리거가 전부 `DEFERRABLE INITIALLY DEFERRED`라 롤백만 하면 **발화하지 않는다.** 롤백은 DB를 읽기만 하는 테스트에만 쓴다.
 - **통화 5종**: `PHP` · `USD` · `HKD` · `CNY` · `KRW`. 컬럼명은 `ledger.currencies.scale`이고 `KRW`는 `scale = 0`이다. 스펙이 `minor_unit`이라 부르는 것이 이 컬럼이다.
@@ -97,7 +99,7 @@
 **Interfaces:**
 
 - Consumes: 적용된 스키마의 `ledger.v_check_view_security` · `ledger.v_check_public_execute` (`db/schema/013_reconciliation.sql`)
-- Produces: `query(text, params)` · `withRollback(fn, opts)` · `asOwner(fn)` · `asStaff(staffId, fn)` · `asMigrator(staffId, fn)` · `expectCommitFailure(state, fn, opts)` · `expectSqlState(state, fn)` · `uniq(prefix)` · `closePool()` — 이후 모든 테스트가 이것들만 쓴다
+- Produces: `query(text, params)` · `withRollback(fn, opts)` · `asOwner(fn)` · `asStaff(staffId, fn)` · `asIdentity(fn)` · `asMigrator(staffId, fn)` · `expectCommitFailure(state, fn, opts)` · `expectSqlState(state, fn)` · `uniq(prefix)` · `closePool()` — 이후 모든 테스트가 이것들만 쓴다
 
 **왜 `withRollback` 하나로 안 되는가.** 잔액 하한 · 차대 균형 · 봉인 트리거는 `DEFERRABLE INITIALLY DEFERRED`다. 롤백은 지연 제약을 **발화시키지 않는다.** 실제로 확인한 결과다:
 
@@ -158,8 +160,16 @@ Expected: FAIL — `Cannot find module '.../db/tests/helpers/db.mjs'`
 # 이 역할이 없으면 테스트가 소유자(postgres)로 붙고, 그러면 RLS 와 테이블 권한이
 # 전부 우회되어 GRANT 실수·REVOKE 누락·지점 격리 실패가 초록으로 통과한다.
 #
-# 역할이 둘인 이유: ledger.op_load_opening_balance 의 EXECUTE 는 ledger_migrator
-# 에만 있고 ledger_app 에는 없다. 하나로 합치면 그 경계가 사라진다.
+# 역할이 셋이고 서로 겹치지 않는 이유 — 012 가 세 경계를 나눠 놓았다:
+#   ledger_app       자금 op_*. identity.step_up_tokens 에 INSERT·SELECT 둘 다 없다.
+#   identity_app     step_up_tokens INSERT 전용. ledger 스키마는 USAGE 자체가 없다.
+#   ledger_migrator  ledger.op_load_opening_balance 의 EXECUTE 가 여기에만 있다.
+#
+# 하나로 합치지 않는다. db/schema/012_roles_and_grants.sql:214 가 못박아 둔 문장이다 —
+# "배포상 두 서비스가 서로 다른 DB 자격증명으로 접속해야 한다는 뜻이다.
+#  같은 자격증명을 쓰면 이 분리가 무의미해진다." 한 로그인 역할이 ledger_app 과
+# identity_app 을 함께 물려받으면 DR-03(발급자 ≠ 소비자)이 테스트에서 사라진다:
+# 자금 경로가 자기 재인증 근거를 스스로 만들어 낼 수 있게 된다.
 set -euo pipefail
 
 : "${PGHOST:=localhost}"
@@ -167,29 +177,37 @@ set -euo pipefail
 : "${PGUSER:=postgres}"
 : "${PGDATABASE:=cage}"
 : "${PGAPPUSER:=cage_test_app}"
+: "${PGIDUSER:=cage_test_identity}"
 : "${PGMIGUSER:=cage_test_migrator}"
 : "${PGAPPPASSWORD:=devonly}"
 export PGHOST PGPORT PGUSER PGDATABASE
 
+# psql 변수는 달러 인용 본문 안에서 치환되지 않는다. DO $$ ... :'app_user' ... $$ 로
+# 쓰면 콜론 토큰이 그대로 서버에 가서 죽는다. 확인한 사실이다:
+#   ERROR:  syntax error at or near ":"
+# 그래서 CREATE ROLE 문을 달러 인용 밖에서 만들고 \gexec 로 실행한다.
+# 역할이 이미 있으면 SELECT 가 0행이라 \gexec 가 아무것도 실행하지 않는다 — 멱등이다.
+#
+# 주의: %L 로 비밀번호가 생성 문장에 들어간다. log_statement 가 켜진 서버라면
+# 서버 로그에 남는다. PGAPPPASSWORD 는 개발·CI 컨테이너 전용 폐기값만 쓴다.
 psql -v ON_ERROR_STOP=1 --quiet --no-psqlrc \
-  -v app_user="${PGAPPUSER}" -v mig_user="${PGMIGUSER}" -v app_pw="${PGAPPPASSWORD}" <<'SQL'
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user') THEN
-    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', :'app_user', :'app_pw');
-  END IF;
-END $$;
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'mig_user') THEN
-    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', :'mig_user', :'app_pw');
-  END IF;
-END $$;
-GRANT ledger_app, identity_app TO :"app_user";
-GRANT ledger_migrator          TO :"mig_user";
+  -v app_user="${PGAPPUSER}" -v id_user="${PGIDUSER}" -v mig_user="${PGMIGUSER}" \
+  -v app_pw="${PGAPPPASSWORD}" <<'SQL'
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'app_user', :'app_pw')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user')
+\gexec
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'id_user', :'app_pw')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'id_user')
+\gexec
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'mig_user', :'app_pw')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'mig_user')
+\gexec
+GRANT ledger_app      TO :"app_user";
+GRANT identity_app    TO :"id_user";
+GRANT ledger_migrator TO :"mig_user";
 SQL
 
-echo "OK: roles ${PGAPPUSER} (ledger_app, identity_app) and ${PGMIGUSER} (ledger_migrator) ready"
+echo "OK: ${PGAPPUSER}=ledger_app · ${PGIDUSER}=identity_app · ${PGMIGUSER}=ledger_migrator"
 ```
 
 ```bash
@@ -203,15 +221,24 @@ chmod +x db/scripts/test-role.sh
 ```js
 // 골든 테스트 공용 커넥션 헬퍼.
 //
-// 풀이 둘이다. 하나로는 이 하니스가 지켜야 할 것을 못 지킨다:
+// 풀이 넷이다. 하나로는 이 하니스가 지켜야 할 것을 못 지킨다:
 //
-//   소유자 풀 (postgres) — 스키마 적용과 픽스처 생성. RLS 와 테이블 권한을 우회한다.
-//   앱 풀 (cage_test_app, ledger_app 상속) — op_* 호출. 실제 애플리케이션이 붙는 방식.
+//   소유자 풀   (postgres)            — 스키마 적용 · 픽스처 생성. RLS 와 권한을 우회한다.
+//   앱 풀       (cage_test_app)       — ledger_app **만**. op_* 호출.
+//   identity 풀 (cage_test_identity)  — identity_app **만**. DR-03 경계 테스트 전용.
+//   이관 풀     (cage_test_migrator)  — ledger_migrator **만**. §14 기초 잔액 전용.
 //
 // 소유자로 op_* 를 부르면 GRANT EXECUTE 누락 · REVOKE 누락 · 지점 격리 실패가
 // 전부 통과한다. 검사해야 할 경계 바깥에서 검사하는 셈이다.
 // 확인한 사실: 앱 역할은 ledger.entries 에 INSERT 불가, ledger.post_transaction
 // 실행 불가, 그리고 app.staff_id 가 가리키는 직원의 지점 분개만 보인다.
+//
+// 앱 풀에 identity_app 을 얹지 않는다. 얹으면 자금 경로가 자기 스텝업 토큰을
+// 발급할 수 있게 되어 DR-03 이 테스트에서 사라진다 (db/schema/012_roles_and_grants.sql:214).
+// 확인한 사실 3종 — Task 9 가 이것을 회귀로 고정한다:
+//   ledger_app   INSERT identity.step_up_tokens  → permission denied for table step_up_tokens
+//   ledger_app   SELECT identity.step_up_tokens  → permission denied for table step_up_tokens
+//   identity_app SELECT ledger.op_deposit(...)   → permission denied for schema ledger
 import pg from 'pg';
 
 const { Pool } = pg;
@@ -230,10 +257,19 @@ export const ownerPool = new Pool({
   password: process.env.PGPASSWORD,
 });
 
-// 애플리케이션 역할(ledger_app · identity_app). 대부분의 op_* 호출.
+// 애플리케이션 역할(ledger_app 단독). 대부분의 op_* 호출.
 export const appPool = new Pool({
   ...base,
   user: process.env.PGAPPUSER ?? 'cage_test_app',
+  password: process.env.PGAPPPASSWORD ?? process.env.PGPASSWORD ?? 'devonly',
+});
+
+// identity 서비스 역할(identity_app 단독). DR-03 경계 테스트만 이 풀을 쓴다.
+// 픽스처 토큰 발급에는 쓰지 않는다 — identity_app 은 step_up_tokens 에 INSERT 는
+// 되지만 SELECT 가 없어 `INSERT ... RETURNING id` 가 거부된다. 확인한 사실이다.
+export const identityPool = new Pool({
+  ...base,
+  user: process.env.PGIDUSER ?? 'cage_test_identity',
   password: process.env.PGAPPPASSWORD ?? process.env.PGPASSWORD ?? 'devonly',
 });
 
@@ -274,6 +310,13 @@ export async function asStaff(staffId, fn) {
 // ledger_migrator 로 붙는다. §14 기초 잔액 전용.
 export async function asMigrator(staffId, fn) {
   return runIn(migratorPool, staffId, fn, 'COMMIT');
+}
+
+// identity_app 으로 붙는다. DR-03 경계 테스트 전용 — 이 역할이 자금 op_* 를
+// 부를 수 없다는 것과, 반대로 토큰 발급은 된다는 것을 함께 고정한다.
+// 롤백한다: 경계 확인이 목적이라 남길 행이 없다.
+export async function asIdentity(fn) {
+  return runIn(identityPool, undefined, fn, 'ROLLBACK');
 }
 
 async function runIn(pool, staffId, fn, ending) {
@@ -340,7 +383,7 @@ export async function expectSqlState(state, fn) {
 }
 
 export async function closePool() {
-  await Promise.all([ownerPool.end(), appPool.end(), migratorPool.end()]);
+  await Promise.all([ownerPool.end(), appPool.end(), identityPool.end(), migratorPool.end()]);
 }
 ```
 
@@ -362,7 +405,9 @@ PGPASSWORD=devonly npm run db:test-role
 PGPASSWORD=devonly npm run test:db
 ```
 
-Expected: `OK: role cage_test_app ready`, 그다음 `# pass 2` · `# fail 0`
+Expected: `OK: cage_test_app=ledger_app · cage_test_identity=identity_app · cage_test_migrator=ledger_migrator`, 그다음 `# pass 2` · `# fail 0`
+
+두 번 돌려 멱등을 확인한다 — 두 번째도 같은 줄이 나오고 `role already exists` 가 뜨지 않아야 한다.
 
 - [ ] **Step 8: 커밋**
 
@@ -389,7 +434,7 @@ git commit -m "test(db): add golden test harness and drift checks (R-12-05)"
 - Consumes: `asOwner`, `asStaff`, `asMigrator`, `withRollback`, `uniq`, `closePool` (Task 1)
 - Produces:
   - `createStaff(client, {code, branches, roles}) -> Promise<number>` — `branches`는 배열이다. 지점 간 이체는 양쪽 지점 배정이 필요하다
-  - `issueStepUp(client, {staffId, deviceId, scope, method}) -> Promise<number>`
+  - `issueStepUp({staffId, deviceId, scope, method}) -> Promise<number>`
   - `approve(client, {actor, approvers, branch, subjectKind, subjectRef, payload, deviceId}) -> Promise<number>` — `identity.op_request_approval` + `op_cast_vote`를 거쳐 소비 가능한 승인 id를 돌려준다
   - `createMember(client, {code, branch, currency, kinds}) -> Promise<number>`
   - `withActor(options, act) -> Promise<T>` — 소유자로 픽스처를 만들고, 앱 역할(`as: 'migrator'`면 이관 역할)로 `act`를 돌린다
@@ -432,7 +477,7 @@ test('R-12-23 스텝업 토큰은 1회용이다', async () => {
       branches: ['HANN'],
       roles: ['cage_manager'],
     });
-    const tokenId = await issueStepUp(client, { staffId, deviceId: device, scope: 'ledger.deposit' });
+    const tokenId = await issueStepUp({ staffId, deviceId: device, scope: 'ledger.deposit' });
     await client.query('SELECT identity.consume_step_up($1, $2, $3, $4)', [tokenId, staffId, device, 'ledger.deposit']);
     await assert.rejects(
       () =>
@@ -502,6 +547,8 @@ Expected: FAIL — `Cannot find module '.../db/tests/fixtures/actors.mjs'`
 // 테스트 전용 행위자. 개인정보·실계좌 값을 쓰지 않는다 (R-12-23).
 // 직원 코드는 T- 로 시작한다. pin_hash 는 NOT NULL 이라 합성 문자열을 넣는다 —
 // DB 는 형식을 강제하지 않고, 애플리케이션이 Argon2id 로 해시해 넣는 자리다.
+import { asOwner } from '../helpers/db.mjs';
+
 const FIXTURE_PIN_HASH = '$argon2id$test-fixture-not-a-real-hash';
 
 // branches 는 배열이다. cage.op_branch_transfer 는 보내는 지점과 받는 지점 양쪽에
@@ -527,14 +574,32 @@ export async function createStaff(client, { code, branches, roles = ['cage_opera
 
 // 스텝업 토큰은 1회용이다. op_* 호출 하나에 토큰 하나를 발급한다.
 // op_transfer 처럼 pin 을 거부하는 연산이 있으므로 method 를 호출부가 정한다.
-export async function issueStepUp(client, { staffId, deviceId, scope, method = 'pin' }) {
-  const { rows } = await client.query(
-    `INSERT INTO identity.step_up_tokens (staff_id, method, device_id, scope, expires_at)
-     VALUES ($1, $2, $3, $4, clock_timestamp() + interval '30 minutes')
-     RETURNING id`,
-    [staffId, method, deviceId, scope]
-  );
-  return rows[0].id;
+//
+// **호출부의 client 를 받지 않는다.** 발급은 소유자 레인에서 별도 트랜잭션으로
+// 커밋한다. 두 가지 이유다:
+//
+//  1. 자금 레인(cage_test_app = ledger_app)은 step_up_tokens 에 INSERT 권한이
+//     없다. 있으면 안 된다 — 그게 DR-03 이다. 호출부 client 로 INSERT 하면
+//     테스트 역할에 identity_app 을 얹어야 하고, 그 순간 자금 경로가 자기
+//     재인증 근거를 만들어 낼 수 있게 되어 경계가 테스트에서 사라진다.
+//  2. identity_app 으로도 못 한다. 그 역할은 INSERT 는 되지만 SELECT 가 없어
+//     `INSERT ... RETURNING id` 가 거부된다. 확인한 사실이다:
+//       permission denied for table step_up_tokens
+//     (RETURNING 없는 INSERT 는 같은 역할로 통과한다 — 막는 것은 RETURNING 이다.)
+//
+// 별도 트랜잭션이라도 문제없다. 토큰은 op_* 호출 **전에** 커밋되므로 뒤이은
+// 자금 트랜잭션에서 보인다. consume_step_up 의 소비는 그 트랜잭션 안에서 일어나
+// 롤백하면 함께 되돌아간다.
+export async function issueStepUp({ staffId, deviceId, scope, method = 'pin' }) {
+  return asOwner(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO identity.step_up_tokens (staff_id, method, device_id, scope, expires_at)
+       VALUES ($1, $2, $3, $4, clock_timestamp() + interval '30 minutes')
+       RETURNING id`,
+      [staffId, method, deviceId, scope]
+    );
+    return rows[0].id;
+  });
 }
 
 export { approve } from './approvals.mjs';
@@ -576,7 +641,7 @@ export async function approve(client, { actor, approvers, branch, subjectKind, s
   const approvalId = Number(rows[0].result.approval_id);
 
   for (const staffId of approvers) {
-    const tokenId = await issueStepUp(client, { staffId, deviceId, scope: 'approval.vote', method: 'totp' });
+    const tokenId = await issueStepUp({ staffId, deviceId, scope: 'approval.vote', method: 'totp' });
     await client.query('SELECT identity.op_cast_vote($1, $2, $3, $4, $5)', [
       staffId,
       approvalId,
@@ -704,7 +769,7 @@ test('R-12-02 · AC-12-2 04 §1 입금 분개 집합', async () => {
       acct,
       'TEST ACCOUNT',
     ]);
-    const tokenId = await issueStepUp(client, {
+    const tokenId = await issueStepUp({
       staffId: ctx.staffId,
       deviceId: ctx.device,
       scope: 'ledger.deposit',
@@ -838,7 +903,7 @@ test('R-12-02 · AC-12-2 04 §3 계좌 간 이체 분개 집합', async () => {
       ]);
     }
 
-    const depositToken = await issueStepUp(client, {
+    const depositToken = await issueStepUp({
       staffId: ctx.staffId,
       deviceId: ctx.device,
       scope: 'ledger.deposit',
@@ -854,7 +919,7 @@ test('R-12-02 · AC-12-2 04 §3 계좌 간 이체 분개 집합', async () => {
       100000,
     ]);
 
-    const transferToken = await issueStepUp(client, {
+    const transferToken = await issueStepUp({
       staffId: ctx.staffId,
       deviceId: ctx.device,
       scope: 'ledger.transfer',
@@ -891,7 +956,7 @@ test('R-12-02 op_transfer 가 pin 스텝업을 거부한다', async () => {
         `TEST ACCOUNT ${code}`,
       ]);
     }
-    const pinToken = await issueStepUp(client, {
+    const pinToken = await issueStepUp({
       staffId: ctx.staffId,
       deviceId: ctx.device,
       scope: 'ledger.transfer',
@@ -951,7 +1016,7 @@ git commit -m "test(db): assert posting contract for 04 section 3 transfer (R-12
 - Consumes: `expectCommitFailure`, `uniq`, `closePool` (Task 1) · `issueStepUp`, `withActor` (Task 2) · `entriesOf`, `entryRowsOf` (Task 3)
 - Produces: 없음 (검증 전용)
 
-**왜 지금인가.** `ledger.op_withdraw` · `ledger.op_branch_transfer`는 **이미 스키마에 있다** ([`009_operations_money.sql:187`](../../../db/schema/009_operations_money.sql) · `:327`). `R-12-02`는 분개를 만드는 절마다 테스트를 요구하고, 함수가 있으면 미룰 근거가 없다.
+**왜 지금인가.** `ledger.op_withdraw` · `ledger.op_branch_transfer`는 **이미 스키마에 있다** ([`db/schema/009_operations_money.sql:187`](../../../db/schema/009_operations_money.sql) · `:327`). `R-12-02`는 분개를 만드는 절마다 테스트를 요구하고, 함수가 있으면 미룰 근거가 없다.
 
 - [ ] **Step 1: 출금 테스트를 쓴다**
 
@@ -983,7 +1048,7 @@ async function fundedAccount(client, ctx, { amount }) {
     'TEST ACCOUNT',
   ]);
   if (amount > 0) {
-    const token = await issueStepUp(client, {
+    const token = await issueStepUp({
       staffId: ctx.staffId,
       deviceId: ctx.device,
       scope: 'ledger.deposit',
@@ -1005,7 +1070,7 @@ async function fundedAccount(client, ctx, { amount }) {
 test('R-12-02 · AC-12-2 04 §2 출금 분개 집합', async () => {
   await withActor({}, async (client, ctx) => {
     const acct = await fundedAccount(client, ctx, { amount: 100000 });
-    const token = await issueStepUp(client, {
+    const token = await issueStepUp({
       staffId: ctx.staffId,
       deviceId: ctx.device,
       scope: 'ledger.withdraw',
@@ -1044,7 +1109,7 @@ test('R-12-02 잔액을 초과한 출금은 COMMIT 에서 거부된다 (I2, 지�
     async (client) => {
       const ctx = { staffId, device, branch: 'HANN' };
       const acct = await fundedAccount(client, ctx, { amount: 1000 });
-      const token = await issueStepUp(client, {
+      const token = await issueStepUp({
         staffId,
         deviceId: device,
         scope: 'ledger.withdraw',
@@ -1101,7 +1166,7 @@ test('R-12-02 · AC-12-2 04 §4 지점 간 이체 분개 집합', async () => {
       acct,
       'TEST ACCOUNT',
     ]);
-    const depToken = await issueStepUp(client, {
+    const depToken = await issueStepUp({
       staffId: ctx.staffId,
       deviceId: ctx.device,
       scope: 'ledger.deposit',
@@ -1117,7 +1182,7 @@ test('R-12-02 · AC-12-2 04 §4 지점 간 이체 분개 집합', async () => {
       100000,
     ]);
 
-    const btToken = await issueStepUp(client, {
+    const btToken = await issueStepUp({
       staffId: ctx.staffId,
       deviceId: ctx.device,
       scope: 'ledger.branch_transfer',
@@ -1176,7 +1241,7 @@ git commit -m "test(db): assert posting contracts for 04 sections 2 and 4 (R-12-
 
 **한 파일에 두 절을 넣는 이유.** `op_resolve_suspense`는 금액을 인자로 받지 않는다. **현재 `suspense` 잔액을 직접 읽어** 그만큼을 해소한다 ([`04` §11-2](../../architecture/04-posting-rules.md) "금액을 호출자가 정하지 않는다"). 두 테스트를 나누면 §11-2가 보는 잔액이 §11이 만든 것인지 다른 테스트가 남긴 것인지 알 수 없다. 한 흐름에서 만들고 바로 해소한다.
 
-**`cage.op_record_balancing`도 §11을 만든다.** 실사 카운트를 기록하면서 차액이 있으면 같은 `adjustment` 분개를 낸다([`011_operations_admin.sql:193`](../../../db/schema/011_operations_admin.sql)). 두 진입점 중 `ledger.op_adjustment`만 계약을 검사하면 나머지 하나가 드리프트한다 — 세 번째 테스트가 두 경로의 분개 집합이 같은지 본다.
+**`cage.op_record_balancing`도 §11을 만든다.** 실사 카운트를 기록하면서 차액이 있으면 같은 `adjustment` 분개를 낸다([`db/schema/011_operations_admin.sql:193`](../../../db/schema/011_operations_admin.sql)). 두 진입점 중 `ledger.op_adjustment`만 계약을 검사하면 나머지 하나가 드리프트한다 — 세 번째 테스트가 두 경로의 분개 집합이 같은지 본다.
 
 - [ ] **Step 1: 테스트를 쓴다**
 
@@ -1236,7 +1301,7 @@ test('R-12-02 · AC-12-2 04 §11 현금 과잉 조정 → §11-2 과잉분 확�
 
   await asStaff(actor, async (client) => {
     // ---- §11 조정 ----
-    const adjToken = await issueStepUp(client, {
+    const adjToken = await issueStepUp({
       staffId: actor,
       deviceId: device,
       scope: 'ledger.adjustment',
@@ -1259,7 +1324,7 @@ test('R-12-02 · AC-12-2 04 §11 현금 과잉 조정 → §11-2 과잉분 확�
 
     // ---- §11-2 확정 해소 ----
     // 스텝업 scope 는 함수 이름과 뒤집혀 있다: ledger.suspense_resolve
-    const resToken = await issueStepUp(client, {
+    const resToken = await issueStepUp({
       staffId: actor,
       deviceId: device,
       scope: 'ledger.suspense_resolve',
@@ -1312,7 +1377,7 @@ test('R-12-02 cage.op_record_balancing 이 §11 과 같은 분개를 낸다', as
   );
 
   await asStaff(actor, async (client) => {
-    const token = await issueStepUp(client, {
+    const token = await issueStepUp({
       staffId: actor,
       deviceId: device,
       scope: 'cage.balancing',
@@ -1343,7 +1408,7 @@ test('R-12-02 cage.op_record_balancing 이 §11 과 같은 분개를 낸다', as
 });
 ```
 
-**주의:** `cage.op_record_balancing`의 스텝업 `scope`와 인자 순서는 구현 시점에 `\df cage.op_record_balancing`으로 다시 확인한다. 위 값은 [`011_operations_admin.sql:136`](../../../db/schema/011_operations_admin.sql) 기준이며, 이 절에서 검사하는 것은 **분개 집합이 `ledger.op_adjustment`와 같다**는 사실이다.
+**주의:** `cage.op_record_balancing`의 스텝업 `scope`와 인자 순서는 구현 시점에 `\df cage.op_record_balancing`으로 다시 확인한다. 위 값은 [`db/schema/011_operations_admin.sql:136`](../../../db/schema/011_operations_admin.sql) 기준이며, 이 절에서 검사하는 것은 **분개 집합이 `ledger.op_adjustment`와 같다**는 사실이다.
 
 - [ ] **Step 2: 통과를 확인한다**
 
@@ -1406,7 +1471,7 @@ test('R-12-02 · AC-12-2 04 §12 케이지 계좌 → 회원 보유금', async (
         acct,
         'TEST ACCOUNT',
       ]);
-      const depToken = await issueStepUp(client, {
+      const depToken = await issueStepUp({
         staffId: ctx.staffId,
         deviceId: ctx.device,
         scope: 'ledger.deposit',
@@ -1422,7 +1487,7 @@ test('R-12-02 · AC-12-2 04 §12 케이지 계좌 → 회원 보유금', async (
         50000,
       ]);
 
-      const wtToken = await issueStepUp(client, {
+      const wtToken = await issueStepUp({
         staffId: ctx.staffId,
         deviceId: ctx.device,
         scope: 'ledger.wallet_transfer',
@@ -1642,7 +1707,7 @@ export async function withActor({ branches = ['HANN'], roles = ['cage_manager'],
       ...ctx,
       // 스텝업은 1회용이다. 호출마다 새로 발급한다.
       stepUp: (scope, method = 'totp') =>
-        issueStepUp(client, { staffId: ctx.staffId, deviceId: ctx.device, scope, method }),
+        issueStepUp({ staffId: ctx.staffId, deviceId: ctx.device, scope, method }),
     })
   );
 }
@@ -2012,12 +2077,13 @@ git commit -m "test(db): assert posting contracts for 04 game lifecycle sections
 
 **Interfaces:**
 
-- Consumes: `asOwner`, `asStaff`, `expectCommitFailure`, `query`, `uniq`, `closePool` (Task 1) · `createStaff`, `issueStepUp`, `withActor` (Task 2)
+- Consumes: `asOwner`, `asStaff`, `asIdentity`, `expectCommitFailure`, `query`, `uniq`, `closePool` (Task 1) · `createStaff`, `issueStepUp`, `withActor` (Task 2)
 - Produces: 없음 (검증 전용)
 
 **이 두 파일이 지키는 것은 분개 계약이 아니라 하니스 자체의 전제다.**
 
 - 앱 역할이 실제로 제한되어 있어야 Task 3~8이 의미를 갖는다. 소유자로 돌면 GRANT·REVOKE·RLS가 전부 무력화된다.
+- 자금 레인과 identity 레인이 **다른 자격증명**이어야 DR-03(발급자 ≠ 소비자)이 의미를 갖는다. 한 역할이 둘을 겸하면 자금 경로가 자기 재인증 근거를 만들어 낼 수 있다.
 - 지연 제약이 COMMIT 에서 발화해야 Task 5·8의 거부 테스트가 의미를 갖는다.
 
 - [ ] **Step 1: 접근 경계 테스트를 쓴다**
@@ -2026,12 +2092,15 @@ git commit -m "test(db): assert posting contracts for 04 game lifecycle sections
 
 ```js
 // 애플리케이션 역할의 경계. 확인한 사실을 회귀 테스트로 고정한다.
-//   ledger.entries 직접 INSERT  → permission denied for table entries
-//   ledger.post_transaction     → permission denied for function post_transaction
-//   ledger.entries SELECT       → app.staff_id 의 지점만 (ledger.current_branches())
+//   ledger.entries 직접 INSERT           → permission denied for table entries
+//   ledger.post_transaction              → permission denied for function post_transaction
+//   ledger.entries SELECT                → app.staff_id 의 지점만 (ledger.current_branches())
+//   ledger_app → step_up_tokens INSERT   → permission denied for table step_up_tokens
+//   ledger_app → step_up_tokens SELECT   → permission denied for table step_up_tokens
+//   identity_app → ledger.op_deposit     → permission denied for schema ledger
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { asOwner, asStaff, query, uniq, closePool } from '../helpers/db.mjs';
+import { asOwner, asStaff, asIdentity, query, uniq, closePool } from '../helpers/db.mjs';
 import { createStaff, issueStepUp } from '../fixtures/actors.mjs';
 import { withActor } from '../fixtures/scenario.mjs';
 
@@ -2080,6 +2149,78 @@ test('앱 역할은 내부 함수를 직접 부를 수 없다', async () => {
   );
 });
 
+// ---- DR-03: 발급자 ≠ 소비자 ----
+// 아래 넷이 깨지면 자금 경로가 자기 재인증 근거를 만들어 낼 수 있다는 뜻이다.
+// db/schema/012_roles_and_grants.sql:203-227 이 나눠 놓은 경계를 그대로 되읽는다.
+
+test('AC-12-3 자금 레인과 identity 레인은 서로 다른 로그인 역할이다', async () => {
+  // 두 풀이 같은 사용자로 붙어 있으면 아래 세 테스트가 전부 공허해진다.
+  const staffId = await asOwner((client) =>
+    createStaff(client, { code: uniq('T-MGR'), branches: ['HANN'], roles: ['cage_manager'] })
+  );
+  const appUser = await asStaff(staffId, async (client) => {
+    const { rows } = await client.query('SELECT current_user AS u');
+    return rows[0].u;
+  });
+  const idUser = await asIdentity(async (client) => {
+    const { rows } = await client.query('SELECT current_user AS u');
+    return rows[0].u;
+  });
+  assert.notEqual(appUser, idUser, `두 레인이 같은 자격증명(${appUser})으로 붙어 있다`);
+
+  // 이름만 다르고 그룹을 겸하면 같은 얘기다. 상속까지 본다.
+  const [{ has_identity: appHasIdentity }] = await asStaff(staffId, async (client) => {
+    const { rows } = await client.query("SELECT pg_has_role(current_user, 'identity_app', 'USAGE') AS has_identity");
+    return rows;
+  });
+  assert.equal(appHasIdentity, false, '자금 레인이 identity_app 을 물려받았다 — DR-03 이 무력화된다');
+
+  const [{ has_ledger: idHasLedger }] = await asIdentity(async (client) => {
+    const { rows } = await client.query("SELECT pg_has_role(current_user, 'ledger_app', 'USAGE') AS has_ledger");
+    return rows;
+  });
+  assert.equal(idHasLedger, false, 'identity 레인이 ledger_app 을 물려받았다 — DR-03 이 무력화된다');
+});
+
+test('자금 레인은 스텝업 토큰을 발급할 수 없다', async () => {
+  const staffId = await asOwner((client) =>
+    createStaff(client, { code: uniq('T-MGR'), branches: ['HANN'], roles: ['cage_manager'] })
+  );
+  await assert.rejects(
+    () =>
+      asStaff(staffId, (client) =>
+        client.query(
+          `INSERT INTO identity.step_up_tokens (staff_id, method, device_id, scope, expires_at)
+           VALUES ($1, 'pin', 'dev-x', 'ledger.deposit', clock_timestamp() + interval '30 minutes')`,
+          [staffId]
+        )
+      ),
+    /permission denied for table step_up_tokens/
+  );
+});
+
+test('자금 레인은 스텝업 토큰을 읽을 수도 없다', async () => {
+  // 읽을 수 있으면 남의 토큰을 주워 쓸 수 있다. 소비는 op_* 안에서만 일어나야 한다.
+  const staffId = await asOwner((client) =>
+    createStaff(client, { code: uniq('T-MGR'), branches: ['HANN'], roles: ['cage_manager'] })
+  );
+  await assert.rejects(
+    () => asStaff(staffId, (client) => client.query('SELECT id FROM identity.step_up_tokens LIMIT 1')),
+    /permission denied for table step_up_tokens/
+  );
+});
+
+test('identity 레인은 자금 op_* 를 부를 수 없다', async () => {
+  // 스키마 USAGE 자체가 없다. 함수 EXECUTE 이전 단계에서 막힌다.
+  await assert.rejects(
+    () =>
+      asIdentity((client) =>
+        client.query("SELECT ledger.op_deposit($1, 1, 1, 'dev-x', 'HANN', 'TEST-ACC', 1)", [uniq('x')])
+      ),
+    /permission denied for schema ledger/
+  );
+});
+
 test('RLS 가 app.staff_id 의 지점으로 분개를 거른다', async () => {
   // HANN·NUSTAR 양쪽에 배정된 직원이 지점 간 이체를 만든다 — 양쪽 지점 분개가 생긴다.
   const acct = uniq('TEST-ACC');
@@ -2091,7 +2232,7 @@ test('RLS 가 app.staff_id 의 지점으로 분개를 거른다', async () => {
       acct,
       'TEST ACCOUNT',
     ]);
-    const dep = await issueStepUp(client, {
+    const dep = await issueStepUp({
       staffId: ctx.staffId,
       deviceId: ctx.device,
       scope: 'ledger.deposit',
@@ -2106,7 +2247,7 @@ test('RLS 가 app.staff_id 의 지점으로 분개를 거른다', async () => {
       acct,
       100000,
     ]);
-    const bt = await issueStepUp(client, {
+    const bt = await issueStepUp({
       staffId: ctx.staffId,
       deviceId: ctx.device,
       scope: 'ledger.branch_transfer',
@@ -2205,7 +2346,7 @@ test('R-01-52 · AC-59-3 SET CONSTRAINTS ALL IMMEDIATE 후 다중 분개 거래�
         acct,
         'TEST ACCOUNT',
       ]);
-      const token = await issueStepUp(client, { staffId, deviceId: device, scope: 'ledger.deposit', method: 'totp' });
+      const token = await issueStepUp({ staffId, deviceId: device, scope: 'ledger.deposit', method: 'totp' });
 
       // 여기가 금지된 구문이다. 이 테스트 하나에서만 쓴다 (R-01-50 의 유일한 예외).
       await client.query('SET CONSTRAINTS ALL IMMEDIATE');
@@ -2235,7 +2376,7 @@ test('정상 경로는 SET CONSTRAINTS 없이 커밋된다', async () => {
       acct,
       'TEST ACCOUNT',
     ]);
-    const token = await issueStepUp(client, {
+    const token = await issueStepUp({
       staffId: ctx.staffId,
       deviceId: ctx.device,
       scope: 'ledger.deposit',
@@ -2710,6 +2851,12 @@ for (const doc of docs) {
       const lineNo = Number(rawLine);
       checked += 1;
       const where = `${path.relative(REPO_ROOT, doc)}:${index + 1}`;
+      // 참조 경로는 **저장소 루트 기준**으로만 푼다. 문서 기준 상대 경로로
+      // 다시 시도하지 않는다: 문서가 옮겨 다니면 같은 문자열이 다른 파일을
+      // 가리키게 되고, 그러면 이 검사가 가리키는 대상 자체가 흔들린다.
+      // 실측으로도 얻을 것이 없다 — 지금 열리지 않는 참조 31건 중 문서 기준으로
+      // 풀어서 열리는 것은 0건이다. 전부 저장소 기준 경로가 빠졌거나
+      // 없어진 디렉터리(`ddl/`)를 가리킬 뿐이다. 고칠 곳은 검사기가 아니라 문서다.
       const body = await sourceLines(path.resolve(REPO_ROOT, rawPath));
       if (body === null) {
         // 읽을 수 없는 참조 대상은 통과가 아니라 문제다. 파일이 지워지거나
@@ -2751,9 +2898,43 @@ process.exit(problems.length === 0 ? 0 : 1);
 Run: `npm run docs:check-line-refs`
 Expected: 어긋난 참조 목록과 `N docs, M line refs, K stale`. **여기 나온 목록이 `R-12-12`가 요구한 재검증 대상이다** — `01` §7-1의 `_doConfirmMidSettle`, `04` §7-4의 `g.checkpoints`, `05`:122-173 구간이 포함돼 있으면 그것이 `AC-72-1`~`AC-72-3`이다.
 
+**어긋남은 두 종류이고, 지금 문서에 있는 것은 대부분 두 번째다.** 미리 재어 둔 값이다 (문서 62개 · 참조 430건 기준):
+
+| 종류                | 건수 | 증상                                        | 고치는 법                     |
+| ------------------- | ---- | ------------------------------------------- | ----------------------------- |
+| 줄 번호가 낡음      | 나머지 | `... — 근처 ±3줄에 X 가 없다`               | 줄 번호를 실제 값으로         |
+| **경로가 낡음**     | **31** | `... — 참조 대상 파일을 읽을 수 없다`       | **경로를 저장소 기준으로**    |
+
+경로가 낡은 31건은 전부 아래 넷 중 하나다. 문서 기준 상대 경로가 아니다 — 문서 위치에서 풀어도 하나도 열리지 않는 것을 확인했다. 저장소 루트 기준 경로가 빠졌거나(`shared/` 누락), 없어진 디렉터리를 가리킨다(`ddl/` 는 `db/schema/` 로 이름이 바뀌었다):
+
+| 지금 참조         | 건수 | 실제 파일                     |
+| ----------------- | ---- | ----------------------------- |
+| `game-engine.js`  | 14   | `shared/game-engine.js`       |
+| `app.js`          | 9    | `partner-admin/app.js` 또는 `avatar/app.js` — **참조마다 다르다** |
+| `ddl/*.sql`       | 7    | `db/schema/*.sql`             |
+| `cage-ui.js`      | 1    | `shared/cage-ui.js`           |
+
 - [ ] **Step 4: 나온 항목을 하나씩 고친다**
 
-각 항목마다 대상 파일에서 식별자를 찾아 문서의 줄 번호를 실제 값으로 바꾼다:
+**경로가 낡은 것부터 고친다.** 줄 번호 검사는 파일을 열 수 있어야 돌아가므로, 경로를 고치기 전에는 그 31건의 줄 번호가 맞는지조차 모른다.
+
+`game-engine.js` · `cage-ui.js` · `ddl/` 셋은 대상이 하나뿐이라 일괄로 바꾼다:
+
+```bash
+perl -pi -e 's{(?<![/\w])game-engine\.js:}{shared/game-engine.js:}g;
+             s{(?<![/\w])cage-ui\.js:}{shared/cage-ui.js:}g;
+             s{(?<![/\w])ddl/}{db/schema/}g' $(grep -rl --include='*.md' -E '(^|[^/\w])(game-engine\.js|cage-ui\.js|ddl/)' docs/)
+```
+
+`app.js` 9건은 **일괄로 바꾸지 않는다.** `avatar/app.js` 와 `partner-admin/app.js` 둘 다 있고 참조마다 가리키는 쪽이 다르다. 문서 문맥으로 판별한 뒤 하나씩 바꾼다 — `docs/partner-admin/` 아래는 `partner-admin/app.js` 지만, `docs/architecture/design-review-8.md` 는 두 파일을 섞어 인용한다:
+
+```bash
+grep -rn --include='*.md' -E '(^|[^/\w])app\.js:[0-9]+' docs/
+# 각 건마다 인용된 식별자를 양쪽에서 찾아 어느 쪽인지 정한다
+grep -n "<인용된 식별자>" partner-admin/app.js avatar/app.js
+```
+
+경로를 다 고친 뒤 다시 돌리면 그때부터 줄 번호 어긋남이 보인다. 각 항목마다 대상 파일에서 식별자를 찾아 문서의 줄 번호를 실제 값으로 바꾼다:
 
 ```bash
 grep -n "_doConfirmMidSettle" index.html
@@ -2807,7 +2988,11 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18-alpine
+        # 마이너 버전까지 고정한다. postgres:18-alpine 은 움직이는 태그라서
+        # 18.7 이 나오는 날 저장소 변경 없이 CI 결과가 바뀐다 — 골든 기준선이
+        # 아니게 된다. 버전 올리기는 이 줄을 고치는 의도된 변경이어야 한다.
+        # 더 조이려면 다이제스트까지 박는다: postgres:18.6-alpine@sha256:<digest>
+        image: postgres:18.6-alpine
         env:
           POSTGRES_PASSWORD: ci
           POSTGRES_DB: cage
@@ -2825,9 +3010,10 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: ci
       PGDATABASE: cage
-      # 애플리케이션 역할 레인. 테스트는 op_* 를 이 역할로 부른다.
-      PGAPPUSER: cage_test_app
-      PGMIGUSER: cage_test_migrator
+      # 역할 레인 셋. 겹치지 않는다 — 겹치면 DR-03 경계가 테스트에서 사라진다.
+      PGAPPUSER: cage_test_app        # ledger_app: op_* 호출
+      PGIDUSER: cage_test_identity    # identity_app: DR-03 경계 테스트 전용
+      PGMIGUSER: cage_test_migrator   # ledger_migrator: §14 기초 잔액
       PGAPPPASSWORD: ci
 
     steps:
@@ -2861,9 +3047,10 @@ jobs:
 - [ ] **Step 2: 로컬에서 같은 순서를 재현한다**
 
 ```bash
+# CI 와 같은 마이너 버전을 쓴다. 태그가 어긋나면 로컬 초록이 CI 초록을 보장하지 않는다.
 docker rm -f cage-pg18 2>/dev/null || true
 docker run -d --name cage-pg18 -p 55432:5432 \
-  -e POSTGRES_PASSWORD=devonly -e POSTGRES_DB=cage postgres:18-alpine
+  -e POSTGRES_PASSWORD=devonly -e POSTGRES_DB=cage postgres:18.6-alpine
 PGPASSWORD=devonly npm run db:apply
 PGPASSWORD=devonly npm run db:test-role
 PGPASSWORD=devonly npm run test:db
@@ -2899,17 +3086,20 @@ Expected: `db-golden / golden`이 목록에 있고 상태가 `pass`. **목록에
 
 "아직 없는 것" 표에서 `db/tests/` 실체 행과 `.github/workflows/db-golden.yml` 행을 지우고 `services/` 행만 남긴다.
 
+`docker run` 예시의 이미지를 `postgres:18-alpine` → `postgres:18.6-alpine`으로 바꾼다 (`db/README.md:42`). CI와 태그가 어긋나면 로컬 초록이 CI 초록을 보장하지 않는다. [`docs/architecture/ddl/README.md:179`](../../architecture/ddl/README.md)에도 같은 줄이 있다.
+
 "적용" 절에 역할 생성을 더한다:
 
 ```bash
 PGPASSWORD=devonly npm run db:apply       # 001 → 013 순차 적용
-PGPASSWORD=devonly npm run db:test-role   # 테스트용 로그인 역할 2종
+PGPASSWORD=devonly npm run db:test-role   # 테스트용 로그인 역할 3종
 PGPASSWORD=devonly npm run test:db        # 골든 테스트
 ```
 
-"금지 · 주의" 절에 한 줄 더한다:
+"금지 · 주의" 절에 두 줄 더한다:
 
 > - **골든 테스트를 소유자(`postgres`)로 돌리지 않는다.** RLS와 테이블 권한이 우회되어 GRANT 실수·REVOKE 누락·지점 격리 실패가 초록으로 통과한다. `op_*` 호출은 `ledger_app`(§14는 `ledger_migrator`)로 한다.
+> - **테스트 로그인 역할 하나에 `ledger_app`과 `identity_app`을 함께 주지 않는다.** 자금 경로가 자기 스텝업 토큰을 발급할 수 있게 되어 DR-03(발급자 ≠ 소비자)이 테스트에서 사라진다. `db/schema/012_roles_and_grants.sql:214`가 같은 말을 한다. 픽스처 토큰은 소유자가 발급한다.
 
 - [ ] **Step 2: `db/tests/README.md`의 "아직 비어 있다" 절을 실행 방법으로 바꾼다**
 

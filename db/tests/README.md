@@ -17,6 +17,7 @@
 
 - **테스트 이름에 `AC-*` / `R-*` ID를 그대로 쓴다** ([`12` §3](../../docs/spec/12-ci-golden-tests.md)). 검색으로 스펙까지 한 번에 닿아야 한다.
 - **`op_*` 를 소유자로 부르지 않는다.** `postgres` 로 붙으면 RLS 와 테이블 권한이 우회되어 GRANT 실수 · REVOKE 누락 · 지점 격리 실패가 초록으로 통과한다. 픽스처만 소유자로 만들고, `op_*` 는 `ledger_app`(§14 기초 잔액은 `ledger_migrator`)로 부른다. 역할은 `db/scripts/test-role.sh` 가 만든다.
+- **로그인 역할 하나가 `ledger_app` 과 `identity_app` 을 겸하지 않는다.** 겸하면 자금 경로가 자기 스텝업 토큰을 발급할 수 있게 되어 DR-03(발급자 ≠ 소비자)이 테스트에서 사라진다 (`db/schema/012_roles_and_grants.sql:214`). 레인은 셋이다 — `cage_test_app`(`ledger_app`) · `cage_test_identity`(`identity_app`, 경계 테스트 전용) · `cage_test_migrator`(`ledger_migrator`). 픽스처 스텝업 토큰은 소유자가 발급한다: `identity_app` 은 `step_up_tokens` 에 SELECT 가 없어 `INSERT ... RETURNING id` 가 거부된다.
 - **`op_*` 를 부르는 테스트는 커밋한다.** 잔액 하한 · 차대 균형 · 봉인 트리거가 `DEFERRABLE INITIALLY DEFERRED` 라 롤백하면 **발화하지 않는다.** 롤백은 읽기 전용 테스트에만 쓴다.
 - **분개는 `ledger.entries` 를 다시 읽어 단언한다.** `op_*` 반환 JSON 은 함수의 자기 보고서다 (`R-12-02`).
 - **연산 함수는 세 스키마에 흩어져 있다** — `ledger` 12 · `cage` 8 · `identity` 3. 게임 · 실사는 `cage.op_*` 다. `ledger` 만 보면 절반을 놓친다.

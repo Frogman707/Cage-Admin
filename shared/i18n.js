@@ -66,7 +66,7 @@ const I18N_DICT = {
   // ---- lobby ----
   avatarLobbyTitle:{ko:'아바타 테이블',zh:'代打桌台',en:'Avatar Tables',ja:'アバターテーブル',vi:'Bàn Avatar'},
   speedLobbyTitle:{ko:'스피드 테이블',zh:'极速桌台',en:'Speed Tables',ja:'スピードテーブル',vi:'Bàn Speed'},
-  speedLobbySub:{ko:'여러 테이블을 동시에 베팅할 수 있습니다',zh:'可同时在多张桌台下注',en:'Bet on several tables at once',ja:'複数のテーブルで同時にベットできます',vi:'Có thể đặt cược nhiều bàn cùng lúc'},
+  speedLobbySub:{ko:'테이블을 선택해 입장하세요',zh:'请选择桌台进入',en:'Pick a table to enter',ja:'テーブルを選んで入場してください',vi:'Chọn một bàn để vào'},
   allCasinos:{ko:'전체 게임',zh:'全部游戏',en:'All Games',ja:'全ゲーム',vi:'Tất cả'},
   allGameTypes:{ko:'전체',zh:'全部',en:'All',ja:'すべて',vi:'Tất cả'},
   gameTypeAvatar:{ko:'아바타',zh:'代打',en:'Avatar',ja:'アバター',vi:'Avatar'},

@@ -890,7 +890,12 @@ function speedTileHtml(tb){
   <div class="speed-tile" id="tile-${tb.id}" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" style="cursor:pointer;" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}">
     <div class="head"><span class="name">${escapeHtml(tb.name)}</span><span class="shoe">SHOE #${tb.shoeNo||1} · ${tb.casino}</span></div>
     <div id="hotbadge-${tb.id}"></div>
-    <div class="speed-mini-stage" id="stage-${tb.id}"><div class="phase-txt" id="phase-${tb.id}">${t('phaseBetting')}</div><div class="speed-timer" id="timer-${tb.id}">15</div></div>
+    <div class="speed-thumb"></div>
+    <div class="speed-tile-state">
+      <span class="phase-txt" id="phase-${tb.id}">${t('phaseBetting')}</span>
+      <span class="score-txt" id="score-${tb.id}"></span>
+      <span class="speed-timer" id="timer-${tb.id}">15</span>
+    </div>
     <button class="btn btn-gold btn-sm btn-block" style="margin-bottom:9px;" onclick="event.stopPropagation();openSpeedTableDetail('${tb.id}')" data-i18n="openTable">${t('openTable')}</button>
     <div class="speed-mini-road" id="road-${tb.id}"></div>
     <div class="speed-tile-stats" id="stats-${tb.id}"></div>
@@ -1118,8 +1123,7 @@ function beginSpeedBetting(tableId){
   });
   renderSpeedTileBets(tableId);
   setSpeedTilePhaseText(tableId, t('phaseBetting'));
-  const stage = document.getElementById('stage-'+tableId);
-  const scoreTxt = stage?.querySelector('.score-txt'); if (scoreTxt) scoreTxt.remove();
+  const scoreEl = document.getElementById('score-'+tableId); if (scoreEl) scoreEl.textContent = '';
   if (SPEED.detailTableId===tableId) clearSpeedDetailCards();
 }
 async function beginSpeedDealing(tableId){
@@ -1143,10 +1147,8 @@ async function beginSpeedResult(tableId){
   const sim = s._sim;
   const tb = SPEED.tables[tableId];
   setSpeedTilePhaseText(tableId, sim.result==='player' ? 'PLAYER WIN' : sim.result==='banker' ? 'BANKER WIN' : 'TIE');
-  const stage = document.getElementById('stage-'+tableId);
-  if (stage && !stage.querySelector('.score-txt')){
-    stage.insertAdjacentHTML('beforeend', `<div class="score-txt">P${sim.player.score} : B${sim.banker.score}</div>`);
-  }
+  const scoreEl = document.getElementById('score-'+tableId);
+  if (scoreEl) scoreEl.textContent = `P${sim.player.score} : B${sim.banker.score}`;
 
   let totalPayout = 0;
   for (const [betType, amount] of Object.entries(s.bets)){

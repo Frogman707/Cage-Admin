@@ -258,8 +258,6 @@ const GAME_TYPE_TABS = [
   {id:'all', label:'allGameTypes'},
   {id:'avatar', label:'gameTypeAvatar'},
   {id:'speed', label:'gameTypeSpeed'},
-  {id:'hyper', label:'gameTypeHyper'},
-  {id:'dragontiger', label:'gameTypeDragonTiger'},
 ];
 function gameTypeTabsHtml(activeType){
   return `<div class="game-type-tabs">
@@ -270,7 +268,6 @@ function setGameTypeFilter(id){
   document.querySelectorAll('.game-type-tab').forEach(b=>b.classList.toggle('active', b.dataset.t===id));
   if (id==='avatar' && MODE!=='avatar') chooseAvatar();
   else if (id==='speed' && MODE!=='speed') chooseSpeed();
-  else if (id==='hyper' || id==='dragontiger') toast(t('gameComingSoon'));
 }
 function lobbySearchHtml(){
   return `<div class="lobby-search-wrap">

@@ -432,7 +432,7 @@
 .speed-detail-head .meta{font-size:11.5px;color:var(--ink-faint);font-family:var(--mono);}
 .speed-detail-close{margin-left:auto;}
 .speed-detail-grid{
-  display:grid;gap:12px;grid-template-columns:1.35fr 1fr;grid-template-rows:auto 230px;
+  display:grid;gap:12px;grid-template-columns:1.35fr 1fr;grid-template-rows:auto 265px;
   grid-template-areas:
     "stage bets"
     "tally road";
@@ -445,22 +445,28 @@
 }
 /* the reference shows the scoreboard (road maps) and bead-plate/tally panels on a
    plain graph-paper card, contrasting with the dark felt/betting board above. */
+/* One square of the graph paper is one cell of every road: --rc is that square, and each
+   mark is --rc minus a hairline gap so it sits inside its own square rather than drifting
+   across the ruling. background-position offsets the grid by the panel padding so a ruling
+   line lands exactly on the content origin, which is where the first mark starts. */
 .sd-graph-bg{
+  --rc:18px;
   background-color:#fafafa;
   background-image:linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
                     linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
-  background-size:14px 14px;
+  background-size:var(--rc) var(--rc);
+  background-position:14px 10px;
   border:1px solid #e4e4e4;border-radius:12px;color:#1a1a1a;
 }
 .sd-tally{grid-area:tally;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
-.sd-tally-head{display:flex;justify-content:space-between;font-size:10.5px;color:#8a8a8a;margin-bottom:8px;flex-shrink:0;}
+.sd-tally-head{display:flex;justify-content:space-between;align-items:center;height:var(--rc);font-size:10.5px;color:#8a8a8a;flex-shrink:0;}
 .sd-tally-head b{color:#1a1a1a;font-family:var(--mono);font-weight:700;}
 .sd-tally-body{display:flex;flex:1;min-height:0;}
-.sd-tally-list{display:flex;flex-direction:column;gap:7px;flex-shrink:0;padding:2px 14px 0 0;border-right:1px solid #e4e4e4;margin-right:14px;}
-.sd-tally-list .tl-row{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;font-family:var(--mono);}
+.sd-tally-list{display:flex;flex-direction:column;flex-shrink:0;padding-right:14px;border-right:1px solid #e4e4e4;margin-right:14px;}
+.sd-tally-list .tl-row{display:flex;align-items:center;gap:6px;height:var(--rc);font-size:13px;font-weight:800;font-family:var(--mono);}
 .sd-tally-list .tl-badge{
-  width:18px;height:18px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
-  display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;font-family:var(--sans);
+  width:16px;height:16px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:9.5px;font-weight:800;font-family:var(--sans);
 }
 .sd-tally-list .tl-row.player .tl-badge{background:#2f7fbf;} .sd-tally-list .tl-row.player b{color:#2f7fbf;}
 .sd-tally-list .tl-row.banker .tl-badge{background:var(--danger);} .sd-tally-list .tl-row.banker b{color:var(--danger);}
@@ -471,23 +477,27 @@
 .sd-tally-list .tl-row.pair .br-pair{width:6px;height:6px;}
 .sd-tally-list .tl-row.pair.player b{color:#2f7fbf;}
 .sd-tally-list .tl-row.pair.banker b{color:var(--danger);}
-.sd-tally .bead-road{flex:1;}
+/* bead pitch == one graph square: 16px bead + 2px gutter = the 18px ruling */
+.sd-tally .bead-road{flex:1;gap:2px;}
+.sd-tally .bead-road .br-col{gap:2px;}
+.sd-tally .bead-road .bd-cell{width:16px;height:16px;font-size:9.5px;}
 .sd-road{grid-area:road;padding:10px 14px;display:flex;flex-direction:column;overflow:hidden;}
 .sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;}
-.sd-road .br-col{gap:1px;}
-.sd-road .br-cell{width:13px;height:13px;border-width:2px;}
-.sd-road .br-cell.tie-only{width:8px;height:8px;}
+.sd-road .br-col{gap:2px;}
+.sd-road .br-cell{width:16px;height:16px;border-width:2px;}
+.sd-road .br-cell.tie-only{width:10px;height:10px;}
 .sd-road .bd-cell.overflow,.sd-road .br-cell.overflow,.sd-road .dr-cell.overflow{color:#8a8a8a;}
 /* .br-tie's count badge defaults to a dark pill (matching the dark lobby-card/sidebar
    backgrounds it was designed for) - on this panel's white/graph-paper background that
    reads as a stray dark smudge above the ring, so give it a light pill here instead. */
 .sd-road .br-tie span{background:#fff;box-shadow:0 0 0 1px #fff;}
-.sd-road-body{display:flex;flex:1;min-height:0;gap:10px;margin-top:6px;padding-top:8px;border-top:1px solid #e4e4e4;}
+/* vertical offsets are kept to whole/half graph squares so the roads below stay on the ruling */
+.sd-road-body{display:flex;flex:1;min-height:0;gap:10px;margin-top:5px;padding-top:12px;border-top:1px solid #e4e4e4;}
 .sd-road-roads{display:flex;flex-direction:column;flex:1;min-width:0;}
 /* Big Eye Boy + Small Road sit close together (same hollow-ring style), then a
    divider before Cockroach Road (the visually distinct diagonal-tick style). */
-.sd-road-ring-roads{display:flex;flex-direction:column;gap:3px;}
-.sd-road-roads .diagonal-road{border-top:1px solid #e4e4e4;padding-top:6px;margin-top:8px;}
+.sd-road-ring-roads{display:flex;flex-direction:column;gap:9px;}
+.sd-road-roads .diagonal-road{border-top:1px solid #e4e4e4;padding-top:12px;margin-top:5px;}
 .sd-road .derived-road-grid{overflow-x:auto;}
 .sd-road .derived-road-grid .dr-cell{width:7px;height:7px;}
 /* legend rail: a small key explaining the three marks used on the board (hollow

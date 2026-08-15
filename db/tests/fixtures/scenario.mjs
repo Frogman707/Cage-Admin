@@ -10,13 +10,13 @@
 // `asActor` 를 두 번 부른다 — 한 콜백 안에서 섞으면 픽스처의 UPDATE 가
 // 0행을 치고 조용히 지나간다 (§6-1 커미션 요율 스냅샷이 그 경우다).
 import { asOwner, asStaff, asMigrator, uniq, uniqCode } from '../helpers/db.mjs';
-import { createStaff } from './actors.mjs';
+import { createStaff, issueStepUp } from './actors.mjs';
 
 // 액터만 만든다. 소유자 트랜잭션 하나로 끝나고 커밋된다.
 // as: 'app'(기본) 또는 'migrator'. §14 만 migrator 를 쓴다 —
 // ledger.op_load_opening_balance 의 EXECUTE 가 ledger_migrator 에만 있다.
 export async function createActor({ branches = ['HANN'], roles = ['cage_manager'], setup, as = 'app' } = {}) {
-  return asOwner(async (client) => {
+  const ctx = await asOwner(async (client) => {
     const staffId = await createStaff(client, { code: uniqCode('T-MGR'), branches, roles });
     // setup 은 이 asOwner 트랜잭션이 커밋되기 **전에** 돈다 — staffId 는 아직
     // 이 커넥션 밖에서 보이지 않는다. issueStepUp·approve 는 별도 커넥션에서
@@ -26,6 +26,15 @@ export async function createActor({ branches = ['HANN'], roles = ['cage_manager'
     const extra = setup ? await setup(client, { staffId }) : {};
     return { staffId, device: uniq('dev'), branch: branches[0], as, ...extra };
   });
+
+  return {
+    ...ctx,
+    // 게임 연산은 호출마다 다른 scope 의 스텝업 토큰을 요구하고, 토큰은
+    // 1회용이다(issueStepUp 의 주석 참고). ctx 에 발급기를 붙여 호출부가
+    // 매번 `ctx.stepUp(scope)` 로 새 토큰을 받게 한다.
+    stepUp: (scope, method = 'totp') =>
+      issueStepUp({ staffId: ctx.staffId, deviceId: ctx.device, scope, method }),
+  };
 }
 
 // 이미 만든 액터로 앱(또는 migrator) 트랜잭션을 **하나** 연다. 끝에서 COMMIT 한다.

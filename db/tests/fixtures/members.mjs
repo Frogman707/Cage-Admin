@@ -51,7 +51,7 @@ export async function openAccount(client, ctx, { currency = 'PHP' } = {}) {
 // openAccount + 스텝업 토큰 + op_deposit. 이미 잔고가 있는 계좌가 전제조건인
 // 테스트용이다. 오류를 삼키지 않는다 — 입금이 실패하면 그 오류가 호출부까지
 // 그대로 올라간다.
-export async function fundedAccount(client, ctx, { amount, currency = 'PHP' } = {}) {
+export async function fundedAccount(client, ctx, { amount, currency = 'PHP' }) {
   const code = await openAccount(client, ctx, { currency });
   const token = await issueStepUp({
     staffId: ctx.staffId,

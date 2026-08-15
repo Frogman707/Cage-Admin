@@ -6,7 +6,7 @@ import { query, uniq, closePool } from '../helpers/db.mjs';
 import { issueStepUp } from '../fixtures/actors.mjs';
 import { withActor } from '../fixtures/scenario.mjs';
 import { openAccount, fundedAccount } from '../fixtures/members.mjs';
-import { entriesOf } from '../helpers/entries.mjs';
+import { entryRowsOf } from '../helpers/entries.mjs';
 
 after(closePool);
 
@@ -32,10 +32,21 @@ test('R-12-02 · AC-12-2 04 §3 계좌 간 이체 분개 집합', async () => {
       30000,
     ]);
 
-    assert.deepEqual(await entriesOf(client, rows[0].result), [
-      ['member_deposit', -1, 'transfer_in'],
-      ['member_deposit', 1, 'transfer_out'],
-    ]);
+    // 삼중항(종류·부호·범주)과 금액을 같은 entryRowsOf 결과에서 함께 본다 — 두 번 왕복하지
+    // 않는다. 삼중항만 보면 요청한 30000 대신 ±300 이 찍혀도 I1(차대 균형)은 통과하고
+    // 이 테스트도 통과해 버린다 — 그 구멍을 막는다.
+    const stored = await entryRowsOf(client, rows[0].result);
+    assert.deepEqual(
+      stored.map((r) => [r.account_kind, r.sign, r.category]),
+      [
+        ['member_deposit', -1, 'transfer_in'],
+        ['member_deposit', 1, 'transfer_out'],
+      ]
+    );
+    assert.deepEqual(
+      stored.map((r) => r.amount_minor),
+      [-30000n, 30000n]
+    );
   });
 });
 
@@ -62,7 +73,7 @@ test('R-12-02 op_transfer 가 pin 스텝업을 거부한다', async () => {
           to,
           1000,
         ]),
-      /requires step-up auth, got pin/
+      { code: '42501', message: /requires step-up auth, got pin/ }
     );
   });
 });

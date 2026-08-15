@@ -70,5 +70,3 @@ export async function issueStepUp({ staffId, deviceId, scope, method = 'pin' }) 
     return Number(rows[0].id);
   });
 }
-
-export { createMember } from './members.mjs';

@@ -121,7 +121,7 @@ const txn = await applyAccountTransaction(account, 'IN', amt, t('memoEventCommis
 
 ### DR-69 (중간): 컨시어지 도메인 전체 미설계
 
-`bookHotel`/`reserveCar`/`requestAero` + 각 취소·영수증·렌더 (`index.html:8774-8932`). 자금 무관, localStorage 전용, 알림 연동. 01은 §전체에서 프록시 CORS 한 줄(`:535`)만 언급. 00 커버리지 매트릭스에 행 자체가 없다 — "어디가 설계 안 됐는지" 보여주는 문서가 이 도메인은 **누락 여부조차 기록하지 않았다.** DDL·API 없음. 예약 데이터는 손님 응대 기록이므로 최소 테이블 3개(hotel_bookings·car_reservations·flight_assists) + CRUD 엔드포인트 필요. 자금 원장과 무관하므로 `cage` 스키마 밖(예: `concierge`)이 자연스럽다.
+`bookHotel`/`reserveCar`/`requestAero` + 각 취소·영수증·렌더 (`index.html:8781-8932`). 자금 무관, localStorage 전용, 알림 연동. 01은 §전체에서 프록시 CORS 한 줄(`:535`)만 언급. 00 커버리지 매트릭스에 행 자체가 없다 — "어디가 설계 안 됐는지" 보여주는 문서가 이 도메인은 **누락 여부조차 기록하지 않았다.** DDL·API 없음. 예약 데이터는 손님 응대 기록이므로 최소 테이블 3개(hotel_bookings·car_reservations·flight_assists) + CRUD 엔드포인트 필요. 자금 원장과 무관하므로 `cage` 스키마 밖(예: `concierge`)이 자연스럽다.
 
 ### DR-70 (중간): 계좌 차단 — 상태값은 있고 경로가 없다
 

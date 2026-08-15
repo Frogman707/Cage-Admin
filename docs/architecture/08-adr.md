@@ -235,7 +235,7 @@ Outbox relay를 `FOR UPDATE SKIP LOCKED` 폴링으로 구현한다. 논리 복�
 
 ### 맥락
 
-현행 `SHIFT_FIELDS` 9개(`index.html:4828`)는 서로 독립적으로 누적되며 **상호 정합성을 검증할 수단이 없다.** 하나가 어긋나도 조용히 어긋난다.
+현행 `SHIFT_FIELDS` 9개(`index.html:4935`)는 서로 독립적으로 누적되며 **상호 정합성을 검증할 수단이 없다.** 하나가 어긋나도 조용히 어긋난다.
 
 ### 결정
 
@@ -265,7 +265,7 @@ Outbox relay를 `FOR UPDATE SKIP LOCKED` 폴링으로 구현한다. 논리 복�
 
 ### 맥락
 
-현행 게임 취소는 게임 문서와 롤링 이벤트를 **삭제**한다 (`deleteGameDoc`, `index.html:4529-4537`). 메인케이지 항목도 삭제 가능하다 (`deleteMainCageEntry`, `:4750`).
+현행 게임 취소는 게임 문서와 롤링 이벤트를 **삭제**한다 (`deleteGameDoc`, `index.html:4613`). 메인케이지 항목도 삭제 가능하다 (`deleteMainCageEntry`, `:4750`).
 
 ### 결정
 
@@ -345,7 +345,7 @@ Identity 서비스가 직원·회원 인증을 직접 소유한다.
 
 ### 맥락
 
-현행 `cageConfig`는 정산 시점 누계를 스칼라 6개(`settleGameOutBaseline` 등, `index.html:4886`)로 박아 두고 이후 값에서 뺀다. 월정산은 메인케이지 누계·교대 카운터·게임 롤링을 **실제로 리셋**한다 (`:8274-8280`).
+현행 `cageConfig`는 정산 시점 누계를 스칼라 6개(`settleGameOutBaseline` 등, `index.html:4709`)로 박아 두고 이후 값에서 뺀다. 월정산은 메인케이지 누계·교대 카운터·게임 롤링을 **실제로 리셋**한다 (`:8274-8280`).
 
 ### 결정
 

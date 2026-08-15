@@ -143,7 +143,7 @@
 프로젝트 ID만 알면 누구나 읽고 쓴다. 자세히는 [06-security.md](06-security.md) §1.
 
 **둘째, `accounts`는 Firestore에 없다.** 케이지 계좌 마스터(회원명·전화·요율·텔레그램·여권
-사본·통화·개설지점)는 `index.html:5708`의 `seedDB()`가 만들고 **`localStorage`에만** 남는다.
+사본·통화·개설지점)는 `index.html:5706`의 `seedDB()`가 만들고 **`localStorage`에만** 남는다.
 저장소 전체에서 `db.collection('accounts')` 호출이 0건이고, 실시간 구독 8채널에도 없다. 원장
 항목은 Firestore에 있는데 그 항목이 가리키는 계좌의 신원 정보는 각 운영자의 브라우저에만
 있다는 뜻이다. **단말마다 계좌 목록이 다를 수 있다.** 이관 시 결정적 문제이며
@@ -188,12 +188,12 @@
 | 파트너 | `processPayment` | `:1681` | `deposit` / `withdraw` |
 | 파트너 | `submitRoundCancel` — 베팅 환불 | `:1304` | `correction` |
 | 파트너 | `submitRoundCancel` — 페이아웃 회수 | `:1307` | `correction` |
-| 플레이어 | `playerSignup` 가입 보너스 | `shared/game-engine.js:76` | `deposit` |
+| 플레이어 | `playerSignup` 가입 보너스 | `shared/game-engine.js:82` | `deposit` |
 | 플레이어 | `placeBet` | `:96` | `bet` |
 | 플레이어 | `settleBet` | `:111` | `payout` |
-| 플레이어 | 팁 | `avatar/app.js:714` | `avatar_tip` / `dealer_tip` |
+| 플레이어 | 팁 | `avatar/app.js:706` | `avatar_tip` / `dealer_tip` |
 
-예외가 하나 있다. **데모 시드(`seedDemoData`, `partner-admin/app.js:1800`)만 이 함수를 거치지
+예외가 하나 있다. **데모 시드(`seedDemoData`, `partner-admin/app.js:1724`)만 이 함수를 거치지
 않고 `batch.set()`으로 직접 쓴다** — 시드 데이터는 `balanceTotals`에 반영되지 않는다
 ([P-08](../partner-admin/explanation-known-gaps.md#p-08--데모-시드가-balancetotals를-갱신하지-않는다)).
 

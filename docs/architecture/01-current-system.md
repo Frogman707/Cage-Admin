@@ -93,7 +93,7 @@ passportNo, passportExp, passportPhoto, sitePhoto, signaturePhoto,
 openedCasino, openedDt, currency, remark, withdrawPw, telegramLinks[], isMain
 ```
 
-- `rate` — 롤링 요율. 문자열 `"1.45%"` 형태로 저장 (`index.html:5597`). **읽힌다** — `applyAccountRateToGameType()` (`:6770`)가 바이인 화면에서 이 값을 게임 종류 select의 옵션 라벨로 주입한다.
+- `rate` — 롤링 요율. 문자열 `"1.45%"` 형태로 저장 (`index.html:5712`). **읽힌다** — `applyAccountRateToGameType()` (`:6770`)가 바이인 화면에서 이 값을 게임 종류 select의 옵션 라벨로 주입한다.
   > **초판 서술 정정 (`DR-66` · 5차 `DR-62` 정정).** 초판은 여기에 "커미션 계산 코드를 저장소에서 찾지 못했다 — 미구현으로 보인다"라고 적었고, [5차 검토](design-review-5.md)가 이 문장을 근거로 **롤링 커미션 지급 자체가 없다**고 판정했다. **둘 다 틀렸다. 자동 계산이 있고, 매 정산마다 손님 계좌로 실제 돈이 들어간다.**
   >
   > 초판이 못 찾은 이유가 이 결함의 핵심이다 — **정산 코드는 `rate`를 직접 읽지 않는다.** 값이 `accounts.rate` → select 옵션 문자열 → `games.type` → 정규식 파싱을 거쳐 전달되므로 `rate`를 grep해도 정산 지점에 닿지 않는다. 전체 사슬은 §7-0에 있다.
@@ -259,7 +259,7 @@ if(!okIn){
 // index.html:4802-4807  (지점 간 이체) — 동일 패턴
 ```
 
-또한 `applyAccountTransaction()`의 MAIN 미러링(`index.html:6466`)은 반환값을 확인하지 않는다 (`await` 없음). **미러 쪽 실패는 감지조차 되지 않는다.**
+또한 `applyAccountTransaction()`의 MAIN 미러링(`index.html:6591`)은 반환값을 확인하지 않는다 (`await` 없음). **미러 쪽 실패는 감지조차 되지 않는다.**
 
 ### 4-3. 잔액 하한 검사
 
@@ -280,7 +280,7 @@ if(DB.ioType==='withdraw' && !hasSufficientTotalBalance(DB.currentAccount, amt))
 
 ### 4-4. 지점 분산 출금 (`withdrawAcrossBranches`)
 
-`index.html:6428-6443`. `MAIN` 계좌 전용 경로다. 지정 지점부터 시작해 `HANN → NUSTAR → ONLINE` 고정 순서로 잔액을 훑으며 부족분을 이월 차감한다. 원장 한 행이 하나의 `casino` 태그만 가질 수 있어 지점별로 별도 write가 발생한다.
+`index.html:6553`. `MAIN` 계좌 전용 경로다. 지정 지점부터 시작해 `HANN → NUSTAR → ONLINE` 고정 순서로 잔액을 훑으며 부족분을 이월 차감한다. 원장 한 행이 하나의 `casino` 태그만 가질 수 있어 지점별로 별도 write가 발생한다.
 
 ---
 
@@ -305,7 +305,7 @@ games/{gameId}
   endDt, endStaff, cc{}, nn{}, winLoss     종료 시 추가
 ```
 
-**롤링 총액은 저장하지 않는다.** `rollingEvents` 합산으로 파생한다 (`index.html:4488-4497` `buildGameFromCache`). 문서 write 시 파생 필드를 명시적으로 제거한다:
+**롤링 총액은 저장하지 않는다.** `rollingEvents` 합산으로 파생한다 (`index.html:4572` `buildGameFromCache`). 문서 write 시 파생 필드를 명시적으로 제거한다:
 
 ```js
 const {rolling, rollingLog, lastGrandTotal, lastAdded, ...meta} = g;
@@ -327,11 +327,11 @@ rollingEvents/{id}
 | `memo` | 발생 지점 | 지점 롤링 누계 산입 |
 |---|---|---|
 | `''` (구버전 데이터) | — | **O** |
-| `'rolling'` | `confirmRollingInput` `index.html:6926` | **O** |
-| `'buy-in'` | `seedRollingFromBuyin` `index.html:6729` | X |
-| `'working-chip'` | `seedRollingFromBuyin` `index.html:6730` | X |
-| `'mid-settle'` | `_doConfirmMidSettle` `index.html:7243` | X |
-| `'game-end'` | `_doConfirmGameEnd` `index.html:7467` | X |
+| `'rolling'` | `confirmRollingInput` `index.html:7043` | **O** |
+| `'buy-in'` | `seedRollingFromBuyin` `index.html:6858` | X |
+| `'working-chip'` | `seedRollingFromBuyin` `index.html:6859` | X |
+| `'mid-settle'` | `_doConfirmMidSettle` `index.html:7348` | X |
+| `'game-end'` | `_doConfirmGameEnd` `index.html:7566` | X |
 | `'month-settle-reset'` | 월정산 `index.html:8280` | X |
 
 ```js
@@ -524,7 +524,7 @@ function mainCageSignedEffect(type, amt){
 }
 ```
 
-`type` ∈ `buyin` · `rollingCC` · `marker` · `redeem` · `reset`. `redeem`만 부호가 음수다. `reset`은 월정산이 누계를 0으로 되돌릴 때 사용한다 (`index.html:8274`).
+`type` ∈ `buyin` · `rollingCC` · `marker` · `redeem` · `reset`. `redeem`만 부호가 음수다. `reset`은 월정산이 누계를 0으로 되돌릴 때 사용한다 (`index.html:8413`).
 
 ---
 
@@ -665,12 +665,12 @@ staff/{id}   { id, name, pin, dt, totpSecret }     ← 스키마 동일
 | 파트너 | `processPayment` | `:1681` | `deposit` / `withdraw` |
 | 파트너 | `submitRoundCancel` — 베팅 환불 | `:1304` | `correction` |
 | 파트너 | `submitRoundCancel` — 페이아웃 회수 | `:1307` | `correction` |
-| 플레이어 | `playerSignup` 가입 보너스 | `shared/game-engine.js:76` | `deposit` |
+| 플레이어 | `playerSignup` 가입 보너스 | `shared/game-engine.js:82` | `deposit` |
 | 플레이어 | `placeBet` | `:96` | `bet` |
 | 플레이어 | `settleBet` | `:111` | `payout` |
-| 플레이어 | 팁 | `avatar/app.js:714` | `avatar_tip` / `dealer_tip` |
+| 플레이어 | 팁 | `avatar/app.js:706` | `avatar_tip` / `dealer_tip` |
 
-**데모 시드(`seedDemoData`, `partner-admin/app.js:1800`)만 이 함수를 거치지 않고** `batch.set()`으로 직접 쓴다 — 시드 데이터는 `balanceTotals`에 반영되지 않는다.
+**데모 시드(`seedDemoData`, `partner-admin/app.js:1724`)만 이 함수를 거치지 않고** `batch.set()`으로 직접 쓴다 — 시드 데이터는 `balanceTotals`에 반영되지 않는다.
 
 ### 13-3. `category` 전수 — 10종
 
@@ -694,7 +694,7 @@ point_earn   point_convert   share_accum   avatar_tip   dealer_tip
 ### 13-5. [Track A] 이 측에서 바뀐 것
 
 - **신규 컬렉션 `balanceTotals`** — 유지 잔액 문서. `acct_{accountId}` · `maincage_{branch}` · `shift_{branch}` · `member_{memberId}` 4종. **케이지와 파트너·플레이어 양측이 공유하는 유일한 컬렉션**이며, 위 24종 표에는 넣지 않았다. **파생값이며 진실의 원천이 아니다** — 원장 컬렉션이 여전히 유일한 진실이다. 현재 쓰기만 되고 읽히지 않는다.
-- **5개 흐름이 Firestore 트랜잭션으로 원자화됐다** — `approveDeposit` · `rejectDeposit` · `processPayment`(`partner-admin/app.js:894`·`:912`·`:1289`·`:1668`) · `submitRoundCancel` · `playerSignup`(`shared/game-engine.js:67`). 이전에는 "상태 확인 후 갱신"이 두 개의 분리된 쓰기라 동시 승인이 통과했다.
+- **5개 흐름이 Firestore 트랜잭션으로 원자화됐다** — `approveDeposit` · `rejectDeposit` · `processPayment`(`partner-admin/app.js:890`·`:912`·`:1289`·`:1668`) · `submitRoundCancel` · `playerSignup`(`shared/game-engine.js:82`). 이전에는 "상태 확인 후 갱신"이 두 개의 분리된 쓰기라 동시 승인이 통과했다.
   - **이 트랜잭션들이 지키는 것은 요청 문서의 `status` 필드이지 잔액이 아니다.** 케이지 측 원장 쓰기 경로(`writeLedgerEntry` · `applyAccountTransaction`)는 여전히 트랜잭션이 아니다.
 - **`memberLedger` 쓰기가 한 함수로 모였다** — `shared/cage-ui.js`의 `writeMemberLedgerEntry()`. 새 쓰기 지점이 잔액 증분을 빠뜨리기 어렵게 만드는 조치다. **호출 지점은 9곳이다**(13-2절 표). 데모 시드만 예외로 남았다.
 
@@ -730,7 +730,7 @@ UTC에 8시간을 더한 뒤 `toISOString().slice(0,16).replace('T',' ')`로 `'Y
 
 | 함수 | 위치 | 대상 |
 |---|---|---|
-| `subscribeStaffCloud` | `index.html:4287` | `staff` |
+| `subscribeStaffCloud` | `index.html:4338` | `staff` |
 | `subscribeLedgerCloud` | `:4347` | `ledger` |
 | `subscribeGamesCloud` | `:4456` | `games` |
 | `subscribeRollingEventsCloud` | `:4471` | `rollingEvents` |
@@ -760,7 +760,7 @@ function scheduleFirestoreResubscribe(key, resubscribeFn){ ... }
 
 ## 16. 로컬 폴백 모드
 
-`fbDb`가 없으면 모든 write 함수가 `localStorage`에 쓰는 분기를 탄다. `seedDB()`가 데모 계좌 8개와 직원 6명을 생성한다 (`index.html:5758-5790`).
+`fbDb`가 없으면 모든 write 함수가 `localStorage`에 쓰는 분기를 탄다. `seedDB()`가 데모 계좌 8개와 직원 6명을 생성한다 (`index.html:5777-5790`).
 
 **이 이중 경로가 마이그레이션 시 위험 요소다.** 어떤 데이터가 클라우드에 있고 어떤 것이 로컬에만 있는지 판별해야 한다.
 

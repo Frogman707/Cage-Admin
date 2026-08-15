@@ -47,9 +47,9 @@
 
 | 필드 | 증가 지점 | 출처 값 |
 |---|---|---|
-| `nnChipInShift` | `index.html:7253` | `nn.deposit` |
+| `nnChipInShift` | `index.html:7382` | `nn.deposit` |
 | `nnCashoutShift` | `index.html:7267` | `nn.cashout` |
-| `nnMarkerShift` | `index.html:7271` | `nn.marker` |
+| `nnMarkerShift` | `index.html:7400` | `nn.marker` |
 
 **서로소다.** 정산 입력 `nn { deposit, cashout, marker, working }`의 세 필드가 각각 자기 카운터로 간다.
 
@@ -135,7 +135,7 @@ SELECT * FROM cage.v_shift_counters
 
 [01:90](01-current-system.md) — 계좌 필드 `rate`:
 
-> `rate` — 롤링 요율. 문자열 `"1.45%"` 형태로 저장 (`index.html:5597`). **커미션 계산 코드를 저장소에서 찾지 못했다.** 미구현으로 보인다.
+> `rate` — 롤링 요율. 문자열 `"1.45%"` 형태로 저장 (`index.html:5712`). **커미션 계산 코드를 저장소에서 찾지 못했다.** 미구현으로 보인다.
 
 [01:425](01-current-system.md) — 컬렉션 `shareLedger`:
 
@@ -234,7 +234,7 @@ M5가 이렇게 쓴다 — "중복 거래 가능성 · 호출 시점 생성 ID �
 
 [04:79](04-posting-rules.md#L79):
 
-> **지점 분산 출금 폐기:** 현행 `withdrawAcrossBranches()`(`index.html:6428-6443`)는 `MAIN` 계좌 전용 이월 차감 로직이다. 신규 모델에서는 `house_cash`가 지점별 독립 계정이고 **손님 잔액은 이미 통합되어 있으므로** 이 경로 자체가 불필요하다.
+> **지점 분산 출금 폐기:** 현행 `withdrawAcrossBranches()`(`index.html:6553`)는 `MAIN` 계좌 전용 이월 차감 로직이다. 신규 모델에서는 `house_cash`가 지점별 독립 계정이고 **손님 잔액은 이미 통합되어 있으므로** 이 경로 자체가 불필요하다.
 
 폐기 결정 자체는 문제없고, 근거를 단 것도 좋다. **그런데 근거가 다른 질문에 답한다.**
 
@@ -274,7 +274,7 @@ M5가 이렇게 쓴다 — "중복 거래 가능성 · 호출 시점 생성 ID �
 
 07-migration.md 전체가 이 답에 걸려 있다. 그런데 **01이 판별 단서를 이미 하나 제공한다.** [01:457](01-current-system.md):
 
-> **데모 시드(`seedDemoData`, `partner-admin/app.js:1800`)만 이 함수를 거치지 않고** `batch.set()`으로 직접 쓴다 — 시드 데이터는 `balanceTotals`에 반영되지 않는다.
+> **데모 시드(`seedDemoData`, `partner-admin/app.js:1724`)만 이 함수를 거치지 않고** `batch.set()`으로 직접 쓴다 — 시드 데이터는 `balanceTotals`에 반영되지 않는다.
 
 즉 **`memberLedger` 항목 중 `balanceTotals`에 반영되지 않은 것은 데모 시드다.** 판별 쿼리 하나로 나뉜다.
 
@@ -327,7 +327,7 @@ M5가 이렇게 쓴다 — "중복 거래 가능성 · 호출 시점 생성 ID �
 
 | 도메인 | DR-38 선택 | 근거 |
 |---|---|---|
-| 온라인 베팅 (`bet`·`payout`) | **(a) op 추가** | 현행 구현 있음 — `shared/game-engine.js:96`·`:111` |
+| 온라인 베팅 (`bet`·`payout`) | **(a) op 추가** | 현행 구현 있음 — `shared/game-engine.js:124`·`:111` |
 | 포인트 (`point_earn`·`point_convert`) | **(a) op 추가** | 현행 구현 있음 — 01 §13-3에서 category 확인 |
 | 마이그레이션 (`opening_balance`) | **(a) op 추가** | 07이 요구한다. 없으면 이관 자체가 불가 |
 | **파트너 쉐어** (`share_accrue`·`share_settle`) | **(c) 타입 삭제** | **현행 구현 없음.** DR-62 |

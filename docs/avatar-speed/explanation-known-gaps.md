@@ -265,8 +265,8 @@ function tableBetVolume(betLedgerRows){
 
 `tableBetVolume`은 두 곳에서 호출됩니다:
 
-- `renderAvatarLobbyGrid`([`avatar/app.js:424`](../../avatar/app.js#L424)) — 아바타 로비 카드 렌더링
-- `renderSpeedTileStats`([`avatar/app.js:953`](../../avatar/app.js#L953)) — 스피드 타일 통계
+- `renderAvatarLobbyGrid`([`avatar/app.js:417`](../../avatar/app.js#L417)) — 아바타 로비 카드 렌더링
+- `renderSpeedTileStats`([`avatar/app.js:949`](../../avatar/app.js#L949)) — 스피드 타일 통계
 
 두 호출 모두 `try/catch` 없이 `async` 함수 안에 있으므로, 예외는 처리되지 않은 Promise 거부로
 빠져나가고 렌더링이 중단됩니다. 로비가 스피너에서 멈추거나 그리드가 비어 보일 것으로 예상됩니다.

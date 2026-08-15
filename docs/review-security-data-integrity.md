@@ -39,15 +39,15 @@
 ┌───────────────── 브라우저 (모든 권한 보유) ─────────────────┐
 │                                                              │
 │  회원 인증    members/{id}.pw 를 받아와 JS 에서 문자열 비교  │
-│               game-engine.js:47                              │
+│               shared/game-engine.js:47                       │
 │  잔액 계산    memberLedger 전량 다운로드 후 JS 합산          │
-│               game-engine.js:70                              │
+│               shared/game-engine.js:70                       │
 │  잔액 검사    STATE.balance (메모리 변수, 팁 경로만 검사)    │
 │               avatar/app.js:713 / 786 에는 검사 없음         │
 │  라운드 결과  Math.random()                                  │
-│               game-engine.js:26                              │
+│               shared/game-engine.js:26                       │
 │  페이아웃     mult × amount 를 클라이언트가 계산             │
-│               game-engine.js:88-104                          │
+│               shared/game-engine.js:88-104                   │
 │  원장 기록    set() 직접 쓰기 · 트랜잭션 0건                 │
 │  앱 비밀값    index.html:6088 에 평문                        │
 │                                                              │
@@ -91,7 +91,7 @@
         │
         └── 만료 전 ───────► allow: if true   ──► DB 전면 공개
                                                    ↓
-                        projectId 는 클라이언트 번들에 있음 (cage-ui.js:11)
+                        projectId 는 클라이언트 번들에 있음 (shared/cage-ui.js:11)
                                                    ↓
                         누구나 Firestore SDK 로 직접 접속 가능
 ```
@@ -130,10 +130,10 @@ const TG_APP_API_SECRET = '19293b491727ee62611dbcec7056662c73023281d7702da0';
 | 함수 | 비밀값 유출 시 가능한 행위 |
 |---|---|
 | `getTelegramLinks` | 계좌ID별 Telegram 사용자명·chatId 열거 (PII 수집) |
-| `sendTelegramMessage` | 실제 고객에게 임의 문구 발송. `index.html:6262`가 쓰는 "출금 인증 요청" 형식을 그대로 흉내내면 완성형 피싱 |
+| `sendTelegramMessage` | 실제 고객에게 임의 문구 발송. `index.html:6440`가 쓰는 "출금 인증 요청" 형식을 그대로 흉내내면 완성형 피싱 |
 | `deleteTelegramLink` | 임의 계정의 연동 해제 (서비스 방해) |
 
-**CORS는 방어가 아닙니다.** `functions/index.js:19-28`의 `applyCors`는 `Access-Control-Allow-Origin`을 *설정*만 하고 `req.get('origin')`을 *읽지 않습니다*. CORS는 브라우저 정책이라 `curl`은 무시합니다.
+**CORS는 방어가 아닙니다.** `functions/index.js:32`의 `applyCors`는 `Access-Control-Allow-Origin`을 *설정*만 하고 `req.get('origin')`을 *읽지 않습니다*. CORS는 브라우저 정책이라 `curl`은 무시합니다.
 
 따라서 `docs/reference-cloud-functions.md:15`의 다음 문장은 사실이 아닙니다.
 > 앱용 엔드포인트는 Origin, 메서드, `X-App-Secret`을 확인합니다.
@@ -155,10 +155,10 @@ async function placeBet(db, {memberId, casino, tableId, roundId, betType, amount
   await db.collection('memberLedger').doc(uuidv4()).set({
     memberId, casino, amount: -Math.abs(amount), category:'bet', ...
 ```
-잔액 검사가 함수 안에 없습니다. 호출부 `avatar/app.js:786`에도 없습니다. 팁 경로(`avatar/app.js:713`)만 `STATE.balance`를 검사하는데, 이는 메모리 변수라 콘솔에서 바꾸면 그만입니다.
+잔액 검사가 함수 안에 없습니다. 호출부 `avatar/app.js:780`에도 없습니다. 팁 경로(`avatar/app.js:713`)만 `STATE.balance`를 검사하는데, 이는 메모리 변수라 콘솔에서 바꾸면 그만입니다.
 
 ```js
-// game-engine.js:88-104 — 클라이언트가 만든 sim 을 근거로
+// shared/game-engine.js:88-104 — 클라이언트가 만든 sim 을 근거로
 // 클라이언트가 배수를 계산하고, 클라이언트가 + 금액을 원장에 씀
 const payout = Math.round(amount * mult);
 if (payout > 0){ await db.collection('memberLedger').doc(uuidv4()).set({ amount: payout, category:'payout', ... }); }
@@ -189,7 +189,7 @@ if (payout > 0){ await db.collection('memberLedger').doc(uuidv4()).set({ amount:
   ◄────────────────────────┤                       │
 ```
 
-계좌 ID는 짧고 규칙적이어서(`SE7419`, `SEC6937`) 열거가 쉽습니다. `index.html:6262`가 이 채널로 출금 인증 링크를 보내므로 계좌 탈취 경로가 됩니다.
+계좌 ID는 짧고 규칙적이어서(`SE7419`, `SEC6937`) 열거가 쉽습니다. `index.html:6440`가 이 채널로 출금 인증 링크를 보내므로 계좌 탈취 경로가 됩니다.
 
 부수 문제: 사용자 입력 `accountId`가 검증 없이 문서 ID(`${accountId.toUpperCase()}_${chatId}`)에 들어갑니다. `/`가 포함되면 Firestore 경로 파싱이 깨집니다.
 
@@ -248,7 +248,7 @@ await db.collection('memberLedger').doc(uuidv4()).set({
 두 가지 결함이 겹칩니다.
 
 - **TOCTOU**: 존재 확인과 쓰기가 분리되어 있어 동시 가입 시 기존 회원 문서를 덮어씁니다. 덮어쓴 쪽이 그 ID의 원장 전부를 상속합니다
-- **카테고리 오류**: 메모는 "포인트"인데 `category:'deposit'`입니다. `game-engine.js:74`의 분기가 `point_earn` / `point_convert`만 포인트로 취급하므로, 이 100,000은 포인트가 아니라 **현금성 보유금**입니다
+- **카테고리 오류**: 메모는 "포인트"인데 `category:'deposit'`입니다. `shared/game-engine.js:106`의 분기가 `point_earn` / `point_convert`만 포인트로 취급하므로, 이 100,000은 포인트가 아니라 **현금성 보유금**입니다
 
 인증 없는 가입과 결합하면 계정 수 × 100,000의 무한 발행입니다.
 
@@ -331,7 +331,7 @@ clientCreatedAt: string   // 클라이언트 로컬시간
 createdAt: serverTimestamp
 ```
 
-구현 (`game-engine.js:85`, `avatar/app.js:718`, `partner-admin/app.js:701`):
+구현 (`shared/game-engine.js:85`, `avatar/app.js:718`, `partner-admin/app.js:701`):
 ```js
 createdAt: new Date().toISOString(),
 ```
@@ -354,7 +354,7 @@ createdAt: new Date().toISOString(),
 `FIRESTORE_DATA_MODEL.md:18`:
 > 오프라인 중 같은 요청이 재시도되어도(네트워크 재연결 후 큐 재전송 등) 같은 ID로 덮어써질 뿐 중복 생성되지 않는다 (멱등성).
 
-`placeBet` 호출마다 `uuidv4()`를 **새로** 생성합니다(`game-engine.js:82`). 따라서:
+`placeBet` 호출마다 `uuidv4()`를 **새로** 생성합니다(`shared/game-engine.js:124`). 따라서:
 
 - SDK 내부 오프라인 큐 재생 → 멱등 (같은 ID 재전송)
 - 앱 레벨 재시도(버튼 재클릭, 실패 후 재호출) → **중복 원장 생성**
@@ -373,9 +373,9 @@ createdAt: new Date().toISOString(),
 
 | 컬렉션 | 문서 명세 | 실제 구현 |
 |---|---|---|
-| `ledger` | `amount` (부호 있는 단일 필드) | `inn` / `out` 2필드 — `index.html:4302` |
-| `mainCageLedger` | `amount` | `amt` — `index.html:4660` |
-| `rollingEvents` | `games/{id}/rollingEvents` 서브컬렉션 | 전역 컬렉션 — `index.html:4399` |
+| `ledger` | `amount` (부호 있는 단일 필드) | `inn` / `out` 2필드 — `index.html:4473` |
+| `mainCageLedger` | `amount` | `amt` — `index.html:4845` |
+| `rollingEvents` | `games/{id}/rollingEvents` 서브컬렉션 | 전역 컬렉션 — `index.html:4634` |
 | `memberLedger` | `amount` | `amount` ✓ |
 
 `explanation-architecture.md:34`가 이 격차를 이미 인정하고 있습니다. 문제는 **실패 방식**입니다.
@@ -515,7 +515,7 @@ async function getPlayerBalance(db, memberId){
 3. 라운드마다 전체 재조회 대신 로컬 델타 적용 + 주기적 서버 대조
 4. `firestore.indexes.json`이 없으므로 복합 인덱스를 코드로 관리하지 않는 상태. 쿼리 추가 시 콘솔 수동 작업에 의존하게 됨 — 인덱스 파일도 저장소에 편입
 
-부수 관찰: `avatar/app.js:844`의 채팅 구독이 `limit(200)`을 걸지만 `orderBy`가 없어 **어떤 200건인지 정의되지 않습니다.** 클라이언트에서 정렬 후 30건만 씁니다. 메시지가 200건을 넘으면 최신 메시지가 누락될 수 있습니다.
+부수 관찰: `avatar/app.js:834`의 채팅 구독이 `limit(200)`을 걸지만 `orderBy`가 없어 **어떤 200건인지 정의되지 않습니다.** 클라이언트에서 정렬 후 30건만 씁니다. 메시지가 200건을 넘으면 최신 메시지가 누락될 수 있습니다.
 
 ---
 
@@ -583,7 +583,7 @@ async function getPlayerBalance(db, memberId){
 
 ## 8. 이번 리뷰에서 다루지 않은 것
 
-- **게임 로직 정확성** — 바카라 3번째 카드 규칙 미구현(`dealHand()`가 2장만 배분), 로드맵 파생 규칙이 근사치(`game-engine.js:238`이 인정). 자금 무결성과 독립된 별도 범위
+- **게임 로직 정확성** — 바카라 3번째 카드 규칙 미구현(`dealHand()`가 2장만 배분), 로드맵 파생 규칙이 근사치(`shared/game-engine.js:238`이 인정). 자금 무결성과 독립된 별도 범위
 - **다국어·UI 품질** — `shared/i18n.js` 25KB. 이번 리뷰 범위 밖
 - **파일 분할 리팩터링** — 2단계에서 상당 부분이 제거될 코드라 지금 정돈하면 낭비
 - **비용 모델·요금제 전환** — Blaze 전환은 2단계 결정에 종속

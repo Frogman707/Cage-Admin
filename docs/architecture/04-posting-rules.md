@@ -47,7 +47,7 @@
 
 ## 1. 입금 — `deposit`
 
-**현행:** `_doProcessIo()` IN 분기 (`index.html:6493-6497`) + `applyAccountTransaction` MAIN 미러 (`:6463-6467`)
+**현행:** `_doProcessIo()` IN 분기 (`index.html:6569`) + `applyAccountTransaction` MAIN 미러 (`:6463-6467`)
 
 | 계정 | 부호 | 금액 | `category` |
 |---|---|---|---|
@@ -77,11 +77,11 @@
 | `member_deposit[acct]` | `+` | W | `withdraw_cash` |
 | `house_cash[branch]` | `−` | W | `withdraw_cash` |
 
-**불변식 작동 지점:** 손님 잔액이 부족하면 `member_deposit` 잔액이 양수가 되어 (credit 계정의 하한 `≤ 0` 위반) **커밋이 실패한다.** 현행의 메모리 변수 사전 검사(`index.html:6477`)는 UX상 즉시 피드백용으로 유지하되, 최종 방어선이 DB로 내려간다.
+**불변식 작동 지점:** 손님 잔액이 부족하면 `member_deposit` 잔액이 양수가 되어 (credit 계정의 하한 `≤ 0` 위반) **커밋이 실패한다.** 현행의 메모리 변수 사전 검사(`index.html:6606`)는 UX상 즉시 피드백용으로 유지하되, 최종 방어선이 DB로 내려간다.
 
 `house_cash` 잔액이 부족하면(금고에 현금이 없으면) 마찬가지로 커밋이 실패한다. **현행에는 이 검사가 아예 없다.**
 
-> **지점 분산 출금 폐기:** 현행 `withdrawAcrossBranches()`(`index.html:6428-6443`)는 `MAIN` 계좌 전용 이월 차감 로직이다. 신규 모델에서는 `house_cash`가 지점별 독립 계정이고 손님 잔액은 이미 통합되어 있으므로 **이 경로 자체가 불필요하다.**
+> **지점 분산 출금 폐기:** 현행 `withdrawAcrossBranches()`(`index.html:6553`)는 `MAIN` 계좌 전용 이월 차감 로직이다. 신규 모델에서는 `house_cash`가 지점별 독립 계정이고 손님 잔액은 이미 통합되어 있으므로 **이 경로 자체가 불필요하다.**
 
 **멱등키:** `withdraw:{account_code}:{client_request_id}`
 
@@ -89,7 +89,7 @@
 
 ## 3. 계좌 간 이체 — `transfer`
 
-**현행:** `_doTransfer()` (`index.html:6559-6567`) — `writeLedgerEntry` 2회. MAIN 미러 없음
+**현행:** `_doTransfer()` (`index.html:6688`) — `writeLedgerEntry` 2회. MAIN 미러 없음
 
 | 계정 | 부호 | 금액 | `category` |
 |---|---|---|---|
@@ -98,7 +98,7 @@
 
 현금은 움직이지 않는다. `house_cash`에 분개가 생기지 않는다.
 
-**해소되는 실패 모드:** 현행은 두 write 중 두 번째가 실패하면 `toastTransferHalfFailed`를 띄우고 **반쪽 거래를 남긴다** (`index.html:6562-6566`). 단일 트랜잭션에서는 구조적으로 발생하지 않는다.
+**해소되는 실패 모드:** 현행은 두 write 중 두 번째가 실패하면 `toastTransferHalfFailed`를 띄우고 **반쪽 거래를 남긴다** (`index.html:6694`). 단일 트랜잭션에서는 구조적으로 발생하지 않는다.
 
 **멱등키:** `transfer:{from}:{to}:{client_request_id}`
 
@@ -106,7 +106,7 @@
 
 ## 4. 지점 간 이체 — `branch_transfer`
 
-**현행:** `_doProcessBranchTransfer()` (`index.html:4796-4814`) — 원장 2건 + `branchTransfers` 감사 로그 1건
+**현행:** `_doProcessBranchTransfer()` (`index.html:4903`) — 원장 2건 + `branchTransfers` 감사 로그 1건
 
 | 계정 | 부호 | 금액 | `category` |
 |---|---|---|---|
@@ -185,7 +185,7 @@
 
 ### 5-5. 롤링 시드 (자금 아님)
 
-현행은 바이인과 워킹칩을 게임 롤링에 시드한다 (`seedRollingFromBuyin`, `index.html:6725-6746`). 같은 트랜잭션에서 `cage.rolling_events`에 기록한다.
+현행은 바이인과 워킹칩을 게임 롤링에 시드한다 (`seedRollingFromBuyin`, `index.html:6854`). 같은 트랜잭션에서 `cage.rolling_events`에 기록한다.
 
 | `source` | 금액 | `counts_toward_branch_total` |
 |---|---|---|
@@ -210,7 +210,7 @@
 
 **멱등키:** `rolling:{game_no}:{client_request_id}`
 
-> 현행은 `guestRollingGrandTotal` · `rollingDailyTotal` · `rollingCashShift` 세 개의 누계를 각각 갱신한다 (`index.html:6920-6924`). 신규에서는 전부 `rolling_events` 집계로 파생되므로 별도 카운터가 없다.
+> 현행은 `guestRollingGrandTotal` · `rollingDailyTotal` · `rollingCashShift` 세 개의 누계를 각각 갱신한다 (`index.html:7049`). 신규에서는 전부 `rolling_events` 집계로 파생되므로 별도 카운터가 없다.
 
 ---
 
@@ -280,15 +280,15 @@ accounts.rate "1.45%" → select 옵션 라벨 "Rolling 1.45%" → games.type �
 
 | 출처 | 계산 | 위치 |
 |---|---|---|
-| 케이지 수동 지급 | 롤링 × 요율 | `_doSettleGame` (`index.html:7250`) |
-| 이벤트 커미션 | `Math.round(rolling*rate/100)` | `payEventCommissionForSettle` (`index.html:8961`) |
+| 케이지 수동 지급 | 롤링 × 요율 | `_doSettleGame` (`index.html:7224`) |
+| 이벤트 커미션 | `Math.round(rolling*rate/100)` | `payEventCommissionForSettle` (`index.html:9062`) |
 | 파트너 표시 계산 | `rolling * 0.015` (1.5% 하드코딩) | `partner-admin/app.js` `userList` 파생 컬럼 |
 
 ---
 
 ## 6-2. 이벤트 보너스 커미션 — `event_commission`
 
-**현행:** 이벤트 기간 중 롤링 커미션 정산이 일어나면 보너스가 자동 지급된다 (`payEventCommissionForSettle`, `index.html:8958`). B1(2026-08-15)이 **계속 운영 + 재구현**으로 확정했다 ([`00-decisions`](../spec/00-decisions.md) §7 · [`spec/06`](../spec/06-event-commission.md)).
+**현행:** 이벤트 기간 중 롤링 커미션 정산이 일어나면 보너스가 자동 지급된다 (`payEventCommissionForSettle`, `index.html:9062`). B1(2026-08-15)이 **계속 운영 + 재구현**으로 확정했다 ([`00-decisions`](../spec/00-decisions.md) §7 · [`spec/06`](../spec/06-event-commission.md)).
 
 | 계정 | 부호 | 금액 | `category` |
 |---|---|---|---|
@@ -383,7 +383,7 @@ rolling_delta = −(nn.deposit + nn.cashout + nn.marker + nn.working)
 
 ### 7-4. 정산 이력
 
-`cage.game_settlements`에 `kind = 'mid'`로 1행. 현행 `g.checkpoints` 배열(`index.html:7241`)을 정규 테이블로 승격한 것이다.
+`cage.game_settlements`에 `kind = 'mid'`로 1행. 현행 `g.checkpoints` 배열(`index.html:7369`)을 정규 테이블로 승격한 것이다.
 
 **멱등키:** `mid_settle:{game_no}:{seq}`
 
@@ -442,7 +442,7 @@ WHERE e.account_id = :chips_outstanding_account_id;
 
 ## 9. 게임 취소 — `game_cancel`
 
-**현행:** `cancelGame()` (`index.html:6824-6864`) — 계좌 환불 후 **게임 문서와 롤링 이벤트를 삭제**한다 (`deleteGameDoc`, `:4529-4537`)
+**현행:** `cancelGame()` (`index.html:6953`) — 계좌 환불 후 **게임 문서와 롤링 이벤트를 삭제**한다 (`deleteGameDoc`, `:4529-4537`)
 
 **신규: 삭제하지 않는다. 역분개한다.**
 
@@ -719,14 +719,14 @@ CREATE TABLE cage.main_cage_events (
 
 | 연산 | 현행 위치 | 기록 대상 |
 |---|---|---|
-| 롤링 입력 | `index.html:6914` | `cage.rolling_events` |
+| 롤링 입력 | `index.html:7043` | `cage.rolling_events` |
 | 교대 IN/OUT | `shiftLog` | `identity.shift_events` |
 | 일일 컷오프 | `index.html:8274` 부근 | `ledger.accounting_periods.status = 'frozen'` |
 | 월정산 | `index.html:8274-8280` | 기간 마감 + 다음 기간 개시 |
 | 실사 카운트 입력 | `cageConfig.*BreakdownCounts` | `cage.balancing_counts` (차액 발생 시에만 11절 거래) |
 | 계좌 개설 · KYC 수정 | — | `ledger.parties` · `ledger.member_profiles` |
 | 계좌 차단 · 해지 | `applyBlock`·`unblock` | `ledger.accounts.status` + 상태 이력 ([`spec/08`](../spec/08-account-lifecycle.md)) |
-| 컨시어지 예약 (호텔·차량·항공) | `index.html:8792`·`8843`·`8894` | `concierge` 스키마 ([`spec/07`](../spec/07-concierge.md)) |
+| 컨시어지 예약 (호텔·차량·항공) | `index.html:8781`·`8843`·`8894` | `concierge` 스키마 ([`spec/07`](../spec/07-concierge.md)) |
 | 공지 · 문의 · 채팅 | `partner-admin/` 고객센터 7화면 | `support` 스키마 ([`spec/11`](../spec/11-chat-notice-support.md)) |
 | 텔레그램 알림 발송 | `functions/index.js` | `notify` 스키마 ([`spec/09`](../spec/09-notifications.md)) |
 | 이벤트 활성화 · 종료 | `activateEvent` (`index.html:9003`) | `cage.bonus_event_activations` (§6-2) |
@@ -759,7 +759,7 @@ opening_balance
 
 > **`reversal`은 이 목록에서 제거했다** (`DR-23` 결정 · `AC-23-1`). ADR-016 이후 역분개는 **원 `category`를 그대로 유지**하므로 이 값을 쓰는 경로가 없다. 미사용 값을 남기면 다음 사람이 "쓸 수 있다"고 읽는다. M1 착수 전이라 타입 재생성이 싸다(`AC-23-2`). `tx_kind`의 `reversal`은 그대로 있다 — 역분개 여부는 그쪽으로 판별한다(18절).
 
-> **아직 대응이 없는 현행 카테고리가 셋 남아 있다** — `avatar_tip` · `dealer_tip`(`avatar/app.js:716`)과 가입 보너스(`shared/game-engine.js:76`, 현행은 `deposit`으로 기록). 전부 아바타/스피드 도메인이라 A1과 함께 확정한다. 현행 `correction`(라운드 취소 환불·회수)은 신규 모델에서 `reversal` 거래가 대신한다.
+> **아직 대응이 없는 현행 카테고리가 셋 남아 있다** — `avatar_tip` · `dealer_tip`(`avatar/app.js:706`)과 가입 보너스(`shared/game-engine.js:82`, 현행은 `deposit`으로 기록). 전부 아바타/스피드 도메인이라 A1과 함께 확정한다. 현행 `correction`(라운드 취소 환불·회수)은 신규 모델에서 `reversal` 거래가 대신한다.
 
 ---
 

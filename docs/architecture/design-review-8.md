@@ -35,7 +35,7 @@
 **멱등키:** `bet:{round_id}:{member_code}:{bet_type}` — 자연키다.
 ```
 
-두 표 뒤에 놓여 있고 이름은 `bet:`이다. 베팅과 페이아웃은 **서로 다른 시점의 서로 다른 거래**다 — 코드에서도 딜링 단계의 `placeBet`([game-engine.js:95](../../shared/game-engine.js#L95))과 결과 단계의 `settleBet`([:102](../../shared/game-engine.js#L102))로 나뉘어 있다.
+두 표 뒤에 놓여 있고 이름은 `bet:`이다. 베팅과 페이아웃은 **서로 다른 시점의 서로 다른 거래**다 — 코드에서도 딜링 단계의 `placeBet`([shared/game-engine.js:124](../../shared/game-engine.js#L124))과 결과 단계의 `settleBet`([:102](../../shared/game-engine.js#L102))로 나뉘어 있다.
 
 멱등키 공간이 전역이라 이 둘은 충돌한다:
 
@@ -48,7 +48,7 @@
 
 **결과.** 페이아웃이 §13에 적힌 키를 그대로 쓰면 `begin_idempotent()`가 베팅 행을 찾아내고, 요청 지문이 다르므로 422로 거절한다. **어떤 회원도 지급받지 못한다.** 키를 비우면 008이 필수라며 거절한다. 두 경로 모두 지급이 불가능하다.
 
-무승부 푸시가 이 문제를 매 라운드로 끌어올린다 — [`game-engine.js:104-105`](../../shared/game-engine.js#L104)는 타이일 때 플레이어/뱅커 베팅에 `mult = 1`을 주므로 **원금과 같은 금액의 페이아웃 분개**가 발생한다. 금액까지 같아 사람 눈으로도 중복으로 보인다.
+무승부 푸시가 이 문제를 매 라운드로 끌어올린다 — [`shared/game-engine.js:104-105`](../../shared/game-engine.js#L104)는 타이일 때 플레이어/뱅커 베팅에 `mult = 1`을 주므로 **원금과 같은 금액의 페이아웃 분개**가 발생한다. 금액까지 같아 사람 눈으로도 중복으로 보인다.
 
 **대조군이 같은 문서 안에 있다.** §13-2는 하위 연산마다 키를 따로 준다 — `point_earn:{member_code}:{source_ref}`, `point_convert:{member_code}:{client_request_id}`. §13만 하나다.
 
@@ -76,11 +76,11 @@ CONSTRAINT tx_actor_required                          -- :90-91
 
 | 흐름 | 실제 행위자 | 현행 기록 | 목표 스키마에서 |
 | --- | --- | --- | --- |
-| 스피드 자가 베팅 | 회원 본인 | `staff:'system'` ([app.js:1166](../../avatar/app.js#L1166)) | `auth_method='system'` + 행위자 NULL — **누가 걸었는지 사라진다** |
-| 아바타 대리 베팅 | 회원(지시) + 직원(집행) | `staff:'avatar'` 리터럴 ([app.js:787](../../avatar/app.js#L787)) | 행위자 칸이 하나뿐이라 **둘 중 하나만 남는다** |
-| 팁 | 회원 본인 | `staff:'member'` 리터럴 ([app.js:718](../../avatar/app.js#L718)) | 같음 |
+| 스피드 자가 베팅 | 회원 본인 | `staff:'system'` ([avatar/app.js:1166](../../avatar/app.js#L1166)) | `auth_method='system'` + 행위자 NULL — **누가 걸었는지 사라진다** |
+| 아바타 대리 베팅 | 회원(지시) + 직원(집행) | `staff:'avatar'` 리터럴 ([avatar/app.js:787](../../avatar/app.js#L787)) | 행위자 칸이 하나뿐이라 **둘 중 하나만 남는다** |
+| 팁 | 회원 본인 | `staff:'member'` 리터럴 ([avatar/app.js:718](../../avatar/app.js#L718)) | 같음 |
 
-대리 베팅은 지시자와 집행자가 분리된 구조다 — 지시는 `avatarRequests.betSide`·`betAmount`, 집행자는 `avatarRequests.avatarStaffId`([app.js:470-474](../../avatar/app.js#L470))에 따로 있다. 자금 기록에 둘을 함께 남길 자리가 없으면 **"직원이 회원 돈으로 건 베팅"의 책임 추적이 성립하지 않는다.** 케이지 측 4-eyes가 지키려는 것과 정확히 같은 종류의 위험인데, 이쪽에는 장치가 없다.
+대리 베팅은 지시자와 집행자가 분리된 구조다 — 지시는 `avatarRequests.betSide`·`betAmount`, 집행자는 `avatarRequests.avatarStaffId`([avatar/app.js:470-474](../../avatar/app.js#L470))에 따로 있다. 자금 기록에 둘을 함께 남길 자리가 없으면 **"직원이 회원 돈으로 건 베팅"의 책임 추적이 성립하지 않는다.** 케이지 측 4-eyes가 지키려는 것과 정확히 같은 종류의 위험인데, 이쪽에는 장치가 없다.
 
 **이 공백은 보류 밖에 있다.** `002`(identity)와 `004`(ledger)는 §8에서 ✅ 완료다. A1이 정하는 것은 `game` 스키마이지 `transactions`의 행위자 컬럼이 아니다. 아바타 개선이 어떻게 끝나든 이 두 컬럼은 바뀌지 않는다.
 
@@ -116,7 +116,7 @@ CONSTRAINT tx_actor_required                          -- :90-91
 
 [`04`](04-posting-rules.md) §13 페이아웃 표는 금액을 `P`로만 쓴다. **`P`가 어디서 오는지 정의한 곳이 없다.**
 
-현행에서 `P`의 유일한 출처는 클라이언트 상수다 ([`game-engine.js:14`](../../shared/game-engine.js#L14)):
+현행에서 `P`의 유일한 출처는 클라이언트 상수다 ([`shared/game-engine.js:14`](../../shared/game-engine.js#L14)):
 
 ```js
 const PAYOUT = { player: 2.0, banker: 1.95, tie: 9.0, playerPair: 12.0, bankerPair: 12.0 };
@@ -126,7 +126,7 @@ const PAYOUT = { player: 2.0, banker: 1.95, tie: 9.0, playerPair: 12.0, bankerPa
 
 두 가지가 걸린다:
 
-**규약 함정.** 이 값들은 *배당*이 아니라 **원금 포함 반환 배수**다. 화면 표기는 `1:1` · `0.95:1` · `8:1` · `11:1`([app.js:912-914](../../avatar/app.js#L912), [:1056-1062](../../avatar/app.js#L1056))인데 상수는 `2.0` · `1.95` · `9.0` · `12.0`이다. 이관·구현 시 둘을 혼동하면 지급액이 **정확히 2배 또는 절반**이 된다. 7차 `DR-77`의 `shareRate` %→bp 함정과 같은 계열이다.
+**규약 함정.** 이 값들은 *배당*이 아니라 **원금 포함 반환 배수**다. 화면 표기는 `1:1` · `0.95:1` · `8:1` · `11:1`([avatar/app.js:1035](../../avatar/app.js#L1035), [:1056-1062](../../avatar/app.js#L1056))인데 상수는 `2.0` · `1.95` · `9.0` · `12.0`이다. 이관·구현 시 둘을 혼동하면 지급액이 **정확히 2배 또는 절반**이 된다. 7차 `DR-77`의 `shareRate` %→bp 함정과 같은 계열이다.
 
 **커미션이 숨어 있다.** 뱅커 `1.95`는 5% 커미션을 배수 안에 접어 넣은 값이다. 별도 분개도, 수입 계정도 없다 — `commission_expense`([`ddl/001`](../../db/schema/001_types_and_extensions.sql):64)는 파트너 쉐어·롤링용 차변 계정이라 이 자리에 쓸 수 없다. 커미션을 따로 보고 싶으면 지금 정해야 한다.
 
@@ -160,13 +160,13 @@ const PAYOUT = { player: 2.0, banker: 1.95, tie: 9.0, playerPair: 12.0, bankerPa
 
 | # | 의심 | 확인 결과 |
 | --- | --- | --- |
-| 1 | `G-08` 카지노 목록 불일치가 이관 위험 | **아니다.** 가입 select는 `NUSTAR`/`HANN`/`ONLINE`([index.html:117](../../avatar/index.html#L117))로 `branch_code` ENUM([`ddl/001`](../../db/schema/001_types_and_extensions.sql):41)과 정확히 일치. `SOLAIRE`는 로비 필터 상수([app.js:250](../../avatar/app.js#L250))에만 있고 **회원 데이터에 들어갈 경로가 없다.** 화면 결함이지 이관 결함이 아니다 |
+| 1 | `G-08` 카지노 목록 불일치가 이관 위험 | **아니다.** 가입 select는 `NUSTAR`/`HANN`/`ONLINE`([avatar/index.html:90](../../avatar/index.html#L90))로 `branch_code` ENUM([`ddl/001`](../../db/schema/001_types_and_extensions.sql):41)과 정확히 일치. `SOLAIRE`는 로비 필터 상수([avatar/app.js:250](../../avatar/app.js#L250))에만 있고 **회원 데이터에 들어갈 경로가 없다.** 화면 결함이지 이관 결함이 아니다 |
 | 2 | 팁이 어느 항목에도 배정 안 됨 | **배정돼 있다.** 계정 종류 `tips_dealer`·`tips_house`가 [`ddl/001`](../../db/schema/001_types_and_extensions.sql):58-59에 실재하고, 분개 규칙은 A2가 명시 소유 (*"취소 · 정정 · 팁 · 보너스가 없다"*). §8이 A4에서 뺀 이유도 명시 |
 | 3 | 04 §13이 없는 계정을 참조 | **전부 실재.** `player_wallet`([`001`](../../db/schema/001_types_and_extensions.sql):54) · `house_gaming`([:60](../../db/schema/001_types_and_extensions.sql#L60)) |
-| 4 | `G-01`~`G-12`에 과장·오류 | **전량 실코드 확인.** `G-12` "베팅완료" 버튼은 토스트만 띄우고([app.js:1103](../../avatar/app.js#L1103)) 확정 로직 없음, `G-10` `avatarServiceRequests`는 쓰기만 있고([:729](../../avatar/app.js#L729)) 소비자 없음, `G-03` 자동베팅 경로([:786-788](../../avatar/app.js#L786))에 잔액 검사 없음 — 셋 다 기술대로 |
+| 4 | `G-01`~`G-12`에 과장·오류 | **전량 실코드 확인.** `G-12` "베팅완료" 버튼은 토스트만 띄우고([avatar/app.js:1047](../../avatar/app.js#L1047)) 확정 로직 없음, `G-10` `avatarServiceRequests`는 쓰기만 있고([:729](../../avatar/app.js#L729)) 소비자 없음, `G-03` 자동베팅 경로([:786-788](../../avatar/app.js#L786))에 잔액 검사 없음 — 셋 다 기술대로 |
 | 5 | 서드카드 룰 부재·클라이언트 RNG 미등록 | **의도된 단순화로 명시.** [known-gaps:494-512](../avatar-speed/explanation-known-gaps.md) 표에 9항목으로 정리. `randCard()`가 복원추출인 것도 같은 전제 |
 | 6 | `/speed/`가 별도 앱 | **껍데기 맞다.** [`speed/index.html`](../../speed/index.html):10 meta refresh + :19 `location.replace` 이중 리다이렉트, 총 21줄. [`00`](00-system-map.md):152 기술과 일치 |
-| 7 | 파트너 콘솔이 아바타 신청을 처리하지 않음 | **처리한다.** 신청 생성은 플레이어([app.js:470](../../avatar/app.js#L470)), 승인은 파트너 측이며 가드 부재가 [`P-05`](../partner-admin/explanation-known-gaps.md)로 등록돼 있고 §7 위험표에도 올라 있다 |
+| 7 | 파트너 콘솔이 아바타 신청을 처리하지 않음 | **처리한다.** 신청 생성은 플레이어([avatar/app.js:470](../../avatar/app.js#L470)), 승인은 파트너 측이며 가드 부재가 [`P-05`](../partner-admin/explanation-known-gaps.md)로 등록돼 있고 §7 위험표에도 올라 있다 |
 
 ---
 

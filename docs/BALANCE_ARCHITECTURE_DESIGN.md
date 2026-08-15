@@ -22,7 +22,7 @@
 이게 네 가지 다른 증상으로 드러난다:
 
 1. **C1 잔여분**: 케이지 현금 출금 시 잔액 충분 여부(`hasSufficientBalance`/
-   `hasSufficientTotalBalance`, index.html:6460-6469)를 로컬에 캐시된, 리스너가 합산해 둔 값으로
+   `hasSufficientTotalBalance`, index.html:6547)를 로컬에 캐시된, 리스너가 합산해 둔 값으로
    검사한다. 두 단말에서 동시에 같은 계좌를 출금 요청하면 둘 다 이 검사를 통과한 뒤 각자
    `writeLedgerEntry()`를 호출할 수 있다 — 실제 현금이 이중으로 나갈 수 있는 경로. C5(오프라인
    캐시 스테일 방지)는 이 중 "재접속 직후 로컬 캐시가 서버 미확인 상태"인 좁은 케이스만 막았을

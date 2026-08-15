@@ -103,7 +103,7 @@ ID 접두사 `DR-`는 저장소의 기존 체계(`TA-` · `G-` · `P-` · `M*` �
 
 #### 근거
 
-[`ddl/011_operations_admin.sql:304-313`](../../db/schema/011_operations_admin.sql#L304):
+[`db/schema/011_operations_admin.sql:304-313`](../../db/schema/011_operations_admin.sql#L304):
 
 ```sql
 SELECT COALESCE(sum(b.balance_minor), 0) INTO v_suspense
@@ -112,7 +112,7 @@ IF v_suspense <> 0 THEN
   RAISE EXCEPTION 'cannot freeze %/%: suspense balance is % (미해소 차액)', ...
 ```
 
-[`ddl/004_ledger.sql:211-214`](../../db/schema/004_ledger.sql#L211) — `posting_rules`에서 `suspense`가 등장하는
+[`db/schema/004_ledger.sql:241`](../../db/schema/004_ledger.sql#L241) — `posting_rules`에서 `suspense`가 등장하는
 조합은 `adjustment` 하나뿐이다:
 
 ```sql
@@ -199,7 +199,7 @@ IF v_suspense <> 0 THEN
 
 #### 근거
 
-[`ddl/011_operations_admin.sql:284-291`](../../db/schema/011_operations_admin.sql#L284):
+[`db/schema/011_operations_admin.sql:284-291`](../../db/schema/011_operations_admin.sql#L284):
 
 ```sql
 SELECT count(*) INTO v_open_games
@@ -210,7 +210,7 @@ IF v_open_games > 0 THEN
 ```
 
 `cage.games.business_date`는 **개설 시점**에 확정된다 —
-[`ddl/010_operations_game.sql:122`](../../db/schema/010_operations_game.sql#L122):
+[`db/schema/010_operations_game.sql:122`](../../db/schema/010_operations_game.sql#L122):
 
 ```sql
 ledger.business_date_of(p_branch, clock_timestamp())
@@ -297,7 +297,7 @@ CREATE TABLE cage.game_rollovers (
 
 #### 근거
 
-[`ddl/009_operations_money.sql:206-210`](../../db/schema/009_operations_money.sql#L206):
+[`db/schema/009_operations_money.sql:206-210`](../../db/schema/009_operations_money.sql#L206):
 
 ```sql
 IF p_auth_method NOT IN ('withdraw_pw', 'totp', 'approval') THEN
@@ -399,7 +399,7 @@ CREATE TABLE identity.step_up_tokens (
 
 #### 근거
 
-[`ddl/008_post_transaction.sql:164-174`](../../db/schema/008_post_transaction.sql#L164):
+[`db/schema/008_post_transaction.sql:164-174`](../../db/schema/008_post_transaction.sql#L164):
 
 ```sql
 -- 만료된 키는 새 요청으로 취급한다 (보존 24시간)
@@ -486,7 +486,7 @@ END IF;
 
 #### 근거
 
-[`ddl/008_post_transaction.sql:386-393`](../../db/schema/008_post_transaction.sql#L386):
+[`db/schema/008_post_transaction.sql:386-393`](../../db/schema/008_post_transaction.sql#L386):
 
 ```sql
 -- ---- 잠금 3: 해시 체인 헤드 ----------------------------------------------

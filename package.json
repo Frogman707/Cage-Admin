@@ -9,6 +9,7 @@
     "db:apply": "bash db/scripts/apply.sh",
     "db:reset": "bash db/scripts/reset.sh",
     "docs:check-links": "node tools/check-doc-links.mjs",
+    "docs:check-line-refs": "node tools/check-line-refs.mjs",
     "db:test-role": "bash db/scripts/test-role.sh",
     "test:db": "node --test --test-concurrency=1 \"db/tests/**/*.test.js\"",
     "test:balance-emulator": "npx --yes firebase-tools emulators:exec --only firestore --project cage-admin-balance-emulator-test \"node test/balance-emulator.test.js\"",

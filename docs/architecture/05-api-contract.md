@@ -164,7 +164,7 @@ bet:{round_id}:{member_code}:{bet_type}    라운드·회원·베팅종류로 �
 
 | 엔드포인트 | 현행 함수 | 분개 |
 |---|---|---|
-| `POST /v1/accounts/{code}/deposit` | `_doProcessIo` IN `index.html:6493` | [04 §1](04-posting-rules.md) |
+| `POST /v1/accounts/{code}/deposit` | `_doProcessIo` IN `index.html:6595` | [04 §1](04-posting-rules.md) |
 | `POST /v1/accounts/{code}/withdraw` | `_doProcessIo` OUT `:6483` | [04 §2](04-posting-rules.md) |
 | `POST /v1/transfers` | `_doTransfer` `:6547` | [04 §3](04-posting-rules.md) |
 | `POST /v1/branch-transfers` | `_doProcessBranchTransfer` `:4796` | [04 §4](04-posting-rules.md) |

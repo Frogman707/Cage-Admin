@@ -31,7 +31,7 @@
 
 | 항목 | 위치 | 2026-08-14 상태 |
 |---|---|---|
-| 평문 비밀번호 + 클라이언트 비교 | `index.html` `seedDB()` · `partner-admin/app.js:186` | **부분.** 케이지 직원은 서버 검증으로 이동. **저장은 여전히 평문**이고 **파트너 콘솔은 클라이언트 비교 그대로** |
+| 평문 비밀번호 + 클라이언트 비교 | `index.html` `seedDB()` · `partner-admin/app.js:177` | **부분.** 케이지 직원은 서버 검증으로 이동. **저장은 여전히 평문**이고 **파트너 콘솔은 클라이언트 비교 그대로** |
 | 번들 하드코딩 시크릿 (`APP_API_SECRET`) | `index.html` | **미해결.** 회전 여부 미확인 — Git 히스토리에도 존재 |
 | 자동 생성 마스터 계정 | `partner-admin/app.js:172` · `:185` | **미해결.** `admin` / `0000` 그대로 |
 | **빈 입력 로그인이 마스터가 된다** | `partner-admin/app.js:178-179` | **[신규]** `.value.trim() \|\| 'admin'` · `\|\| '0000'`. ID와 비밀번호를 **비운 채 로그인하면** 기본값이 채워진다 ([P-02](../partner-admin/explanation-known-gaps.md#p-02--빈-입력으로-로그인하면-admin이-된다)) |
@@ -485,7 +485,7 @@ SELECT * FROM archive.v_unscrubbed;   -- 0행이어야 운영 준비 완료
 
 ### Telegram 연동 — 계좌 탈취 경로 차단
 
-현행 `telegramWebhook`은 `/start SE7419`를 보낸 **누구든** 그 계좌에 자기 chat을 연결한다 (`functions/index.js:212-232`). 계좌 ID가 짧고 규칙적이라 열거가 쉽다. 출금 인증 메시지가 이 채널로 가므로 계좌 탈취로 이어진다.
+현행 `telegramWebhook`은 `/start SE7419`를 보낸 **누구든** 그 계좌에 자기 chat을 연결한다 (`functions/index.js:201-232`). 계좌 ID가 짧고 규칙적이라 열거가 쉽다. 출금 인증 메시지가 이 채널로 가므로 계좌 탈취로 이어진다.
 
 **신규 4항목 중 4번만 적용됐다:**
 

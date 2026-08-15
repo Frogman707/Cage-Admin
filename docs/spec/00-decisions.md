@@ -101,8 +101,8 @@
 
 | 출처 | 계산 | 위치 |
 |---|---|---|
-| 케이지 수동 지급 | 롤링 × 요율 | `_doSettleGame` (`index.html:7250`) |
-| 이벤트 커미션 | `Math.round(rolling*rate/100)` | `payEventCommissionForSettle` (`index.html:8961`) |
+| 케이지 수동 지급 | 롤링 × 요율 | `_doSettleGame` (`index.html:7224`) |
+| 이벤트 커미션 | `Math.round(rolling*rate/100)` | `payEventCommissionForSettle` (`index.html:9062`) |
 | 파트너 표시 계산 | `rolling * 0.015` (1.5% 하드코딩) | `partner-admin/app.js` `userList` 파생 컬럼 |
 
 **범위 제한 — 파트너 쉐어는 이 결정 밖이다.** `share_accrue`에는 현행 구현이 없다(`DR-62`). 쉐어 요율 규칙은 여전히 미확정이고, `AC-62-2`대로 `ddl/001`의 `tx_kind` 블록에 "규칙 미확정 · 실행 경로 없음"으로 기록한다. `op_share_settle`은 입력이 금액이므로 U3와 무관하게 만든다(`AC-07-6`).

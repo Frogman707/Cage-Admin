@@ -85,7 +85,7 @@ const PAYOUT = { player: 2.0, banker: 1.95, tie: 9.0, playerPair: 12.0, bankerPa
 | `bankerPair` | `12.0` | 11 : 1 | `11:1` |
 
 이 값을 수정해도 UI 표기는 **자동으로 따라오지 않습니다.** 배당 문자열은
-`avatar/app.js`의 `speedDetailShellHtml`([`avatar/app.js:1035-1041`](../../avatar/app.js#L1035-L1041))에
+`avatar/app.js`의 `speedDetailShellHtml`([`avatar/app.js:1001-1041`](../../avatar/app.js#L1001-L1041))에
 `<div class="odds">`로 하드코딩되어 있으므로 함께 고쳐야 합니다. 베팅 스팟이 스피드 상세 화면
 한 곳에만 남아 있어(타일에서는 제거됨) 수정 지점은 하나입니다.
 

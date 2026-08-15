@@ -16,8 +16,8 @@
 ```
 db/
 ├─ schema/     001_types_and_extensions.sql … 013_reconciliation.sql
-├─ scripts/    apply.sh · reset.sh
-└─ tests/      helpers · fixtures · golden · posting · drift
+├─ scripts/    apply.sh · reset.sh · test-role.sh
+└─ tests/      helpers · fixtures · posting · invariants · drift
 ```
 
 ---

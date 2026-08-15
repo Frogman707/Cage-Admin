@@ -7,9 +7,9 @@
 // expectCommitFailure 로 COMMIT 자체를 관찰한다.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { asOwner, expectCommitFailure, uniq, uniqCode, closePool } from '../helpers/db.mjs';
-import { createStaff, issueStepUp } from '../fixtures/actors.mjs';
-import { withActor } from '../fixtures/scenario.mjs';
+import { expectCommitFailure, uniq, closePool } from '../helpers/db.mjs';
+import { issueStepUp } from '../fixtures/actors.mjs';
+import { createActor, withActor } from '../fixtures/scenario.mjs';
 import { fundedAccount } from '../fixtures/members.mjs';
 import { entryRowsOf } from '../helpers/entries.mjs';
 
@@ -53,19 +53,20 @@ test('R-12-02 · AC-12-2 04 §2 출금 분개 집합', async () => {
 });
 
 test('R-12-02 잔액을 초과한 출금은 COMMIT 에서 거부된다 (I2, 지연 제약)', async () => {
-  const staffId = await asOwner((client) =>
-    createStaff(client, { code: uniqCode('T-MGR'), branches: ['HANN'], roles: ['cage_manager'] })
-  );
-  const device = uniq('dev');
+  // createActor 만 쓴다 — asOwner/createStaff 로 액터를 손수 조립하면
+  // fundedAccount 가 기대하는 ctx 모양({ staffId, device, branch, ... })이
+  // createActor 밖에서 따로 유지되어, 그 모양이 바뀌는 순간 조용히 갈라진다.
+  // expectCommitFailure 는 트랜잭션을 직접 열어야 하므로 withActor(=asActor,
+  // 콜백 종료 시 자동 COMMIT)는 못 쓰고 액터 생성만 여기서 가져온다.
+  const ctx = await createActor({ branches: ['HANN'], roles: ['cage_manager'] });
 
   const err = await expectCommitFailure(
     '23000',
     async (client) => {
-      const ctx = { staffId, device, branch: 'HANN' };
       const acct = await fundedAccount(client, ctx, { amount: 1000 });
       const token = await issueStepUp({
-        staffId,
-        deviceId: device,
+        staffId: ctx.staffId,
+        deviceId: ctx.device,
         scope: 'ledger.withdraw',
         method: 'totp',
       });
@@ -73,15 +74,18 @@ test('R-12-02 잔액을 초과한 출금은 COMMIT 에서 거부된다 (I2, 지�
       // 아무것도 못 잡는다. 잔액 하한은 COMMIT 시점의 지연 제약 트리거에서만 걸린다.
       await client.query('SELECT ledger.op_withdraw($1, $2, $3, $4, $5, $6, $7)', [
         uniq('wd'),
-        staffId,
+        ctx.staffId,
         token,
-        device,
-        'HANN',
+        ctx.device,
+        ctx.branch,
         acct,
         9999,
       ]);
     },
-    { staffId }
+    { staffId: ctx.staffId }
   );
-  assert.match(err.message, /insufficient balance/);
+  // member_deposit 을 특정한다 — house_cash 쪽이 대신 과대차감되는 회귀도
+  // 같은 트리거·같은 메시지 접두사를 내므로 /insufficient balance/ 만으로는
+  // 어느 계정이 걸렸는지 구분하지 못하고 통과해 버린다.
+  assert.match(err.message, /insufficient balance: member_deposit/);
 });

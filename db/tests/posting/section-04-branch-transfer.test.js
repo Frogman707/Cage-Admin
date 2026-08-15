@@ -4,10 +4,18 @@
 // 계정 종류가 양쪽 다 house_cash 라서 (kind, sign, category) 삼중항으로만
 // 구분된다 — 금액을 account_kind 로 키를 잡아 확인하면 같은 kind 의 두 번째
 // 행이 조용히 덮여 하나만 확인한 것이 된다(harness-contract.md 의 known trap).
-// entries.branch 가 갈리는 것도 함께 본다 — 그 절이 명시적으로 "받는 쪽 분개가
-// 받는 지점 소속이어야 RLS 로 보인다" 라고 요구한다. 행위자를 양쪽 지점에
-// 배정하는 이유이기도 하다: RLS 가 app.staff_id 의 지점 목록으로 분개를
-// 거르므로, 한쪽만 배정하면 받는 쪽 분개가 안 보인다.
+// entries.branch 가 갈리는 것도 함께 본다 — house_account_id() 가 받는
+// 지점의 house_cash 계정을 찾아 그 계정의 home_branch 로 분개를 찍기 때문에,
+// 거래 자체는 from_branch 소속이어도 두 분개의 branch 는 갈린다
+// (008_post_transaction.sql:451-463).
+//
+// 행위자를 양쪽 지점에 배정하는 주된 이유: op_branch_transfer 가
+// identity.assert_actor_authorized 를 from_branch 와 to_branch 양쪽에
+// 대해 각각 호출한다(009_operations_money.sql:357-362) — 한쪽만 배정된
+// 행위자는 분개가 찍히기도 전에 "staff N is not assigned to branch X" 로
+// 호출 자체가 거부된다. 부차적으로, 앱 역할로 결과를 읽는 이 테스트는 RLS
+// 가 app.staff_id 의 지점 목록으로 entries 를 거른다는 것도 함께 전제한다 —
+// 양쪽에 배정돼야 두 분개가 다 보인다.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { uniq, closePool } from '../helpers/db.mjs';

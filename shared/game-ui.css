@@ -2,11 +2,21 @@
    CAGE ADMIN 5.0 — shared player-facing game UI
    Premium live-casino visual language (Evolution-style felt,
    chips, roadmap, dealing) built from CSS gradients. Lobby thumbnails
-   use assets/table-live.jpg (SkyEagles-owned live-table still) as a
+   use assets/table-live.jpg (SkyEagles-owned live-table still, cropped free of the
+   operator's own on-screen chrome so ours doesn't double up) as a
    photo backdrop; the active table stage stays a pure CSS/SVG felt so
    the animated card-dealing overlay stays legible.
    Used by /avatar on top of cage-ui.css.
    ============================================================ */
+
+/* Scoreboard ink. The board marks results in a deeper, more saturated red and blue than
+   the app's --danger / accent tints, so they read as ink on white paper rather than as UI
+   chrome; kept here so every road, bead, tally badge and legend mark shares one value. */
+:root{
+  --road-blue:#0F5C9E;
+  --road-red:#BE2E20;
+  --road-green:#17886B;
+}
 
 .game-header{
   display:flex;align-items:center;gap:16px;padding:11px 22px;
@@ -15,11 +25,18 @@
   border-bottom:1px solid var(--brass-dim);flex-shrink:0;position:relative;z-index:20;
   box-shadow:0 2px 18px -4px rgba(0,0,0,.5);
 }
-.game-header .brand{flex-shrink:0;align-items:center;gap:9px;}
-.game-header .brand .mark{font-size:16px;}
-.brand-crest{width:26px;height:26px;color:var(--brass);flex-shrink:0;}
-.brand-text{display:flex;flex-direction:column;gap:1px;line-height:1.1;}
-.brand-text .sub{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--ink-faint);}
+/* The wordmark reads the same as the Partner Admin one: full-size on a single line with
+   its tag set small alongside, rather than shrunk and stacked over a second line. */
+.game-header .brand{flex-shrink:0;align-items:baseline;gap:9px;}
+.brand-crest{width:22px;height:22px;color:var(--brass);flex-shrink:0;align-self:center;}
+.brand-text{display:flex;align-items:baseline;gap:8px;}
+.brand-text .sub{font-size:10px;font-weight:700;letter-spacing:1.4px;color:var(--ink-faint);}
+/* The tag is the first thing to go once the bar gets tight - the wordmark carries it alone.
+   The header runs out of room well above the mobile breakpoint, so this is its own query. */
+@media (max-width:1199px){ .brand-text .sub{display:none;} }
+/* Below this the bar is genuinely cramped (it already wrapped here before the wordmark grew),
+   so the mark steps back down rather than costing the row more width than it used to. */
+@media (max-width:1023px){ .game-header .brand .mark{font-size:16px;} }
 .balance-ticket,.points-ticket{
   display:flex;align-items:center;gap:7px;background:linear-gradient(155deg,var(--panel-hi),var(--void));
   border:1px solid var(--brass-dim);border-radius:22px;padding:6px 16px 6px 8px;
@@ -56,27 +73,24 @@
 .lobby-card:hover{border-color:var(--brass-dim);transform:translateY(-4px);box-shadow:0 22px 40px -18px rgba(0,0,0,.7), 0 0 0 1px rgba(217,178,106,.15);}
 .lobby-card .thumb{
   aspect-ratio:16/10;position:relative;overflow:hidden;
-  background:
-    radial-gradient(ellipse 120% 90% at 50% -10%, rgba(217,178,106,.14) 0%, transparent 55%),
-    linear-gradient(180deg, rgba(5,20,14,.1) 0%, rgba(5,20,14,.5) 100%),
-    url('assets/table-live.jpg') 22% 35%/cover no-repeat;
-  display:flex;align-items:center;justify-content:center;
+  background:url('assets/table-live.jpg') center/cover no-repeat;
 }
-.lobby-card .thumb .felt{
-  width:82%;height:64%;border-radius:50%;position:relative;
-  border:2px solid rgba(217,178,106,.5);
-  box-shadow:0 0 0 5px rgba(217,178,106,.08);
-}
-.lobby-card .thumb .felt::before{content:'';position:absolute;inset:8px;border:1px solid rgba(217,178,106,.22);border-radius:50%;}
 @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.3;}}
-.lobby-card .badge-type{position:absolute;top:9px;left:9px;background:var(--jade);color:#04160f;font-size:9.5px;font-weight:800;padding:4px 10px;border-radius:10px;letter-spacing:.5px;box-shadow:0 3px 8px -2px rgba(0,0,0,.5);}
-.lobby-card .badge-type.speed{background:#4A9FD8;color:#071c2e;}
-.card-favorite{position:absolute;top:9px;right:9px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);border:none;color:#fff;display:flex;align-items:center;justify-content:center;z-index:2;}
+.card-favorite{margin-left:auto;width:24px;height:24px;border-radius:50%;background:none;border:none;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .card-favorite:hover{color:var(--danger);}
 .card-favorite.active{color:var(--danger);}
 .card-favorite.active svg{fill:var(--danger);}
 .card-favorite svg{width:14px;height:14px;}
-.lobby-card .info{padding:13px 15px 4px;}
+/* Everything that used to be printed over the still now lives on its own row beneath it,
+   so the thumbnail is nothing but the photo. */
+.card-status-row{display:flex;align-items:center;gap:8px;padding:11px 15px 0;}
+.card-status{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:12px;white-space:nowrap;}
+.card-status.spectate{background:rgba(255,255,255,.07);color:var(--ink-dim);}
+.card-status.reenter{background:rgba(47,169,140,.16);color:var(--jade);}
+.card-status.pending{background:rgba(255,255,255,.06);color:var(--ink-faint);}
+.card-status.full{background:rgba(217,105,90,.14);color:var(--danger);}
+.card-hot{font-size:10.5px;font-weight:700;color:var(--brass);white-space:nowrap;}
+.lobby-card .info{padding:9px 15px 4px;}
 .lobby-card .info .name{font-weight:700;font-size:14.5px;color:var(--ink);}
 .lobby-card .info .limits{font-size:11px;color:var(--ink-faint);margin-top:4px;font-family:var(--mono);}
 .lobby-card .mini-road{display:flex;gap:1px;padding:10px 15px 4px;overflow-x:hidden;}
@@ -87,25 +101,6 @@
 .lobby-card .mini-road .br-tie span{display:none;}
 .lobby-card .stat-row{display:flex;justify-content:space-between;padding:4px 15px 13px;font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);border-top:1px solid rgba(255,255,255,.04);margin-top:6px;padding-top:8px;}
 .lobby-card .stat-row b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
-.thumb-overlay-btn{
-  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;
-  background:rgba(255,255,255,.96);color:#111;border:2px solid var(--danger);
-  padding:9px 20px;border-radius:24px;font-weight:800;font-size:12.5px;
-  display:flex;align-items:center;gap:6px;white-space:nowrap;box-shadow:0 4px 14px -4px rgba(0,0,0,.6);
-}
-.thumb-overlay-btn.spectate{border-color:rgba(0,0,0,.3);}
-.thumb-overlay-btn.reenter{background:var(--jade);border-color:var(--jade);color:#04160f;}
-.thumb-overlay-btn.pending{background:rgba(255,255,255,.9);border-color:var(--ink-faint);color:#444;}
-.thumb-overlay-bar{
-  position:absolute;left:0;right:0;bottom:0;z-index:2;background:rgba(0,0,0,.74);color:#fff;
-  padding:9px 12px;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;
-}
-.hot-badge{
-  position:absolute;bottom:9px;right:9px;background:var(--grad-gold);color:#071120;
-  font-size:9.5px;font-weight:800;padding:4px 10px;border-radius:10px;display:flex;align-items:center;gap:3px;
-  box-shadow:0 3px 10px -2px rgba(217,178,106,.5);animation:hotPulse 1.8s ease-in-out infinite;
-}
-@keyframes hotPulse{0%,100%{box-shadow:0 3px 10px -2px rgba(217,178,106,.5);}50%{box-shadow:0 3px 16px -1px rgba(217,178,106,.85);}}
 .lobby-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
 .lobby-toolbar select{background:var(--panel-raised);color:var(--ink);border:1px solid var(--line);padding:7px 10px;border-radius:var(--radius);font-size:12.5px;}
 .casino-tabs{display:flex;align-items:center;gap:22px;border-bottom:1px solid var(--line);margin-bottom:16px;}
@@ -132,7 +127,7 @@
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   background:
     linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.26)),
-    url('assets/table-live.jpg') 22% 32%/cover no-repeat;
+    url('assets/table-live.jpg') center/cover no-repeat;
 }
 .sd-stage-top{position:absolute;top:14px;left:56px;right:64px;display:flex;align-items:center;gap:10px;z-index:2;flex-wrap:wrap;}
 .sd-type-badge{background:rgba(4,20,30,.7);backdrop-filter:blur(4px);border:1px solid #3fd0e8;color:#3fd0e8;border-radius:14px;padding:5px 16px;font-weight:800;font-size:11.5px;letter-spacing:1px;flex-shrink:0;}
@@ -265,35 +260,37 @@
    tie can be marked with a diagonal slash through the ring, and pair hits with
    small corner dots - not a separate filled circle per cell. */
 .br-cell{width:16px;height:16px;border-radius:50%;position:relative;box-sizing:border-box;border:2.5px solid transparent;}
-.br-cell.player{border-color:#2f7fbf;}
-.br-cell.banker{border-color:var(--danger);}
+.br-cell.player{border-color:var(--road-blue);}
+.br-cell.banker{border-color:var(--road-red);}
 .br-cell.overflow{border:none;color:var(--ink-faint);font-size:9px;display:flex;align-items:center;justify-content:center;}
-.br-cell.tie-only{background:var(--jade);border:none;width:10px;height:10px;align-self:center;}
+.br-cell.tie-only{background:var(--road-green);border:none;width:10px;height:10px;align-self:center;}
 .br-tie{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:flex-end;pointer-events:none;}
-.br-tie::before{content:'';position:absolute;left:10%;top:50%;width:80%;height:2px;background:var(--jade);transform:rotate(-30deg);}
-.br-tie span{position:relative;font-size:7.5px;font-weight:800;color:var(--jade);background:var(--void);border-radius:2px;padding:0 1px;line-height:1.3;}
+.br-tie::before{content:'';position:absolute;left:10%;top:50%;width:80%;height:2px;background:var(--road-green);transform:rotate(-30deg);}
+.br-tie span{position:relative;font-size:7.5px;font-weight:800;color:var(--road-green);background:var(--void);border-radius:2px;padding:0 1px;line-height:1.3;}
 .br-pair{position:absolute;width:4px;height:4px;border-radius:50%;}
-.br-pair.player{top:0;left:0;background:#2f7fbf;}
-.br-pair.banker{bottom:0;right:0;background:var(--danger);}
+.br-pair.player{top:0;left:0;background:var(--road-blue);}
+.br-pair.banker{bottom:0;right:0;background:var(--road-red);}
 .lobby-card .mini-road .br-pair{width:2.5px;height:2.5px;}
-.derived-road-grid{display:flex;gap:2px;overflow-x:auto;padding-bottom:2px;}
-.derived-road-grid .br-col{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+/* trailing pad == the inter-cell gap, so a block of N rows measures exactly N pitches
+   and the band below it still starts on the ruling */
+.derived-road-grid{display:flex;gap:1px;overflow-x:auto;padding-bottom:1px;}
+.derived-road-grid .br-col{display:flex;flex-direction:column;gap:1px;flex-shrink:0;}
 /* Big Eye Boy / Small Road are hollow rings on a real board too, same as Big Road,
    just smaller - only Cockroach Road switches to a diagonal tick (below). */
-.derived-road-grid .dr-cell{width:7px;height:7px;border-radius:50%;border:1.5px solid transparent;box-sizing:border-box;flex-shrink:0;}
+.derived-road-grid .dr-cell{width:8px;height:8px;border-radius:50%;border:1.5px solid transparent;box-sizing:border-box;flex-shrink:0;}
 .derived-road-grid .dr-cell.overflow{border:none;color:var(--ink-faint);font-size:6px;display:flex;align-items:center;justify-content:center;}
-.derived-road-grid .dr-cell.red{border-color:var(--danger);}
-.derived-road-grid .dr-cell.blue{border-color:#2f7fbf;}
+.derived-road-grid .dr-cell.red{border-color:var(--road-red);}
+.derived-road-grid .dr-cell.blue{border-color:var(--road-blue);}
 /* The three derived roads are told apart by their mark, not their position - Big Eye Boy
    draws hollow rings, Small Road solid dots, Cockroach Road diagonal ticks. That trio is
    exactly what the P/B legend rail spells out. */
-.derived-road-grid .dr-cell.filled.red{background:var(--danger);}
-.derived-road-grid .dr-cell.filled.blue{background:#2f7fbf;}
+.derived-road-grid .dr-cell.filled.red{background:var(--road-red);}
+.derived-road-grid .dr-cell.filled.blue{background:var(--road-blue);}
 /* Cockroach Road is conventionally a diagonal tick, not a dot. */
 .derived-road-grid .dr-cell.diagonal{border:none;border-radius:0;position:relative;}
 .derived-road-grid .dr-cell.diagonal::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-38deg);}
-.derived-road-grid .dr-cell.diagonal.red{color:var(--danger);}
-.derived-road-grid .dr-cell.diagonal.blue{color:#2f7fbf;}
+.derived-road-grid .dr-cell.diagonal.red{color:var(--road-red);}
+.derived-road-grid .dr-cell.diagonal.blue{color:var(--road-blue);}
 .bet-history-mini{font-size:11.5px;}
 .bet-history-mini .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1a2c4a;}
 .chat-panel{display:flex;flex-direction:column;flex:1;min-height:140px;}
@@ -347,13 +344,13 @@
   .lobby-card .mini-road{padding:7px 10px 2px;}
   .lobby-card .mini-road .br-cell{width:6px;height:6px;}
   .lobby-card .stat-row{font-size:9px;padding:3px 10px 9px;}
-  .hot-badge{font-size:8.5px;padding:3px 7px;}
+  .card-status-row{padding:8px 10px 0;gap:6px;}
+  .card-status{font-size:10px;padding:3px 8px;}
+  .card-hot{font-size:9px;}
 
   .cards-area{gap:22px;}
   .playing-card{width:36px;height:52px;font-size:14px;}
   .hand .score{min-width:28px;height:28px;font-size:15px;}
-  .timer-ring-wrap{width:52px;height:52px;bottom:10px;right:10px;}
-  .timer-ring-wrap .txt{font-size:15px;}
   .bet-rail{gap:8px;}
   .bet-rail.with-pairs{grid-template-columns:1fr 1.15fr 1fr;}
   .bet-spot{padding:10px 6px;border-radius:11px;}
@@ -370,8 +367,6 @@
   .modal-bg:has(.modal-sheet){align-items:flex-end;padding:0;}
   .modal-bg.open .modal-sheet{transform:translateY(0);}
 
-  .speed-grid{grid-template-columns:1fr 1fr;gap:10px;}
-  .speed-tile{padding:10px 11px;}
   .picker-wrap{padding:36px 16px;}
   .picker-grid{grid-template-columns:1fr;gap:14px;}
 
@@ -418,9 +413,9 @@
   display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:800;font-family:var(--sans);
 }
 .bead-road .bd-cell.overflow{background:none;box-shadow:none;color:var(--ink-faint);font-size:8px;}
-.bead-road .bd-cell.player{background:radial-gradient(circle at 35% 30%,#8fd0ff,#2f7fbf 75%);}
-.bead-road .bd-cell.banker{background:radial-gradient(circle at 35% 30%,#f5a89c,var(--danger) 75%);}
-.bead-road .bd-cell.tie{background:radial-gradient(circle at 35% 30%,#8fe8cf,var(--jade) 75%);}
+.bead-road .bd-cell.player{background:radial-gradient(circle at 34% 28%,#6BB2EA,var(--road-blue) 72%);}
+.bead-road .bd-cell.banker{background:radial-gradient(circle at 34% 28%,#EE8878,var(--road-red) 72%);}
+.bead-road .bd-cell.tie{background:radial-gradient(circle at 34% 28%,#6FD8BC,var(--road-green) 72%);}
 
 /* ---- speed single-table detail screen (opened from a tile) ----
    Layout mirrors the reference: video + bead road stacked on the left,
@@ -432,7 +427,7 @@
 .speed-detail-head .meta{font-size:11.5px;color:var(--ink-faint);font-family:var(--mono);}
 .speed-detail-close{margin-left:auto;}
 .speed-detail-grid{
-  display:grid;gap:12px;grid-template-columns:1.35fr 1fr;grid-template-rows:auto 230px;
+  display:grid;gap:12px;grid-template-columns:1.35fr 1fr;grid-template-rows:auto 285px;
   grid-template-areas:
     "stage bets"
     "tally road";
@@ -445,51 +440,70 @@
 }
 /* the reference shows the scoreboard (road maps) and bead-plate/tally panels on a
    plain graph-paper card, contrasting with the dark felt/betting board above. */
+/* One square of the graph paper is one cell of every road: --rc is that square, and each
+   mark is --rc minus a hairline gap so it sits inside its own square rather than drifting
+   across the ruling. background-position offsets the grid by the panel padding so a ruling
+   line lands exactly on the content origin, which is where the first mark starts. */
 .sd-graph-bg{
+  --rc:18px;
   background-color:#fafafa;
   background-image:linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
                     linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
-  background-size:14px 14px;
+  background-size:var(--rc) var(--rc);
+  background-position:14px 10px;
   border:1px solid #e4e4e4;border-radius:12px;color:#1a1a1a;
 }
-.sd-tally{grid-area:tally;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
-.sd-tally-head{display:flex;justify-content:space-between;font-size:10.5px;color:#8a8a8a;margin-bottom:8px;flex-shrink:0;}
+/* the board rules the bead side in bigger squares than the road side */
+.sd-tally{grid-area:tally;--rc:22px;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
+.sd-tally-head{display:flex;justify-content:space-between;align-items:center;height:var(--rc);font-size:10.5px;color:#8a8a8a;flex-shrink:0;}
 .sd-tally-head b{color:#1a1a1a;font-family:var(--mono);font-weight:700;}
 .sd-tally-body{display:flex;flex:1;min-height:0;}
-.sd-tally-list{display:flex;flex-direction:column;gap:7px;flex-shrink:0;padding:2px 14px 0 0;border-right:1px solid #e4e4e4;margin-right:14px;}
-.sd-tally-list .tl-row{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;font-family:var(--mono);}
+.sd-tally-list{display:flex;flex-direction:column;flex-shrink:0;padding-right:14px;border-right:1px solid #e4e4e4;margin-right:14px;}
+.sd-tally-list .tl-row{display:flex;align-items:center;gap:6px;height:var(--rc);font-size:13px;font-weight:800;font-family:var(--mono);}
 .sd-tally-list .tl-badge{
-  width:18px;height:18px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
-  display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;font-family:var(--sans);
+  width:20px;height:20px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;font-family:var(--sans);
 }
-.sd-tally-list .tl-row.player .tl-badge{background:#2f7fbf;} .sd-tally-list .tl-row.player b{color:#2f7fbf;}
-.sd-tally-list .tl-row.banker .tl-badge{background:var(--danger);} .sd-tally-list .tl-row.banker b{color:var(--danger);}
-.sd-tally-list .tl-row.tie .tl-badge{background:var(--jade);} .sd-tally-list .tl-row.tie b{color:var(--jade);}
+.sd-tally-list .tl-row.player .tl-badge{background:var(--road-blue);} .sd-tally-list .tl-row.player b{color:var(--road-blue);}
+.sd-tally-list .tl-row.banker .tl-badge{background:var(--road-red);} .sd-tally-list .tl-row.banker b{color:var(--road-red);}
+.sd-tally-list .tl-row.tie .tl-badge{background:var(--road-green);} .sd-tally-list .tl-row.tie b{color:var(--road-green);}
 /* pair rows: grey bead carrying the road's own corner-dot marker, with the count tinted
    to the side that dot stands for. */
 .sd-tally-list .tl-row.pair .tl-badge{background:#b0b0b0;position:relative;}
 .sd-tally-list .tl-row.pair .br-pair{width:6px;height:6px;}
-.sd-tally-list .tl-row.pair.player b{color:#2f7fbf;}
-.sd-tally-list .tl-row.pair.banker b{color:var(--danger);}
-.sd-tally .bead-road{flex:1;}
-.sd-road{grid-area:road;padding:10px 14px;display:flex;flex-direction:column;overflow:hidden;}
-.sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;}
-.sd-road .br-col{gap:1px;}
-.sd-road .br-cell{width:13px;height:13px;border-width:2px;}
-.sd-road .br-cell.tie-only{width:8px;height:8px;}
+.sd-tally-list .tl-row.pair.player b{color:var(--road-blue);}
+.sd-tally-list .tl-row.pair.banker b{color:var(--road-red);}
+/* bead pitch == one graph square: 20px bead + 2px gutter = the 22px ruling */
+.sd-tally .bead-road{flex:1;gap:2px;}
+.sd-tally .bead-road .br-col{gap:2px;}
+.sd-tally .bead-road .bd-cell{width:20px;height:20px;font-size:11px;}
+.sd-tally .bead-road .br-pair{width:5px;height:5px;}
+.sd-road{grid-area:road;--rc:18px;padding:10px 14px;display:flex;gap:10px;overflow:hidden;}
+/* Three stacked bands, ruled off from each other: Big Road, then Big Eye Boy, then a band
+   split down the middle for Small Road | Cockroach Road. */
+.sd-road-main{display:flex;flex-direction:column;flex:1;min-width:0;}
+/* Each band's rule + padding sums to a whole ruled square (9 above + 9 below = 18), so the
+   marks in every band keep landing on the ruling instead of drifting a few pixels per band. */
+.sd-road-band{padding-bottom:9px;min-height:0;overflow:hidden;}
+.sd-road-band + .sd-road-band{border-top:1px solid #e4e4e4;padding-top:8px;}
+/* every band sizes to its own content: stretching them to share the leftover space made the
+   leftover (not a whole square) land inside the offsets and knocked the lower bands off the ruling */
+.sd-road-band{flex:0 0 auto;}
+.sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;padding-bottom:2px;}
+.sd-road .br-col{gap:2px;}
+.sd-road .br-cell{width:16px;height:16px;border-width:2px;}
+.sd-road .br-cell.tie-only{width:10px;height:10px;}
 .sd-road .bd-cell.overflow,.sd-road .br-cell.overflow,.sd-road .dr-cell.overflow{color:#8a8a8a;}
 /* .br-tie's count badge defaults to a dark pill (matching the dark lobby-card/sidebar
    backgrounds it was designed for) - on this panel's white/graph-paper background that
    reads as a stray dark smudge above the ring, so give it a light pill here instead. */
 .sd-road .br-tie span{background:#fff;box-shadow:0 0 0 1px #fff;}
-.sd-road-body{display:flex;flex:1;min-height:0;gap:10px;margin-top:6px;padding-top:8px;border-top:1px solid #e4e4e4;}
-.sd-road-roads{display:flex;flex-direction:column;flex:1;min-width:0;}
-/* Big Eye Boy + Small Road sit close together (same hollow-ring style), then a
-   divider before Cockroach Road (the visually distinct diagonal-tick style). */
-.sd-road-ring-roads{display:flex;flex-direction:column;gap:3px;}
-.sd-road-roads .diagonal-road{border-top:1px solid #e4e4e4;padding-top:6px;margin-top:8px;}
 .sd-road .derived-road-grid{overflow-x:auto;}
-.sd-road .derived-road-grid .dr-cell{width:7px;height:7px;}
+/* half the Big Road mark, on half its pitch: two derived marks span one ruled square.
+   The column gap has to be re-stated at this depth - `.sd-road .br-col` matches the derived
+   columns too, at equal specificity but later in the file, so it otherwise wins with 2px. */
+.sd-road .derived-road-grid .dr-cell{width:8px;height:8px;}
+.sd-road .derived-road-grid .br-col{gap:1px;}
 /* legend rail: a small key explaining the three marks used on the board (hollow
    ring = Big Road/Big Eye Boy/Small Road, solid dot = Bead Plate, diagonal = tie),
    grouped into a P (blue) pill and a B (red) pill stacked on the right edge. */
@@ -502,8 +516,8 @@
 .sd-road-legend-rail .rail-badge .dot{width:9px;height:9px;border-radius:50%;background:currentColor;}
 .sd-road-legend-rail .rail-badge .slash{width:11px;height:11px;border-radius:50%;border:2px solid currentColor;box-sizing:border-box;position:relative;}
 .sd-road-legend-rail .rail-badge .slash::before{content:'';position:absolute;left:8%;top:50%;width:84%;height:1.5px;background:currentColor;transform:rotate(-30deg);}
-.sd-road-legend-rail .rail-badge.player{color:#2f7fbf;}
-.sd-road-legend-rail .rail-badge.banker{color:var(--danger);}
+.sd-road-legend-rail .rail-badge.player{color:var(--road-blue);}
+.sd-road-legend-rail .rail-badge.banker{color:var(--road-red);}
 .sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 .sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
 .sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}

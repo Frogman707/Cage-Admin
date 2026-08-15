@@ -1,7 +1,8 @@
 # 레퍼런스 — `shared/game-engine.js`
 
 > **분류**: Reference (정보 지향)
-> **대상 파일**: [`shared/game-engine.js`](../../shared/game-engine.js) (300줄)
+> **대상 파일**: [`shared/game-engine.js`](../../shared/game-engine.js) (346줄)
+> **작성 기준일**: 2026-08-15 · 브랜치 `backend`
 > **관련 문서**: [처리 흐름](explanation-round-flow.md) · [룰과 로드맵](explanation-rules-roadmaps.md) · [`avatar/app.js` 레퍼런스](reference-avatar-app.md)
 
 플레이어 측 공용 게임 엔진입니다. `/avatar`(및 `/avatar/?mode=speed`)가 로드하며, 회원 인증(라이트),
@@ -15,7 +16,7 @@
 ## 로드 순서와 외부 의존성
 
 이 파일은 아래 전역이 **먼저** 정의되어 있어야 동작합니다.
-[`avatar/index.html:234-239`](../../avatar/index.html#L234-L239)가 그 순서를 강제합니다.
+[`avatar/index.html:206-211`](../../avatar/index.html#L206-L211)이 그 순서를 강제합니다.
 
 ```html
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -49,8 +50,9 @@ const CHIP_VALUES = [5000, 10000, 50000, 100000, 500000, 1000000];
 
 칩 트레이에 표시되는 6종 액면가입니다. 각 값은 CSS 클래스 `.chip.c{값}` / `.cs-chip.c{값}`과 1:1로
 대응합니다 (예: `1000000` → `.chip.c1000000`). 값을 추가하려면
-[`shared/game-ui.css:218-257`](../../shared/game-ui.css#L218-L257)에 대응 클래스를 함께 추가해야
-칩이 스타일 없이 렌더링되지 않습니다.
+[`shared/game-ui.css:213-250`](../../shared/game-ui.css#L213-L250)에 대응 클래스를 함께 추가해야
+칩이 스타일 없이 렌더링되지 않습니다. 50만·100만 칩은 원형이 아니라 직사각형 플라크로
+스타일링되어 있습니다 ([`shared/game-ui.css:245-250`](../../shared/game-ui.css#L245-L250)).
 
 `avatar/app.js`는 `STATE.selectedChip`의 초기값으로 `CHIP_VALUES[0]`(5,000)을 씁니다.
 
@@ -62,7 +64,8 @@ const CARD_SUITS = ['♠','♥','♦','♣'];                                   
 ```
 
 52장 덱을 표현하지만 **슈(shoe)를 구성하지 않습니다.** `randCard()`가 매번 독립적으로 균등 추출하므로
-같은 라운드에서 같은 카드가 중복 등장할 수 있습니다. 자세한 내용은
+같은 라운드에서 같은 카드가 중복 등장할 수 있습니다. 서드카드까지 포함해 한 라운드에 최대 6장이
+뽑히며, 모두 같은 복원 추출입니다. 자세한 내용은
 [룰과 로드맵 > 덱 모델](explanation-rules-roadmaps.md#덱-모델--무한-덱-복원-추출)을 보세요.
 
 ### `PAYOUT`
@@ -82,19 +85,30 @@ const PAYOUT = { player: 2.0, banker: 1.95, tie: 9.0, playerPair: 12.0, bankerPa
 | `bankerPair` | `12.0` | 11 : 1 | `11:1` |
 
 이 값을 수정해도 UI 표기는 **자동으로 따라오지 않습니다.** 배당 문자열은
-`avatar/app.js`의 `speedTileHtml`과 `speedDetailShellHtml`에 `<div class="odds">`로 하드코딩되어
-있으므로 두 곳을 함께 고쳐야 합니다.
+`avatar/app.js`의 `speedDetailShellHtml`([`avatar/app.js:1035-1041`](../../avatar/app.js#L1035-L1041))에
+`<div class="odds">`로 하드코딩되어 있으므로 함께 고쳐야 합니다. 베팅 스팟이 스피드 상세 화면
+한 곳에만 남아 있어(타일에서는 제거됨) 수정 지점은 하나입니다.
+
+표기와 실제 배수가 이미 어긋난 곳이 하나 있습니다: **타이 스팟은 `8:1`로 표시되지만 `PAYOUT.tie`는
+`9.0`(총 반환)이므로 순배당이 정확히 8:1로 맞습니다.** 반면 페어 스팟은 `11:1`로 표시되고
+`PAYOUT.playerPair`가 `12.0`이므로 이 역시 일치합니다. 두 표기 모두 순배당 기준입니다.
 
 ### 로드맵 상수
 
 ```js
 const BEAD_ROWS = 6;                                       // 비드 플레이트 열 높이
+const BEAD_WINDOW = 40;                                    // 비드 플레이트가 유지하는 최근 결과 수
 const RESULT_LETTER = {player:'P', banker:'B', tie:'T'};    // 비드에 찍히는 글자
 const DERIVED_ROAD_ROWS = 3;                               // 파생 로드 열 높이
 ```
 
 빅로드의 열 높이는 상수가 아니라 `renderBigRoad(cols, maxRows)`의 인자로 전달됩니다
-(로비 카드 4행, 상세 화면 6행).
+(로비 카드·스피드 타일 4행, 상세 화면 6행).
+
+`BEAD_WINDOW`는 엔진이 아니라 **호출자가 적용합니다.** `renderBeadRoad`는 넘겨받은 배열을 전부
+그리며, `avatar/app.js`가 `history.slice(-BEAD_WINDOW)`로 잘라서 넘깁니다
+([`avatar/app.js:572`](../../avatar/app.js#L572), [`avatar/app.js:928`](../../avatar/app.js#L928)).
+값 그룹핑 때문에 슈 전체를 그리면 패널보다 훨씬 넓어지기 때문입니다.
 
 ---
 
@@ -122,51 +136,94 @@ const DERIVED_ROAD_ROWS = 3;                               // 파생 로드 열 
 randCard()  // → {rank: 'Q', suit: '♥'}
 ```
 
-### `dealHand() → {cards, score}`
+### `handTotal(cards) → number`
 
-카드 2장을 뽑아 바카라 점수를 계산합니다.
+카드 배열의 바카라 점수(0~9)를 반환합니다. 장수 제한이 없어 2장 핸드와 3장 핸드에 모두 쓰입니다.
 
 ```js
-function dealHand(){
-  const c1 = randCard(), c2 = randCard();
-  return {cards:[c1,c2], score:(cardValue(c1.rank)+cardValue(c2.rank))%10};
+function handTotal(cards){
+  return cards.reduce((sum,c)=>sum+cardValue(c.rank), 0) % 10;
 }
 ```
-
-| 필드 | 타입 | 설명 |
-| --- | --- | --- |
-| `cards` | `[{rank,suit}, {rank,suit}]` | 항상 정확히 2장 |
-| `score` | `number` (0~9) | 두 카드값 합의 1의 자리 |
-
-**세 번째 카드를 뽑지 않습니다.** 실제 바카라의 서드카드 룰(Tableau)은 구현되어 있지 않습니다.
 
 ### `simulateRound() → RoundResult`
 
 한 라운드 전체를 시뮬레이션합니다. 이 프로젝트에서 게임 결과가 만들어지는 **유일한 지점**입니다.
+**푼토 반코 타블로(서드카드 룰)를 그대로 구현합니다.**
 
 ```js
 function simulateRound(){
-  const player = dealHand();
-  const banker = dealHand();
-  let result = 'tie';
-  if (player.score > banker.score) result = 'player';
-  else if (banker.score > player.score) result = 'banker';
+  const player = {cards:[randCard(), randCard()]};
+  const banker = {cards:[randCard(), randCard()]};
+  // 페어 사이드벳은 서드카드 이전, 처음 두 장으로 판정
   const playerPair = player.cards[0].rank === player.cards[1].rank;
   const bankerPair = banker.cards[0].rank === banker.cards[1].rank;
+
+  let pt = handTotal(player.cards), bt = handTotal(banker.cards);
+  if (pt < 8 && bt < 8){                      // 어느 쪽이든 내추럴(8·9)이면 양쪽 스탠드
+    let p3 = null;
+    if (pt <= 5){ p3 = randCard(); player.cards.push(p3); pt = handTotal(player.cards); }
+    const v = p3 ? cardValue(p3.rank) : null;
+    const bankerDraws =
+      p3 === null ? bt <= 5 :                 // 플레이어가 안 받으면 뱅커도 같은 규칙
+      bt <= 2     ? true :
+      bt === 3    ? v !== 8 :
+      bt === 4    ? v >= 2 && v <= 7 :
+      bt === 5    ? v >= 4 && v <= 7 :
+      bt === 6    ? v === 6 || v === 7 :
+                    false;                    // 7은 스탠드
+    if (bankerDraws){ banker.cards.push(randCard()); bt = handTotal(banker.cards); }
+  }
+  player.score = pt; banker.score = bt;
+  const result = pt > bt ? 'player' : bt > pt ? 'banker' : 'tie';
   return {player, banker, result, playerPair, bankerPair};
 }
 ```
 
 | 필드 | 타입 | 설명 |
 | --- | --- | --- |
-| `player` | `{cards, score}` | 플레이어 핸드 |
-| `banker` | `{cards, score}` | 뱅커 핸드 |
-| `result` | `'player'` \| `'banker'` \| `'tie'` | 점수 비교 결과 |
-| `playerPair` | `boolean` | 플레이어 두 장의 **랭크**가 같은가 (무늬는 무시) |
-| `bankerPair` | `boolean` | 뱅커 두 장의 랭크가 같은가 |
+| `player` | `{cards, score}` | 플레이어 핸드. `cards`는 **2장 또는 3장** |
+| `banker` | `{cards, score}` | 뱅커 핸드. `cards`는 **2장 또는 3장** |
+| `result` | `'player'` \| `'banker'` \| `'tie'` | 최종 점수 비교 결과 |
+| `playerPair` | `boolean` | 플레이어 **처음 두 장**의 랭크가 같은가 (무늬는 무시) |
+| `bankerPair` | `boolean` | 뱅커 처음 두 장의 랭크가 같은가 |
 
-플레이어 핸드를 먼저 완성한 뒤 뱅커 핸드를 만들지만, 화면에는 P1 → B1 → P2 → B2 순서로 딜링되는
-것처럼 재생됩니다 ([`avatar/app.js:803`](../../avatar/app.js#L803)).
+드로우 규칙 요약:
+
+| 단계 | 조건 | 동작 |
+| --- | --- | --- |
+| 내추럴 | `pt >= 8` 또는 `bt >= 8` | 양쪽 모두 스탠드. 서드카드 없음 |
+| 플레이어 | `pt <= 5` | 서드카드 1장 |
+| 플레이어 | `pt` 6~7 | 스탠드 |
+| 뱅커 (플레이어 스탠드) | `bt <= 5` | 서드카드 1장 |
+| 뱅커 (플레이어 드로우, `v` = 플레이어 서드카드값) | `bt <= 2` | 무조건 드로우 |
+| | `bt === 3` | `v !== 8`일 때 드로우 |
+| | `bt === 4` | `v ∈ [2,7]`일 때 드로우 |
+| | `bt === 5` | `v ∈ [4,7]`일 때 드로우 |
+| | `bt === 6` | `v ∈ {6,7}`일 때 드로우 |
+| | `bt === 7` | 스탠드 |
+
+**페어 판정은 서드카드보다 먼저 확정됩니다.** 3장 핸드에서 첫 두 장이 같은 랭크면 페어이고,
+세 번째 카드가 같은 랭크여도 페어로 치지 않습니다 — 실제 바카라와 동일합니다.
+
+### `dealSequence(sim) → [side, index][]`
+
+카드가 펠트에 놓이는 순서를 반환합니다. 서드카드 유무에 따라 길이가 4~6으로 달라지므로,
+공개 애니메이션이 "무조건 4장"을 가정하지 않도록 이 함수가 순서를 결정합니다.
+
+```js
+function dealSequence(sim){
+  const seq = [['player',0],['banker',0],['player',1],['banker',1]];
+  if (sim.player.cards[2]) seq.push(['player',2]);
+  if (sim.banker.cards[2]) seq.push(['banker',2]);
+  return seq;
+}
+```
+
+P1 → B1 → P2 → B2 → (플레이어 서드) → (뱅커 서드) 순입니다. `avatar/app.js`의
+`revealAvatarCards`([`avatar/app.js:791`](../../avatar/app.js#L791))와
+`revealSpeedDetailCards`([`avatar/app.js:1060`](../../avatar/app.js#L1060))가 이 배열을 순회하며
+260ms 간격으로 카드 DOM을 추가합니다 — 한 라운드 공개 시간은 약 1.04초(4장) ~ 1.56초(6장)입니다.
 
 ---
 
@@ -253,7 +310,7 @@ let PLAYER = null;
 | `{ok:true, member}` | 생성 성공 |
 | `{ok:false, reason:'dup'}` | 트랜잭션 내부에서 문서가 이미 존재함 |
 
-**ID 선점은 트랜잭션으로 보호됩니다** ([`shared/game-engine.js:65-75`](../../shared/game-engine.js#L65-L75)).
+**ID 선점은 트랜잭션으로 보호됩니다** ([`shared/game-engine.js:94-104`](../../shared/game-engine.js#L94-L104)).
 `get()` 후 `set()`으로 나누면 같은 ID로 동시 가입한 두 요청이 모두 존재 검사를 통과해 가입 보너스가
 두 번 적립될 수 있기 때문입니다.
 
@@ -297,7 +354,7 @@ snap.forEach(d=>{
 [G-05](explanation-known-gaps.md#g-05--point_convert에-대응하는-보유금-입금-항목이-없다) 참고.
 
 동일한 집계 규칙이 세 곳에 중복 구현되어 있습니다:
-[`shared/game-engine.js:88`](../../shared/game-engine.js#L88),
+[`shared/game-engine.js:117`](../../shared/game-engine.js#L117),
 [`partner-admin/app.js:255`](../../partner-admin/app.js#L255),
 [`functions/balance/backfillBalances.js:98`](../../functions/balance/backfillBalances.js#L98).
 
@@ -396,8 +453,8 @@ return payout;
 {
   tableId, tableType, roundNo, shoeNo,
   phase: 'result',
-  playerCards: ['Q♥','7♠'],    // rank + suit 문자열
-  bankerCards: ['3♦','K♣'],
+  playerCards: ['Q♥','7♠'],        // rank + suit 문자열. 서드카드가 있으면 3개
+  bankerCards: ['3♦','K♣','5♥'],   // 두 배열의 길이는 서로 다를 수 있음
   playerScore, bankerScore,
   result, playerPair, bankerPair,
   startedAt,                              // 호출자가 넘긴 ISO 문자열
@@ -414,8 +471,8 @@ return payout;
 
 `startedAt`은 실측이 아니라 역산입니다. 호출자가
 `new Date(Date.now() - (베팅초 + 딜링초) * 1000)`으로 계산해서 넘깁니다
-([`avatar/app.js:828`](../../avatar/app.js#L828), [`avatar/app.js:1196`](../../avatar/app.js#L1196)).
-딜링 애니메이션(약 1.04초)과 `await` 지연은 반영되지 않으므로 실제 시작 시각보다 늦게 기록됩니다.
+([`avatar/app.js:817`](../../avatar/app.js#L817), [`avatar/app.js:1169`](../../avatar/app.js#L1169)).
+딜링 애니메이션(1.04~1.56초)과 `await` 지연은 반영되지 않으므로 실제 시작 시각보다 늦게 기록됩니다.
 
 ---
 
@@ -469,36 +526,59 @@ buildBigRoad(['banker','banker','tie','player'])
   잘라내거나 카운터로 요약하지 않습니다.
 - 타이 배지는 열 전체에서 **첫 번째 셀(`idx===0`)에만** 표시됩니다. 여러 `.br-col`로 나뉘어도
   첫 조각의 첫 셀에만 붙습니다.
+- 타이 배지는 `<span class="br-tie">`이며, CSS가 `::before`로 사선을 긋습니다. 같은 열에 타이가
+  **2회 이상**일 때만 안쪽에 `<span>{횟수}</span>` 숫자가 추가됩니다 — 1회면 사선만 그어집니다.
+  미니 로드(`.lobby-card .mini-road`)는 이 안쪽 `<span>`을 `display:none`으로 숨깁니다
+  ([`shared/game-ui.css:101`](../../shared/game-ui.css#L101)).
 - 페어 표시는 셀 안의 코너 점입니다: `<i class="br-pair player">`(좌상단, 파랑),
   `<i class="br-pair banker">`(우하단, 빨강). 두 페어가 동시에 나면 점 두 개가 함께 찍힙니다.
 
 ```html
-<!-- 뱅커 2연속 + 타이 1회 -->
+<!-- 뱅커 2연속 + 타이 1회 (사선만) -->
 <div class="br-col">
-  <div class="br-cell banker"><span class="br-tie">1</span></div>
+  <div class="br-cell banker"><span class="br-tie"></span></div>
   <div class="br-cell banker"></div>
 </div>
+
+<!-- 같은 열에 타이 3회 (사선 + 숫자 배지) -->
+<div class="br-cell banker"><span class="br-tie"><span>3</span></span></div>
 ```
 
 ### `renderBeadRoad(results, pairFlags) → string`
 
-비드 플레이트(진주로드)를 렌더링합니다. **엄격히 시간순**입니다.
+비드 플레이트(진주로, 육매)를 렌더링합니다.
 
-- 6개(`BEAD_ROWS`)씩 세로로 채운 뒤 다음 열로 넘어갑니다.
-- 한 열에 P/B/T가 자유롭게 섞입니다. "값이 바뀌면 새 열" 규칙은 여기에 **적용되지 않습니다.**
+> **2026-08 변경**: 예전에는 "6개씩 무조건 세로로 채우는 엄격한 시간순"이었지만, 지금은
+> **빅로드와 같은 열 규칙**을 씁니다. 이 프로젝트가 참고한 실물 보드가 그렇게 그리기 때문입니다.
+
+- 연속된 같은 값이 한 열에 쌓이고, **값이 바뀌면 새 열**이 시작됩니다. 따라서 한 열에는
+  P/B/T 중 한 종류만 들어갑니다.
+- 한 열이 6개(`BEAD_ROWS`)를 넘으면 다음 `.br-col`로 이어 그립니다 (빅로드와 같은 드래곤 테일).
+- 타이도 자기 열을 가집니다. 빅로드처럼 직전 열에 흡수되지 않습니다.
 - 각 비드는 결과 글자(`P`/`B`/`T`)와 페어 코너 점을 함께 가집니다.
 - 셀 클래스는 `bd-cell player|banker|tie`.
+
+```js
+renderBeadRoad(['banker','banker','tie','player'])
+// 1열: B B  /  2열: T  /  3열: P
+```
 
 ```html
 <div class="br-col">
   <div class="bd-cell banker">B</div>
-  <div class="bd-cell player">P<i class="br-pair player"></i></div>
+  <div class="bd-cell banker">B<i class="br-pair banker"></i></div>
 </div>
+<div class="br-col"><div class="bd-cell tie">T</div></div>
 ```
+
+호출자는 `BEAD_WINDOW`(40)로 잘라서 넘깁니다. 열 그룹핑 때문에 슈 전체를 그리면 패널 너비를
+크게 넘어서기 때문입니다.
 
 ### `groupIntoRoadColumns(values) → {value, items}[]`
 
 연속된 동일 값을 한 열로 묶습니다. 파생 로드 렌더링에 쓰이는 범용 헬퍼입니다.
+`renderBeadRoad`도 같은 규칙을 쓰지만 페어 플래그를 함께 실어야 해서 이 함수를 호출하지 않고
+자체 루프로 구현되어 있습니다 ([`shared/game-engine.js:220-225`](../../shared/game-engine.js#L220-L225)).
 
 ```js
 groupIntoRoadColumns(['red','red','blue','red'])
@@ -522,7 +602,7 @@ for (let i = offset; i < cols.length; i++){
       if (i < offset + 1) continue;
       mark = cols[i-offset].items.length === cols[i-offset-1].items.length ? 'red' : 'blue';
     } else {
-      mark = cols[i-offset].items.length > j ? 'red' : 'blue';
+      mark = cols[i-offset].items.length === j ? 'blue' : 'red';
     }
   }
 }
@@ -531,7 +611,14 @@ for (let i = offset; i < cols.length; i++){
 | 위치 | 비교 대상 | red 조건 |
 | --- | --- | --- |
 | 열의 첫 셀 (`j===0`, 진행 방향 전환) | `offset`칸 뒤 **두 열의 길이** | 두 열 길이가 같음 |
-| 열의 이어지는 셀 (`j>0`) | `offset`칸 뒤 열이 행 `j`까지 존재하는가 | 존재함 |
+| 열의 이어지는 셀 (`j>0`) | `offset`칸 뒤 열의 행 `j`와 행 `j-1` | 두 칸이 **둘 다 차 있거나 둘 다 비어 있음** |
+
+> **2026-08 수정**: `j>0` 규칙이 `items.length > j ? red : blue`에서
+> `items.length === j ? blue : red`로 바뀌었습니다 (커밋 `9eec17d`).
+> 표준 규칙은 "대상 열의 행 `j`와 행 `j-1` 두 칸을 비교해 둘 다 차 있거나 둘 다 비었으면 red,
+> 정확히 하나만 차 있으면 blue"입니다. 대상 열 길이를 `L`이라 하면 한 칸만 차 있는 경우는
+> `L === j`뿐이므로 새 식이 표준과 정확히 일치합니다. 예전 식은 `L < j`(두 칸 모두 비어 있음)까지
+> blue로 잘못 찍었습니다.
 
 `offset`이 클수록 더 먼 과거와 비교합니다:
 
@@ -637,9 +724,10 @@ falsy면 빈 문자열입니다.
 | 함수 | 순수 함수 | Firestore 접근 | 반환 |
 | --- | --- | --- | --- |
 | `cardValue` | ✅ | — | `number` |
+| `handTotal` | ✅ | — | `number` (0~9) |
 | `randCard` | ❌ (`Math.random`) | — | `{rank,suit}` |
-| `dealHand` | ❌ | — | `{cards,score}` |
 | `simulateRound` | ❌ | — | `RoundResult` |
+| `dealSequence` | ✅ | — | `[side,index][]` |
 | `playerLogin` | ❌ | 읽기 + 쓰기 | `LoginResult` |
 | `playerSignup` | ❌ | 트랜잭션 + 배치 쓰기 | `SignupResult` |
 | `getPlayerBalance` | ❌ | 읽기 (전량) | `{balance,points}` |
@@ -659,10 +747,15 @@ falsy면 빈 문자열입니다.
 | `decomposeChipStack` | ✅ | — | `number[]` |
 | `chipStackHtml` | ✅ | — | HTML `string` |
 
-전체 25개 함수 중 순수 함수가 15개입니다 (`tableBetVolume`은 현재 날짜에 의존해 별도 표기).
+전체 26개 함수 중 순수 함수가 17개입니다 (`tableBetVolume`은 현재 날짜에 의존해 별도 표기).
 이들은 Firebase도 DOM도 필요 없어 단위 테스트 비용이 사실상 0입니다 — `buildBigRoad`,
-`deriveRoad`, `decomposeChipStack`, `settleBet`의 배수 계산 로직이 테스트를 시작하기 좋은
-지점입니다.
+`deriveRoad`, `renderBeadRoad`, `decomposeChipStack`, `settleBet`의 배수 계산 로직이 테스트를
+시작하기 좋은 지점입니다.
+
+**서드카드 룰(`simulateRound`)이 테스트 우선순위 1위입니다.** 타블로 분기가 6갈래인데
+`Math.random()`에 직접 의존해 그대로는 테스트할 수 없습니다. 드로우 판정을 순수 함수
+(`bankerShouldDraw(bankerTotal, playerThirdValue)` 같은 형태)로 떼어내면 표 전체를 케이스로
+덮을 수 있습니다.
 
 ---
 
@@ -671,5 +764,5 @@ falsy면 빈 문자열입니다.
 - [처리 흐름 설명](explanation-round-flow.md) — 이 함수들이 라운드 루프에서 호출되는 순서
 - [룰과 로드맵 설명](explanation-rules-roadmaps.md) — 왜 이런 배당·로드 규칙인가
 - [`avatar/app.js` 레퍼런스](reference-avatar-app.md) — 호출자 쪽 계약
-- [알려진 격차](explanation-known-gaps.md) — 이 문서에서 참조한 G-01 ~ G-12
+- [알려진 격차](explanation-known-gaps.md) — 이 문서에서 참조한 G-01 ~ G-13
 - [Firestore 데이터 모델](../FIRESTORE_DATA_MODEL.md) — 컬렉션 스키마

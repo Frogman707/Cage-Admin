@@ -1,7 +1,8 @@
 # 레퍼런스 — `avatar/app.js` (Avatar + Speed 통합 앱)
 
 > **분류**: Reference (정보 지향)
-> **대상 파일**: [`avatar/app.js`](../../avatar/app.js) (1,202줄) · [`avatar/index.html`](../../avatar/index.html) (241줄)
+> **대상 파일**: [`avatar/app.js`](../../avatar/app.js) (1,175줄) · [`avatar/index.html`](../../avatar/index.html) (213줄)
+> **작성 기준일**: 2026-08-15 · 브랜치 `backend`
 > **관련 문서**: [처리 흐름](explanation-round-flow.md) · [엔진 레퍼런스](reference-game-engine.md)
 
 하나의 로그인·세션·보유금으로 두 게임 모드를 제공하는 플레이어 사이트입니다.
@@ -9,6 +10,15 @@
 - **아바타 (AVATAR)** — 대리 베팅. 회원이 테이블별로 아바타를 신청하고, 파트너 어드민에서 담당
   직원이 배정되면 그때부터 매 라운드 저장된 지시대로 자동 베팅됩니다.
 - **스피드 (SPEED)** — 셀프 서비스. 여러 테이블이 동시에 돌아가며 라운드 주기가 짧습니다.
+  **베팅은 테이블을 열고 그 안에서만 합니다** — 목록 타일에는 베팅 스팟이 없습니다.
+
+> **2026-08 UI 개편 요약** (커밋 `086447f` ~ `8a2246d`)
+> - 스피드 목록이 아바타 로비와 **같은 `.lobby-card` 카드**로 통일되었습니다. 타일 베팅 스팟,
+>   미니 스테이지, 하단 고정 칩 트레이가 모두 제거되었습니다.
+> - 게임 타입 탭에서 `hyper` / `dragontiger`가 삭제되었습니다.
+> - 비어 있는 아바타 테이블 카드에서 "🎭 아바타 신청" 오버레이가 빠졌습니다. 카드를 열면
+>   테이블 안에 신청 버튼이 있습니다.
+> - 테이블 스테이지·로비 썸네일이 실사 스틸(`shared/assets/table-live.jpg`)로 바뀌었습니다.
 
 `/speed/`는 [`speed/index.html`](../../speed/index.html)이 `../avatar/?mode=speed`로 리다이렉트하는
 호환 경로일 뿐, 별도 앱이 아닙니다.
@@ -22,16 +32,21 @@ const AVATAR_BETTING_SECONDS = 30, AVATAR_DEALING_SECONDS = 4, AVATAR_RESULT_SEC
 const SPEED_BETTING_SECONDS  = 15, SPEED_DEALING_SECONDS  = 3, SPEED_RESULT_SECONDS  = 3;  // 총 21초
 const LOBBY_CASINOS = ['HANN','NUSTAR','SOLAIRE'];
 const GAME_TYPE_TABS = [
-  {id:'all', label:'allGameTypes'}, {id:'avatar', label:'gameTypeAvatar'},
-  {id:'speed', label:'gameTypeSpeed'}, {id:'hyper', label:'gameTypeHyper'},
-  {id:'dragontiger', label:'gameTypeDragonTiger'},
+  {id:'all',    label:'allGameTypes'},
+  {id:'avatar', label:'gameTypeAvatar'},
+  {id:'speed',  label:'gameTypeSpeed'},
 ];
 ```
 
-`hyper`와 `dragontiger` 탭은 클릭하면 "준비 중" 토스트만 띄웁니다 (구현 없음).
+게임 타입 탭은 3종입니다. `hyper` / `dragontiger` 플레이스홀더는 삭제되었고
+(커밋 `8a2246d`), i18n 사전의 `gameTypeHyper` / `gameTypeDragonTiger` / `gameComingSoon` 키도
+함께 제거되었습니다.
+
+`all` 탭은 `setGameTypeFilter`에서 모드 전환 분기에 걸리지 않으므로 **활성 표시만 바뀌고 화면은
+그대로입니다** ([`avatar/app.js:267-271`](../../avatar/app.js#L267-L271)).
 
 > 로비 카지노 탭(`HANN`/`NUSTAR`/`SOLAIRE`)과 회원가입 카지노 선택
-> ([`avatar/index.html:117`](../../avatar/index.html#L117): `NUSTAR`/`HANN`/`ONLINE`)의 목록이
+> ([`avatar/index.html:90`](../../avatar/index.html#L90): `NUSTAR`/`HANN`/`ONLINE`)의 목록이
 > 서로 다릅니다 — [G-08](explanation-known-gaps.md#g-08--카지노-목록이-화면마다-다르다) 참고.
 
 ---
@@ -137,8 +152,8 @@ let LOBBY_SEARCH = '';
 | `viewPicker` | 게임 선택 (아바타 / 스피드 카드 2장) | 정적 HTML |
 | `viewAvatarLobby` | 아바타 테이블 목록 | `goAvatarLobby()`가 주입 |
 | `viewAvatarTable` | 아바타 테이블 (미리보기 또는 진행중 세션) | `avatarPreviewShellHtml()` / `avatarTableShellHtml()` |
-| `viewSpeedLobby` | 스피드 테이블 타일 그리드 | 정적 뼈대 + `loadSpeedTables()`가 그리드 주입 |
-| `viewSpeedTable` | 스피드 단일 테이블 상세 | `speedDetailShellHtml()` |
+| `viewSpeedLobby` | 스피드 테이블 카드 그리드 + "내 베팅내역" 패널 | 정적 뼈대 + `loadSpeedTables()`가 그리드 주입 |
+| `viewSpeedTable` | 스피드 단일 테이블 상세 (**유일한 스피드 베팅 화면**) | `speedDetailShellHtml()` |
 
 `showView`가 함께 처리하는 헤더 버튼 표시 규칙:
 
@@ -146,9 +161,15 @@ let LOBBY_SEARCH = '';
 | --- | --- |
 | `#changeGameBtn` (게임 변경) | `viewPicker`가 **아닐** 때 |
 | `#avatarLobbyBtn` (테이블 목록) | `viewAvatarTable`일 때만 |
-| `#chipTray` (하단 고정 칩 트레이) | `viewSpeedLobby`일 때만 |
+
+> 예전에 있던 `#chipTray`(스피드 로비 하단 고정 칩 트레이)는 제거되었습니다. 칩 선택은
+> 스피드 상세 화면 안의 `.sd-chip-tray`에만 있습니다.
 
 로그인 게이트(`#login-gate`)와 앱 셸(`#app`)은 `showView` 밖에서 직접 토글됩니다.
+
+`viewSpeedTable` 컨테이너는 `index.html`에서 `viewSpeedLobby` **앞에** 놓여 있습니다
+([`avatar/index.html:141-150`](../../avatar/index.html#L141-L150)) — 두 뷰가 동시에 마운트되지
+않는다는 전제 아래 `showView`가 하나만 남깁니다.
 
 ---
 
@@ -257,18 +278,21 @@ document.getElementById('viewSpeedTable').innerHTML = '';
 | --- | --- |
 | `showPicker()` | `stopAllLoops()` → `MODE = null` → `viewPicker` |
 | `chooseAvatar()` | `stopAllLoops()` → 필터 초기화 → `viewAvatarLobby` → `goAvatarLobby()` |
-| `chooseSpeed()` | `stopAllLoops()` → 필터 초기화 → `viewSpeedLobby` → 칩 트레이 → `loadSpeedTables()` → `setInterval(tickAllSpeedTables, 1000)` |
+| `chooseSpeed()` | `stopAllLoops()` → 필터 초기화 → `viewSpeedLobby` → `loadSpeedTables()` → `renderMyBetHistory()` → `setInterval(tickAllSpeedTables, 1000)` |
 
 ### 로비 필터 (두 모드 공용)
 
 | 함수 | 동작 |
 | --- | --- |
 | `casinoTabsHtml()` | `ALL` + `LOBBY_CASINOS` 탭 |
-| `gameTypeTabsHtml(activeType)` | 5종 게임 타입 탭 |
-| `setGameTypeFilter(id)` | `avatar`/`speed`면 모드 전환, `hyper`/`dragontiger`면 준비 중 토스트 |
+| `gameTypeTabsHtml(activeType)` | 3종 게임 타입 탭 (전체 / 아바타 / 스피드) |
+| `setGameTypeFilter(id)` | `avatar`/`speed`면 현재 모드와 다를 때 모드 전환. `all`은 활성 표시만 변경 |
 | `lobbySearchHtml()` | 테이블명 검색 입력 |
 | `setLobbyCasinoFilter(c)` / `setLobbySearch(v)` | 전역 갱신 후 `applyLobbyTileFilter()` |
 | `applyLobbyTileFilter()` | `.lobby-card[data-casino]` · `.speed-tile[data-casino]`의 `style.display` 토글 |
+
+스피드 카드는 `class="lobby-card speed-tile"`로 **두 선택자를 모두** 가지므로 필터가 한 번만
+적용됩니다 (`querySelectorAll`이 중복 없는 집합을 반환).
 
 필터는 **클라이언트 측 표시 토글**입니다. Firestore 재조회 없이 이미 렌더링된 카드만 숨깁니다.
 
@@ -284,7 +308,7 @@ JS로 생성된 텍스트는 `applyI18n()`의 `data-i18n` 스캔으로 갱신되
 ### `goAvatarLobby()`
 
 로비 뼈대를 주입한 뒤 **5개 쿼리를 병렬로** 실행합니다
-([`avatar/app.js:367-373`](../../avatar/app.js#L367-L373)):
+([`avatar/app.js:361-367`](../../avatar/app.js#L361-L367)):
 
 ```js
 db.collection('tables').where('type','==','avatar').get()
@@ -326,19 +350,24 @@ db.collection('avatarRequests').get()                              // 전체
 | `activeOther` | 나 아닌 회원의 `진행중` 요청이 있는가 |
 | `todayCount` | 오늘 `requestedAt`이면서 `진행중` 또는 `종료`인 요청 수 |
 
-#### `avatarThumbOverlayHtml(tableId)` — 카드 썸네일 오버레이
+#### `avatarCardStatusHtml(tableId)` — 카드 상태 배지
 
-우선순위 순서대로 판정합니다:
+이전 이름은 `avatarThumbOverlayHtml`이었고, 썸네일 위 오버레이가 아니라 카드 상단
+`.card-status-row`에 놓이는 pill 배지로 바뀌었습니다. 우선순위 순서대로 판정합니다:
 
-| 조건 | 오버레이 |
-| --- | --- |
-| 내 상태 `active` | ↩ 재입장 |
-| 내 상태 `pending` | ⏳ 승인 대기 |
-| `todayCount >= 3` | ✏️ 금일 예약 완료 (하단 바) |
-| `activeOther` | 🎥 관전 |
-| 그 외 | 🎭 아바타 신청 |
+| 조건 | 배지 | CSS 클래스 |
+| --- | --- | --- |
+| 내 상태 `active` | ↩ 재입장 | `.card-status.reenter` |
+| 내 상태 `pending` | ⏳ 승인 대기 | `.card-status.pending` |
+| `todayCount >= 3` | ✏️ 금일 예약 완료 | `.card-status.full` |
+| `activeOther` | 🎥 관전 | `.card-status.spectate` |
+| 그 외 (**비어 있는 테이블**) | **배지 없음** (빈 문자열) | — |
 
-> "관전" 오버레이가 떠도 클릭하면 실제로는 **읽기 전용 미리보기**로 갑니다. 다른 회원의 진행중
+> **2026-08 변경**: 비어 있는 테이블의 "🎭 아바타 신청" 배지가 삭제되었습니다 (커밋 `40cc6cf`).
+> 카드를 열면 곧바로 테이블 화면으로 가고, 신청 버튼은 그 안 우측 패널에 있으므로 목록에서
+> 같은 말을 두 번 하지 않게 정리한 것입니다.
+
+> "관전" 배지가 떠도 클릭하면 실제로는 **읽기 전용 미리보기**로 갑니다. 다른 회원의 진행중
 > 세션을 실시간으로 보는 기능은 없습니다.
 
 #### `handleAvatarCardClick(tableId)`
@@ -358,10 +387,23 @@ db.collection('avatarRequests').get()                              // 전체
 | `'hot'` | `streak.len` 내림차순 |
 | `'name'` | `t.name` 로케일 오름차순 |
 
-카드 구성: 썸네일(배지·즐겨찾기·펠트·오버레이·핫배지) → 이름/카지노/한도 → 미니 빅로드
-(최근 40개, 4행) → P/B/T 승수 + 오늘 베팅액.
+카드 구성(위에서 아래로):
 
-핫 배지는 `streak.len >= 3`일 때 표시됩니다.
+| 영역 | 클래스 | 내용 |
+| --- | --- | --- |
+| 썸네일 | `.thumb` | 실사 라이브 스틸 (`shared/assets/table-live.jpg`, CSS 배경) |
+| 상태 줄 | `.card-status-row` | `avatarCardStatusHtml` 배지 · 🔥 핫 배지 · 즐겨찾기 하트 |
+| 정보 | `.info` | 테이블명 · `{카지노} · {betMin} ~ {betMax}` |
+| 미니 로드 | `.mini-road.br-grid` | 최근 40개, 4행 빅로드 (`renderBigRoad(cols, 4)`) |
+| 통계 | `.stat-row` | `P {n} · B {n} · T {n}` · 오늘 베팅액 |
+
+핫 배지는 `streak.len >= 3`일 때 `🔥 {n}연속 {플레이어|뱅커}`로 표시됩니다.
+카드 전체가 클릭 대상이며(`handleAvatarCardClick`), 즐겨찾기 버튼만
+`event.stopPropagation()`으로 버블링을 막습니다.
+
+**스피드 타일(`speedTileHtml`)이 이 카드와 동일한 구조를 씁니다.** 다른 점은 상태 배지 자리에
+`⏱ {남은초}` 카운트다운 pill(`.card-status.live`)과 결과 점수(`#score-{tableId}`)가 들어간다는
+것뿐입니다.
 
 ### 아바타 신청
 
@@ -514,7 +556,7 @@ if (avatarTotalBet() > 0){
   // 헤더 갱신 + "아바타가 베팅했습니다" 토스트
 }
 AVATAR._sim = simulateRound();
-await revealAvatarCards(AVATAR._sim);  // 260ms × 4 = 약 1.04초
+await revealAvatarCards(AVATAR._sim);  // 260ms × 4~6장 = 1.04 ~ 1.56초
 ```
 
 `staff: 'avatar'`가 이 베팅이 대리 실행되었음을 원장에 남기는 유일한 표시입니다.
@@ -525,9 +567,21 @@ await revealAvatarCards(AVATAR._sim);  // 260ms × 4 = 약 1.04초
 
 #### `revealAvatarCards(sim)`
 
-P1 → B1 → P2 → B2 순서로 260ms 간격으로 카드 DOM을 추가한 뒤 점수를 표시합니다.
+`dealSequence(sim)`이 준 순서대로 260ms 간격으로 카드 DOM을 추가한 뒤 점수를 표시합니다.
+P1 → B1 → P2 → B2 → (플레이어 서드) → (뱅커 서드)이며, **서드카드 유무에 따라 4~6장**입니다.
+
+```js
+for (const [side,i] of dealSequence(sim)){
+  (side==='player'?pEl:bEl).insertAdjacentHTML('beforeend', cardHtml(sim[side].cards[i]));
+  await new Promise(r=>setTimeout(r, 260));
+}
+```
+
 `cardHtml(card)`는 `♥`/`♦`이면 `red`, 아니면 `black` 클래스를 붙이고 `data-rank`에 `랭크+무늬`를
 넣습니다 (랭크 글자는 CSS가 `data-rank`로 그립니다).
+
+> 딜링 단계는 4초인데 6장 공개가 1.56초이므로 아직 여유가 있습니다. 다만 스피드 모드의
+> 딜링 단계는 3초여서 마진이 더 좁습니다.
 
 #### `beginAvatarResultPhase()` — 5초
 
@@ -615,19 +669,30 @@ secondsLeft: SPEED_BETTING_SECONDS - (Object.keys(SPEED.tstate).length * 3) % SP
 
 ### 타일 (`speedTileHtml`)
 
+**2026-08에 아바타 로비 카드와 같은 마크업으로 다시 만들어졌습니다** (커밋 `c10fd3a`).
+루트 요소는 `<div class="lobby-card speed-tile" id="tile-{tableId}">`입니다.
+
 | 영역 | 내용 |
 | --- | --- |
-| `head` | 테이블명 · `SHOE #{n} · {카지노}` |
-| `#hotbadge-{id}` | 🔥 연속 배지 (3연속 이상) |
-| `.speed-mini-stage` | 단계 텍스트 + 우상단 타이머 + (결과 시) `P{n} : B{n}` |
-| 열기 버튼 | `openSpeedTableDetail(tableId)` |
-| `.speed-bets` | P(1:1) · T(8:1) · B(.95:1) 3개 스팟 — **페어는 타일에 없음** |
-| `.speed-mini-road` | 최근 40개, 4행 빅로드 |
-| `.speed-tile-stats` | P/B/T 승수 + 오늘 베팅액 |
+| `.thumb` | 실사 라이브 스틸 (아바타 카드와 동일) |
+| `.card-status-row` | `⏱ #timer-{id}` 카운트다운 · `#score-{id}` 결과 점수 · `#hotbadge-{id}` 🔥 배지 · 즐겨찾기 |
+| `.info` | 테이블명 · `{카지노} · {betMin} ~ {betMax}` |
+| `.mini-road.br-grid` (`#road-{id}`) | 최근 40개, 4행 빅로드 |
+| `.stat-row` (`#stats-{id}`) | P/B/T 승수 + 오늘 베팅액 |
 
-타일 전체가 클릭 가능하며(상세 열기), 베팅 스팟은 `event.stopPropagation()`으로 버블링을 막습니다.
+**타일에서 사라진 것들** (문서 이전 판에는 있었음):
+
+- 베팅 스팟 3종 (`spot-{tableId}-{betType}`) — 베팅은 상세 화면에서만 (커밋 `086447f`)
+- 미니 스테이지 (`.speed-mini-stage`, `stage-{tableId}`)
+- 단계 캡션 (`베팅중` / `딜링중`) — 열린 테이블만 단계를 표시 (커밋 `b54e945`)
+- `SHOE #{n}` 표기와 별도 "테이블 열기" 버튼
+
+카드 어디를 눌러도 `openSpeedTableDetail(tableId)`가 열립니다. 즐겨찾기 버튼만
+`event.stopPropagation()`을 씁니다.
 
 ### `placeSpeedBet(tableId, type)`
+
+**상세 화면의 베팅 스팟에서만 호출됩니다** ([`avatar/app.js:1035-1041`](../../avatar/app.js#L1035-L1041)).
 
 ```js
 if (!s || s.phase !== 'betting'){ toast(notBettingTime, true); return; }
@@ -639,21 +704,29 @@ s.bets[type] += STATE.selectedChip;
 ```
 
 - 베팅 단계에서만 받습니다.
-- `locked`는 **전 테이블의 미확정 베팅 합계**입니다. 3개 테이블에 동시에 걸어도 총액이 보유금을
+- `locked`는 **전 테이블의 미확정 베팅 합계**입니다. 여러 테이블에 걸쳐도 총액이 보유금을
   넘지 않습니다.
 - **테이블 한도(`betMin`/`betMax`)는 검사하지 않습니다.**
 - 이 시점에는 Firestore에 아무것도 쓰지 않습니다. 실제 쓰기는 딜링 단계에 일어납니다.
 
+> **다중 테이블 베팅은 여전히 가능합니다.** 상세 화면을 닫아도 `SPEED.tstate[id].bets`는 남고,
+> 해당 테이블의 딜링 단계가 오면 그대로 집행됩니다. 즉 A 테이블에 걸고 → 닫고 → B 테이블에
+> 걸면 둘 다 정산됩니다. 달라진 것은 **베팅 조작이 열린 테이블 안에서만 가능하다**는 점이지
+> "한 번에 한 테이블만"이 아닙니다.
+
 ### 상세 화면 (`speedDetailShellHtml`)
 
-타일보다 넓은 5개 베팅 스팟을 제공합니다:
+스피드 모드에서 베팅할 수 있는 유일한 화면이며, 베팅 스팟 5개를 제공합니다:
 
-| 행 | 스팟 |
-| --- | --- |
-| 상단 | 플레이어 페어 (11:1) · 타이 (8:1) · 뱅커 페어 (11:1) |
-| 하단 | 플레이어 (1:1) · 뱅커 (0.95:1) |
+| 행 | 스팟 | id |
+| --- | --- | --- |
+| 상단 (`.pair-row`) | 플레이어 페어 (11:1) · 타이 (8:1) · 뱅커 페어 (11:1) | `spot-detail-playerPair` / `-tie` / `-bankerPair` |
+| 하단 (`.bet-rail.two-up`) | 플레이어 (1:1) · 뱅커 (0.95:1) | `spot-detail-player` / `-banker` |
 
-칩 트레이 버튼:
+각 스팟의 `👤 0` / `₱ 0` 메타 표기는 **정적 하드코딩**입니다. 다른 회원의 참여 인원·베팅액을
+집계하는 코드는 없습니다.
+
+칩 트레이(`.sd-chip-tray`) 버튼:
 
 | 버튼 | 함수 | 동작 |
 | --- | --- | --- |
@@ -664,6 +737,17 @@ s.bets[type] += STATE.selectedChip;
 
 > "베팅완료" 버튼은 확정 동작이 없는 장식입니다 —
 > [G-12](explanation-known-gaps.md#g-12--베팅완료-버튼이-아무것도-확정하지-않는다) 참고.
+
+스테이지 아이콘 줄(`.sd-stage-icons`)은 아바타 세션 화면과 같은 5개(전체화면 / 음소거 /
+화면전환 / 팁 / 게임기록)지만, **팁 버튼이 아바타와 다릅니다.**
+
+```js
+// 아바타 세션                       // 스피드 상세
+onclick="openTipModal()"            onclick="toast(t('tipComingSoon'))"
+```
+
+스피드 상세의 팁 버튼은 "팁 기능은 준비 중입니다" 토스트만 띄웁니다 —
+[G-13](explanation-known-gaps.md#g-13--스피드-상세의-팁-버튼이-토스트만-띄운다) 참고.
 
 `repeatLastSpeedBetDetail`은 직전 라운드에 베팅이 있었을 때만 동작하며(`beginSpeedBetting`이
 `lastBets`를 저장), 전 테이블 `locked` 기준 잔액 검사를 통과해야 합니다.
@@ -700,32 +784,55 @@ for (const tableId of Object.keys(SPEED.tstate)){
 루프 본문이 `await`를 포함하므로, 한 테이블의 Firestore 쓰기가 느리면 **뒤 테이블들의 카운트다운이
 함께 밀립니다.** 콜백이 1초 안에 끝나지 않으면 다음 틱과 겹칠 수도 있습니다.
 
+#### `setSpeedTileTimer` / `setSpeedTilePhaseText`
+
+두 함수의 적용 범위가 다릅니다.
+
+| 함수 | 타일 | 상세 화면 |
+| --- | --- | --- |
+| `setSpeedTileTimer(tableId, v)` | `#timer-{tableId}` 갱신 (항상) | 열려 있으면 `#timer-detail`도 갱신 |
+| `setSpeedTilePhaseText(tableId, txt)` | **아무것도 하지 않음** | 열려 있을 때만 `#phase-detail` 갱신 |
+
+```js
+function setSpeedTilePhaseText(tableId, txt){
+  if (SPEED.detailTableId!==tableId || !txt) return;   // 타일에는 단계 캡션이 없음
+  const d = document.getElementById('phase-detail'); if (d) d.textContent = txt;
+}
+```
+
+목록에서는 카운트다운만 보이고 `베팅중`/`딜링중` 캡션은 표시하지 않습니다 (커밋 `b54e945`).
+
 #### `beginSpeedBetting(tableId)` — 15초
 
-직전 라운드에 베팅이 있었으면 `s.lastBets = {...s.bets}`로 보관한 뒤 초기화합니다. 스팟의
-`selected`/`locked` 클래스를 제거하고, 미니 스테이지의 점수 텍스트와 상세 화면 카드를 지웁니다.
+직전 라운드에 베팅이 있었으면 `s.lastBets = {...s.bets}`로 보관한 뒤 초기화합니다. 상세 화면이
+열려 있으면 스팟의 `selected`/`locked` 클래스를 제거하고 카드를 지웁니다. 타일의 결과 점수
+(`#score-{tableId}`)도 비웁니다.
 
 #### `beginSpeedDealing(tableId)` — 3초
 
-스팟 잠금 → `placeBet(staff:'system')` 반복 → `STATE.balance -= totalBet` →
-`simulateRound()` → 상세 화면이 열려 있으면 카드 애니메이션.
+스팟 잠금(상세가 열려 있을 때만) → `placeBet(staff:'system')` 반복 →
+`STATE.balance -= totalBet` → `simulateRound()` → 상세 화면이 열려 있으면 카드 애니메이션.
 
 아바타 모드와 달리 `staff`가 `'system'`입니다 (대리 베팅이 아니므로).
+
+> 상세 화면이 닫혀 있으면 `revealSpeedDetailCards`를 `await`하지 않으므로 딜링 단계가
+> 즉시 통과합니다. 열려 있을 때만 1.04~1.56초가 소요됩니다.
 
 #### `beginSpeedResult(tableId)` — 3초
 
 ```js
 setSpeedTilePhaseText(tableId, sim.result==='player' ? 'PLAYER WIN' : ... );  // ← 하드코딩 영문
-// 미니 스테이지에 "P{n} : B{n}" 추가
+// 타일의 #score-{id}에 "P{n} : B{n}" 표시
 // 베팅별 settleBet() → MY_BET_LOG.unshift → SPEED.allBets.push (로컬 통계 즉시 반영)
 // 당첨 토스트 (테이블명 접두)
 // writeRoundDoc(startedAt = now - (15+3)초)
 // history/pairFlags push, roundNo++
-// 타일 로드맵 · 통계 재렌더
+// 타일 로드맵 · 통계 재렌더 (열려 있으면 상세 로드맵까지)
 ```
 
 단계 배너 문자열 `'PLAYER WIN'`/`'BANKER WIN'`/`'TIE'`는 i18n을 거치지 않고 하드코딩되어 있습니다
-(아바타 모드는 `t('phasePlayerWin')` 등을 사용).
+(아바타 모드는 `t('phasePlayerWin')` 등을 사용). 다만 이 문자열은 상세 화면이 열려 있을 때만
+화면에 나타납니다.
 
 `refreshPointsQuiet()`를 호출하지 않으므로 스피드 플레이 중 포인트 표시는 갱신되지 않습니다.
 
@@ -760,29 +867,43 @@ setSpeedTilePhaseText(tableId, sim.result==='player' ? 'PLAYER WIN' : ... );  //
 | `smallroad-{suffix}` | 소로 |
 | `cockroach-{suffix}` | 갑충로 |
 
+스코어보드는 `.sd-road-main` 안에 4개의 밴드(`.sd-road-band`)를 세로로 쌓습니다 — 빅로드,
+대안목, 소로, 갑충로 순이며, 우측 가장자리에 P/B 범례 레일(`.sd-road-legend-rail`)이 붙습니다.
+
 스피드 타일/상세의 동적 ID:
 
 | 패턴 | 내용 |
 | --- | --- |
-| `tile-{tableId}` · `stage-{tableId}` | 타일 컨테이너 · 미니 스테이지 |
-| `phase-{tableId}` · `timer-{tableId}` | 단계 텍스트 · 타이머 |
-| `spot-{tableId}-{betType}` · `mybet-{tableId}-{betType}` | 타일 베팅 스팟 · 금액 |
-| `spot-detail-{betType}` · `mybet-detail-{betType}` | 상세 화면 스팟 · 금액 |
-| `road-{tableId}` · `stats-{tableId}` · `hotbadge-{tableId}` | 미니 로드 · 통계 · 핫 배지 |
+| `tile-{tableId}` | 카드 컨테이너 (`.lobby-card.speed-tile`) |
+| `timer-{tableId}` | 카운트다운 숫자 |
+| `score-{tableId}` | 결과 단계의 `P{n} : B{n}` |
+| `hotbadge-{tableId}` | 🔥 연속 배지 |
+| `road-{tableId}` · `stats-{tableId}` | 미니 빅로드 · P/B/T 통계 |
+| `spot-detail-{betType}` · `mybet-detail-{betType}` | **상세 화면 전용** 스팟 · 금액 |
+| `phase-detail` · `timer-detail` | 상세 화면 단계 배너 · 타이머 |
+
+> **삭제된 ID**: `stage-{tableId}`, `phase-{tableId}`, `spot-{tableId}-{betType}`,
+> `mybet-{tableId}-{betType}`. 타일 베팅과 미니 스테이지가 사라지면서 함께 없어졌습니다.
 
 > `road-{tableId}`와 `road-avatar`/`road-detail`은 같은 접두사를 씁니다. `tableId`가 `'avatar'`나
-> `'detail'`인 테이블을 만들면 충돌합니다.
+> `'detail'`인 테이블을 만들면 충돌합니다. `timer-{tableId}` / `timer-detail`도 마찬가지입니다.
 
 ### 로드맵 렌더링 창(window) 크기
 
-| 화면 | 빅로드 입력 | 행 수 | 비드 플레이트 |
-| --- | --- | --- | --- |
-| 로비 카드 | 최근 40개 | 4 | 없음 |
-| 스피드 타일 | 최근 40개 | 4 | 없음 |
-| 아바타 테이블 / 스피드 상세 | 최근 90개 | 6 | **전체** (슬라이스 없음) |
+| 화면 | 빅로드 입력 | 행 수 | 비드 플레이트 | 파생 로드 |
+| --- | --- | --- | --- | --- |
+| 아바타 로비 카드 | 최근 40개 | 4 | 없음 | 없음 |
+| 스피드 타일 | 최근 40개 | 4 | 없음 | 없음 |
+| 아바타 테이블 / 스피드 상세 | 최근 90개 | 6 | **최근 40개** (`BEAD_WINDOW`) | 빅로드 90개에서 파생, 3행 |
 
-비드 플레이트만 전체를 그리고 가로 스크롤을 끝으로 보냅니다. 뒷부분만 잘라내면 새 라운드마다 모든
-비드가 한 칸씩 밀려 보이기 때문입니다.
+> **2026-08 변경**: 비드 플레이트가 "슈 전체"에서 `BEAD_WINDOW`(40)로 바뀌었습니다.
+> 비드 플레이트가 빅로드와 같은 열 그룹핑을 쓰게 되면서 슈 전체를 그리면 패널보다 훨씬
+> 넓어지기 때문입니다. 예전에 전체를 그렸던 이유(6개씩 순서대로 채우면 앞을 자를 때 격자가
+> 통째로 재배치됨)는 열 그룹핑에서는 성립하지 않습니다 — 열 단위로 쌓이므로 앞을 잘라도
+> 뒤쪽 배치가 흔들리지 않습니다.
+
+빅로드는 렌더 후 `el.scrollLeft = el.scrollWidth`로 가로 스크롤을 끝으로 보냅니다
+([`avatar/app.js:562`](../../avatar/app.js#L562)). 비드 플레이트는 왼쪽 정렬 그대로 둡니다.
 
 ---
 
@@ -799,7 +920,21 @@ setSpeedTilePhaseText(tableId, sim.result==='player' ? 'PLAYER WIN' : ... );  //
 | `cardHtml(card)` | 무늬로 red/black 판정, `data-rank`에 랭크+무늬 |
 
 음소거·화면 전환 아이콘 버튼은 `this.classList.toggle(...)`만 수행하는 시각 토글입니다 (실제 영상
-스트림이 없으므로 연결 대상이 없습니다).
+스트림이 없으므로 연결 대상이 없습니다). 테이블 스테이지와 로비 썸네일에 보이는 "라이브 화면"은
+정지 이미지 한 장(`shared/assets/table-live.jpg`)을 CSS 배경으로 깐 것입니다
+([`shared/game-ui.css:126-130`](../../shared/game-ui.css#L126-L130)).
+
+### 헤더 (`index.html`의 `.game-header`)
+
+| 요소 | 동작 |
+| --- | --- |
+| 보유금 / 포인트 티켓 | `#hdrBalance` / `#hdrPoints` |
+| 즐겨찾기 하트 | `toggleHeaderFavorite()` — 클래스 토글만, 저장 없음 |
+| 햄버거 | `showPicker()` — 게임 선택 화면으로 |
+| 언어 선택기 | `#hdrLangRow` |
+| 화면 설정 | `#modal-display` (다크/라이트 테마) |
+| 게임기록 | `openGameHistory()` |
+| 테이블 목록 / 게임 변경 / 로그아웃 | `showView`가 표시 여부 제어 |
 
 ---
 
@@ -808,4 +943,4 @@ setSpeedTilePhaseText(tableId, sim.result==='player' ? 'PLAYER WIN' : ... );  //
 - [처리 흐름 설명](explanation-round-flow.md) — 이 함수들의 실행 순서와 설계 배경
 - [엔진 레퍼런스](reference-game-engine.md) — `placeBet` / `settleBet` / 로드 빌더 계약
 - [아바타 세션 운영 방법](howto-avatar-session.md) — 신청부터 종료까지 실행 절차
-- [알려진 격차](explanation-known-gaps.md) — G-01 ~ G-12
+- [알려진 격차](explanation-known-gaps.md) — G-01 ~ G-13

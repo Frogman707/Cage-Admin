@@ -1,7 +1,7 @@
-# 설명 — 알려진 격차 (G-01 ~ G-12)
+# 설명 — 알려진 격차 (G-01 ~ G-13)
 
 > **분류**: Explanation (이해 지향)
-> **작성 기준일**: 2026-08-12 · 브랜치 `backend`
+> **작성 기준일**: 2026-08-15 · 브랜치 `backend`
 > **관련 문서**: [처리 흐름](explanation-round-flow.md) · [엔진 레퍼런스](reference-game-engine.md) · [앱 레퍼런스](reference-avatar-app.md)
 
 `avatar/`와 `shared/game-engine.js`를 정독하며 확인한 결함·불일치 목록입니다. **모두 코드 정독으로
@@ -9,6 +9,10 @@
 
 이 문서는 결함을 고치자는 제안서가 아니라, 이 코드를 다루게 될 사람이 놀라지 않도록 하는
 지도입니다. 데모 목적상 의도된 단순화도 마지막에 함께 적었습니다.
+
+> **2026-08-15 갱신**: G-01 ~ G-12는 전부 그대로 남아 있습니다. G-13(스피드 팁 버튼)이
+> 추가되었고, "의도된 단순화" 목록에서 **서드카드 룰 없음**과 **하이퍼/드래곤타이거 탭**
+> 두 항목이 해소되어 삭제되었습니다.
 
 ## 요약
 
@@ -26,6 +30,7 @@
 | [G-10](#g-10--avatarservicerequests에-소비자가-없다) | 슈 체인지 요청 미처리 | 기능 미완 | ❌ |
 | [G-11](#g-11--채팅-쿼리가-orderby-없이-limit200을-쓴다) | 최신 채팅 누락 가능 | 정확성 | ❌ 200건 초과 시 |
 | [G-12](#g-12--베팅완료-버튼이-아무것도-확정하지-않는다) | 버튼이 장식 | UX | ⚠ |
+| [G-13](#g-13--스피드-상세의-팁-버튼이-토스트만-띄운다) | 스피드 팁 버튼 미구현 | 기능 미완 | ✅ 즉시 |
 
 **보안 전반**은 개별 항목으로 나열하지 않았습니다. 인증 없는 Firestore 규칙, 평문 비밀번호,
 클라이언트 결과 생성은 데모 아키텍처의 전제이며
@@ -36,7 +41,7 @@
 
 ## G-01 — 베팅의 `relatedRoundId`가 `rounds` 문서 ID와 일치하지 않는다
 
-**분류**: 데이터 정합성 · **근거**: [`shared/game-engine.js:120`](../../shared/game-engine.js#L120), [`avatar/app.js:752`](../../avatar/app.js#L752), [`avatar/app.js:1146`](../../avatar/app.js#L1146)
+**분류**: 데이터 정합성 · **근거**: [`shared/game-engine.js:148-158`](../../shared/game-engine.js#L148-L158), [`avatar/app.js:742`](../../avatar/app.js#L742), [`avatar/app.js:1124`](../../avatar/app.js#L1124)
 
 베팅 단계에서 클라이언트가 UUID를 하나 만들고, 그 값을 원장의 `relatedRoundId`로 씁니다.
 
@@ -58,8 +63,8 @@ async function writeRoundDoc(db, {...}){
 }
 ```
 
-`writeRoundDoc`은 새 ID를 반환하지만, 아바타([`avatar/app.js:828`](../../avatar/app.js#L828))도
-스피드([`avatar/app.js:1196`](../../avatar/app.js#L1196))도 반환값을 무시합니다.
+`writeRoundDoc`은 새 ID를 반환하지만, 아바타([`avatar/app.js:817`](../../avatar/app.js#L817))도
+스피드([`avatar/app.js:1169`](../../avatar/app.js#L1169))도 반환값을 무시합니다.
 
 ### 결과
 
@@ -88,7 +93,7 @@ await writeRoundDoc(db, { roundId: AVATAR.currentRoundId, ... });
 
 ## G-02 — 베팅 한도가 어디에서도 강제되지 않는다
 
-**분류**: 자금/규정 · **근거**: [`shared/game-engine.js:95`](../../shared/game-engine.js#L95), [`avatar/app.js:988`](../../avatar/app.js#L988), [`avatar/app.js:464`](../../avatar/app.js#L464)
+**분류**: 자금/규정 · **근거**: [`shared/game-engine.js:124`](../../shared/game-engine.js#L124), [`avatar/app.js:968`](../../avatar/app.js#L968), [`avatar/app.js:460`](../../avatar/app.js#L460)
 
 `tables/{id}`에 `betMin`/`betMax`가 있고 `members/{id}`에도 있습니다. 화면에는 표시됩니다
 (`{betMin} ~ {betMax}`). 하지만 **검사하는 코드가 하나도 없습니다.**
@@ -117,7 +122,7 @@ await writeRoundDoc(db, { roundId: AVATAR.currentRoundId, ... });
 
 ## G-03 — 아바타 자동베팅은 잔액을 확인하지 않는다
 
-**분류**: 자금 · **근거**: [`avatar/app.js:786-793`](../../avatar/app.js#L786-L793)
+**분류**: 자금 · **근거**: [`avatar/app.js:772-786`](../../avatar/app.js#L772-L786)
 
 ```js
 async function beginAvatarDealingPhase(){
@@ -155,7 +160,7 @@ async function beginAvatarDealingPhase(){
 
 ## G-04 — 가입 보너스는 "포인트"가 아니라 보유금으로 적립된다
 
-**분류**: 표시 불일치 · **근거**: [`shared/game-engine.js:76-79`](../../shared/game-engine.js#L76-L79), [`shared/i18n.js`](../../shared/i18n.js) (`suSignupDone` 키)
+**분류**: 표시 불일치 · **근거**: [`shared/game-engine.js:105-108`](../../shared/game-engine.js#L105-L108), [`shared/i18n.js`](../../shared/i18n.js) (`suSignupDone` 키)
 
 ```js
 await writeMemberLedgerEntry(db, {
@@ -193,7 +198,7 @@ await writeMemberLedgerEntry(db, {
 
 ## G-05 — `point_convert`에 대응하는 보유금 입금 항목이 없다
 
-**분류**: 자금 · **근거**: [`shared/game-engine.js:86-90`](../../shared/game-engine.js#L86-L90), [`partner-admin/app.js:1816`](../../partner-admin/app.js#L1816)
+**분류**: 자금 · **근거**: [`shared/game-engine.js:112-121`](../../shared/game-engine.js#L112-L121), [`partner-admin/app.js:1816`](../../partner-admin/app.js#L1816)
 
 `getPlayerBalance()`의 분기는 배타적입니다:
 
@@ -233,7 +238,7 @@ else balance += Number(r.amount)||0;
 
 ## G-06 — `tableBetVolume`이 Timestamp `createdAt`에서 TypeError를 던진다
 
-**분류**: 런타임 오류 · **근거**: [`shared/game-engine.js:237-246`](../../shared/game-engine.js#L237-L246), [`shared/cage-ui.js:207`](../../shared/cage-ui.js#L207), [`partner-admin/app.js:1720`](../../partner-admin/app.js#L1720)
+**분류**: 런타임 오류 · **근거**: [`shared/game-engine.js:280-289`](../../shared/game-engine.js#L280-L289), [`shared/cage-ui.js:207`](../../shared/cage-ui.js#L207), [`partner-admin/app.js:1720`](../../partner-admin/app.js#L1720)
 
 ```js
 function tableBetVolume(betLedgerRows){
@@ -260,8 +265,8 @@ function tableBetVolume(betLedgerRows){
 
 `tableBetVolume`은 두 곳에서 호출됩니다:
 
-- `renderAvatarLobbyGrid`([`avatar/app.js:427`](../../avatar/app.js#L427)) — 아바타 로비 카드 렌더링
-- `renderSpeedTileStats`([`avatar/app.js:969`](../../avatar/app.js#L969)) — 스피드 타일 통계
+- `renderAvatarLobbyGrid`([`avatar/app.js:424`](../../avatar/app.js#L424)) — 아바타 로비 카드 렌더링
+- `renderSpeedTileStats`([`avatar/app.js:953`](../../avatar/app.js#L953)) — 스피드 타일 통계
 
 두 호출 모두 `try/catch` 없이 `async` 함수 안에 있으므로, 예외는 처리되지 않은 Promise 거부로
 빠져나가고 렌더링이 중단됩니다. 로비가 스피너에서 멈추거나 그리드가 비어 보일 것으로 예상됩니다.
@@ -291,7 +296,7 @@ if (day === fmtDate(new Date())) today += amt;
 
 ## G-07 — 게임기록이 메모리에만 존재한다
 
-**분류**: 표시 · **근거**: [`avatar/app.js:20`](../../avatar/app.js#L20), [`avatar/app.js:113`](../../avatar/app.js#L113), [`avatar/app.js:171`](../../avatar/app.js#L171)
+**분류**: 표시 · **근거**: [`avatar/app.js:20`](../../avatar/app.js#L20), [`avatar/app.js:113`](../../avatar/app.js#L113), [`avatar/app.js:171`](../../avatar/app.js#L171), [`avatar/app.js:142`](../../avatar/app.js#L142)
 
 "게임기록" 모달과 "내 베팅내역" 패널이 읽는 것은 `MY_BET_LOG` 배열 하나입니다.
 
@@ -321,7 +326,7 @@ let MY_BET_LOG = [];   // 페이지 로드 시 빈 배열
 
 ## G-08 — 카지노 목록이 화면마다 다르다
 
-**분류**: 데이터 일관성 · **근거**: [`avatar/app.js:250`](../../avatar/app.js#L250), [`avatar/index.html:117`](../../avatar/index.html#L117)
+**분류**: 데이터 일관성 · **근거**: [`avatar/app.js:248`](../../avatar/app.js#L248), [`avatar/index.html:90`](../../avatar/index.html#L90)
 
 | 위치 | 목록 |
 | --- | --- |
@@ -347,7 +352,7 @@ let MY_BET_LOG = [];   // 페이지 로드 시 빈 배열
 
 ## G-09 — 아바타 바이인이 보유금에 반영되지 않는다
 
-**분류**: 자금 · **근거**: [`avatar/app.js:464-478`](../../avatar/app.js#L464-L478)
+**분류**: 자금 · **근거**: [`avatar/app.js:460-474`](../../avatar/app.js#L460-L474)
 
 아바타 신청 모달은 "바이인 금액"을 필수로 받습니다.
 
@@ -388,7 +393,7 @@ await db.collection('avatarRequests').doc(uuidv4()).set({
 
 ## G-10 — `avatarServiceRequests`에 소비자가 없다
 
-**분류**: 기능 미완 · **근거**: [`avatar/app.js:728-734`](../../avatar/app.js#L728-L734)
+**분류**: 기능 미완 · **근거**: [`avatar/app.js:718-724`](../../avatar/app.js#L718-L724)
 
 아바타 세션의 "슈 체인지 요청" 버튼이 문서를 씁니다.
 
@@ -421,7 +426,7 @@ toast(t('shoeChangeSent'));   // "요청이 전달되었습니다"
 
 ## G-11 — 채팅 쿼리가 `orderBy` 없이 `limit(200)`을 쓴다
 
-**분류**: 정확성 · **근거**: [`avatar/app.js:845-850`](../../avatar/app.js#L845-L850)
+**분류**: 정확성 · **근거**: [`avatar/app.js:834-839`](../../avatar/app.js#L834-L839)
 
 ```js
 AVATAR.chatUnsub = db.collection('chatMessages')
@@ -462,7 +467,7 @@ AVATAR.chatUnsub = db.collection('chatMessages')
 
 ## G-12 — "베팅완료" 버튼이 아무것도 확정하지 않는다
 
-**분류**: UX · **근거**: [`avatar/app.js:1103`](../../avatar/app.js#L1103)
+**분류**: UX · **근거**: [`avatar/app.js:1080`](../../avatar/app.js#L1080)
 
 ```js
 function confirmSpeedBetDetail(){ toast(t('betCompleteToast')); }
@@ -491,21 +496,65 @@ function confirmSpeedBetDetail(){ toast(t('betCompleteToast')); }
 
 ---
 
+## G-13 — 스피드 상세의 팁 버튼이 토스트만 띄운다
+
+**분류**: 기능 미완 · **근거**: [`avatar/app.js:1021`](../../avatar/app.js#L1021), [`avatar/app.js:661`](../../avatar/app.js#L661)
+
+두 화면의 스테이지 아이콘 줄이 같은 팁 아이콘을 쓰는데 동작이 다릅니다.
+
+```js
+// 아바타 세션 (avatar/app.js:661)
+<button onclick="openTipModal()" ...>       // 실제 팁 모달 → memberLedger 기록
+
+// 스피드 상세 (avatar/app.js:1021)
+<button onclick="toast(t('tipComingSoon'))" ...>   // "팁 기능은 준비 중입니다"
+```
+
+`tipComingSoon` i18n 키는 5개 언어가 모두 채워져 있습니다
+([`shared/i18n.js:158`](../../shared/i18n.js#L158)).
+
+### 결과
+
+스피드 테이블에서는 딜러에게 팁을 줄 수 없습니다. 아이콘이 아바타 세션과 똑같이 생겼으므로
+회원은 눌러 보기 전까지 차이를 알 수 없습니다.
+
+기능적으로 막힌 이유가 있습니다 — `submitTip()`이 `AVATAR.request.id`를 `relatedRequestId`로
+쓰는데 스피드에는 대응하는 요청 문서가 없습니다.
+
+### 고치는 법
+
+- **팁을 살린다면**: `submitTip()`이 `relatedRequestId` 없이도 동작하도록 고치고
+  (`relatedTableId`와 `relatedRoundId`만 기록), 스피드에서는 대상을 "딜러"로 고정합니다.
+- **아니면 아이콘을 감춘다**: 스피드 상세의 `.sd-stage-icons`에서 팁 버튼을 빼면 "눌렀는데
+  안 된다"는 경험 자체가 사라집니다.
+
+후자가 지금 상태에 정직하고, 전자가 실제 서비스에 가깝습니다.
+
+---
+
 ## 의도된 단순화 (결함 아님)
 
 혼동을 막기 위해 함께 적습니다. 아래는 데모 아키텍처의 전제이며 고칠 대상이 아닙니다.
 
 | 항목 | 설명 |
 | --- | --- |
-| 서드카드 룰 없음 | [룰과 로드맵](explanation-rules-roadmaps.md#서드카드-룰이-없다) 참고. 서버 이관 시 함께 구현 |
+| 무한 덱 · 복원 추출 | 슈를 구성하지 않음. [룰과 로드맵 > 덱 모델](explanation-rules-roadmaps.md#덱-모델--무한-덱-복원-추출) 참고 |
 | 클라이언트 결과 생성 | 서버 0대 제약의 직접적 귀결 |
 | 평문 비밀번호 · 인증 없음 | 데모 편의. `README.md`와 `firestore.rules` 주석에 명시됨 |
 | SMS 인증번호 화면 표시 | 실제 SMS 발송 없음. i18n 문구가 "실제 SMS는 발송되지 않습니다"로 안내 |
-| `hyper` / `dragontiger` 탭 | 로드맵 표시용 플레이스홀더 |
-| 즐겨찾기가 저장 안 됨 | 시각 토글만 구현 |
+| 즐겨찾기가 저장 안 됨 | 시각 토글만 구현 (헤더·카드 양쪽) |
 | 음소거 / 화면전환 버튼 | 실제 영상 스트림이 없어 연결 대상 없음 |
+| "라이브 화면"이 정지 이미지 | `shared/assets/table-live.jpg` 한 장을 CSS 배경으로 사용 |
+| 베팅 스팟의 `👤 0` / `₱ 0` | 다른 회원 참여 인원·베팅액. 집계 코드 없이 정적 표기 |
 | `chipStackHtml` 미사용 | 펠트 칩 비주얼 미구현. 함수만 준비됨 |
 | `balanceTotals`를 읽지 않음 | 설계된 단계적 전환의 1단계. [보유금 아키텍처 설계](../BALANCE_ARCHITECTURE_DESIGN.md) 참고 |
+
+### 목록에서 빠진 항목 (2026-08-15)
+
+| 예전 항목 | 지금 |
+| --- | --- |
+| ~~서드카드 룰 없음~~ | **구현되었습니다.** 푼토 반코 타블로 전체 (커밋 `9eec17d`) |
+| ~~`hyper` / `dragontiger` 탭~~ | **삭제되었습니다.** 게임 타입 탭은 3종 (커밋 `8a2246d`) |
 
 ---
 
@@ -528,6 +577,10 @@ firebase emulators:start --only hosting
 | G-07 | 베팅 몇 회 → 게임기록 확인 → 새로고침 → 다시 확인 |
 | G-03 | 아바타 승인 후 보유금보다 큰 지시로 세션 방치 |
 | G-01 | 게임 플레이 후 파트너 어드민 "게임라운드수정"에서 해당 라운드 취소 시도 |
+| G-13 | 스피드 테이블 열기 → 우상단 팁 아이콘 클릭 → 토스트 문구 확인 |
+
+서드카드 룰이 실제로 도는지 보려면 스피드 상세 화면에서 라운드를 여러 번 지켜보세요.
+카드가 4장이 아니라 5~6장 놓이는 라운드가 나오면 타블로가 동작하는 것입니다.
 
 ---
 

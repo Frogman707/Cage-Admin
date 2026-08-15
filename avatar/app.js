@@ -408,15 +408,16 @@ function handleAvatarCardClick(tableId){
 }
 // Centered pill (or bottom bar, when fully reserved) overlaid on the table
 // thumbnail showing the table's current availability at a glance.
-function avatarThumbOverlayHtml(tableId){
+function avatarCardStatusHtml(tableId){
   const {state} = avatarRequestStateForTable(tableId);
-  if (state==='active') return `<div class="thumb-overlay-btn reenter">↩ ${t('btnReenter')}</div>`;
-  if (state==='pending') return `<div class="thumb-overlay-btn pending">⏳ ${t('btnPending')}</div>`;
+  if (state==='active') return `<span class="card-status reenter">↩ ${t('btnReenter')}</span>`;
+  if (state==='pending') return `<span class="card-status pending">⏳ ${t('btnPending')}</span>`;
   const occ = avatarTableOccupancy(tableId);
-  if (occ.todayCount >= 3) return `<div class="thumb-overlay-bar">✏️ ${t('btnFullToday')}</div>`;
-  if (occ.activeOther) return `<div class="thumb-overlay-btn spectate">🎥 ${t('btnSpectate')}</div>`;
-  return `<div class="thumb-overlay-btn request">🎭 ${t('btnRequestAvatar')}</div>`;
+  if (occ.todayCount >= 3) return `<span class="card-status full">✏️ ${t('btnFullToday')}</span>`;
+  if (occ.activeOther) return `<span class="card-status spectate">🎥 ${t('btnSpectate')}</span>`;
+  return `<span class="card-status request">🎭 ${t('btnRequestAvatar')}</span>`;
 }
+
 function renderAvatarLobbyGrid(sortMode){
   if (!AVATAR.lobbyData) return;
   const grid = document.getElementById('lobbyGrid');
@@ -437,12 +438,11 @@ function renderAvatarLobbyGrid(sortMode){
     const isHot = streak.len >= 3;
     return `
     <div class="lobby-card" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="handleAvatarCardClick('${tb.id}')" title="${t('openTable')}">
-      <div class="thumb">
-        <div class="badge-type">AVATAR</div>
+      <div class="thumb"></div>
+      <div class="card-status-row">
+        ${avatarCardStatusHtml(tb.id)}
+        ${isHot ? `<span class="card-hot">🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}</span>` : ''}
         <button class="card-favorite" onclick="event.stopPropagation();toggleCardFavorite(this)" title="${t('favorites')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
-        <div class="felt"></div>
-        ${avatarThumbOverlayHtml(tb.id)}
-        ${isHot ? `<div class="hot-badge">🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}</div>` : ''}
       </div>
       <div class="info"><div class="name">${escapeHtml(tb.name)}</div><div class="limits">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div></div>
       <div class="mini-road br-grid">${renderBigRoad(cols, 4) || `<span class="hint" style="font-size:10px;">${t('noRecord')}</span>`}</div>

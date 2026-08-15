@@ -353,7 +353,10 @@ function renderDerivedRoad(marks, style){
 function paintRoad(el, html){
   if (!el) return;
   el.innerHTML = html;
-  const pin = () => { el.scrollLeft = el.scrollWidth; };
+  // a road on the board scrolls with its band (the band carries the ruling, so the two travel
+  // together); elsewhere the painted element is the scroller itself
+  const scroller = (el.closest && el.closest('.sd-road-band')) || el;
+  const pin = () => { el.scrollLeft = el.scrollWidth; scroller.scrollLeft = scroller.scrollWidth; };
   pin();
   // Two things can invalidate that first pin: another repaint later in the same tick can resize
   // the road (the tally counters sitting left of the Bead Plate widen as the shoe grows), and a

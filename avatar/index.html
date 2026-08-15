@@ -43,16 +43,16 @@ body{overflow:auto;}
 .speed-tile .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;}
 .speed-tile .head .name{font-weight:700;font-size:13px;color:var(--ink);}
 .speed-tile .head .shoe{font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);}
-.speed-mini-stage{
-  position:relative;height:68px;border-radius:10px;margin-bottom:9px;overflow:hidden;
-  display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(ellipse 130% 90% at 50% -10%, rgba(217,178,106,.12) 0%, transparent 55%),
-             radial-gradient(ellipse at 50% 25%, #0f4433 0%, #05140e 78%);
-  border:1px solid rgba(217,178,106,.18);
+/* the tile leads with the live still, bare - phase, score and countdown sit on their own
+   row beneath it, the same way the avatar cards read */
+.speed-thumb{
+  aspect-ratio:16/9;border-radius:10px;overflow:hidden;
+  background:url('../shared/assets/table-live.jpg') center/cover no-repeat;
 }
-.speed-mini-stage .phase-txt{font-size:11px;font-weight:700;color:var(--brass);letter-spacing:.3px;}
-.speed-mini-stage .score-txt{font-family:var(--mono);font-weight:800;font-size:15px;color:var(--ink);}
-.speed-timer{position:absolute;top:7px;right:8px;font-family:var(--mono);font-weight:800;font-size:12.5px;color:var(--brass);background:rgba(0,0,0,.55);backdrop-filter:blur(3px);border-radius:10px;padding:2px 8px;}
+.speed-tile-state{display:flex;align-items:center;gap:9px;padding:9px 1px;}
+.speed-tile-state .phase-txt{font-size:11px;font-weight:700;color:var(--brass);letter-spacing:.3px;}
+.speed-tile-state .score-txt{font-family:var(--mono);font-weight:800;font-size:12.5px;color:var(--ink);}
+.speed-tile-state .speed-timer{margin-left:auto;font-family:var(--mono);font-weight:800;font-size:12.5px;color:var(--brass);background:rgba(0,0,0,.4);border-radius:10px;padding:2px 9px;}
 .speed-mini-road{display:flex;gap:1px;overflow-x:hidden;margin-bottom:8px;}
 .speed-mini-road .br-col{gap:1px;}
 .speed-mini-road .br-cell{width:7px;height:7px;border-width:1.5px;}

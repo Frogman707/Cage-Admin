@@ -30,6 +30,49 @@ set -euo pipefail
 : "${PGAPPPASSWORD:=devonly}"
 export PGHOST PGPORT PGUSER PGDATABASE
 
+# -----------------------------------------------------------------------------
+# 대상 확인 — 이 스크립트는 **공개된 개발용 비밀번호로 로그인 역할 셋을 만들고**
+# ledger_app · identity_app · ledger_migrator 를 부여한다. 그 대상은 위에서 본
+# 대로 환경변수가 가리키는 곳이면 어디든이다. 셸에 남은 PGHOST 하나로 운영 DB에
+# 자격증명이 심어질 수 있다 — 키 하나 차이의 실수이고 되돌리기는 훨씬 비싸다.
+#
+# 그래서 "테스트 대상임이 분명한 곳" 이 아니면 아무것도 하지 않는다:
+#   1. 데이터베이스 이름이 기대값과 같아야 한다 (CAGE_TEST_DATABASE, 기본 cage)
+#   2. 호스트가 루프백이어야 한다 — 로컬 컨테이너와 CI 서비스 컨테이너가 둘 다 그렇다
+# 원격 테스트 DB 처럼 정당한 예외는 CAGE_ALLOW_TEST_ROLES=1 로 명시적으로 연다.
+# 조건을 넓히지 않는다 — 넓히는 순간 이 검사는 있으나 마나다.
+# -----------------------------------------------------------------------------
+: "${CAGE_TEST_DATABASE:=cage}"
+: "${CAGE_ALLOW_TEST_ROLES:=}"
+
+if [ "${CAGE_ALLOW_TEST_ROLES}" != "1" ]; then
+  refuse=""
+  if [ "${PGDATABASE}" != "${CAGE_TEST_DATABASE}" ]; then
+    refuse="PGDATABASE='${PGDATABASE}' 가 기대한 테스트 DB '${CAGE_TEST_DATABASE}' 가 아니다"
+  fi
+  case "${PGHOST}" in
+    localhost | 127.0.0.1 | ::1 | /*) ;;
+    *) refuse="${refuse:+${refuse}; }PGHOST='${PGHOST}' 가 루프백이 아니다" ;;
+  esac
+  if [ -n "${refuse}" ]; then
+    cat >&2 <<EOF
+거부: 테스트 로그인 역할을 만들 대상이 아니다 — ${refuse}
+
+이 스크립트는 공개된 개발용 비밀번호로 로그인 역할 3종(${PGAPPUSER} ·
+${PGIDUSER} · ${PGMIGUSER})을 만들고 ledger_app · identity_app · ledger_migrator
+를 부여한다. 운영 DB 에 실행하면 그 자체가 사고다.
+
+대상: ${PGUSER}@${PGHOST}:${PGPORT}/${PGDATABASE}
+
+의도한 대상이 맞다면 셋 중 하나를 한다:
+  PGDATABASE=cage            를 세운다 (기본 로컬 · CI 대상)
+  CAGE_TEST_DATABASE=<이름>  로 기대하는 테스트 DB 이름을 바꾼다
+  CAGE_ALLOW_TEST_ROLES=1    로 이 검사를 명시적으로 넘긴다 (원격 테스트 DB 등)
+EOF
+    exit 1
+  fi
+fi
+
 # psql 변수는 달러 인용 본문 안에서 치환되지 않는다. DO $$ ... :'app_user' ... $$ 로
 # 쓰면 콜론 토큰이 그대로 서버에 가서 죽는다. 확인한 사실이다:
 #   ERROR:  syntax error at or near ":"

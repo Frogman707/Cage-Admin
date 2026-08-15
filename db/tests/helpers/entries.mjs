@@ -52,8 +52,10 @@ export async function entryRowsOf(client, opResult) {
   return rows.map((r) => ({ ...r, amount_minor: BigInt(r.amount_minor) }));
 }
 
-// 04 의 절 표와 그대로 비교할 삼중항. 금액은 부호만 본다.
-export async function entriesOf(client, opResult) {
-  const rows = await entryRowsOf(client, opResult);
-  return rows.map((r) => [r.account_kind, r.sign, r.category]);
-}
+// 삼중항만 돌려주던 entriesOf 는 없앴다. 마지막 소비자(§1 입금)가 형제 절들과 같은
+// 모양 — entryRowsOf 한 번으로 삼중항과 금액을 함께 보는 모양 — 으로 옮겨 가면서
+// 아무도 쓰지 않게 됐다. 다시 만들지 않는다: 금액을 버리는 헬퍼가 있으면 그것만
+// 부르고 금액 단언을 빠뜨리는 절이 생긴다. 요청한 30000 대신 ±300 이 찍혀도
+// I1(차대 균형)은 통과하므로 삼중항만으로는 그 회귀를 못 잡는다
+// (harness-contract.md "posting-contract tests assert magnitudes, not only signs").
+// 삼중항이 필요하면 호출부에서 stored.map((r) => [r.account_kind, r.sign, r.category]) 한다.

@@ -49,6 +49,11 @@ PGPASSWORD=devonly npm run test:db        # 골든 테스트
 
 접속 파라미터는 표준 `PG*` 환경변수로 받는다. 기본값은 `db/scripts/apply.sh` 상단에 있다.
 
+`db:test-role` 은 **공개된 개발용 비밀번호로 로그인 역할 3종을 만들고** `ledger_app` · `identity_app` ·
+`ledger_migrator` 를 부여하므로, 대상이 테스트 DB 임이 분명할 때만 돈다 — `PGDATABASE` 가 `cage`
+(`CAGE_TEST_DATABASE` 로 변경 가능)이고 `PGHOST` 가 루프백이어야 한다. 위 명령과 CI 는 둘 다 이 조건을
+그대로 만족한다. 원격 테스트 DB 처럼 정당한 예외는 `CAGE_ALLOW_TEST_ROLES=1` 로 명시적으로 넘긴다.
+
 **확장은 필요 없다.** `uuidv7()` 는 PostgreSQL 18 내장, `sha256(bytea)` 는 11 이상 내장이다 (`pgcrypto` 불필요).
 
 ---

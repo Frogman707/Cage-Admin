@@ -49,7 +49,7 @@ test('R-12-02 · AC-12-2 04 §6-1 롤링 커미션 분개 집합', async () => {
     const result = rows[0].result;
 
     // p_commission_minor 로 우리가 계산한 expected 를 그대로 밀어 넣으므로,
-    // 위 entriesOf 단언만으로는 서버가 commission_rate_bp 를 실제로 적용해
+    // 아래 entryRowsOf 분개 단언만으로는 서버가 commission_rate_bp 를 실제로 적용해
     // 금액을 계산하는지 증명하지 못한다 — 서버가 요율을 무시하고 엉뚱한 값을
     // 냈어도 우리가 건넨 값이 그대로 찍혀 통과해 버린다. op_settle_commission
     // 은 v_g.commission_rate_bp 로 독립적으로 계산한 v_expected 를

@@ -30,7 +30,7 @@
 
 ```bash
 PGPASSWORD=devonly npm run db:apply     # 빈 DB에 db/schema 적용
-PGPASSWORD=devonly npm run db:test-role # 테스트용 로그인 역할 3종
+PGPASSWORD=devonly npm run db:test-role # 테스트용 로그인 역할 3종 (테스트 DB · 루프백에서만 실행된다)
 PGPASSWORD=devonly npm run test:db      # node --test --test-concurrency=1 "db/tests/**/*.test.js"
 ```
 

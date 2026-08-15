@@ -78,6 +78,15 @@ test('R-12-02 · AC-12-2 04 §14 기초 잔액이 opening_equity 로 균형을 �
     stored.map((r) => r.amount_minor),
     [777000n, -777000n]
   );
+  // 위 헤더가 길게 따진 결론 — 두 분개가 서로 다른 경로로 같은 branch 에 떨어진다는
+  // 것 — 을 실제로 단언한다. house_cash 쪽은 MAIN-ONLINE 의 home_branch 로,
+  // opening_equity 쪽은 거래 지점(p_branch)으로 정해지는데, 그 둘이 갈리면 app 역할
+  // 액터에게 한 행만 보이고 entryRowsOf 가 "분개가 저장되어 있지 않다" 가 아니라
+  // 한 행짜리 배열을 돌려준다 — 위 두 단언은 그 모양을 길이 차이로만 잡는다.
+  assert.deepEqual(
+    stored.map((r) => r.branch),
+    [BRANCH, BRANCH]
+  );
 });
 
 test('R-12-02 ledger_app 은 op_load_opening_balance 를 실행할 수 없다', async () => {

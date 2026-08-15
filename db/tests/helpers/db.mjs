@@ -31,6 +31,15 @@ const base = {
 };
 
 // 스키마 소유자. 픽스처 생성과 카탈로그 조회 전용.
+//
+// 이 모듈 밖에는 아직 수입자가 없다 — 나머지 셋(app · identity · migrator)은
+// db.test.js 가 current_user 배선을 직접 고정하는 데 쓰지만, 소유자 레인은
+// query() · asOwner() · withRollback() 세 래퍼로만 닿는다. 그래도 export 로
+// 남긴다: 원시 소유자 커넥션이 필요한 픽스처(a02 의 지점 프로비저닝 스케치가
+// ownerPool.connect() 를 그대로 쓴다 — docs/superpowers/plans 의 a02 계획)가
+// 곧 들어오고, 그때 이 파일을 다시 고치는 것보다 지금 열어 두는 편이 낫다.
+// **여기에 op_* 를 부르지 않는다** — 소유자는 RLS 와 테이블 GRANT 를 통째로
+// 우회하므로 검사해야 할 경계 바깥에서 검사하게 된다.
 export const ownerPool = new Pool({
   ...base,
   user: process.env.PGUSER ?? 'postgres',

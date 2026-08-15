@@ -67,12 +67,27 @@ jobs:
       # 종료 코드 0을 낸다 (확인한 사실). db/tests 디렉터리가 지워지거나 이름이
       # 바뀌거나 .gitignore 에 걸리면 잡이 테스트를 하나도 안 돌리고 초록이 된다 —
       # 바로 AC-12-6 이 말하는 조용한 스킵. 실제로 실행되는지 먼저 세어본다.
+      #
+      # 0 만 막으면 21개 중 20개가 지워져도 통과한다 — 하한을 실제 파일 수에 붙여
+      # 둔다. 파일을 지우거나 옮기는 것은 이 숫자를 함께 고치는 **의도된 변경**이어야
+      # 한다. 파일이 늘기만 하는 것은 막지 않는다.
+      #
+      # .test.mjs 도 함께 본다. 러너 글롭이 "db/tests/**/*.test.js" 라서 .mjs 로
+      # 이름 붙은 테스트는 조용히 안 돌고, 그 파일 안의 단언은 영원히 실행되지 않는다.
       - name: verify golden test files exist
+        env:
+          MIN_TEST_FILES: 19
         run: |
           count=$(find db/tests -name '*.test.js' | wc -l)
-          echo "found ${count} db/tests/**/*.test.js files"
-          if [ "$count" -eq 0 ]; then
-            echo "::error::no db/tests/**/*.test.js files found — npm run test:db would silently report 0 tests and exit 0"
+          echo "found ${count} db/tests/**/*.test.js files (floor ${MIN_TEST_FILES})"
+          if [ "$count" -lt "$MIN_TEST_FILES" ]; then
+            echo "::error::only ${count} db/tests/**/*.test.js files found, expected at least ${MIN_TEST_FILES} — files were deleted, renamed or gitignored. If the removal is intentional, lower MIN_TEST_FILES in this workflow."
+            exit 1
+          fi
+          stray=$(find db/tests -name '*.test.mjs')
+          if [ -n "$stray" ]; then
+            echo "::error::these files end in .test.mjs and are silently skipped by the runner glob \"db/tests/**/*.test.js\" — rename them to .test.js:"
+            echo "$stray"
             exit 1
           fi
 

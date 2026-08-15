@@ -443,56 +443,74 @@
    plain graph-paper card, contrasting with the dark felt/betting board above. */
 /* One square of the graph paper is one cell of every road: --rc is that square, and each
    mark is --rc minus a hairline gap so it sits inside its own square rather than drifting
-   across the ruling. background-position offsets the grid by the panel padding so a ruling
-   line lands exactly on the content origin, which is where the first mark starts. */
+   across the ruling. */
 .sd-graph-bg{
   --rc:18px;
   background-color:#fafafa;
-  background-image:linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
-  background-size:var(--rc) var(--rc);
-  background-position:14px 10px;
   border:1px solid #e4e4e4;border-radius:12px;color:#1a1a1a;
 }
 /* the board rules the bead side in bigger squares than the road side */
 /* The Bead Plate is exactly six rows and no more, so the panel ends with it rather than
    stretching to match the taller four-board road panel beside it. */
-.sd-tally{grid-area:tally;--rc:22px;align-self:start;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
+/* Measured off the operator's board: the Bead Plate is ruled in squares exactly twice the
+   road side's (49.4px against 24.7px in the reference), and a bead fills its square the same
+   way a Big Road ring fills the smaller one - so 32px + 4px gutter against 16px + 2px. */
+.sd-tally{grid-area:tally;--rc:36px;align-self:start;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
 .sd-tally-head{display:flex;justify-content:space-between;align-items:center;height:var(--rc);font-size:10.5px;color:#8a8a8a;flex-shrink:0;}
 .sd-tally-head b{color:#1a1a1a;font-family:var(--mono);font-weight:700;}
 .sd-tally-body{display:flex;flex:1;min-height:0;}
 .sd-tally-list{display:flex;flex-direction:column;flex-shrink:0;padding-right:14px;border-right:1px solid #e4e4e4;margin-right:14px;}
 .sd-tally-list .tl-row{display:flex;align-items:center;gap:6px;height:var(--rc);font-size:13px;font-weight:800;font-family:var(--mono);}
+/* the reference draws the P/B/T badges at about three quarters of a ruled square and the two
+   pair badges noticeably smaller again, a little over half */
 .sd-tally-list .tl-badge{
-  width:20px;height:20px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
-  display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;font-family:var(--sans);
+  width:27px;height:27px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:800;font-family:var(--sans);
 }
 .sd-tally-list .tl-row.player .tl-badge{background:var(--road-blue);} .sd-tally-list .tl-row.player b{color:var(--road-blue);}
 .sd-tally-list .tl-row.banker .tl-badge{background:var(--road-red);} .sd-tally-list .tl-row.banker b{color:var(--road-red);}
 .sd-tally-list .tl-row.tie .tl-badge{background:var(--road-green);} .sd-tally-list .tl-row.tie b{color:var(--road-green);}
 /* pair rows: grey bead carrying the road's own corner-dot marker, with the count tinted
    to the side that dot stands for. */
-.sd-tally-list .tl-row.pair .tl-badge{background:#b0b0b0;position:relative;}
+.sd-tally-list .tl-row.pair .tl-badge{width:20px;height:20px;background:#b0b0b0;position:relative;}
 .sd-tally-list .tl-row.pair .br-pair{width:6px;height:6px;}
 .sd-tally-list .tl-row.pair.player b{color:var(--road-blue);}
 .sd-tally-list .tl-row.pair.banker b{color:var(--road-red);}
-/* bead pitch == one graph square: 20px bead + 2px gutter = the 22px ruling */
-.sd-tally .bead-road{flex:1;gap:2px;}
-.sd-tally .bead-road .br-col{gap:2px;}
-.sd-tally .bead-road .bd-cell{width:20px;height:20px;font-size:11px;}
-.sd-tally .bead-road .br-pair{width:5px;height:5px;}
+/* bead pitch == one graph square: 32px bead + 4px gutter = the 36px ruling */
+.sd-tally .bead-road{flex:1;gap:4px;}
+.sd-tally .bead-road .br-col{gap:4px;}
+.sd-tally .bead-road .bd-cell{width:32px;height:32px;font-size:17px;}
+.sd-tally .bead-road .br-pair{width:8px;height:8px;}
 .sd-road{grid-area:road;--rc:18px;padding:10px 14px;display:flex;gap:10px;overflow:hidden;}
+/* The ruling is painted on the element that scrolls - each band, and the Bead Plate - with
+   background-attachment:local, so it travels with the marks. Painted on the panel around them
+   it stayed nailed in place while the board slid underneath, and a mark that started on its
+   ruling drifted across it the moment the board was swiped sideways.
+   The bands still read as one continuous sheet: their offsets (0/126/198/270) are all whole
+   multiples of the 18px square, so every band's rules fall exactly where a single panel-wide
+   grid would have put them. */
+.sd-road-band,.sd-tally .bead-road{
+  background-image:linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
+  background-size:var(--rc) var(--rc);
+  background-attachment:local;
+  background-position:0 0;
+}
+/* a rule on the content origin, which is below this band's separator padding */
+.sd-road-band + .sd-road-band{background-position:0 8px;}
 /* Three stacked bands, ruled off from each other: Big Road, then Big Eye Boy, then a band
    split down the middle for Small Road | Cockroach Road. */
 .sd-road-main{display:flex;flex-direction:column;flex:1;min-width:0;}
 /* Each band's rule + padding sums to a whole ruled square (9 above + 9 below = 18), so the
    marks in every band keep landing on the ruling instead of drifting a few pixels per band. */
-.sd-road-band{padding-bottom:9px;min-height:0;overflow:hidden;}
+.sd-road-band{padding-bottom:9px;min-height:0;overflow-x:auto;}
 .sd-road-band + .sd-road-band{border-top:1px solid #e4e4e4;padding-top:8px;}
 /* every band sizes to its own content: stretching them to share the leftover space made the
    leftover (not a whole square) land inside the offsets and knocked the lower bands off the ruling */
 .sd-road-band{flex:0 0 auto;}
-.sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;padding-bottom:2px;}
+/* the band is the scroller now (it has to be, to carry the ruling), so the grid inside it just
+   takes its natural width */
+.sd-road .br-grid{display:flex;gap:2px;flex-shrink:0;padding-bottom:2px;width:max-content;}
 .sd-road .br-col{gap:2px;}
 .sd-road .br-cell{width:16px;height:16px;border-width:2px;}
 .sd-road .br-cell.tie-only{width:10px;height:10px;}
@@ -501,7 +519,7 @@
    backgrounds it was designed for) - on this panel's white/graph-paper background that
    reads as a stray dark smudge above the ring, so give it a light pill here instead. */
 .sd-road .br-tie span{background:#fff;box-shadow:0 0 0 1px #fff;}
-.sd-road .derived-road-grid{overflow-x:auto;}
+.sd-road .derived-road-grid{overflow:visible;width:max-content;}
 /* half the Big Road mark, on half its pitch: two derived marks span one ruled square.
    The column gap has to be re-stated at this depth - `.sd-road .br-col` matches the derived
    columns too, at equal specificity but later in the file, so it otherwise wins with 2px. */

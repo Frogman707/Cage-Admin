@@ -5,6 +5,7 @@
 > **대상**: [01-current-system.md](01-current-system.md) 전량 (581줄)을 `ddl/` · [04](04-posting-rules.md) · [07](07-migration.md)과 대조
 > **상태**: 미해결 5건. **높음 2 · 중간 2 · 낮음 1** · 반증 6건
 > **선행 문서**: [1차](design-review.md) DR-01~23 · [2차](design-review-2.md) DR-24~37 · [3차](design-review-3.md) DR-38~49 · [4차](design-review-4.md) DR-50~60
+> **후속**: [design-review-6.md](design-review-6.md) — 6차 `DR-66`~`DR-72` (차단 1 · 높음 2 · 중간 3 · 낮음 1). **DR-62의 롤링 커미션 판정 일부 정정** — 수동 지급 흐름은 현행에 존재한다 (6차 §2). 여섯 문서 합계 **72건 · 차단 13**
 
 ---
 

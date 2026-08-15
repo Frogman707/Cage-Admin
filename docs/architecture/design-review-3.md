@@ -5,7 +5,7 @@
 > **대상**: `ddl/001` · `003` · `005` 전량 (886줄) + `009`~`011` op 함수 전수 조사
 > **상태**: 미해결 12건. **차단 2 · 높음 3 · 중간 5 · 낮음 2**
 > **선행 문서**: [design-review.md](design-review.md) DR-01~DR-23 · [design-review-2.md](design-review-2.md) DR-24~DR-37
-> **후속**: [design-review-4.md](design-review-4.md) — 4차 `DR-50`~`DR-60` (차단 1 · 높음 1 · 중간 5 · 낮음 4) · [design-review-5.md](design-review-5.md) — 5차 `DR-61`~`DR-65` (높음 2 · 중간 2 · 낮음 1). 다섯 문서 합계 **65건 · 차단 12**
+> **후속**: [design-review-4.md](design-review-4.md) — 4차 `DR-50`~`DR-60` (차단 1 · 높음 1 · 중간 5 · 낮음 4) · [design-review-5.md](design-review-5.md) — 5차 `DR-61`~`DR-65` (높음 2 · 중간 2 · 낮음 1) · [design-review-6.md](design-review-6.md) — 6차 `DR-66`~`DR-72` (차단 1). 여섯 문서 합계 **72건 · 차단 13**
 
 1차는 **원장 코어와 연산 함수**를, 2차는 **권한 · 대사 · 감사 계층**을 봤다. 이 문서는 남은
 **타입 정의 · 계정 체계 · 게임 도메인**(`001` · `003` · `005`)을 정독하고, 그 타입들이

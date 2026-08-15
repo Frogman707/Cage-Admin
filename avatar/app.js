@@ -558,18 +558,13 @@ function avatarScoreboardHtml(idSuffix){
 function renderAvatarRoad(){
   const el = document.getElementById('road-avatar'); if (!el) return;
   const cols = buildBigRoad(AVATAR.history.slice(-90), (AVATAR.pairFlags||[]).slice(-90));
-  el.innerHTML = renderBigRoad(cols, 6) || `<span class="hint">${t('noRecord')}</span>`;
-  el.scrollLeft = el.scrollWidth;
-  const bigeyeEl = document.getElementById('bigeye-avatar');
-  if (bigeyeEl) bigeyeEl.innerHTML = renderDerivedRoad(deriveBigEyeBoy(cols)) || `<span class="hint">${t('noRecord')}</span>`;
-  const smallEl = document.getElementById('smallroad-avatar');
-  if (smallEl) smallEl.innerHTML = renderDerivedRoad(deriveSmallRoad(cols), 'filled') || `<span class="hint">${t('noRecord')}</span>`;
-  const cockroachEl = document.getElementById('cockroach-avatar');
-  if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`;
-  const beadEl = document.getElementById('beadroad-avatar');
+  paintRoad(el, renderBigRoad(cols, 6) || `<span class="hint">${t('noRecord')}</span>`);
+  paintRoad(document.getElementById('bigeye-avatar'), renderDerivedRoad(deriveBigEyeBoy(cols)) || `<span class="hint">${t('noRecord')}</span>`);
+  paintRoad(document.getElementById('smallroad-avatar'), renderDerivedRoad(deriveSmallRoad(cols), 'filled') || `<span class="hint">${t('noRecord')}</span>`);
+  paintRoad(document.getElementById('cockroach-avatar'), renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`);
   // Bead Plate shows the recent window left-aligned, as the board does - grouping runs into
   // columns makes the full shoe far wider than the panel.
-  if (beadEl) beadEl.innerHTML = renderBeadRoad(AVATAR.history.slice(-BEAD_WINDOW), (AVATAR.pairFlags||[]).slice(-BEAD_WINDOW)) || `<span class="hint">${t('noRecord')}</span>`;
+  paintRoad(document.getElementById('beadroad-avatar'), renderBeadRoad(AVATAR.history.slice(-BEAD_WINDOW), (AVATAR.pairFlags||[]).slice(-BEAD_WINDOW)) || `<span class="hint">${t('noRecord')}</span>`);
 }
 function renderAvatarTally(){
   const listEl = document.getElementById('tallylist-avatar');
@@ -916,16 +911,11 @@ function renderSpeedDetailRoad(tableId){
   const history = SPEED.tstate[tableId].history;
   const pairFlags = SPEED.tstate[tableId].pairFlags || [];
   const cols = buildBigRoad(history.slice(-90), pairFlags.slice(-90));
-  const bigRoadEl = document.getElementById('road-detail');
-  if (bigRoadEl) bigRoadEl.innerHTML = renderBigRoad(cols, 6) || `<span class="hint">${t('noRecord')}</span>`;
-  const bigeyeEl = document.getElementById('bigeye-detail');
-  if (bigeyeEl) bigeyeEl.innerHTML = renderDerivedRoad(deriveBigEyeBoy(cols)) || `<span class="hint">${t('noRecord')}</span>`;
-  const smallEl = document.getElementById('smallroad-detail');
-  if (smallEl) smallEl.innerHTML = renderDerivedRoad(deriveSmallRoad(cols), 'filled') || `<span class="hint">${t('noRecord')}</span>`;
-  const cockroachEl = document.getElementById('cockroach-detail');
-  if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`;
-  const beadEl = document.getElementById('beadroad-detail');
-  if (beadEl) beadEl.innerHTML = renderBeadRoad(history.slice(-BEAD_WINDOW), pairFlags.slice(-BEAD_WINDOW)) || `<span class="hint">${t('noRecord')}</span>`;
+  paintRoad(document.getElementById('road-detail'), renderBigRoad(cols, 6) || `<span class="hint">${t('noRecord')}</span>`);
+  paintRoad(document.getElementById('bigeye-detail'), renderDerivedRoad(deriveBigEyeBoy(cols)) || `<span class="hint">${t('noRecord')}</span>`);
+  paintRoad(document.getElementById('smallroad-detail'), renderDerivedRoad(deriveSmallRoad(cols), 'filled') || `<span class="hint">${t('noRecord')}</span>`);
+  paintRoad(document.getElementById('cockroach-detail'), renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`);
+  paintRoad(document.getElementById('beadroad-detail'), renderBeadRoad(history.slice(-BEAD_WINDOW), pairFlags.slice(-BEAD_WINDOW)) || `<span class="hint">${t('noRecord')}</span>`);
   renderSpeedDetailTally(tableId);
 }
 function renderSpeedDetailTally(tableId){

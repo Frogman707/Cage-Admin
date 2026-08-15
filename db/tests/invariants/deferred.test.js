@@ -4,10 +4,11 @@
 //      의도대로 실패한다. R-01-50 금지의 반대편 짝이다.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { expectCommitFailure, query, uniq, closePool } from '../helpers/db.mjs';
+import { expectCommitFailure, withRollback, query, uniq, closePool } from '../helpers/db.mjs';
 import { issueStepUp } from '../fixtures/actors.mjs';
 import { createActor, withActor } from '../fixtures/scenario.mjs';
-import { openAccount, fundedAccount } from '../fixtures/members.mjs';
+import { openAccount } from '../fixtures/members.mjs';
+import { entryRowsOf } from '../helpers/entries.mjs';
 
 after(closePool);
 
@@ -36,8 +37,13 @@ test('지연 제약 트리거가 4개 이상 실재한다', async () => {
 });
 
 test('R-01-52 · AC-59-3 SET CONSTRAINTS ALL IMMEDIATE 후 다중 분개 거래가 실패한다', async () => {
-  // 이것이 R-01-50 이 금지하는 이유다. 봉인 트리거가 분개 삽입 직후에 돌아
-  // 아직 해시가 채워지지 않은 거래를 미봉인으로 판정한다.
+  // 이것이 R-01-50 이 금지하는 이유다. 봉인 트리거(transactions_sealed)는
+  // `AFTER INSERT ON ledger.transactions` 다 — entries 가 아니라 거래 행 자체의
+  // INSERT 직후에 돈다(004_ledger.sql:559-562). IMMEDIATE 아래에서는 그 INSERT
+  // 문이 끝나자마자 발화하므로, 그 시점엔 entries 가 아직 하나도 삽입되지 않았고
+  // 해시도 계산되지 않았다 — 해시는 entries 를 다 넣은 뒤에야 계산된다
+  // (008_post_transaction.sql:483-499). 그래서 IMMEDIATE 아래에서는 항상,
+  // 예외 없이 미봉인으로 걸린다.
   //
   // 이 테스트는 다른 모든 expectCommitFailure 사용과 정반대 모양이다. 정상
   // 사용에서는 fn(호출) 이 성공하고 COMMIT 만 실패해야 "지연 제약" 이 증명된다
@@ -90,10 +96,44 @@ test('R-01-52 · AC-59-3 SET CONSTRAINTS ALL IMMEDIATE 후 다중 분개 거래�
 });
 
 test('정상 경로는 SET CONSTRAINTS 없이 커밋된다', async () => {
-  // R-01-52 와 같은 호출 순서를 SET CONSTRAINTS 없이 돌린다 — 위 실패가
-  // 그 구문 때문이지 다른 어떤 구조적 결함 때문이 아니라는 대조군이다.
-  await withActor({}, async (client, ctx) => {
-    const acct = await fundedAccount(client, ctx, { amount: 1000 });
-    assert.ok(acct, '입금까지 끝난 계좌 코드가 돌아와야 한다 — fundedAccount 는 오류를 삼키지 않는다');
+  // R-01-52 와 같은 호출 순서(계좌 개설 → 스텝업 → 입금)를 SET CONSTRAINTS 없이
+  // 돌린다 — 위 실패가 그 구문 때문이지 다른 어떤 구조적 결함 때문이 아니라는
+  // 대조군이다. fundedAccount 를 쓰지 않고 op_deposit 을 직접 불러 결과를
+  // 잡는다 — 반환된 external_id 로 아래에서 실제 저장된 행을 다시 찾기 위해서다.
+  const { staffId, result } = await withActor({}, async (client, ctx) => {
+    const acct = await openAccount(client, ctx);
+    const token = await issueStepUp({
+      staffId: ctx.staffId,
+      deviceId: ctx.device,
+      scope: 'ledger.deposit',
+      method: 'totp',
+    });
+    const { rows } = await client.query('SELECT ledger.op_deposit($1, $2, $3, $4, $5, $6, $7) AS result', [
+      uniq('dep'),
+      ctx.staffId,
+      token,
+      ctx.device,
+      ctx.branch,
+      acct,
+      1000,
+    ]);
+    return { staffId: ctx.staffId, result: rows[0].result };
   });
+
+  // 계좌 코드 문자열 같은 상수를 assert.ok 하면 절대 실패할 수 없는 단언이 되어
+  // 이 테스트의 진짜 내용(입금이 실제로 커밋됐다)을 아무것도 증명하지 못한다.
+  // 커밋된 분개를 앱 역할로 다시 읽어 두 다리가 실제로 기록됐음을 본다 — 순수
+  // 조회라 withRollback 을 쓴다.
+  const rows = await withRollback((client) => entryRowsOf(client, result), { staffId });
+  assert.deepEqual(
+    rows.map((r) => [r.account_kind, r.sign, r.category]),
+    [
+      ['house_cash', 1, 'deposit_cash'],
+      ['member_deposit', -1, 'deposit_cash'],
+    ]
+  );
+  assert.deepEqual(
+    rows.map((r) => r.amount_minor),
+    [1000n, -1000n]
+  );
 });

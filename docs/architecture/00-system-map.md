@@ -189,8 +189,8 @@
 | 파트너 | `submitRoundCancel` — 베팅 환불 | `:1304` | `correction` |
 | 파트너 | `submitRoundCancel` — 페이아웃 회수 | `:1307` | `correction` |
 | 플레이어 | `playerSignup` 가입 보너스 | `shared/game-engine.js:82` | `deposit` |
-| 플레이어 | `placeBet` | `:96` | `bet` |
-| 플레이어 | `settleBet` | `:111` | `payout` |
+| 플레이어 | `placeBet` | `:124` | `bet` |
+| 플레이어 | `settleBet` | `:131` | `payout` |
 | 플레이어 | 팁 | `avatar/app.js:706` | `avatar_tip` / `dealer_tip` |
 
 예외가 하나 있다. **데모 시드(`seedDemoData`, `partner-admin/app.js:1724`)만 이 함수를 거치지

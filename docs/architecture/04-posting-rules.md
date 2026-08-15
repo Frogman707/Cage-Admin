@@ -47,7 +47,7 @@
 
 ## 1. 입금 — `deposit`
 
-**현행:** `_doProcessIo()` IN 분기 (`index.html:6569`) + `applyAccountTransaction` MAIN 미러 (`:6463-6467`)
+**현행:** `_doProcessIo()` IN 분기 (`index.html:6595`) + `applyAccountTransaction` MAIN 미러 (`:6591`)
 
 | 계정 | 부호 | 금액 | `category` |
 |---|---|---|---|
@@ -442,7 +442,7 @@ WHERE e.account_id = :chips_outstanding_account_id;
 
 ## 9. 게임 취소 — `game_cancel`
 
-**현행:** `cancelGame()` (`index.html:6953`) — 계좌 환불 후 **게임 문서와 롤링 이벤트를 삭제**한다 (`deleteGameDoc`, `:4529-4537`)
+**현행:** `cancelGame()` (`index.html:6953`) — 계좌 환불 후 **게임 문서와 롤링 이벤트를 삭제**한다 (`deleteGameDoc`, `:4613`)
 
 **신규: 삭제하지 않는다. 역분개한다.**
 
@@ -726,7 +726,7 @@ CREATE TABLE cage.main_cage_events (
 | 실사 카운트 입력 | `cageConfig.*BreakdownCounts` | `cage.balancing_counts` (차액 발생 시에만 11절 거래) |
 | 계좌 개설 · KYC 수정 | — | `ledger.parties` · `ledger.member_profiles` |
 | 계좌 차단 · 해지 | `applyBlock`·`unblock` | `ledger.accounts.status` + 상태 이력 ([`spec/08`](../spec/08-account-lifecycle.md)) |
-| 컨시어지 예약 (호텔·차량·항공) | `index.html:8781`·`8843`·`8894` | `concierge` 스키마 ([`spec/07`](../spec/07-concierge.md)) |
+| 컨시어지 예약 (호텔·차량·항공) | `index.html:8781`·`8830`·`8883` | `concierge` 스키마 ([`spec/07`](../spec/07-concierge.md)) |
 | 공지 · 문의 · 채팅 | `partner-admin/` 고객센터 7화면 | `support` 스키마 ([`spec/11`](../spec/11-chat-notice-support.md)) |
 | 텔레그램 알림 발송 | `functions/index.js` | `notify` 스키마 ([`spec/09`](../spec/09-notifications.md)) |
 | 이벤트 활성화 · 종료 | `activateEvent` (`index.html:9003`) | `cage.bonus_event_activations` (§6-2) |

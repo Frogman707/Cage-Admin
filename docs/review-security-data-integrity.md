@@ -248,7 +248,7 @@ await db.collection('memberLedger').doc(uuidv4()).set({
 두 가지 결함이 겹칩니다.
 
 - **TOCTOU**: 존재 확인과 쓰기가 분리되어 있어 동시 가입 시 기존 회원 문서를 덮어씁니다. 덮어쓴 쪽이 그 ID의 원장 전부를 상속합니다
-- **카테고리 오류**: 메모는 "포인트"인데 `category:'deposit'`입니다. `shared/game-engine.js:106`의 분기가 `point_earn` / `point_convert`만 포인트로 취급하므로, 이 100,000은 포인트가 아니라 **현금성 보유금**입니다
+- **카테고리 오류**: 메모는 "포인트"인데 `category:'deposit'`입니다. `shared/game-engine.js:117`의 분기가 `point_earn` / `point_convert`만 포인트로 취급하므로, 이 100,000은 포인트가 아니라 **현금성 보유금**입니다
 
 인증 없는 가입과 결합하면 계정 수 × 100,000의 무한 발행입니다.
 

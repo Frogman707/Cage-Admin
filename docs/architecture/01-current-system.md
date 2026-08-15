@@ -332,7 +332,7 @@ rollingEvents/{id}
 | `'working-chip'` | `seedRollingFromBuyin` `index.html:6859` | X |
 | `'mid-settle'` | `_doConfirmMidSettle` `index.html:7348` | X |
 | `'game-end'` | `_doConfirmGameEnd` `index.html:7566` | X |
-| `'month-settle-reset'` | 월정산 `index.html:8280` | X |
+| `'month-settle-reset'` | 월정산 `index.html:8419` | X |
 
 ```js
 // index.html:4553 — 지점 롤링 누계 판정
@@ -666,8 +666,8 @@ staff/{id}   { id, name, pin, dt, totpSecret }     ← 스키마 동일
 | 파트너 | `submitRoundCancel` — 베팅 환불 | `:1304` | `correction` |
 | 파트너 | `submitRoundCancel` — 페이아웃 회수 | `:1307` | `correction` |
 | 플레이어 | `playerSignup` 가입 보너스 | `shared/game-engine.js:82` | `deposit` |
-| 플레이어 | `placeBet` | `:96` | `bet` |
-| 플레이어 | `settleBet` | `:111` | `payout` |
+| 플레이어 | `placeBet` | `:124` | `bet` |
+| 플레이어 | `settleBet` | `:131` | `payout` |
 | 플레이어 | 팁 | `avatar/app.js:706` | `avatar_tip` / `dealer_tip` |
 
 **데모 시드(`seedDemoData`, `partner-admin/app.js:1724`)만 이 함수를 거치지 않고** `batch.set()`으로 직접 쓴다 — 시드 데이터는 `balanceTotals`에 반영되지 않는다.

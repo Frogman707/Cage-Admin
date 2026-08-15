@@ -35,7 +35,7 @@
 **멱등키:** `bet:{round_id}:{member_code}:{bet_type}` — 자연키다.
 ```
 
-두 표 뒤에 놓여 있고 이름은 `bet:`이다. 베팅과 페이아웃은 **서로 다른 시점의 서로 다른 거래**다 — 코드에서도 딜링 단계의 `placeBet`([shared/game-engine.js:124](../../shared/game-engine.js#L124))과 결과 단계의 `settleBet`([:102](../../shared/game-engine.js#L102))로 나뉘어 있다.
+두 표 뒤에 놓여 있고 이름은 `bet:`이다. 베팅과 페이아웃은 **서로 다른 시점의 서로 다른 거래**다 — 코드에서도 딜링 단계의 `placeBet`([shared/game-engine.js:124](../../shared/game-engine.js#L124))과 결과 단계의 `settleBet`([:131](../../shared/game-engine.js#L131))로 나뉘어 있다.
 
 멱등키 공간이 전역이라 이 둘은 충돌한다:
 

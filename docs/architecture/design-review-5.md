@@ -48,7 +48,7 @@
 | 필드 | 증가 지점 | 출처 값 |
 |---|---|---|
 | `nnChipInShift` | `index.html:7382` | `nn.deposit` |
-| `nnCashoutShift` | `index.html:7267` | `nn.cashout` |
+| `nnCashoutShift` | `index.html:7396` | `nn.cashout` |
 | `nnMarkerShift` | `index.html:7400` | `nn.marker` |
 
 **서로소다.** 정산 입력 `nn { deposit, cashout, marker, working }`의 세 필드가 각각 자기 카운터로 간다.
@@ -327,7 +327,7 @@ M5가 이렇게 쓴다 — "중복 거래 가능성 · 호출 시점 생성 ID �
 
 | 도메인 | DR-38 선택 | 근거 |
 |---|---|---|
-| 온라인 베팅 (`bet`·`payout`) | **(a) op 추가** | 현행 구현 있음 — `shared/game-engine.js:124`·`:111` |
+| 온라인 베팅 (`bet`·`payout`) | **(a) op 추가** | 현행 구현 있음 — `shared/game-engine.js:124`·`:131` |
 | 포인트 (`point_earn`·`point_convert`) | **(a) op 추가** | 현행 구현 있음 — 01 §13-3에서 category 확인 |
 | 마이그레이션 (`opening_balance`) | **(a) op 추가** | 07이 요구한다. 없으면 이관 자체가 불가 |
 | **파트너 쉐어** (`share_accrue`·`share_settle`) | **(c) 타입 삭제** | **현행 구현 없음.** DR-62 |

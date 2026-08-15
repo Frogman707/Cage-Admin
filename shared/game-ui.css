@@ -2,7 +2,8 @@
    CAGE ADMIN 5.0 — shared player-facing game UI
    Premium live-casino visual language (Evolution-style felt,
    chips, roadmap, dealing) built from CSS gradients. Lobby thumbnails
-   use assets/table-live.jpg (SkyEagles-owned live-table still) as a
+   use assets/table-live.jpg (SkyEagles-owned live-table still, cropped free of the
+   operator's own on-screen chrome so ours doesn't double up) as a
    photo backdrop; the active table stage stays a pure CSS/SVG felt so
    the animated card-dealing overlay stays legible.
    Used by /avatar on top of cage-ui.css.
@@ -68,7 +69,7 @@
   background:
     radial-gradient(ellipse 120% 90% at 50% -10%, rgba(217,178,106,.14) 0%, transparent 55%),
     linear-gradient(180deg, rgba(5,20,14,.1) 0%, rgba(5,20,14,.5) 100%),
-    url('assets/table-live.jpg') 22% 35%/cover no-repeat;
+    url('assets/table-live.jpg') center/cover no-repeat;
   display:flex;align-items:center;justify-content:center;
 }
 .lobby-card .thumb .felt{
@@ -141,7 +142,7 @@
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   background:
     linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.26)),
-    url('assets/table-live.jpg') 22% 32%/cover no-repeat;
+    url('assets/table-live.jpg') center/cover no-repeat;
 }
 .sd-stage-top{position:absolute;top:14px;left:56px;right:64px;display:flex;align-items:center;gap:10px;z-index:2;flex-wrap:wrap;}
 .sd-type-badge{background:rgba(4,20,30,.7);backdrop-filter:blur(4px);border:1px solid #3fd0e8;color:#3fd0e8;border-radius:14px;padding:5px 16px;font-weight:800;font-size:11.5px;letter-spacing:1px;flex-shrink:0;}

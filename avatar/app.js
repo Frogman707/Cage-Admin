@@ -531,11 +531,12 @@ function avatarPreviewShellHtml(state){
     </div>
   </div>`;
 }
-// Shared by the avatar preview/active-session shells and the Speed detail screen -
-// all three show the same bottom scoreboard split: bead plate + P/B/T tally on the
-// left, Big Road + Big Eye Boy/Small Road/Cockroach Road + a P/B legend rail on the
-// right, matching the real casino monitor layout. `idSuffix` picks the element ids
-// (only one of 'avatar'/'detail' is ever mounted in its view at a time).
+// Shared by the avatar preview/active-session shells and the Speed detail screen. Mirrors
+// the board's own arrangement: tally + Bead Plate (육매) on the left, and on the right three
+// horizontal bands - Big Road (본매), then Big Eye Boy (빅아이), then a band split down the
+// middle holding Small Road (스몰로드) and Cockroach Road (카카로치) - with the P/B legend
+// rail running the full height of the right edge. `idSuffix` picks the element ids (only one
+// of 'avatar'/'detail' is ever mounted in its view at a time).
 function avatarScoreboardHtml(idSuffix){
   return `
       <div class="sd-tally sd-graph-bg">
@@ -546,19 +547,17 @@ function avatarScoreboardHtml(idSuffix){
         </div>
       </div>
       <div class="sd-road sd-graph-bg">
-        <div class="br-grid" id="road-${idSuffix}"></div>
-        <div class="sd-road-body">
-          <div class="sd-road-roads">
-            <div class="sd-road-ring-roads">
-              <div class="derived-road-grid" id="bigeye-${idSuffix}"></div>
-              <div class="derived-road-grid" id="smallroad-${idSuffix}"></div>
-            </div>
-            <div class="derived-road-grid diagonal-road" id="cockroach-${idSuffix}"></div>
+        <div class="sd-road-main">
+          <div class="sd-road-band"><div class="br-grid" id="road-${idSuffix}"></div></div>
+          <div class="sd-road-band"><div class="derived-road-grid" id="bigeye-${idSuffix}"></div></div>
+          <div class="sd-road-band sd-road-split">
+            <div class="derived-road-grid" id="smallroad-${idSuffix}"></div>
+            <div class="derived-road-grid" id="cockroach-${idSuffix}"></div>
           </div>
-          <div class="sd-road-legend-rail">
-            <div class="rail-badge player">P<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>
-            <div class="rail-badge banker">B<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>
-          </div>
+        </div>
+        <div class="sd-road-legend-rail">
+          <div class="rail-badge player">P<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>
+          <div class="rail-badge banker">B<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>
         </div>
       </div>`;
 }

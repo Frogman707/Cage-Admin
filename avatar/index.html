@@ -33,8 +33,7 @@ body{overflow:auto;}
 .picker-card .name{font-weight:800;font-size:18px;color:var(--ink);letter-spacing:.6px;}
 .picker-card .desc{font-size:12px;color:var(--ink-faint);margin-top:7px;line-height:1.55;}
 /* speed lobby's fixed bottom chip tray - only shown while playing speed */
-.chip-tray-fixed{position:fixed;left:0;right:0;bottom:0;z-index:30;background:linear-gradient(0deg,rgba(15,32,56,.97),rgba(15,32,56,.9));backdrop-filter:blur(10px);border-top:1px solid var(--brass-dim);padding:12px 20px;display:flex;justify-content:center;box-shadow:0 -8px 24px -8px rgba(0,0,0,.5);}
-.speed-wrap{padding:20px 20px 110px;max-width:1500px;margin:0 auto;}
+.speed-wrap{padding:20px 20px 60px;max-width:1500px;margin:0 auto;}
 .speed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
 .speed-tile{
   background:linear-gradient(165deg,var(--panel-hi) 0%,var(--panel) 55%);border:1px solid var(--line);border-radius:14px;
@@ -54,9 +53,6 @@ body{overflow:auto;}
 .speed-mini-stage .phase-txt{font-size:11px;font-weight:700;color:var(--brass);letter-spacing:.3px;}
 .speed-mini-stage .score-txt{font-family:var(--mono);font-weight:800;font-size:15px;color:var(--ink);}
 .speed-timer{position:absolute;top:7px;right:8px;font-family:var(--mono);font-weight:800;font-size:12.5px;color:var(--brass);background:rgba(0,0,0,.55);backdrop-filter:blur(3px);border-radius:10px;padding:2px 8px;}
-.speed-bets{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:9px;}
-.speed-bets .bet-spot{padding:9px 4px;border-radius:10px;}
-.speed-bets .bet-spot .label{font-size:12.5px;}
 .speed-mini-road{display:flex;gap:1px;overflow-x:hidden;margin-bottom:8px;}
 .speed-mini-road .br-col{gap:1px;}
 .speed-mini-road .br-cell{width:7px;height:7px;border-width:1.5px;}
@@ -175,7 +171,6 @@ body{overflow:auto;}
       <div class="card speed-mybets"><h3 data-i18n="myBetHistory">내 베팅내역</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
     </div>
   </div>
-  <div class="chip-tray-fixed" id="chipTray" style="display:none;"></div>
 </div>
 
 <div class="modal-bg" id="modal-history"><div class="modal modal-sheet">

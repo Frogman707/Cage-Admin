@@ -221,7 +221,6 @@ function showView(name){
   });
   document.getElementById('changeGameBtn').style.display = name==='viewPicker' ? 'none' : 'inline-block';
   document.getElementById('avatarLobbyBtn').style.display = name==='viewAvatarTable' ? 'inline-block' : 'none';
-  document.getElementById('chipTray').style.display = name==='viewSpeedLobby' ? 'flex' : 'none';
 }
 function showPicker(){
   stopAllLoops();
@@ -240,7 +239,6 @@ async function chooseSpeed(){
   MODE = 'speed';
   LOBBY_CASINO_FILTER = 'ALL'; LOBBY_SEARCH = '';
   showView('viewSpeedLobby');
-  renderChipTray();
   await loadSpeedTables();
   renderMyBetHistory();
   SPEED.tick = setInterval(tickAllSpeedTables, 1000);
@@ -317,7 +315,6 @@ function onLangChange(){
       goAvatarLobby();
     }
   } else if (MODE==='speed'){
-    renderChipTray();
     const toolbar = document.getElementById('speedToolbar');
     if (toolbar && document.getElementById('viewSpeedLobby').style.display !== 'none') toolbar.innerHTML = casinoTabsHtml() + gameTypeTabsHtml('speed') + `<div class="lobby-toolbar">${lobbySearchHtml()}</div>`;
     Object.keys(SPEED.tables||{}).forEach(id=>{ renderSpeedTileStats(id); setSpeedTilePhaseText(id, SPEED.tstate[id].phase==='betting'?t('phaseBetting'):SPEED.tstate[id].phase==='dealing'?t('phaseDealing'):''); });
@@ -854,12 +851,7 @@ async function sendAvatarChat(){
    ============================================================ */
 let SPEED = { tables:{}, tstate:{}, allBets:[], tick:null, detailTableId:null };
 
-function renderChipTray(){
-  document.getElementById('chipTray').innerHTML = `
-    <div class="chip-tray" style="border:none;background:none;">
-      ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})"><span class="cv">${chipLabel(v)}</span></div>`).join('')}
-    </div>`;
-}
+
 async function loadSpeedTables(){
   const grid = document.getElementById('speedGrid');
   const toolbar = document.getElementById('speedToolbar');
@@ -900,11 +892,6 @@ function speedTileHtml(tb){
     <div id="hotbadge-${tb.id}"></div>
     <div class="speed-mini-stage" id="stage-${tb.id}"><div class="phase-txt" id="phase-${tb.id}">${t('phaseBetting')}</div><div class="speed-timer" id="timer-${tb.id}">15</div></div>
     <button class="btn btn-gold btn-sm btn-block" style="margin-bottom:9px;" onclick="event.stopPropagation();openSpeedTableDetail('${tb.id}')" data-i18n="openTable">${t('openTable')}</button>
-    <div class="speed-bets">
-      <div class="bet-spot player" id="spot-${tb.id}-player" onclick="event.stopPropagation();placeSpeedBet('${tb.id}','player')"><div class="label">P</div><div class="odds">1:1</div><div class="my-bet" id="mybet-${tb.id}-player"></div></div>
-      <div class="bet-spot tie" id="spot-${tb.id}-tie" onclick="event.stopPropagation();placeSpeedBet('${tb.id}','tie')"><div class="label">T</div><div class="odds">8:1</div><div class="my-bet" id="mybet-${tb.id}-tie"></div></div>
-      <div class="bet-spot banker" id="spot-${tb.id}-banker" onclick="event.stopPropagation();placeSpeedBet('${tb.id}','banker')"><div class="label">B</div><div class="odds">.95:1</div><div class="my-bet" id="mybet-${tb.id}-banker"></div></div>
-    </div>
     <div class="speed-mini-road" id="road-${tb.id}"></div>
     <div class="speed-tile-stats" id="stats-${tb.id}"></div>
   </div>`;
@@ -961,18 +948,14 @@ function renderSpeedTileStats(tableId){
   const badgeEl = document.getElementById('hotbadge-'+tableId);
   if (badgeEl) badgeEl.innerHTML = streak.len >= 3 ? `<div class="speed-hot-badge">🔥 ${streak.len}연속</div>` : '';
 }
+// Betting lives only inside the table now, so this paints the detail screen's spots alone.
 function renderSpeedTileBets(tableId){
+  if (SPEED.detailTableId!==tableId) return;
   const s = SPEED.tstate[tableId];
-  ['player','tie','banker'].forEach(k=>{
-    const el = document.getElementById(`mybet-${tableId}-${k}`);
+  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+    const el = document.getElementById(`mybet-detail-${k}`);
     if (el) el.textContent = s.bets[k] ? fmtNum(s.bets[k]) : '';
   });
-  if (SPEED.detailTableId===tableId){
-    ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
-      const del = document.getElementById(`mybet-detail-${k}`);
-      if (del) del.textContent = s.bets[k] ? fmtNum(s.bets[k]) : '';
-    });
-  }
 }
 function placeSpeedBet(tableId, type){
   const s = SPEED.tstate[tableId];
@@ -980,7 +963,6 @@ function placeSpeedBet(tableId, type){
   let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
   if (STATE.balance - locked < STATE.selectedChip){ toast(t('insufficientBalance'), true); return; }
   s.bets[type] += STATE.selectedChip;
-  document.getElementById(`spot-${tableId}-${type}`)?.classList.add('selected');
   if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${type}`)?.classList.add('selected');
   renderSpeedTileBets(tableId);
   projectSpeedBalance();
@@ -1083,7 +1065,6 @@ function clearSpeedDetailBets(tableId){
   s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
     document.getElementById(`spot-detail-${k}`)?.classList.remove('selected');
-    document.getElementById(`spot-${tableId}-${k}`)?.classList.remove('selected');
   });
   renderSpeedTileBets(tableId);
   projectSpeedBalance();
@@ -1095,7 +1076,7 @@ function repeatLastSpeedBetDetail(tableId){
   let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
   const need = Object.values(s.lastBets).reduce((a,b)=>a+b,0);
   if (STATE.balance - locked < need){ toast(t('insufficientBalance'), true); return; }
-  Object.entries(s.lastBets).forEach(([k,v])=>{ if (v>0){ s.bets[k] = (s.bets[k]||0) + v; document.getElementById(`spot-detail-${k}`)?.classList.add('selected'); document.getElementById(`spot-${tableId}-${k}`)?.classList.add('selected'); } });
+  Object.entries(s.lastBets).forEach(([k,v])=>{ if (v>0){ s.bets[k] = (s.bets[k]||0) + v; document.getElementById(`spot-detail-${k}`)?.classList.add('selected'); } });
   renderSpeedTileBets(tableId);
   projectSpeedBalance();
 }
@@ -1133,7 +1114,6 @@ function beginSpeedBetting(tableId){
   if (hadBets) s.lastBets = {...s.bets};
   s.phase = 'betting'; s.secondsLeft = SPEED_BETTING_SECONDS; s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0}; s.currentRoundId = uuidv4();
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
-    document.getElementById(`spot-${tableId}-${k}`)?.classList.remove('selected','locked');
     if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${k}`)?.classList.remove('selected','locked');
   });
   renderSpeedTileBets(tableId);
@@ -1145,7 +1125,6 @@ function beginSpeedBetting(tableId){
 async function beginSpeedDealing(tableId){
   const s = SPEED.tstate[tableId];
   s.phase = 'dealing'; s.secondsLeft = SPEED_DEALING_SECONDS;
-  ['player','tie','banker'].forEach(k=> document.getElementById(`spot-${tableId}-${k}`)?.classList.add('locked'));
   if (SPEED.detailTableId===tableId){
     ['player','tie','banker','playerPair','bankerPair'].forEach(k=> document.getElementById(`spot-detail-${k}`)?.classList.add('locked'));
   }

@@ -412,7 +412,9 @@ function avatarCardStatusHtml(tableId){
   const occ = avatarTableOccupancy(tableId);
   if (occ.todayCount >= 3) return `<span class="card-status full">✏️ ${t('btnFullToday')}</span>`;
   if (occ.activeOther) return `<span class="card-status spectate">🎥 ${t('btnSpectate')}</span>`;
-  return `<span class="card-status request">🎭 ${t('btnRequestAvatar')}</span>`;
+  // A free table needs no call to action here - opening the card leads to the table, and the
+  // 아바타 신청 action lives inside it.
+  return '';
 }
 
 function renderAvatarLobbyGrid(sortMode){

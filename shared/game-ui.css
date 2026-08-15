@@ -31,6 +31,12 @@
 .brand-crest{width:22px;height:22px;color:var(--brass);flex-shrink:0;align-self:center;}
 .brand-text{display:flex;align-items:baseline;gap:8px;}
 .brand-text .sub{font-size:10px;font-weight:700;letter-spacing:1.4px;color:var(--ink-faint);}
+/* The tag is the first thing to go once the bar gets tight - the wordmark carries it alone.
+   The header runs out of room well above the mobile breakpoint, so this is its own query. */
+@media (max-width:1199px){ .brand-text .sub{display:none;} }
+/* Below this the bar is genuinely cramped (it already wrapped here before the wordmark grew),
+   so the mark steps back down rather than costing the row more width than it used to. */
+@media (max-width:1023px){ .game-header .brand .mark{font-size:16px;} }
 .balance-ticket,.points-ticket{
   display:flex;align-items:center;gap:7px;background:linear-gradient(155deg,var(--panel-hi),var(--void));
   border:1px solid var(--brass-dim);border-radius:22px;padding:6px 16px 6px 8px;
@@ -79,7 +85,6 @@
    so the thumbnail is nothing but the photo. */
 .card-status-row{display:flex;align-items:center;gap:8px;padding:11px 15px 0;}
 .card-status{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:12px;white-space:nowrap;}
-.card-status.request{background:rgba(217,178,106,.14);color:var(--brass);}
 .card-status.spectate{background:rgba(255,255,255,.07);color:var(--ink-dim);}
 .card-status.reenter{background:rgba(47,169,140,.16);color:var(--jade);}
 .card-status.pending{background:rgba(255,255,255,.06);color:var(--ink-faint);}
@@ -316,8 +321,6 @@
   .game-header::-webkit-scrollbar{display:none;}
   .game-header .brand,.balance-ticket,.points-ticket,.icon-btn,.game-header-right{flex-shrink:0;}
   .game-header .brand .mark{font-size:14px;white-space:nowrap;}
-  /* the tag is the first thing to go on a narrow header - the wordmark carries it */
-  .brand-text .sub{display:none;}
   .balance-ticket,.points-ticket{padding:5px 10px 5px 5px;font-size:11px;white-space:nowrap;}
   .balance-ticket .lbl,.points-ticket .lbl{display:none;}
   .balance-ticket::before,.points-ticket::before{width:15px;height:15px;}

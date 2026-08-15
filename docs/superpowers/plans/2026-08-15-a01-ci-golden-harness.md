@@ -58,7 +58,7 @@
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `db/tests/helpers/db.mjs`                             | 소유자 · 앱 · 이관 세 풀 · 커밋/롤백 래퍼 · SQLSTATE 단언 · 실행별 고유 키                |
 | `db/tests/helpers/entries.mjs`                        | `ledger.entries` 조회 → `(account_kind, sign, category)` 정렬 집합                        |
-| `db/scripts/test-role.sh`                             | 테스트용 로그인 역할 2종 (`ledger_app` · `ledger_migrator`)                               |
+| `db/scripts/test-role.sh`                             | 테스트용 로그인 역할 **3종** (`ledger_app` · `identity_app` · `ledger_migrator`)          |
 | `db/tests/fixtures/actors.mjs`                        | 테스트 직원 · 지점 배정 · 역할 · 스텝업 토큰                                              |
 | `db/tests/fixtures/approvals.mjs`                     | 4-eyes 승인 — `identity.op_request_approval` + `op_cast_vote` 경유                        |
 | `db/tests/fixtures/members.mjs`                       | 회원 주체 + 계정 (만드는 `op_*`가 없다)                                                   |
@@ -69,7 +69,8 @@
 | `db/tests/invariants/deferred.test.js`                | 지연 제약이 COMMIT에서 발화 · `SET CONSTRAINTS` 금지 증명 (`R-01-52`)                     |
 | `db/tests/posting/sections.mjs`                       | [`04`](../../architecture/04-posting-rules.md) 절 대장 — 절 ↔ 스키마 한정 `op_*` ↔ 테스트 |
 | `db/tests/posting/section-coverage.test.js`           | 함수가 있는데 테스트가 없으면 실패 + **역방향** 미등재 `op_*` 검사                        |
-| `db/tests/posting/posting-rules.test.js`              | `ledger.posting_rules` 표 대조 · `tx_kind` 고아 검사                                      |
+| `db/tests/posting/posting-rules.test.js`              | `tx_kind` 고아 검사 · `sign` 도메인 검사 (**표 대조는 여기가 아니다** — 아래 참조)        |
+| `db/tests/reconciliation/integrity-status.test.js`    | `ledger.v_integrity_status` 9행 `violations = 0` — R7이 `ledger.posting_rules` 표 대조다  |
 | `db/tests/posting/section-01-deposit.test.js`         | `04` §1 입금                                                                              |
 | `db/tests/posting/section-02-withdraw.test.js`        | `04` §2 출금 + 잔액 하한이 **COMMIT에서** 걸리는 것                                       |
 | `db/tests/posting/section-03-transfer.test.js`        | `04` §3 계좌 간 이체 + 통화 시드                                                          |
@@ -3223,3 +3224,18 @@ git commit -m "docs: record golden harness completion"
 | `R-12-22` KRW 금액 표기 테스트                    | **c04 · c06 · c08** | 표기는 화면·영수증·리포트 계층이다. DB 쪽은 `scale = 0` 단언(Task 4)까지가 몫이다                                                                                                                                              |
 | `R-01-24` `reversal` · `game_cancel` 행 제거      | **a03**             | 지금 `posting_rules`에 그 행들이 **있다.** 제거는 R11 미러 대조 신설과 한 몸이다                                                                                                                                               |
 | 통화 매트릭스 nightly 분리                        | 미정                | [`12` §6](../../spec/12-ci-golden-tests.md) 열린 항목. CI 실행 시간이 문제가 될 때 판단한다                                                                                                                                    |
+
+### 완료 후 추가된 이월 — 절 커버리지의 빈칸
+
+아래는 **완료 시점 브랜치 전체 리뷰**가 찾아낸 이월이다. `db/tests/posting/sections.mjs`는
+절 단위로만 "테스트 있음"을 기록하므로, 한 절 안에서 **분기 일부만** 도는 것은 대장이
+초록으로 보인다. 그 빈칸을 여기 적어 둔다 — 대장이 없는 것을 있는 것처럼 읽히지 않게 한다.
+
+| 빈칸                                                                                                                      | 이월 대상 | 사유 · 실측                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`04`](../../architecture/04-posting-rules.md) §7 · §8 정산 표의 5~12행 — `settle_marker_redeem` · `settle_dealer_tip` · `settle_house_tip` · `working_chip_return` | **a03**   | 네 범주 모두 **분개 0건**이다(빈 DB에서 골든 스위트 전량 실행 후 실측). 마커 회수·팁·워킹칩 회수는 각각 별도 전제(마커 발행, 팁 입력, 칩 잔량)를 세워야 해서 §7·§8 테스트 한 건에 얹을 수 없다. 워킹칩 왕복은 **반만 증명돼 있다** — `working_chip_issue` 4건, `working_chip_return` 0건 |
+| [`04`](../../architecture/04-posting-rules.md) §5 시작 유형 `account` · `marker`                                                                          | **a03**   | `cage.game_start_type`은 `cash` · `account` · `marker` 3종이고 셋의 분개 표가 서로 다르다. `db/tests/fixtures/games.mjs`가 `'cash'`를 하드코딩해서 나머지 둘은 **도달 자체가 불가능**하다. 픽스처에 유형 인자를 뚫는 것이 선행이다                                                       |
+| [`04`](../../architecture/04-posting-rules.md) §11 · §11-2 **부족(shortage)** 분기                                                                        | **a03**   | 과잉(overage) 분기만 돈다 — `overage_income` 분개 2건, `shortage_expense` **0건**. 부족은 `suspense` 부호가 반대라 `op_resolve_suspense`의 해소 방향도 반대다. 그 경로는 아무도 밟은 적이 없다                                                                                        |
+| [`04`](../../architecture/04-posting-rules.md) §12 `p_to_wallet = false` (보유금 → 케이지 계좌)                                                            | **a03**   | `p_to_wallet`은 BOOLEAN이고 `true`만 테스트한다(`section-12-wallet-transfer.test.js:33`). 역방향은 분개 표가 대칭이지만 그 대칭을 확인한 테스트가 없다                                                                                                                                |
+| `R-12-21` 통화 5종 **각각** 한 시나리오 — `CNY` · `HKD` · `USD`                                                            | **a03**   | `PHP`(기본값)와 `KRW`(`scale = 0`)만 시나리오가 돈다. 나머지 셋은 분개 표가 통화에 무관하므로 우선순위가 낮지만, `R-12-21`은 5종 각각을 요구하므로 **부분 충족**이다. `section-03-transfer.test.js`의 `CURRENCIES_EXERCISED`가 이 목록을 기계로 고정한다                                     |
+| `ledger.op_freeze_period` · `ledger.op_settle_period` · `identity.op_shift_event` · `cage.op_main_cage_entry` 계약 테스트   | **a06**   | 네 연산 모두 분개를 만들지 않아(`prosrc`에 `post_transaction` 없음 — 대장의 `posting` 대조가 이를 기계로 확인한다) §15 · §10에 정당하게 있다. 그래도 **`db/tests/` 어디에서도 호출되지 않는다.** 기간 마감 두 건은 이후 모든 거래를 막는 게이트라 a06에서 우선한다                     |

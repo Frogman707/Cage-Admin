@@ -70,8 +70,11 @@ export async function query(text, params = []) {
 // 읽기 전용 테스트용. 아무것도 남기지 않는다.
 // 경고: op_* 를 부르는 데 쓰지 않는다. 지연 제약은 COMMIT 때만 발화하므로
 // 롤백하면 잔액 하한(I2) · 차대 균형(I1) 위반이 통과해 버린다.
+// staffId 를 안 주면 소유자로 돈다 — 이 헬퍼는 읽기 전용 점검용이고 항상 롤백하므로
+// 소유자 기본값이 안전하다. op_* 를 커밋하는 테스트는 이 기본값에 기대지 말고
+// asStaff/asMigrator 를 쓴다.
 export async function withRollback(fn, { staffId } = {}) {
-  return runIn(staffId === undefined ? ownerPool : appPool, staffId, fn, 'ROLLBACK');
+  return runIn(staffId == null ? ownerPool : appPool, staffId, fn, 'ROLLBACK');
 }
 
 // 픽스처용. 소유자로 붙어 커밋한다.
@@ -99,14 +102,22 @@ export async function asIdentity(fn) {
   return runIn(identityPool, undefined, fn, 'ROLLBACK');
 }
 
+// BEGIN 하고, staffId 가 있으면 app.staff_id 를 세운다(SET LOCAL — 트랜잭션이 끝나면
+// 사라지고 풀에 남지 않는다). runIn 과 expectCommitFailure 둘 다 이 진입점 하나만 쓴다 —
+// 세션 설정이 두 곳에서 갈라지면 안 된다. staffId 가 null 이면 문자열 'null' 이
+// app.staff_id 에 들어가 db/schema/012_roles_and_grants.sql:352 의 ::BIGINT 캐스트가
+// 테스트 본문과 무관한 이유로 죽는다 — 그래서 `!== undefined` 가 아니라 `!= null` 로 본다.
+async function begin(client, staffId) {
+  await client.query('BEGIN');
+  if (staffId != null) {
+    await client.query('SELECT set_config($1, $2, true)', ['app.staff_id', String(staffId)]);
+  }
+}
+
 async function runIn(pool, staffId, fn, ending) {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    if (staffId !== undefined) {
-      // SET LOCAL 이라 트랜잭션이 끝나면 사라진다. 풀에 남지 않는다.
-      await client.query('SELECT set_config($1, $2, true)', ['app.staff_id', String(staffId)]);
-    }
+    await begin(client, staffId);
     const result = await fn(client);
     await client.query(ending);
     return result;
@@ -119,15 +130,19 @@ async function runIn(pool, staffId, fn, ending) {
 }
 
 // COMMIT 에서 거부되는 것을 단언한다. 호출 자체는 성공할 수 있다 — 그게 요점이다.
-// staffId 를 주면 앱 역할로, 안 주면 소유자로 돈다.
+// staffId 는 필수다. 지연 제약(잔액 하한 · 차대 균형 · 봉인) 위반은 정의상 애플리케이션
+// 경로에서만 의미가 있다 — 소유자로 부르면 RLS 와 테이블 GRANT 를 우회하고도 초록이 나와
+// 아무것도 증명하지 못한다. 소유자 쪽 COMMIT 실패를 확인해야 하는 나중 테스트가 있다면
+// asOwner 를 명시적 COMMIT 과 함께 직접 구성한다 — 이 헬퍼에는 소유자 경로가 없다.
 export async function expectCommitFailure(state, fn, { staffId } = {}) {
-  const pool = staffId === undefined ? ownerPool : appPool;
-  const client = await pool.connect();
+  if (staffId == null) {
+    throw new TypeError(
+      'expectCommitFailure requires { staffId } - a COMMIT-failure test with no actor would run as the owner, bypassing RLS and table GRANTs, and prove nothing'
+    );
+  }
+  const client = await appPool.connect();
   try {
-    await client.query('BEGIN');
-    if (staffId !== undefined) {
-      await client.query('SELECT set_config($1, $2, true)', ['app.staff_id', String(staffId)]);
-    }
+    await begin(client, staffId);
     await fn(client);
     try {
       await client.query('COMMIT');

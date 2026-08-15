@@ -166,7 +166,11 @@ function renderBigRoad(cols, maxRows){
         let dots = '';
         if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
         if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
-        colHtml += `<div class="br-cell ${it}">${showTie?`<span class="br-tie">${col.ties}</span>`:''}${dots}</div>`;
+        // A tie is the diagonal through the ring; the count rides along only when the same
+        // spot took more than one, and must sit in its own <span> for the badge styling
+        // (and the mini-roads' hide rule) to apply to it.
+        const tie = showTie ? `<span class="br-tie">${col.ties>1?`<span>${col.ties}</span>`:''}</span>` : '';
+        colHtml += `<div class="br-cell ${it}">${tie}${dots}</div>`;
       });
       cells.push(`<div class="br-col">${colHtml}</div>`);
     }

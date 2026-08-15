@@ -8,6 +8,15 @@
    Used by /avatar on top of cage-ui.css.
    ============================================================ */
 
+/* Scoreboard ink. The board marks results in a deeper, more saturated red and blue than
+   the app's --danger / accent tints, so they read as ink on white paper rather than as UI
+   chrome; kept here so every road, bead, tally badge and legend mark shares one value. */
+:root{
+  --road-blue:#1668B8;
+  --road-red:#CE3A2C;
+  --road-green:#1E9E7E;
+}
+
 .game-header{
   display:flex;align-items:center;gap:16px;padding:11px 22px;
   background:linear-gradient(180deg, rgba(21,48,79,.92), rgba(15,32,56,.92));
@@ -265,35 +274,37 @@
    tie can be marked with a diagonal slash through the ring, and pair hits with
    small corner dots - not a separate filled circle per cell. */
 .br-cell{width:16px;height:16px;border-radius:50%;position:relative;box-sizing:border-box;border:2.5px solid transparent;}
-.br-cell.player{border-color:#2f7fbf;}
-.br-cell.banker{border-color:var(--danger);}
+.br-cell.player{border-color:var(--road-blue);}
+.br-cell.banker{border-color:var(--road-red);}
 .br-cell.overflow{border:none;color:var(--ink-faint);font-size:9px;display:flex;align-items:center;justify-content:center;}
-.br-cell.tie-only{background:var(--jade);border:none;width:10px;height:10px;align-self:center;}
+.br-cell.tie-only{background:var(--road-green);border:none;width:10px;height:10px;align-self:center;}
 .br-tie{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:flex-end;pointer-events:none;}
-.br-tie::before{content:'';position:absolute;left:10%;top:50%;width:80%;height:2px;background:var(--jade);transform:rotate(-30deg);}
-.br-tie span{position:relative;font-size:7.5px;font-weight:800;color:var(--jade);background:var(--void);border-radius:2px;padding:0 1px;line-height:1.3;}
+.br-tie::before{content:'';position:absolute;left:10%;top:50%;width:80%;height:2px;background:var(--road-green);transform:rotate(-30deg);}
+.br-tie span{position:relative;font-size:7.5px;font-weight:800;color:var(--road-green);background:var(--void);border-radius:2px;padding:0 1px;line-height:1.3;}
 .br-pair{position:absolute;width:4px;height:4px;border-radius:50%;}
-.br-pair.player{top:0;left:0;background:#2f7fbf;}
-.br-pair.banker{bottom:0;right:0;background:var(--danger);}
+.br-pair.player{top:0;left:0;background:var(--road-blue);}
+.br-pair.banker{bottom:0;right:0;background:var(--road-red);}
 .lobby-card .mini-road .br-pair{width:2.5px;height:2.5px;}
-.derived-road-grid{display:flex;gap:2px;overflow-x:auto;padding-bottom:2px;}
-.derived-road-grid .br-col{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+/* trailing pad == the inter-cell gap, so a block of N rows measures exactly N pitches
+   and the band below it still starts on the ruling */
+.derived-road-grid{display:flex;gap:1px;overflow-x:auto;padding-bottom:1px;}
+.derived-road-grid .br-col{display:flex;flex-direction:column;gap:1px;flex-shrink:0;}
 /* Big Eye Boy / Small Road are hollow rings on a real board too, same as Big Road,
    just smaller - only Cockroach Road switches to a diagonal tick (below). */
-.derived-road-grid .dr-cell{width:7px;height:7px;border-radius:50%;border:1.5px solid transparent;box-sizing:border-box;flex-shrink:0;}
+.derived-road-grid .dr-cell{width:8px;height:8px;border-radius:50%;border:1.5px solid transparent;box-sizing:border-box;flex-shrink:0;}
 .derived-road-grid .dr-cell.overflow{border:none;color:var(--ink-faint);font-size:6px;display:flex;align-items:center;justify-content:center;}
-.derived-road-grid .dr-cell.red{border-color:var(--danger);}
-.derived-road-grid .dr-cell.blue{border-color:#2f7fbf;}
+.derived-road-grid .dr-cell.red{border-color:var(--road-red);}
+.derived-road-grid .dr-cell.blue{border-color:var(--road-blue);}
 /* The three derived roads are told apart by their mark, not their position - Big Eye Boy
    draws hollow rings, Small Road solid dots, Cockroach Road diagonal ticks. That trio is
    exactly what the P/B legend rail spells out. */
-.derived-road-grid .dr-cell.filled.red{background:var(--danger);}
-.derived-road-grid .dr-cell.filled.blue{background:#2f7fbf;}
+.derived-road-grid .dr-cell.filled.red{background:var(--road-red);}
+.derived-road-grid .dr-cell.filled.blue{background:var(--road-blue);}
 /* Cockroach Road is conventionally a diagonal tick, not a dot. */
 .derived-road-grid .dr-cell.diagonal{border:none;border-radius:0;position:relative;}
 .derived-road-grid .dr-cell.diagonal::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-38deg);}
-.derived-road-grid .dr-cell.diagonal.red{color:var(--danger);}
-.derived-road-grid .dr-cell.diagonal.blue{color:#2f7fbf;}
+.derived-road-grid .dr-cell.diagonal.red{color:var(--road-red);}
+.derived-road-grid .dr-cell.diagonal.blue{color:var(--road-blue);}
 .bet-history-mini{font-size:11.5px;}
 .bet-history-mini .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1a2c4a;}
 .chat-panel{display:flex;flex-direction:column;flex:1;min-height:140px;}
@@ -418,9 +429,9 @@
   display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:800;font-family:var(--sans);
 }
 .bead-road .bd-cell.overflow{background:none;box-shadow:none;color:var(--ink-faint);font-size:8px;}
-.bead-road .bd-cell.player{background:radial-gradient(circle at 35% 30%,#8fd0ff,#2f7fbf 75%);}
-.bead-road .bd-cell.banker{background:radial-gradient(circle at 35% 30%,#f5a89c,var(--danger) 75%);}
-.bead-road .bd-cell.tie{background:radial-gradient(circle at 35% 30%,#8fe8cf,var(--jade) 75%);}
+.bead-road .bd-cell.player{background:radial-gradient(circle at 34% 28%,#6BB2EA,var(--road-blue) 72%);}
+.bead-road .bd-cell.banker{background:radial-gradient(circle at 34% 28%,#EE8878,var(--road-red) 72%);}
+.bead-road .bd-cell.tie{background:radial-gradient(circle at 34% 28%,#6FD8BC,var(--road-green) 72%);}
 
 /* ---- speed single-table detail screen (opened from a tile) ----
    Layout mirrors the reference: video + bead road stacked on the left,
@@ -469,15 +480,15 @@
   width:20px;height:20px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
   display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;font-family:var(--sans);
 }
-.sd-tally-list .tl-row.player .tl-badge{background:#2f7fbf;} .sd-tally-list .tl-row.player b{color:#2f7fbf;}
-.sd-tally-list .tl-row.banker .tl-badge{background:var(--danger);} .sd-tally-list .tl-row.banker b{color:var(--danger);}
-.sd-tally-list .tl-row.tie .tl-badge{background:var(--jade);} .sd-tally-list .tl-row.tie b{color:var(--jade);}
+.sd-tally-list .tl-row.player .tl-badge{background:var(--road-blue);} .sd-tally-list .tl-row.player b{color:var(--road-blue);}
+.sd-tally-list .tl-row.banker .tl-badge{background:var(--road-red);} .sd-tally-list .tl-row.banker b{color:var(--road-red);}
+.sd-tally-list .tl-row.tie .tl-badge{background:var(--road-green);} .sd-tally-list .tl-row.tie b{color:var(--road-green);}
 /* pair rows: grey bead carrying the road's own corner-dot marker, with the count tinted
    to the side that dot stands for. */
 .sd-tally-list .tl-row.pair .tl-badge{background:#b0b0b0;position:relative;}
 .sd-tally-list .tl-row.pair .br-pair{width:6px;height:6px;}
-.sd-tally-list .tl-row.pair.player b{color:#2f7fbf;}
-.sd-tally-list .tl-row.pair.banker b{color:var(--danger);}
+.sd-tally-list .tl-row.pair.player b{color:var(--road-blue);}
+.sd-tally-list .tl-row.pair.banker b{color:var(--road-red);}
 /* bead pitch == one graph square: 20px bead + 2px gutter = the 22px ruling */
 .sd-tally .bead-road{flex:1;gap:2px;}
 .sd-tally .bead-road .br-col{gap:2px;}
@@ -487,14 +498,16 @@
 /* Three stacked bands, ruled off from each other: Big Road, then Big Eye Boy, then a band
    split down the middle for Small Road | Cockroach Road. */
 .sd-road-main{display:flex;flex-direction:column;flex:1;min-width:0;}
-.sd-road-band{padding:5px 0;min-height:0;overflow:hidden;}
-.sd-road-band + .sd-road-band{border-top:1px solid #e4e4e4;}
-.sd-road-band:first-child{flex:0 0 auto;padding-top:0;}
+/* Each band's rule + padding sums to a whole ruled square (9 above + 9 below = 18), so the
+   marks in every band keep landing on the ruling instead of drifting a few pixels per band. */
+.sd-road-band{padding-bottom:9px;min-height:0;overflow:hidden;}
+.sd-road-band + .sd-road-band{border-top:1px solid #e4e4e4;padding-top:8px;}
+.sd-road-band:first-child{flex:0 0 auto;}
 .sd-road-band:not(:first-child){flex:1;}
-.sd-road-split{display:flex;gap:0;}
-.sd-road-split > *{flex:1;min-width:0;padding-right:12px;}
-.sd-road-split > * + *{border-left:1px solid #e4e4e4;padding-left:12px;padding-right:0;}
-.sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;}
+.sd-road-split{display:flex;}
+.sd-road-split > *{flex:1;min-width:0;padding-right:9px;}
+.sd-road-split > * + *{border-left:1px solid #e4e4e4;padding-left:8px;padding-right:0;}
+.sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;padding-bottom:2px;}
 .sd-road .br-col{gap:2px;}
 .sd-road .br-cell{width:16px;height:16px;border-width:2px;}
 .sd-road .br-cell.tie-only{width:10px;height:10px;}
@@ -504,7 +517,8 @@
    reads as a stray dark smudge above the ring, so give it a light pill here instead. */
 .sd-road .br-tie span{background:#fff;box-shadow:0 0 0 1px #fff;}
 .sd-road .derived-road-grid{overflow-x:auto;}
-.sd-road .derived-road-grid .dr-cell{width:7px;height:7px;}
+/* half the Big Road mark, on half its pitch: two derived marks span one ruled square */
+.sd-road .derived-road-grid .dr-cell{width:8px;height:8px;}
 /* legend rail: a small key explaining the three marks used on the board (hollow
    ring = Big Road/Big Eye Boy/Small Road, solid dot = Bead Plate, diagonal = tie),
    grouped into a P (blue) pill and a B (red) pill stacked on the right edge. */
@@ -517,8 +531,8 @@
 .sd-road-legend-rail .rail-badge .dot{width:9px;height:9px;border-radius:50%;background:currentColor;}
 .sd-road-legend-rail .rail-badge .slash{width:11px;height:11px;border-radius:50%;border:2px solid currentColor;box-sizing:border-box;position:relative;}
 .sd-road-legend-rail .rail-badge .slash::before{content:'';position:absolute;left:8%;top:50%;width:84%;height:1.5px;background:currentColor;transform:rotate(-30deg);}
-.sd-road-legend-rail .rail-badge.player{color:#2f7fbf;}
-.sd-road-legend-rail .rail-badge.banker{color:var(--danger);}
+.sd-road-legend-rail .rail-badge.player{color:var(--road-blue);}
+.sd-road-legend-rail .rail-badge.banker{color:var(--road-red);}
 .sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 .sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
 .sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}

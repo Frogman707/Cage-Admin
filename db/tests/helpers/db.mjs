@@ -166,6 +166,24 @@ export function uniq(prefix) {
   return `${prefix}-${RUN_TOKEN}-${seq}`;
 }
 
+// identity.staff.code 와 ledger.parties.code 전용. 두 체크 제약
+// (staff_code_format, parties_code_format) 모두 대문자만 허용하고 32자를
+// 상한으로 둔다 — uniq() 의 토큰은 base36 이라 소문자가 섞이므로 여기서만
+// 정규화하고, 상한을 넘으면 잘라내지 않고 바로 던진다(호출부의 prefix 가 너무
+// 길다는 신호이지, 조용히 잘라도 되는 문제가 아니다).
+// uniq() 자체는 바꾸지 않는다 — 그 함수의 대다수 소비자는 코드가 아니라
+// 멱등키(uniq('dep') 등)나 기기 id(uniq('dev'))이고, 그 컬럼들은 형식을
+// 강제하지 않는다. 대문자화는 그 값들을 바꿀 이유가 없고, ledger.parties 하나의
+// 규칙을 범용 헬퍼 안에 숨기는 셈이 되며, "소문자 코드는 거부된다" 는 음성
+// 테스트를 표준 헬퍼로는 못 쓰게 만든다.
+export function uniqCode(prefix) {
+  const code = uniq(prefix).toUpperCase();
+  if (code.length > 32) {
+    throw new Error(`uniqCode('${prefix}') = '${code}' (${code.length}자) — 32자 상한 초과 (staff_code_format / parties_code_format)`);
+  }
+  return code;
+}
+
 // 호출 시점에 바로 거부되는 것을 단언한다. 메시지 문자열이 아니라 SQLSTATE 로 본다.
 export async function expectSqlState(state, fn) {
   try {

@@ -5,13 +5,13 @@
 // 조합 검사 트리거(003)가 어긋난 조합을 거부한다.
 export async function createMember(client, { code, branch, currency = 'PHP', kinds = ['member_deposit'] }) {
   // ledger.parties.code 도 대문자만 허용한다 (parties_code_format 체크 제약, 003).
-  // 같은 이유로 정규화한다 — createStaff 참고.
-  const partyCode = code.toUpperCase();
+  // 정규화(대문자화 · 32자 상한)는 호출부 책임이다 — db.mjs 의 uniqCode() 를
+  // 쓴다. 여기서 다시 하지 않는 이유는 createStaff 참고.
   const { rows } = await client.query(
     `INSERT INTO ledger.parties (code, party_type, display_name, home_branch)
      VALUES ($1, 'member', $2, $3)
      RETURNING id`,
-    [partyCode, `TEST ${partyCode}`, branch]
+    [code, `TEST ${code}`, branch]
   );
   // BIGINT → pg 는 문자열로 돌려준다(setTypeParser 미등록). 브리프의
   // Promise<number> 를 지키려면 여기서 변환한다 — createStaff 참고.

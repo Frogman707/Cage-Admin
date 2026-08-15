@@ -1,7 +1,7 @@
 // 픽스처 자체의 계약. 이것이 깨지면 뒤 테스트의 실패 원인이 픽스처인지 연산인지 알 수 없다.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { asOwner, asStaff, withRollback, uniq, expectSqlState, closePool } from '../helpers/db.mjs';
+import { asOwner, asStaff, withRollback, uniq, uniqCode, expectSqlState, closePool } from '../helpers/db.mjs';
 import { createStaff, issueStepUp } from './actors.mjs';
 import { approve } from './approvals.mjs';
 
@@ -16,7 +16,7 @@ test('R-12-23 픽스처 직원이 권한 검사를 통과한다', async () => {
     // RETURNS VOID 함수의 성공 호출은 항상 행 1개를 내므로 rows.length 단언은
     // 아무것도 증명하지 못한다.
     const authorized = await createStaff(client, {
-      code: uniq('T-MGR'),
+      code: uniqCode('T-MGR'),
       branches: [branch],
       roles: ['cage_manager'],
     });
@@ -25,7 +25,7 @@ test('R-12-23 픽스처 직원이 권한 검사를 통과한다', async () => {
     );
 
     const unauthorized = await createStaff(client, {
-      code: uniq('T-OPR'),
+      code: uniqCode('T-OPR'),
       branches: [branch],
       roles: ['cage_operator'],
     });
@@ -42,7 +42,7 @@ test('R-12-23 스텝업 토큰은 1회용이다', async () => {
   // 붙지만 커밋하지 않으므로, staff 생성은 asOwner 로 먼저 커밋해 둔다.
   const device = uniq('dev');
   const staffId = await asOwner((client) =>
-    createStaff(client, { code: uniq('T-MGR'), branches: ['HANN'], roles: ['cage_manager'] })
+    createStaff(client, { code: uniqCode('T-MGR'), branches: ['HANN'], roles: ['cage_manager'] })
   );
   const tokenId = await issueStepUp({ staffId, deviceId: device, scope: 'ledger.deposit' });
   await withRollback(async (client) => {
@@ -67,9 +67,9 @@ test('R-12-23 승인 픽스처가 실제 승인 경로를 거친다', async () =
   // 트랜잭션 안에서 actor·a·b 세 명의 투표를 모두 진행할 수 있다.
   const branch = 'HANN';
   const { actor, a, b } = await asOwner(async (client) => {
-    const actor = await createStaff(client, { code: uniq('T-MGR'), branches: [branch], roles: ['cage_manager'] });
-    const a = await createStaff(client, { code: uniq('T-MGR'), branches: [branch], roles: ['cage_manager'] });
-    const b = await createStaff(client, { code: uniq('T-MGR'), branches: [branch], roles: ['cage_manager'] });
+    const actor = await createStaff(client, { code: uniqCode('T-MGR'), branches: [branch], roles: ['cage_manager'] });
+    const a = await createStaff(client, { code: uniqCode('T-MGR'), branches: [branch], roles: ['cage_manager'] });
+    const b = await createStaff(client, { code: uniqCode('T-MGR'), branches: [branch], roles: ['cage_manager'] });
     return { actor, a, b };
   });
 
@@ -96,7 +96,7 @@ test('R-12-23 승인 픽스처가 실제 승인 경로를 거친다', async () =
 test('R-12-23 요청자는 자기 요청에 투표할 수 없다 (4-eyes)', async () => {
   await asOwner(async (client) => {
     const branch = 'HANN';
-    const actor = await createStaff(client, { code: uniq('T-MGR'), branches: [branch], roles: ['cage_manager'] });
+    const actor = await createStaff(client, { code: uniqCode('T-MGR'), branches: [branch], roles: ['cage_manager'] });
     await assert.rejects(
       () =>
         approve(client, {
@@ -125,7 +125,7 @@ test('R-12-23 요청자는 자기 요청에 투표할 수 없다 (4-eyes, DB 트
   // (assert_four_eyes(), db/schema/002_identity.sql:247).
   const branch = 'HANN';
   const actor = await asOwner((client) =>
-    createStaff(client, { code: uniq('T-MGR'), branches: [branch], roles: ['cage_manager'] })
+    createStaff(client, { code: uniqCode('T-MGR'), branches: [branch], roles: ['cage_manager'] })
   );
 
   await asStaff(actor, async (client) => {

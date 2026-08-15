@@ -10,13 +10,14 @@ const FIXTURE_PIN_HASH = '$argon2id$test-fixture-not-a-real-hash';
 // app.staff_id 기반 RLS 도 이 표를 읽는다 (ledger.current_branches()).
 export async function createStaff(client, { code, branches, roles = ['cage_operator'] }) {
   // identity.staff.code 는 대문자만 허용한다 (staff_code_format 체크 제약, 002).
-  // uniq() 의 실행 토큰은 base36 이라 소문자가 섞인다 — 여기서 정규화한다.
-  const staffCode = code.toUpperCase();
+  // 정규화(대문자화 · 32자 상한)는 호출부 책임이다 — db.mjs 의 uniqCode() 를
+  // 쓴다. 여기서 다시 하지 않는다: 이 함수가 조용히 고쳐 버리면 "소문자 코드는
+  // 거부된다" 는 음성 테스트를 이 픽스처로는 쓸 수 없게 된다.
   const { rows } = await client.query(
     `INSERT INTO identity.staff (code, name, principal_type, status, pin_hash)
      VALUES ($1, $2, 'cage_staff', 'active', $3)
      RETURNING id`,
-    [staffCode, `TEST ${staffCode}`, FIXTURE_PIN_HASH]
+    [code, `TEST ${code}`, FIXTURE_PIN_HASH]
   );
   // BIGINT 는 pg 드라이버가 문자열로 돌려준다(setTypeParser 미등록, 의도적 —
   // harness note 참고). 브리프의 선언 Promise<number> 를 지키려면 여기서 변환한다.

@@ -2,7 +2,7 @@
 // 그 절의 표: house_cash +deposit_cash / member_deposit −deposit_cash
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { uniq, closePool } from '../helpers/db.mjs';
+import { uniq, uniqCode, closePool } from '../helpers/db.mjs';
 import { issueStepUp } from '../fixtures/actors.mjs';
 import { withActor } from '../fixtures/scenario.mjs';
 import { entriesOf, entryRowsOf } from '../helpers/entries.mjs';
@@ -11,10 +11,10 @@ after(closePool);
 
 test('R-12-02 · AC-12-2 04 §1 입금 분개 집합', async () => {
   await withActor({ branches: ['HANN'], roles: ['cage_manager'] }, async (client, ctx) => {
-    // parties_code_format (003_accounts.sql) 은 대문자만 허용한다. uniq() 의
-    // 토큰은 base36 이라 소문자가 섞인다. op_open_account 는 정규화하지 않으므로
-    // (createStaff/createMember 와 달리 이 함수는 앱 레이어가 아니다) 여기서 한다.
-    const acct = uniq('TEST-ACC').toUpperCase();
+    // parties_code_format (003_accounts.sql) 은 대문자만 허용한다. op_open_account
+    // 는 정규화하지 않으므로 (createStaff/createMember 와 달리 이 함수는 앱
+    // 레이어가 아니다) 계좌 코드는 uniqCode() 로 만든다 — db.mjs 참고.
+    const acct = uniqCode('TEST-ACC');
     await client.query('SELECT ledger.op_open_account($1, $2, $3, $4, $5)', [
       uniq('open'),
       ctx.staffId,

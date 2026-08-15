@@ -156,7 +156,7 @@ function toggleCardFavorite(btn){
   btn.classList.toggle('active');
 }
 function toggleStageFullscreen(btn){
-  const stage = btn.closest('.sd-stage');
+  const stage = btn.closest('.tbl-video');
   if (!stage) return;
   if (!document.fullscreenElement) stage.requestFullscreen?.().catch(()=>{});
   else document.exitFullscreen?.();
@@ -222,6 +222,11 @@ function showView(name){
   document.getElementById('changeGameBtn').style.display = name==='viewPicker' ? 'none' : 'inline-block';
   document.getElementById('avatarLobbyBtn').style.display = name==='viewAvatarTable' ? 'inline-block' : 'none';
   document.getElementById('chipTray').style.display = name==='viewSpeedLobby' ? 'flex' : 'none';
+  // A table screen owns the whole viewport and carries its own tool bar, so the lobby
+  // header steps aside while one is open.
+  const atTable = name==='viewAvatarTable' || name==='viewSpeedTable';
+  const hdr = document.querySelector('.game-header');
+  if (hdr) hdr.style.display = atTable ? 'none' : '';
 }
 function showPicker(){
   stopAllLoops();
@@ -505,30 +510,98 @@ function avatarPreviewRequestPanelHtml(state){
 }
 function avatarPreviewShellHtml(state){
   const tb = AVATAR.table;
+  // Read-only look at the table before a request is approved: the same board, with the
+  // 아바타 신청 action in place of the betting controls.
+  const spot = (k, cls, key, label) => tblSpotHtml(`spot-preview-${k}`, cls, key, label);
+  const right = `
+          <div class="tbl-bets-top">
+            ${spot('playerPair','pair','playerPair','플레이어 페어')}
+            ${spot('tie','tie','tie','타이')}
+            ${spot('bankerPair','pair','bankerPair','뱅커 페어')}
+          </div>
+          <div class="tbl-bets-main">
+            ${spot('player','player','player','플레이어')}
+            ${spot('banker','banker','banker','뱅커')}
+          </div>`;
+  const tray = `<div class="tbl-tray preview-tray">${avatarPreviewRequestPanelHtml(state)}</div>`;
+  return tableScreenHtml({
+    type:'AVATAR', tb, idSuffix:'avatar', onClose:'backToAvatarLobby()',
+    roundNo: AVATAR.roundNo || 1, right, tray,
+  });
+}
+/* ---------------- in-game table screen shell (shared by Speed and Avatar) ----------------
+   One structure for both modes, matching the operator's board: black tool bar, then the
+   video and the right-hand panel flush against each other, then the full-width paper
+   scoreboard, then a black status bar. `right` is the panel beside the video (the betting
+   board for Speed, the avatar's own controls for Avatar) and `tray` the strip under it. */
+function tableScreenHtml({type, tb, idSuffix, onClose, roundNo, right, tray}){
   return `
-  <div class="speed-detail-wrap">
-    <div class="speed-detail-grid">
-      <div class="sd-stage">
-        <button class="icon-btn speed-detail-close" onclick="backToAvatarLobby()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
-        <div class="sd-stage-top">
-          <div class="sd-type-badge">AVATAR</div>
-          <div class="sd-table-id-mini">${escapeHtml(tb.name)}</div>
-          <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
-        </div>
-        <div class="sd-stage-icons">
-          <button onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
-        </div>
-        <div class="table-felt"></div>
-      </div>
-      ${avatarScoreboardHtml('avatar')}
-      <div class="sd-bets avatar-side">
-        <div class="card avatar-status-card">
-          <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
-          <p class="hint" style="margin:0 0 12px;">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</p>
-          ${avatarPreviewRequestPanelHtml(state)}
-        </div>
+  <div class="tbl-screen">
+    <div class="tbl-top">
+      <div class="tt-user"><span class="av"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></span>${escapeHtml(PLAYER?.nickname||'')}</div>
+      <div class="tt-pts"><span class="pmark">₱</span>${fmtNum(STATE.points)}</div>
+      <div class="tbl-notice" data-i18n="noticeLabel">공지</div>
+      <div class="tbl-tools">
+        <button class="online" title="연결 상태"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 8.5a16 16 0 0 1 20 0"/><path d="M5 12a11 11 0 0 1 14 0"/><path d="M8.5 15.5a6 6 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1.4" fill="currentColor"/></svg></button>
+        <span class="sep"></span>
+        <button title="공지"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a5 5 0 0 1 0 6"/></svg></button>
+        <span class="sep"></span>
+        <button onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h11l3 3v15H5z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg></button>
+        <span class="sep"></span>
+        <button title="도움말"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3 2.4V14"/><circle cx="12" cy="17.2" r="1" fill="currentColor"/></svg></button>
+        <span class="sep"></span>
+        <button title="고객센터"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="2.5" y="13" width="4" height="6" rx="1.6"/><rect x="17.5" y="13" width="4" height="6" rx="1.6"/><path d="M20 19v.6a2.4 2.4 0 0 1-2.4 2.4H13"/></svg></button>
+        <span class="sep"></span>
+        <button onclick="openModal('modal-display')" title="설정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7.1 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 3.6V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.6 1.6 0 0 0 20.4 9H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg></button>
+        <span class="sep"></span>
+        <button onclick="${onClose}" data-i18n-title="backToList" title="목록으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v9"/><path d="M6.4 6.4a9 9 0 1 0 11.2 0"/></svg></button>
       </div>
     </div>
+    <div class="tbl-main">
+      <div class="tbl-stage-row">
+        <div class="tbl-video">
+          <button class="tv-close" onclick="${onClose}" data-i18n-title="backToList" title="목록으로">✕</button>
+          <div class="tv-badge">${type}</div>
+          <div class="tv-limits">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
+          <div class="tv-phase" id="phase-${idSuffix}">${t('phaseBetting')}</div>
+          <div class="tv-rail">
+            <button onclick="toggleStageFullscreen(this)" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+            <button onclick="this.classList.toggle('muted')" data-i18n-title="mute" title="음소거">
+              <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+              <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/></svg>
+            </button>
+            <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button class="tipbtn" onclick="${type==='AVATAR'?'openTipModal()':"toast(t('tipComingSoon'))"}" data-i18n-title="giveTip" title="팁">TIP</button>
+          </div>
+          <div class="table-felt">
+            <div class="cards-area">
+              <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCards-${idSuffix}"></div><div class="score" id="playerScore-${idSuffix}"></div></div>
+              <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCards-${idSuffix}"></div><div class="score" id="bankerScore-${idSuffix}"></div></div>
+            </div>
+          </div>
+          <div class="tv-timer" id="timerRing-${idSuffix}">
+            <svg width="78" height="78"><circle cx="39" cy="39" r="35" stroke="rgba(255,255,255,.18)" stroke-width="5" fill="rgba(0,0,0,.55)"/><circle id="timerArc-${idSuffix}" cx="39" cy="39" r="35" stroke="var(--road-green)" stroke-width="5" fill="none" stroke-dasharray="219.9" stroke-dashoffset="0" stroke-linecap="round"/></svg>
+            <div class="txt" id="timer-${idSuffix}">0</div>
+          </div>
+        </div>
+        <div class="tbl-board">${right}${tray}</div>
+      </div>
+      <div class="tbl-score">${avatarScoreboardHtml(idSuffix)}</div>
+    </div>
+    <div class="tbl-bottom">
+      <span><span data-i18n="roundNoLabel">라운드 번호</span> : <b id="roundno-${idSuffix}">${roundNo}</b></span>
+      <span><span data-i18n="shoeNoLabel">슈 번호</span> : <b class="shoe">${tb.shoeNo||1}</b></span>
+      <span class="spacer"></span>
+      <button onclick="openGameHistory()" data-i18n-title="gameHistory" title="기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
+      <button onclick="openModal('modal-display')" title="설정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="12" rx="3"/><circle cx="9" cy="12" r="2.2"/></svg></button>
+    </div>
+  </div>`;
+}
+function tblSpotHtml(id, cls, labelKey, label, odds, onclick){
+  return `<div class="tbl-spot ${cls}" id="${id}" ${onclick?`onclick="${onclick}"`:''}>
+    <div class="lbl" data-i18n="${labelKey}">${label}</div>
+    <div class="meta"><span>👤 0</span><span>₱ 0</span></div>
+    <div class="mine" id="mybet-${id.replace('spot-','')}"></div>
   </div>`;
 }
 // Shared by the avatar preview/active-session shells and the Speed detail screen. Mirrors
@@ -649,54 +722,39 @@ function updateAvatarStatusPanel(){
 }
 function avatarTableShellHtml(){
   const tb = AVATAR.table;
-  return `
-  <div class="speed-detail-wrap">
-    <div class="speed-detail-grid">
-      <div class="sd-stage">
-        <button class="icon-btn speed-detail-close" onclick="backToAvatarLobby()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
-        <div class="sd-stage-top">
-          <div class="sd-type-badge">AVATAR</div>
-          <div class="sd-table-id-mini">${escapeHtml(tb.name)}</div>
-          <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
-        </div>
-        <div class="phase-banner" id="phase-avatar">${t('phaseBetting')}</div>
-        <div class="sd-stage-icons">
-          <button onclick="toggleStageFullscreen(this)" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
-          <button onclick="this.classList.toggle('muted')" data-i18n-title="mute" title="음소거">
-            <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a9 9 0 0 1 0 12"/></svg>
-            <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/></svg>
-          </button>
-          <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
-          <button onclick="openTipModal()" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
-          <button onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
-        </div>
-        <div class="table-felt">
-          <div class="cards-area">
-            <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCardsAvatar"></div><div class="score" id="playerScoreAvatar"></div></div>
-            <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCardsAvatar"></div><div class="score" id="bankerScoreAvatar"></div></div>
+  // Same board as Speed, but the spots are read-only: the avatar places the member's saved
+  // instruction on their behalf, so the rail shows what was staked rather than taking clicks.
+  const spot = (k, cls, key, label) => tblSpotHtml(`spot-avatar-${k}`, cls, key, label);
+  const right = `
+          <div class="tbl-bets-top">
+            ${spot('playerPair','pair','playerPair','플레이어 페어')}
+            ${spot('tie','tie','tie','타이')}
+            ${spot('bankerPair','pair','bankerPair','뱅커 페어')}
           </div>
-        </div>
-        <div class="timer-ring-wrap" id="timerRingWrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArc" cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-avatar">30</div></div>
-      </div>
-      ${avatarScoreboardHtml('avatar')}
-      <div class="sd-bets avatar-side">
-        <div class="card avatar-status-card">
-          <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
-          <div class="kv-grid" id="avatarStatusGrid"></div>
-          <div class="row" style="gap:8px;margin-top:14px;">
-            <button class="btn btn-gold btn-sm" onclick="openTipModal()">${t('giveTip')}</button>
-            <button class="btn btn-sm" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
-            <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
+          <div class="tbl-bets-main">
+            ${spot('player','player','player','플레이어')}
+            ${spot('banker','banker','banker','뱅커')}
+          </div>`;
+  const tray = `
+          <div class="tbl-tray">
+            <button class="rbtn wide" onclick="openTipModal()">${t('giveTip')}</button>
+            <button class="rbtn wide" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
+            <div class="kv-grid avatar-inline-status" id="avatarStatusGrid"></div>
+            <span class="spacer"></span>
+            <button class="rbtn wide" onclick="toggleAvatarChat()">${t('chat')}</button>
+            <button class="rbtn wide" style="border-color:var(--danger);color:var(--danger);" onclick="endAvatarSession()">${t('endSession')}</button>
           </div>
-        </div>
-        <div class="card chat-panel">
-          <h3>${t('chat')}</h3>
-          <div class="chat-log" id="chatLog"></div>
-          <div class="chat-input-row"><input id="chatInput" placeholder="${t('chatPh')}" onkeydown="if(event.key==='Enter')sendAvatarChat()"><button class="btn btn-sm btn-gold" onclick="sendAvatarChat()">${t('send')}</button></div>
-        </div>
-      </div>
-    </div>
-  </div>`;
+          <div class="avatar-chat-drawer" id="avatarChatDrawer">
+            <div class="chat-log" id="chatLog"></div>
+            <div class="chat-input-row"><input id="chatInput" placeholder="${t('chatPh')}" onkeydown="if(event.key==='Enter')sendAvatarChat()"><button class="btn btn-sm btn-gold" onclick="sendAvatarChat()">${t('send')}</button></div>
+          </div>`;
+  return tableScreenHtml({
+    type:'AVATAR', tb, idSuffix:'avatar', onClose:'backToAvatarLobby()',
+    roundNo: AVATAR.roundNo, right, tray,
+  });
+}
+function toggleAvatarChat(){
+  document.getElementById('avatarChatDrawer')?.classList.toggle('open');
 }
 
 /* ---------------- tip / shoe-change / end-session ---------------- */
@@ -751,8 +809,8 @@ function beginAvatarBettingPhase(){
   AVATAR.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
   AVATAR.bets[AVATAR.request.betSide] = AVATAR.request.betAmount;
   setAvatarPhaseBanner(t('phaseBetting'), AVATAR_BETTING_SECONDS);
-  document.getElementById('playerCardsAvatar').innerHTML = ''; document.getElementById('bankerCardsAvatar').innerHTML = '';
-  document.getElementById('playerScoreAvatar').textContent = ''; document.getElementById('bankerScoreAvatar').textContent = '';
+  document.getElementById('playerCards-avatar').innerHTML = ''; document.getElementById('bankerCards-avatar').innerHTML = '';
+  document.getElementById('playerScore-avatar').textContent = ''; document.getElementById('bankerScore-avatar').textContent = '';
 }
 function setAvatarPhaseBanner(text, secs){
   const el = document.getElementById('phase-avatar'); if (el) el.textContent = text;
@@ -760,9 +818,9 @@ function setAvatarPhaseBanner(text, secs){
 }
 function updateAvatarTimerRing(secLeft, secTotal){
   const txt = document.getElementById('timer-avatar'); if (txt) txt.textContent = secLeft;
-  const arc = document.getElementById('timerArc');
-  if (arc){ const c = 169.6; arc.style.strokeDashoffset = c * (1 - secLeft/secTotal); }
-  const wrap = document.getElementById('timerRingWrap');
+  const arc = document.getElementById('timerArc-avatar');
+  if (arc){ const c = 219.9; arc.style.strokeDashoffset = c * (1 - secLeft/secTotal); }
+  const wrap = document.getElementById('timerRing-avatar');
   if (wrap) wrap.classList.toggle('urgent', secLeft <= 5 && secLeft > 0);
 }
 async function avatarTick(){
@@ -797,14 +855,14 @@ function cardHtml(card){
   return `<div class="playing-card ${red?'red':'black'}" data-rank="${card.rank}${card.suit}">${card.suit}</div>`;
 }
 async function revealAvatarCards(sim){
-  const pEl = document.getElementById('playerCardsAvatar'), bEl = document.getElementById('bankerCardsAvatar');
+  const pEl = document.getElementById('playerCards-avatar'), bEl = document.getElementById('bankerCards-avatar');
   const seq = [[pEl,sim.player.cards[0]],[bEl,sim.banker.cards[0]],[pEl,sim.player.cards[1]],[bEl,sim.banker.cards[1]]];
   for (const [el,card] of seq){
     el.insertAdjacentHTML('beforeend', cardHtml(card));
     await new Promise(r=>setTimeout(r, 260));
   }
-  document.getElementById('playerScoreAvatar').textContent = sim.player.score;
-  document.getElementById('bankerScoreAvatar').textContent = sim.banker.score;
+  document.getElementById('playerScore-avatar').textContent = sim.player.score;
+  document.getElementById('bankerScore-avatar').textContent = sim.banker.score;
 }
 async function beginAvatarResultPhase(){
   AVATAR.phase = 'result';
@@ -1019,65 +1077,39 @@ function closeSpeedTableDetail(){
 }
 function speedDetailShellHtml(tableId){
   const tb = SPEED.tables[tableId];
-  return `
-  <div class="speed-detail-wrap">
-    <div class="speed-detail-grid">
-      <div class="sd-stage">
-        <button class="icon-btn speed-detail-close" onclick="closeSpeedTableDetail()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
-        <div class="sd-stage-top">
-          <div class="sd-type-badge">SPEED</div>
-          <div class="sd-table-id-mini">${escapeHtml(tb.name)}</div>
-          <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
-        </div>
-        <div class="phase-banner" id="phase-detail">${t('phaseBetting')}</div>
-        <div class="sd-stage-icons">
-          <button onclick="toggleStageFullscreen(this)" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
-          <button onclick="this.classList.toggle('muted')" data-i18n-title="mute" title="음소거">
-            <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a9 9 0 0 1 0 12"/></svg>
-            <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/></svg>
-          </button>
-          <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
-          <button onclick="toast(t('tipComingSoon'))" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
-          <button onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
-        </div>
-        <div class="table-felt">
-          <div class="cards-area">
-            <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCardsDetail"></div><div class="score" id="playerScoreDetail"></div></div>
-            <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCardsDetail"></div><div class="score" id="bankerScoreDetail"></div></div>
+  const spot = (k, cls, key, label) =>
+    tblSpotHtml(`spot-detail-${k}`, cls, key, label, null, `placeSpeedBet('${tableId}','${k}')`);
+  const right = `
+          <div class="tbl-bets-top">
+            ${spot('playerPair','pair','playerPair','플레이어 페어')}
+            ${spot('tie','tie','tie','타이')}
+            ${spot('bankerPair','pair','bankerPair','뱅커 페어')}
           </div>
-        </div>
-        <div class="timer-ring-wrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-detail">15</div></div>
-      </div>
-      ${avatarScoreboardHtml('detail')}
-      <div class="sd-bets">
-        <div class="pair-row">
-          <div class="bet-spot pair" id="spot-detail-playerPair" onclick="placeSpeedBet('${tableId}','playerPair')"><div class="label" data-i18n="playerPair">플레이어 페어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-playerPair"></div></div>
-          <div class="bet-spot tie" id="spot-detail-tie" onclick="placeSpeedBet('${tableId}','tie')"><div class="label" data-i18n="tie">타이</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">8:1</div><div class="my-bet" id="mybet-detail-tie"></div></div>
-          <div class="bet-spot pair" id="spot-detail-bankerPair" onclick="placeSpeedBet('${tableId}','bankerPair')"><div class="label" data-i18n="bankerPair">뱅커 페어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-bankerPair"></div></div>
-        </div>
-        <div class="bet-rail two-up" style="margin-top:0;">
-          <div class="bet-spot player" id="spot-detail-player" onclick="placeSpeedBet('${tableId}','player')"><div class="label" data-i18n="player">플레이어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">1:1</div><div class="my-bet" id="mybet-detail-player"></div></div>
-          <div class="bet-spot banker" id="spot-detail-banker" onclick="placeSpeedBet('${tableId}','banker')"><div class="label" data-i18n="banker">뱅커</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">0.95:1</div><div class="my-bet" id="mybet-detail-banker"></div></div>
-        </div>
-        <div class="sd-chip-tray">
-          <button class="btn btn-sm" onclick="clearSpeedDetailBets('${tableId}')" data-i18n="cancelBet">취소</button>
-          ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})"><span class="cv">${chipLabel(v)}</span></div>`).join('')}
-          <span class="spacer"></span>
-          <button class="btn btn-sm btn-gold" onclick="confirmSpeedBetDetail()" data-i18n="betComplete">베팅완료</button>
-          <button class="btn btn-sm" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n="repeatBet">반복</button>
-        </div>
-      </div>
-    </div>
-  </div>`;
+          <div class="tbl-bets-main">
+            ${spot('player','player','player','플레이어')}
+            ${spot('banker','banker','banker','뱅커')}
+          </div>`;
+  const tray = `
+          <div class="tbl-tray">
+            <button class="rbtn" onclick="clearSpeedDetailBets('${tableId}')" data-i18n="cancelBet">취소</button>
+            ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})"><span class="cv">${chipLabel(v)}</span></div>`).join('')}
+            <span class="spacer"></span>
+            <button class="rbtn confirm" onclick="confirmSpeedBetDetail()" data-i18n="betComplete">베팅완료</button>
+            <button class="rbtn repeat" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n="repeatBet">반복</button>
+          </div>`;
+  return tableScreenHtml({
+    type:'SPEED', tb, idSuffix:'detail', onClose:'closeSpeedTableDetail()',
+    roundNo: SPEED.tstate[tableId]?.roundNo || 1, right, tray,
+  });
 }
 function clearSpeedDetailCards(){
-  const p = document.getElementById('playerCardsDetail'), b = document.getElementById('bankerCardsDetail');
+  const p = document.getElementById('playerCards-detail'), b = document.getElementById('bankerCards-detail');
   if (p) p.innerHTML = ''; if (b) b.innerHTML = '';
-  const ps = document.getElementById('playerScoreDetail'), bs = document.getElementById('bankerScoreDetail');
+  const ps = document.getElementById('playerScore-detail'), bs = document.getElementById('bankerScore-detail');
   if (ps) ps.textContent = ''; if (bs) bs.textContent = '';
 }
 async function revealSpeedDetailCards(sim, instant){
-  const pEl = document.getElementById('playerCardsDetail'), bEl = document.getElementById('bankerCardsDetail');
+  const pEl = document.getElementById('playerCards-detail'), bEl = document.getElementById('bankerCards-detail');
   if (!pEl || !bEl) return;
   pEl.innerHTML = ''; bEl.innerHTML = '';
   const seq = [[pEl,sim.player.cards[0]],[bEl,sim.banker.cards[0]],[pEl,sim.player.cards[1]],[bEl,sim.banker.cards[1]]];
@@ -1085,8 +1117,8 @@ async function revealSpeedDetailCards(sim, instant){
     el.insertAdjacentHTML('beforeend', cardHtml(card));
     if (!instant) await new Promise(r=>setTimeout(r, 260));
   }
-  document.getElementById('playerScoreDetail').textContent = sim.player.score;
-  document.getElementById('bankerScoreDetail').textContent = sim.banker.score;
+  document.getElementById('playerScore-detail').textContent = sim.player.score;
+  document.getElementById('bankerScore-detail').textContent = sim.banker.score;
 }
 function clearSpeedDetailBets(tableId){
   const s = SPEED.tstate[tableId]; if (!s || s.phase!=='betting') return;
@@ -1131,7 +1163,14 @@ async function tickAllSpeedTables(){
 }
 function setSpeedTileTimer(tableId, v){
   const el = document.getElementById('timer-'+tableId); if (el) el.textContent = v;
-  if (SPEED.detailTableId===tableId){ const d = document.getElementById('timer-detail'); if (d) d.textContent = v; }
+  if (SPEED.detailTableId!==tableId) return;
+  const d = document.getElementById('timer-detail'); if (d) d.textContent = v;
+  // sweep the ring the same way the avatar loop does
+  const s = SPEED.tstate[tableId];
+  const total = s.phase==='betting' ? SPEED_BETTING_SECONDS : s.phase==='result' ? SPEED_RESULT_SECONDS : SPEED_DEALING_SECONDS;
+  const arc = document.getElementById('timerArc-detail');
+  if (arc){ const c = 219.9; arc.style.strokeDashoffset = c * (1 - Math.max(0,v)/total); }
+  document.getElementById('timerRing-detail')?.classList.toggle('urgent', v <= 5 && v > 0);
 }
 function setSpeedTilePhaseText(tableId, txt){
   const el = document.getElementById('phase-'+tableId); if (el && txt) el.textContent = txt;

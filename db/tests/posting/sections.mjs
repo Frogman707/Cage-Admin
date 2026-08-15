@@ -1,5 +1,9 @@
 // 04-posting-rules.md 의 최상위 절 대장 + 그 위의 순수 판정 함수.
-//   posting  분개를 만드는 절인가
+//   posting  분개를 만드는 절인가. **손으로 적지만 손으로 믿지는 않는다** —
+//            sectionsWithMismatchedPosting 이 카탈로그(pg_proc.prosrc)에서 도출한
+//            사실과 대조한다. posting: false 는 uncoveredSections ·
+//            sectionsWithUncitedOps 를 통째로 면제시키는 탈출구라, 리터럴을
+//            믿으면 §15 에 새 연산 하나 얹는 것만으로 다섯 가드가 전부 통과한다.
 //   ops      그 절을 실행하는 연산 함수. **스키마 한정 이름**이다.
 //            게임 · 실사 연산은 ledger 가 아니라 cage 스키마에 있다.
 //   test     그 절의 계약 테스트 파일 (없으면 null)
@@ -148,6 +152,43 @@ export const POSTING_SECTIONS = [
 // 알아보기 힘든 ERR_INVALID_ARG_TYPE 로 먼저 터지는 것을 막는다.
 export function uncoveredSections(sections, opNames) {
   return sections.filter((s) => s.posting && !s.test && s.ops.some((op) => opNames.has(op)));
+}
+
+// post_transaction 을 **직접** 부르지는 않지만 분개를 만드는 op_*. op -> 사유.
+// posting-rules.test.js 의 KNOWN_RULELESS 와 같은 규율이다: 사유 없이 올리지 않고,
+// 목록이 낡으면(그 op 이 사라졌거나 이제 직접 부르면) 그 자체가 실패다.
+export const INDIRECT_POSTING_OPS = new Map([
+  [
+    'cage.op_cancel_game',
+    'ledger.reverse_transaction() 을 거쳐 역분개를 찍는다 (010_operations_game.sql:603). ' +
+      '그 함수가 post_transaction 을 부르므로 prosrc 직접 검사에는 안 걸린다',
+  ],
+  [
+    'ledger.op_reverse_transaction',
+    'ledger.reverse_transaction() 의 얇은 공개 래퍼다 (011_operations_admin.sql §6). ' +
+      '분개는 그 안쪽에서 찍힌다',
+  ],
+]);
+
+// 절이 선언한 posting 플래그를 카탈로그에서 도출한 사실과 대조한다.
+//
+// postingOps: prosrc 가 ledger.post_transaction 을 직접 부르는 op_* 이름의 Set.
+// opNames:    스키마에 실재하는 op_* 전체.
+//
+// **실재하는 op 이 하나도 없는 절은 판정하지 않는다** — 도출할 근거가 없다.
+// §13 처럼 연산 함수가 아직 없는 예정 절(posting: true, ops: [])은 문서가 약속한
+// 미래이지 카탈로그가 반증할 수 있는 주장이 아니다. 그 절들은 uncoveredSections ·
+// sectionsMissingReason 이 따로 지킨다.
+export function sectionsWithMismatchedPosting(sections, opNames, postingOps) {
+  const posts = (op) => postingOps.has(op) || INDIRECT_POSTING_OPS.has(op);
+  return sections
+    .map((s) => {
+      const present = s.ops.filter((op) => opNames.has(op));
+      if (present.length === 0) return null;
+      const derived = present.some(posts);
+      return derived === Boolean(s.posting) ? null : { section: s, declared: Boolean(s.posting), derived, present };
+    })
+    .filter((r) => r !== null);
 }
 
 // posting 절인데 테스트가 없고, pending 사유도 적혀 있지 않은 절.

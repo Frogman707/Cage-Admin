@@ -12,10 +12,12 @@ import path from 'node:path';
 import { query, closePool } from '../helpers/db.mjs';
 import {
   POSTING_SECTIONS,
+  INDIRECT_POSTING_OPS,
   uncoveredSections,
   sectionsMissingReason,
   unclaimedOps,
   sectionsWithUncitedOps,
+  sectionsWithMismatchedPosting,
 } from './sections.mjs';
 
 const HERE = import.meta.dirname;
@@ -34,6 +36,22 @@ async function existingOps() {
      WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
        AND n.nspname NOT LIKE 'pg\\_%'
        AND p.proname LIKE 'op\\_%'`);
+  return new Set(rows.map((r) => r.fn));
+}
+
+// ledger.post_transaction 을 **직접** 부르는 op_* 집합. 이것이 "이 절은 분개를
+// 만든다"는 대장 리터럴을 대신 증명할 기계적 사실이다 — 분개를 만드는 유일한
+// 경로가 post_transaction 이기 때문이다 (008_post_transaction.sql; ledger.entries
+// 는 앱·연산 어느 역할에도 직접 INSERT 권한이 없다).
+async function postingOps() {
+  const rows = await query(`
+    SELECT n.nspname || '.' || p.proname AS fn
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+       AND n.nspname NOT LIKE 'pg\\_%'
+       AND p.proname LIKE 'op\\_%'
+       AND p.prosrc LIKE '%post_transaction%'`);
   return new Set(rows.map((r) => r.fn));
 }
 
@@ -111,6 +129,42 @@ test('R-12-02 절이 주장하는 op_* 는 그 테스트 파일 안에 이름으
     [],
     '이웃 op 의 테스트가 있다고 이 op 가 검증된 것은 아니다. 대장이 주장하는 op_* 를 실제로 호출하는 테스트를 추가한다'
   );
+});
+
+test('R-12-02 절의 posting 플래그가 카탈로그에서 도출한 사실과 일치한다', async () => {
+  // posting 은 손으로 적은 불리언이고, **가드 없는 탈출구**다:
+  // uncoveredSections 는 posting: false 절을 건너뛰고, sectionsWithUncitedOps 는
+  // test: null 절을 건너뛰며, unclaimedOps 는 "어딘가 등재"만 요구한다. 그래서
+  // 새 연산을 §15(posting: false, test: null)에 얹으면 테스트 0개로 다섯 가드를
+  // 전부 통과한다. 그 리터럴을 카탈로그 사실에 묶어 탈출구를 닫는다.
+  const ops = await existingOps();
+  const posts = await postingOps();
+  const wrong = sectionsWithMismatchedPosting(POSTING_SECTIONS, ops, posts);
+  assert.deepEqual(
+    wrong.map(
+      (r) =>
+        `${r.section.id} ${r.section.title} — posting: ${r.declared} 라고 적혀 있는데 ` +
+        `카탈로그가 말하는 것은 ${r.derived} 다 (${r.present.join(', ')})`
+    ),
+    [],
+    'posting 을 카탈로그에 맞추거나, 간접 분개라면 sections.mjs 의 INDIRECT_POSTING_OPS 에 사유와 함께 올린다'
+  );
+});
+
+test('R-12-02 INDIRECT_POSTING_OPS 허용목록이 낡지 않았다', async () => {
+  // 허용목록은 사실을 덮는 예외다. 낡으면 조용히 넓어진다 — 그 op 이 사라졌거나,
+  // 이제 post_transaction 을 직접 불러 예외가 필요 없어졌는데도 남아 있으면
+  // 다음에 같은 이름을 쓰는 무언가가 무상으로 면제를 물려받는다.
+  const ops = await existingOps();
+  const posts = await postingOps();
+  const stale = [...INDIRECT_POSTING_OPS.keys()]
+    .map((op) => {
+      if (!ops.has(op)) return `${op} — 스키마에 그런 op_* 가 없다. 목록에서 지운다`;
+      if (posts.has(op)) return `${op} — 이제 post_transaction 을 직접 부른다. 예외가 필요 없다`;
+      return null;
+    })
+    .filter((m) => m !== null);
+  assert.deepEqual(stale, []);
 });
 
 // ---- 합성 입력 테스트 — DB 없이 판정 함수 자체를 고정한다 --------------------
@@ -312,6 +366,39 @@ test('R-12-02 합성 · posting 이 false 이거나 test 가 이미 있으면 se
     { id: 'B', title: '이미 테스트 있음', posting: true, test: './b.test.js' }, // test 가 있으니 사유가 필요 없다
   ];
   assert.deepEqual(sectionsMissingReason(sections), []);
+});
+
+test('R-12-02 합성 · posting: false 인데 분개를 만드는 op_* 가 있으면 잡는다', () => {
+  // §15 탈출구의 모양 그대로다 — 무분개 절에 분개 op 을 얹는 순간 걸려야 한다.
+  const sections = [{ id: 'X', title: '무분개 절', posting: false, ops: ['ledger.op_posts'], test: null }];
+  const ops = new Set(['ledger.op_posts']);
+  const posts = new Set(['ledger.op_posts']);
+  assert.deepEqual(
+    sectionsWithMismatchedPosting(sections, ops, posts).map((r) => [r.section.id, r.declared, r.derived]),
+    [['X', false, true]]
+  );
+});
+
+test('R-12-02 합성 · posting: true 인데 아무 op_* 도 분개를 안 만들면 잡는다', () => {
+  const sections = [{ id: 'X', title: '분개 절', posting: true, ops: ['ledger.op_quiet'], test: './x.test.js' }];
+  const ops = new Set(['ledger.op_quiet']);
+  assert.deepEqual(
+    sectionsWithMismatchedPosting(sections, ops, new Set()).map((r) => [r.section.id, r.declared, r.derived]),
+    [['X', true, false]]
+  );
+});
+
+test('R-12-02 합성 · 실재하는 op_* 가 없는 절은 posting 판정 대상이 아니다', () => {
+  // §13 류 — 연산 함수가 아직 없다. 카탈로그가 반증할 근거 자체가 없으므로
+  // posting: true 를 거짓이라고 부를 수 없다.
+  const sections = [{ id: 'X', title: '예정 절', posting: true, ops: [], test: null, pending: '사유' }];
+  assert.deepEqual(sectionsWithMismatchedPosting(sections, new Set(), new Set()), []);
+});
+
+test('R-12-02 합성 · 허용목록의 간접 분개 op_* 는 분개하는 것으로 친다', () => {
+  const sections = [{ id: 'X', title: '역분개 절', posting: true, ops: ['cage.op_cancel_game'], test: './x.test.js' }];
+  const ops = new Set(['cage.op_cancel_game']);
+  assert.deepEqual(sectionsWithMismatchedPosting(sections, ops, new Set()), []);
 });
 
 test('R-12-02 합성 · test 필드가 생략돼도(undefined) 있는 것으로 취급하지 않는다', () => {

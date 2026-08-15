@@ -13,11 +13,22 @@
 //     거짓인 참조를 참으로도(식별자가 우연히 근처에 있을 때) 오판할 수 있다.
 //     그래서 CI를 막지 않는다: 사람이 읽을 신호일 뿐이다.
 //
-// 참조는 두 형태다: 전체(`path.ext:NNN`)와 이어쓰기(`:NNN`, 앞선 전체 참조의
-// 파일을 그대로 잇는다 — 같은 줄에서 먼저 나온 전체 참조가 있으면 그것을,
-// 없으면 문서를 위에서부터 훑어오며 마지막으로 본 전체 참조를 쓴다). 이어쓰기는
-// 반드시 백틱이나 마크다운 링크 텍스트로 감싸여 있어야 한다 — 그래야 `0.95:1`
+// 참조는 세 형태다:
+//   전체 (`path.ext:NNN`)          — 프로즈에 그대로 적힌 경로. **저장소 루트 기준**이다.
+//   링크 (`](path.ext):NNN`)       — 마크다운 링크의 목적지 뒤에 줄 번호가 붙은 꼴.
+//                                    링크 목적지이므로 **문서 기준 상대 경로**다 —
+//                                    렌더러도 check-doc-links.mjs 도 그렇게 푼다.
+//   이어쓰기 (`:NNN`)              — 앞선 전체·링크 참조의 파일을 그대로 잇는다.
+//                                    같은 줄에서 먼저 나온 참조가 있으면 그것을, 없으면
+//                                    문서를 위에서부터 훑어오며 마지막으로 본 것을 쓴다.
+// 이어쓰기는 반드시 백틱이나 마크다운 링크 텍스트로 감싸여 있어야 한다 — 그래야 `0.95:1`
 // 같은 배당률 표기나 `16:25:29` 같은 시각 표기의 콜론과 구별된다.
+//
+// 링크 형태를 빠뜨리면 두 가지가 동시에 깨진다: 그 참조 자체가 검사에서 통째로
+// 빠지고(이 저장소에서 14건이었다), 같은 줄의 이어쓰기가 **엉뚱한 파일**로 해소된다 —
+// 문서 위쪽에서 흘러온 lastFull 이 그대로 남기 때문이다. 후자는 대상 파일이 길면
+// 자문 오보로 끝나지만 짧으면 "파일은 N줄뿐이다" 라는 구조 실패가 되어 무관한
+// 이유로 CI 를 막는다.
 //
 // `docs/superpowers/plans/`는 훑지 않는다 — 계획 문서는 실행 중인 다른 작업의
 // 소유물이고, 실행 시점 스냅샷이나 "이 문서가 예전에 뭐라고 잘못 말했는지"를
@@ -31,7 +42,11 @@ import path from 'node:path';
 const REPO_ROOT = path.resolve(import.meta.dirname, '..');
 const DOC_ROOT = path.join(REPO_ROOT, 'docs');
 const PLANS_DIR = path.join(DOC_ROOT, 'superpowers', 'plans');
-const REF_RE = /([A-Za-z0-9_./-]+\.(?:html|js|mjs|sql)):(\d{1,6})/g;
+const PATH_RE = '[A-Za-z0-9_./-]+\\.(?:html|js|mjs|sql)';
+const REF_RE = new RegExp(`(${PATH_RE}):(\\d{1,6})`, 'g');
+// 마크다운 링크 목적지 뒤의 줄 번호: `[텍스트](경로):NNN`. 목적지는 문서 기준 상대
+// 경로다. REF_RE 는 경로 바로 뒤에 콜론을 요구하므로 닫는 괄호가 낀 이 꼴을 못 본다.
+const LINK_REF_RE = new RegExp(`\\]\\((${PATH_RE})\\):(\\d{1,6})`, 'g');
 // 이어쓰기 참조: 백틱 쌍 또는 마크다운 링크 텍스트 전체가 `:NNN`/`:NNN-MMM`
 // 하나뿐이어야 한다 — 델리미터가 열고 닫는 지점까지 통째로 요구해야
 // `0.95:1`처럼 다른 텍스트에 파묻힌 콜론이나, `` `04`:437 `` 처럼 앞선
@@ -81,32 +96,39 @@ let checked = 0;
 
 for (const doc of docs) {
   const lines = (await readFile(doc, 'utf8')).split('\n');
-  let lastFullPath = null; // 문서를 위에서부터 훑으며 마지막으로 본 전체 참조의 경로
+  const docDir = path.dirname(doc);
+  let lastFull = null; // 문서를 위에서부터 훑으며 마지막으로 본 전체·링크 참조
   for (const [index, line] of lines.entries()) {
     const where = `${path.relative(REPO_ROOT, doc)}:${index + 1}`;
 
-    // 이 줄의 모든 참조(전체 + 이어쓰기)를 위치 순으로 모은다.
+    // 이 줄의 모든 참조(전체 + 링크 + 이어쓰기)를 위치 순으로 모은다.
+    // 링크 참조는 REF_RE 가 못 보는 꼴이라 서로 겹치지 않는다.
     const refs = [];
     for (const match of line.matchAll(REF_RE)) {
-      refs.push({ pos: match.index, rawPath: match[1], rawLine: match[2], full: true });
+      refs.push({ pos: match.index, rawPath: match[1], rawLine: match[2], full: true, base: REPO_ROOT });
+    }
+    for (const match of line.matchAll(LINK_REF_RE)) {
+      refs.push({ pos: match.index, rawPath: match[1], rawLine: match[2], full: true, base: docDir });
     }
     for (const match of line.matchAll(BARE_REF_RE)) {
       refs.push({ pos: match.index, rawLine: match[1] ?? match[2], full: false });
     }
     refs.sort((a, b) => a.pos - b.pos);
 
-    // 왼쪽에서 오른쪽으로 훑으며 전체 참조를 만날 때마다 lastFullPath 를 갱신하고,
-    // 이어쓰기는 (같은 줄에서 앞서 나온 전체 참조가 있으면 그것을, 없으면 문서
-    // 전체에서 가장 최근 전체 참조를) 그 시점의 lastFullPath 로 해소한다.
+    // 왼쪽에서 오른쪽으로 훑으며 전체·링크 참조를 만날 때마다 lastFull 을 갱신하고,
+    // 이어쓰기는 (같은 줄에서 앞서 나온 참조가 있으면 그것을, 없으면 문서
+    // 전체에서 가장 최근 참조를) 그 시점의 lastFull 로 해소한다.
+    // 해소된 절대 경로를 함께 들고 다닌다 — 링크 참조는 문서 기준, 전체 참조는
+    // 저장소 루트 기준이라 경로 문자열만 물려주면 기준이 뒤바뀐다.
     const resolved = [];
     for (const r of refs) {
       if (r.full) {
-        lastFullPath = r.rawPath;
-        resolved.push({ pos: r.pos, rawPath: r.rawPath, rawLine: r.rawLine });
-      } else if (lastFullPath !== null) {
-        resolved.push({ pos: r.pos, rawPath: lastFullPath, rawLine: r.rawLine, bare: true });
+        lastFull = { rawPath: r.rawPath, absPath: path.resolve(r.base, r.rawPath) };
+        resolved.push({ pos: r.pos, ...lastFull, rawLine: r.rawLine });
+      } else if (lastFull !== null) {
+        resolved.push({ pos: r.pos, ...lastFull, rawLine: r.rawLine, bare: true });
       }
-      // lastFullPath 가 아직 없으면(문서 맨 앞에서부터 이어쓰기로 시작하는 경우는
+      // lastFull 이 아직 없으면(문서 맨 앞에서부터 이어쓰기로 시작하는 경우는
       // 없다고 보고) 조용히 건너뛴다 — 해소할 근거가 없다.
     }
     if (resolved.length === 0) continue;
@@ -133,10 +155,12 @@ for (const doc of docs) {
       const ref = resolved[i];
       const lineNo = Number(ref.rawLine);
       checked += 1;
-      // 참조 경로는 **저장소 루트 기준**으로만 푼다. 문서 기준 상대 경로로
-      // 다시 시도하지 않는다: 문서가 옮겨 다니면 같은 문자열이 다른 파일을
-      // 가리키게 되고, 그러면 이 검사가 가리키는 대상 자체가 흔들린다.
-      const body = await sourceLines(path.resolve(REPO_ROOT, ref.rawPath));
+      // 기준은 참조의 **꼴**이 정한다. 프로즈에 적힌 전체 참조는 저장소 루트
+      // 기준으로만 푼다 — 못 찾았다고 문서 기준으로 다시 시도하지 않는다:
+      // 문서가 옮겨 다니면 같은 문자열이 다른 파일을 가리키게 되고, 그러면 이
+      // 검사가 가리키는 대상 자체가 흔들린다. 마크다운 링크 목적지는 정의상
+      // 문서 기준이므로(렌더러도 check-doc-links.mjs 도 그렇게 푼다) 그쪽으로 푼다.
+      const body = await sourceLines(ref.absPath);
       if (body === null) {
         // 읽을 수 없는 참조 대상은 통과가 아니라 문제다. 파일이 지워지거나
         // 이름이 바뀌면 그 파일을 가리키던 참조 전부가 조용히 검사에서 빠진다.

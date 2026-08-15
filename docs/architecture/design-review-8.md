@@ -102,7 +102,7 @@ CONSTRAINT tx_actor_required                          -- :90-91
 | --- | --- | --- |
 | `index.html` | 20곳 (명명 함수 8종 포함) | 8종 |
 | `partner-admin/app.js` | 5곳 | **0** |
-| `avatar/app.js` | 1곳 — 채팅 ([:845](../../avatar/app.js#L845)) | **0** |
+| `avatar/app.js` | 1곳 — 채팅 ([avatar/app.js:845](../../avatar/app.js#L845)) | **0** |
 
 "8채널"은 **케이지 어드민만 센 값**이다. 파트너 콘솔과 플레이어 앱의 실시간 축에는 대응 채널이 없다. [`README`](README.md) 한 장 요약의 `onSnapshot × 8 → WebSocket × 8 채널` 행도 같은 누락을 반복한다.
 

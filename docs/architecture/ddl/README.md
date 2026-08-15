@@ -176,7 +176,7 @@ GRANT 를 함께 고쳐야 한다. 한 글자만 어긋나도 그 GRANT 가
 ```bash
 # 다른 프로젝트가 5432 를 쓰고 있으면 포트를 옮긴다
 docker run -d --name cage-pg18 -p 55432:5432 \
-  -e POSTGRES_PASSWORD=… -e POSTGRES_DB=cage postgres:18-alpine
+  -e POSTGRES_PASSWORD=… -e POSTGRES_DB=cage postgres:18.6-alpine
 for f in 0*.sql; do psql -v ON_ERROR_STOP=1 -f "$f" || break; done
 ```
 

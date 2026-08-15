@@ -26,6 +26,18 @@
 - 픽스처에 개인정보·실계좌 값을 쓰지 않는다 (`R-12-23`).
 - **잡이 조용히 건너뛰지 않는다.** 경로 필터·조건부 실행으로 스킵되면 머지 차단 신호가 된다 (`R-12-06`).
 
-## 아직 비어 있다
+## 실행
 
-계획 `a01-ci-golden-harness` 가 채운다. 대장은 [`docs/superpowers/ROADMAP.md`](../../docs/superpowers/ROADMAP.md).
+```bash
+PGPASSWORD=devonly npm run db:apply     # 빈 DB에 db/schema 적용
+PGPASSWORD=devonly npm run db:test-role # 테스트용 로그인 역할 3종
+PGPASSWORD=devonly npm run test:db      # node --test --test-concurrency=1 "db/tests/**/*.test.js"
+```
+
+테스트는 커밋한다. 지연 제약이 COMMIT 에서만 발화하기 때문이다.
+그래서 파일 병렬 실행을 끄고(`--test-concurrency=1`), **다시 돌리기 전에는 `npm run db:reset` 한다** —
+`op_record_balancing` 이 쓰는 `cage.balancing_counts` 행이 지점·영업일당 유일해서, 같은 날 두 번째
+실행은 그 제약에서 실패한다. CI는 매번 빈 DB에서 시작하므로 이 문제가 없다.
+
+절별 계약 테스트의 진행 상황은 `db/tests/posting/sections.mjs`가 대장이다.
+`pending`은 **그 절의 `op_*`가 아직 없을 때만** 유효하다 — 함수가 생기면 커버리지 가드가 바로 실패한다.

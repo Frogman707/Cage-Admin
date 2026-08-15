@@ -39,10 +39,12 @@ db/
 ```bash
 # PostgreSQL 18 컨테이너 (5432 가 비어 있지 않으면 55432 로 매핑)
 docker run -d --name cage-pg18 -p 55432:5432 \
-  -e POSTGRES_PASSWORD=devonly -e POSTGRES_DB=cage postgres:18-alpine
+  -e POSTGRES_PASSWORD=devonly -e POSTGRES_DB=cage postgres:18.6-alpine
 
-PGPASSWORD=devonly npm run db:apply     # 001 → 013 순차 적용
-PGPASSWORD=devonly npm run db:reset     # 5개 스키마 DROP 후 재적용
+PGPASSWORD=devonly npm run db:apply       # 001 → 013 순차 적용
+PGPASSWORD=devonly npm run db:reset       # 5개 스키마 DROP 후 재적용
+PGPASSWORD=devonly npm run db:test-role   # 테스트용 로그인 역할 3종
+PGPASSWORD=devonly npm run test:db        # 골든 테스트
 ```
 
 접속 파라미터는 표준 `PG*` 환경변수로 받는다. 기본값은 `db/scripts/apply.sh` 상단에 있다.
@@ -62,6 +64,8 @@ PGPASSWORD=devonly npm run db:reset     # 5개 스키마 DROP 후 재적용
 - **지점 추가는 `ledger.provision_branch()` 로만 한다.** `branches` 에 INSERT만 하면
   `branch_config` · `chain_heads` · 하우스 주체 · 하우스 계정이 빠진 반쪽 지점이 남는다 (`R-12-20`).
 - **픽스처에 개인정보·실계좌 값을 쓰지 않는다** (`R-12-23`).
+- **골든 테스트를 소유자(`postgres`)로 돌리지 않는다.** RLS와 테이블 권한이 우회되어 GRANT 실수·REVOKE 누락·지점 격리 실패가 초록으로 통과한다. `op_*` 호출은 `ledger_app`(§14는 `ledger_migrator`)로 한다.
+- **테스트 로그인 역할 하나에 `ledger_app`과 `identity_app`을 함께 주지 않는다.** 자금 경로가 자기 스텝업 토큰을 발급할 수 있게 되어 DR-03(발급자 ≠ 소비자)이 테스트에서 사라진다. `db/schema/012_roles_and_grants.sql:214`가 같은 말을 한다. 픽스처 토큰은 소유자가 발급한다.
 
 ---
 
@@ -74,10 +78,8 @@ PGPASSWORD=devonly npm run db:reset     # 5개 스키마 DROP 후 재적용
 
 ## 아직 없는 것
 
-| 대상                                | 언제                                    |
-| ----------------------------------- | --------------------------------------- |
-| `db/tests/` 실체 (골든 테스트 87건) | 계획 `a01-ci-golden-harness`            |
-| `.github/workflows/db-golden.yml`   | 계획 `a01-ci-golden-harness`            |
-| `services/` — API 런타임            | D4(Go 또는 TypeScript) 확정 후. Track C |
+| 대상                     | 언제                                    |
+| ------------------------ | --------------------------------------- |
+| `services/` — API 런타임 | D4(Go 또는 TypeScript) 확정 후. Track C |
 
 계획 대장은 [`docs/superpowers/ROADMAP.md`](../docs/superpowers/ROADMAP.md).

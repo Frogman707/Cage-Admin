@@ -258,8 +258,6 @@ const GAME_TYPE_TABS = [
   {id:'all', label:'allGameTypes'},
   {id:'avatar', label:'gameTypeAvatar'},
   {id:'speed', label:'gameTypeSpeed'},
-  {id:'hyper', label:'gameTypeHyper'},
-  {id:'dragontiger', label:'gameTypeDragonTiger'},
 ];
 function gameTypeTabsHtml(activeType){
   return `<div class="game-type-tabs">
@@ -270,7 +268,6 @@ function setGameTypeFilter(id){
   document.querySelectorAll('.game-type-tab').forEach(b=>b.classList.toggle('active', b.dataset.t===id));
   if (id==='avatar' && MODE!=='avatar') chooseAvatar();
   else if (id==='speed' && MODE!=='speed') chooseSpeed();
-  else if (id==='hyper' || id==='dragontiger') toast(t('gameComingSoon'));
 }
 function lobbySearchHtml(){
   return `<div class="lobby-search-wrap">
@@ -888,23 +885,25 @@ async function loadSpeedTables(){
     renderSpeedTileStats(tb.id);
   });
 }
+// Built from the same pieces as the avatar lobby card - same classes, same order - so the
+// two selection screens render identically. The one Speed-specific bit is the countdown,
+// which takes the slot the avatar card gives its request/state pill.
 function speedTileHtml(tb){
   return `
-  <div class="speed-tile" id="tile-${tb.id}" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" style="cursor:pointer;" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}">
-    <div class="head"><span class="name">${escapeHtml(tb.name)}</span><span class="shoe">SHOE #${tb.shoeNo||1} · ${tb.casino}</span></div>
-    <div id="hotbadge-${tb.id}"></div>
-    <div class="speed-thumb"></div>
-    <div class="speed-tile-body">
-      <div class="speed-tile-state">
-        <span class="score-txt" id="score-${tb.id}"></span>
-        <span class="speed-timer" id="timer-${tb.id}">15</span>
-      </div>
-      <button class="btn btn-gold btn-sm btn-block" style="margin-bottom:9px;" onclick="event.stopPropagation();openSpeedTableDetail('${tb.id}')" data-i18n="openTable">${t('openTable')}</button>
-      <div class="speed-mini-road" id="road-${tb.id}"></div>
-      <div class="speed-tile-stats" id="stats-${tb.id}"></div>
+  <div class="lobby-card speed-tile" id="tile-${tb.id}" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}">
+    <div class="thumb"></div>
+    <div class="card-status-row">
+      <span class="card-status live">⏱ <b id="timer-${tb.id}">15</b></span>
+      <span class="card-hot" id="score-${tb.id}"></span>
+      <span class="card-hot" id="hotbadge-${tb.id}"></span>
+      <button class="card-favorite" onclick="event.stopPropagation();toggleCardFavorite(this)" title="${t('favorites')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
     </div>
+    <div class="info"><div class="name">${escapeHtml(tb.name)}</div><div class="limits">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div></div>
+    <div class="mini-road br-grid" id="road-${tb.id}"></div>
+    <div class="stat-row" style="padding-bottom:13px;" id="stats-${tb.id}"></div>
   </div>`;
 }
+
 function renderSpeedTileRoad(tableId){
   const el = document.getElementById('road-'+tableId);
   if (el){
@@ -955,7 +954,7 @@ function renderSpeedTileStats(tableId){
   const statsEl = document.getElementById('stats-'+tableId);
   if (statsEl) statsEl.innerHTML = `<span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>${t('todayLabel')} <b>${fmtNum(volume.today)}</b></span>`;
   const badgeEl = document.getElementById('hotbadge-'+tableId);
-  if (badgeEl) badgeEl.innerHTML = streak.len >= 3 ? `<div class="speed-hot-badge">🔥 ${streak.len}연속</div>` : '';
+  if (badgeEl) badgeEl.textContent = streak.len >= 3 ? `🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}` : '';
 }
 // Betting lives only inside the table now, so this paints the detail screen's spots alone.
 function renderSpeedTileBets(tableId){

@@ -48,6 +48,15 @@ test('R-12-02 · AC-12-2 04 §6-1 롤링 커미션 분개 집합', async () => {
     ]);
     const result = rows[0].result;
 
+    // p_commission_minor 로 우리가 계산한 expected 를 그대로 밀어 넣으므로,
+    // 위 entriesOf 단언만으로는 서버가 commission_rate_bp 를 실제로 적용해
+    // 금액을 계산하는지 증명하지 못한다 — 서버가 요율을 무시하고 엉뚱한 값을
+    // 냈어도 우리가 건넨 값이 그대로 찍혀 통과해 버린다. op_settle_commission
+    // 은 v_g.commission_rate_bp 로 독립적으로 계산한 v_expected 를
+    // result.expected_minor 로 되돌려준다(010_operations_game.sql:790,844) —
+    // 그 값이 우리 JS 계산과 일치해야 요율이 실제로 적용됐다고 말할 수 있다.
+    assert.equal(result.expected_minor, expected);
+
     // op_settle_commission 의 반환 JSON 은 다른 게임 연산과 달리 tx_response 를
     // 최상위로 병합하지 않고 result.transaction 아래에 그대로 얹는다 — 그래서
     // external_id 는 result.transaction.transaction.external_id 에 있다

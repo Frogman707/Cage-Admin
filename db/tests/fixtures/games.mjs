@@ -37,6 +37,12 @@ export async function chipsOutstanding(client, gameNo) {
       WHERE g.game_no = $1`,
     [gameNo]
   );
+  if (rows.length !== 1) {
+    throw new Error(
+      `chipsOutstanding(${gameNo}) found ${rows.length} rows — ` +
+        '게임을 찾을 수 없거나 RLS 로 그 계정 잔액이 안 보인다'
+    );
+  }
   return BigInt(rows[0].chips);
 }
 

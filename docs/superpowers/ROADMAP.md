@@ -25,11 +25,11 @@
 
 스펙 13종은 **도메인 축**으로 잘려 있고, 각 스펙 안에 세 계층이 섞여 있다.
 
-| 계층 | 내용 | 작성 가능 여부 |
-|---|---|---|
-| **A · DB** | 스키마 · 트리거 · 뷰 · `op_*` 함수 · RLS · GRANT | 선행 결정 2건(§2)만 있으면 **전부 가능** |
-| **B · 현행 JS** | `index.html`의 지금 오지급을 내는 결함 | 대상 파일 실재. 테스트 도구 결정 필요 |
-| **C · API/앱** | 엔드포인트 · 아웃박스 소비자 · 실시간 채널 · 화면 | **런타임 언어 미결정으로 전부 막힘** |
+| 계층　　　　　　| 내용　　　　　　　　　　　　　　　　　　　　　　　| 작성 가능 여부　　　　　　　　　　　　　 |
+| -----------------| ---------------------------------------------------| ------------------------------------------|
+| **A · DB**　　　| 스키마 · 트리거 · 뷰 · `op_*` 함수 · RLS · GRANT　| 선행 결정 2건(§2)만 있으면 **전부 가능** |
+| **B · 현행 JS** | `index.html`의 지금 오지급을 내는 결함　　　　　　| 대상 파일 실재. 테스트 도구 결정 필요　　|
+| **C · API/앱**　| 엔드포인트 · 아웃박스 소비자 · 실시간 채널 · 화면 | **런타임 언어 미결정으로 전부 막힘**　　 |
 
 계획을 도메인 축으로만 자르면 한 계획 안에 "지금 쓸 수 있는 것"과 "쓸 수 없는 것"이 함께 들어가 **플레이스홀더가 생긴다.** `writing-plans`가 명시적으로 금지하는 계획 실패다. 그래서 **계층 축으로 먼저 자르고, 그 안에서 도메인으로 나눈다.**
 
@@ -37,14 +37,12 @@
 
 ## 2. 계획 작성 전 선행 결정
 
-**D1 · D2가 미결이다. 답이 없으면 Track A의 어떤 계획도 완전하게 쓸 수 없다.**
-
-| # | 결정 | 왜 막히는가 | 후보 |
-|---|---|---|---|
-| **D1** | **마이그레이션 파일 위치와 적용 도구** | 현재 `.sql`이 [`docs/architecture/ddl/`](../architecture/ddl/) 문서 폴더에만 있다. 저장소 안에 실행 대상 경로가 없다. 계획의 `Create:`/`Modify:` 칸을 못 채운다 | `db/migrations/` 순번 파일 직접 적용 · sqitch · Flyway |
-| **D2** | **골든 테스트 러너** | [`12`](../spec/12-ci-golden-tests.md)가 PostgreSQL 18 컨테이너 위 테스트 87건을 요구하는데 러너가 미지정. 현 저장소는 `node` + Firebase 에뮬레이터뿐(`package.json`). 계획의 `Run: <명령>`을 못 채운다 | pgTAP · node + `pg` · Go |
-| **D3** | `index.html` DOM 테스트 도구 | 단일 파일 · 빌드 없음 구조라 하니스가 0이다. Track B 전용 | — |
-| **D4** | **애플리케이션 런타임 언어** | [`02-target-architecture.md` §6](../architecture/02-target-architecture.md)이 "Go 또는 TypeScript" **후보만** 적어 두었다. Track C 전부가 여기 묶여 있다 | Go · TypeScript |
+| # | 결정 | 상태 |
+|---|---|---|
+| **D1** | 스키마 실행 경로 · 마이그레이션 도구 | ✅ **2026-08-15 확정** — `db/schema/` + `db/scripts/apply.sh`. 마이그레이션 도구 없음, 빈 DB 전체 재적용 ([`00-decisions`](../spec/00-decisions.md) §12) |
+| **D2** | 골든 테스트 러너 | ✅ **2026-08-15 확정** — `node:test` + `pg`. 기존 `test/*.test.js`와 같은 결, 신규 의존성 `pg` 1개 |
+| **D3** | `index.html` DOM 테스트 도구 | ⬜ 미결. 단일 파일 · 빌드 없음 구조라 하니스가 0이다. **Track B 전용** |
+| **D4** | **애플리케이션 런타임 언어** | ⬜ 미결. [`02-target-architecture.md` §6](../architecture/02-target-architecture.md)이 "Go 또는 TypeScript" **후보만** 적어 두었다. **Track C 전부가 여기 묶여 있다** |
 
 ---
 
@@ -54,8 +52,8 @@
 
 | # | slug | 스펙 범위 | 선행 | 마일스톤 | 상태 |
 |---|---|---|---|---|---|
-| **a01** | `a01-ci-golden-harness` | [`12`](../spec/12-ci-golden-tests.md) 전부 | — | M0 | ⬜ D2 대기 |
-| **a02** | `a02-branch-reference` | [`01`](../spec/01-ledger-foundation.md) §2 · §7 | a01 | M0 | ⬜ D1 대기 |
+| **a01** | [`a01-ci-golden-harness`](plans/2026-08-15-a01-ci-golden-harness.md) | [`12`](../spec/12-ci-golden-tests.md) 전부 | — | M0 | ✅ 계획 작성 완료 |
+| **a02** | `a02-branch-reference` | [`01`](../spec/01-ledger-foundation.md) §2 · §7 | a01 | M0 | ⬜ |
 | **a03** | `a03-ledger-invariants` | [`01`](../spec/01-ledger-foundation.md) §3~§6 | a02 | M1 | 🔒 B1 |
 | **a04** | `a04-identity-rls` | [`02`](../spec/02-identity-access.md) 전부 | a02 | M1 | ⬜ |
 | **a05** | `a05-idempotency-db` | [`03`](../spec/03-api-idempotency.md) §2~§4 · §7 | a04 | M1 | ⬜ |
@@ -226,5 +224,6 @@
 | [`docs/spec/README.md`](../spec/README.md) | 마일스톤 인덱스 · 의존 순서. **이 로드맵의 상위** |
 | [`docs/spec/00-decisions.md`](../spec/00-decisions.md) | 전 계획의 전제. **계획과 어긋나면 결정 대장이 맞다** |
 | [`docs/architecture/10-acceptance-criteria.md`](../architecture/10-acceptance-criteria.md) | `AC-*` 원본. 각 계획의 종료 판정 근거 |
-| [`docs/architecture/ddl/`](../architecture/ddl/) | Track A의 수정 대상 원본 (D1에서 실행 경로 확정) |
+| [`docs/architecture/ddl/README.md`](../architecture/ddl/README.md) | 스키마 설계 문서 — 파일 구성 · 적용 순서 예외 · ENUM 변경 시 함께 고칠 곳 |
+| [`db/README.md`](../../db/README.md) | Track A의 **수정 대상 실물**. `db/schema/` 13개 파일 · `apply.sh` · `db/tests/` |
 | `plans/` | 개별 구현 계획. superpowers `writing-plans` 형식 |

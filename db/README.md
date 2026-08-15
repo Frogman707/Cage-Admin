@@ -2,10 +2,10 @@
 
 실행 자산이다. 설계 문서가 아니다.
 
-| 여기 | 저기 |
-|---|---|
-| `db/schema/*.sql` — 적용되는 물건 | [`docs/architecture/ddl/README.md`](../docs/architecture/ddl/README.md) — 왜 그렇게 생겼는지 |
-| `db/tests/` — 골든 테스트 | [`docs/spec/12-ci-golden-tests.md`](../docs/spec/12-ci-golden-tests.md) — 무엇을 검사해야 하는지 |
+| 여기                              | 저기                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `db/schema/*.sql` — 적용되는 물건 | [`docs/architecture/ddl/README.md`](../docs/architecture/ddl/README.md) — 왜 그렇게 생겼는지     |
+| `db/tests/` — 골든 테스트         | [`docs/spec/12-ci-golden-tests.md`](../docs/spec/12-ci-golden-tests.md) — 무엇을 검사해야 하는지 |
 
 문서가 `ddl/004` 라고 부르는 파일은 `db/schema/004_ledger.sql` 이다. 번호는 그대로다.
 
@@ -74,10 +74,10 @@ PGPASSWORD=devonly npm run db:reset     # 5개 스키마 DROP 후 재적용
 
 ## 아직 없는 것
 
-| 대상 | 언제 |
-|---|---|
-| `db/tests/` 실체 (골든 테스트 87건) | 계획 `a01-ci-golden-harness` |
-| `.github/workflows/db-golden.yml` | 계획 `a01-ci-golden-harness` |
-| `services/` — API 런타임 | D4(Go 또는 TypeScript) 확정 후. Track C |
+| 대상                                | 언제                                    |
+| ----------------------------------- | --------------------------------------- |
+| `db/tests/` 실체 (골든 테스트 87건) | 계획 `a01-ci-golden-harness`            |
+| `.github/workflows/db-golden.yml`   | 계획 `a01-ci-golden-harness`            |
+| `services/` — API 런타임            | D4(Go 또는 TypeScript) 확정 후. Track C |
 
 계획 대장은 [`docs/superpowers/ROADMAP.md`](../docs/superpowers/ROADMAP.md).

@@ -1,9 +1,14 @@
-# DDL — 실행 가능한 스키마
+# DDL — 스키마 설계 문서
+
+> **`.sql` 파일은 여기 없다.** 2026-08-15 D1 결정으로 [`db/schema/`](../../../db/schema/)로 옮겼다
+> ([`00-decisions.md`](../../spec/00-decisions.md) §12). `docs/`는 문서만 담는다.
+> 이 문서가 `ddl/004`라고 부르는 것은 `db/schema/004_ledger.sql`이다. **번호가 이름이다.**
+> 적용 절차와 운영 규약은 [`db/README.md`](../../../db/README.md).
 
 PostgreSQL 18 기준. 번호 순서대로 적용한다.
 
 ```bash
-for f in 0*.sql 1*.sql; do psql -v ON_ERROR_STOP=1 -f "$f" || break; done
+PGPASSWORD=devonly npm run db:apply     # db/scripts/apply.sh — 001 → 013
 ```
 
 ## 계층

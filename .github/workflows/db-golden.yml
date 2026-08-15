@@ -1,0 +1,86 @@
+# R-12-01 · R-12-06 — 모든 PR에서 빈 DB에 db/schema 를 적용하고 골든 테스트를 돌린다.
+# paths 필터를 두지 않는다. 조용히 스킵되면 그 자체가 사고다 (AC-12-6).
+name: db-golden
+
+on:
+  pull_request:
+  push:
+    branches: [main, backend]
+
+jobs:
+  golden:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # 마이너 버전까지 고정한다. postgres:18-alpine 은 움직이는 태그라서
+        # 18.7 이 나오는 날 저장소 변경 없이 CI 결과가 바뀐다 — 골든 기준선이
+        # 아니게 된다. 버전 올리기는 이 줄을 고치는 의도된 변경이어야 한다.
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: cage
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ci
+      PGDATABASE: cage
+      # 역할 레인 셋. 겹치지 않는다 — 겹치면 DR-03 경계가 테스트에서 사라진다.
+      PGAPPUSER: cage_test_app # ledger_app: op_* 호출
+      PGIDUSER: cage_test_identity # identity_app: DR-03 경계 테스트 전용
+      PGMIGUSER: cage_test_migrator # ledger_migrator: §14 기초 잔액
+      PGAPPPASSWORD: ci
+
+    steps:
+      # v7: 저장소의 다른 두 워크플로는 checkout@v4 / setup-node@v4 를 쓰지만, 그 메이저는
+      # node20 런타임으로 동작해 GitHub Actions 의 폐기 대상이다. v7 은 node24 런타임이라
+      # 아래 node-version: 24 핀과도 맞는다.
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: apply schema (001 → 013)
+        run: bash db/scripts/apply.sh
+
+      # 테스트용 로그인 역할. 이 스텝이 빠지면 골든 테스트가 소유자로 붙어
+      # RLS 와 테이블 권한이 전부 우회된다. 스키마 적용 뒤, 테스트보다 먼저 —
+      # 테스트 로그인 역할이 db/schema/012_roles_and_grants.sql 이 만드는 그룹
+      # 역할의 멤버십을 받는다.
+      - name: create test roles
+        run: bash db/scripts/test-role.sh
+
+      # node --test 는 글롭이 파일을 하나도 못 찾아도 "tests 0 · pass 0 · fail 0"으로
+      # 종료 코드 0을 낸다 (확인한 사실). db/tests 디렉터리가 지워지거나 이름이
+      # 바뀌거나 .gitignore 에 걸리면 잡이 테스트를 하나도 안 돌리고 초록이 된다 —
+      # 바로 AC-12-6 이 말하는 조용한 스킵. 실제로 실행되는지 먼저 세어본다.
+      - name: verify golden test files exist
+        run: |
+          count=$(find db/tests -name '*.test.js' | wc -l)
+          echo "found ${count} db/tests/**/*.test.js files"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::no db/tests/**/*.test.js files found — npm run test:db would silently report 0 tests and exit 0"
+            exit 1
+          fi
+
+      - name: golden tests
+        run: npm run test:db
+
+      - name: doc link check
+        run: npm run docs:check-links
+
+      - name: line reference check
+        run: npm run docs:check-line-refs

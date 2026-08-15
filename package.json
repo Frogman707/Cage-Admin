@@ -9,6 +9,8 @@
     "db:apply": "bash db/scripts/apply.sh",
     "db:reset": "bash db/scripts/reset.sh",
     "docs:check-links": "node tools/check-doc-links.mjs",
+    "db:test-role": "bash db/scripts/test-role.sh",
+    "test:db": "node --test --test-concurrency=1 \"db/tests/**/*.test.js\"",
     "test:balance-emulator": "npx --yes firebase-tools emulators:exec --only firestore --project cage-admin-balance-emulator-test \"node test/balance-emulator.test.js\"",
     "test:dual-write-compat": "npx --yes firebase-tools emulators:exec --only firestore --project cage-admin-balance-compat-test \"node test/dual-write-compat.test.js\""
   },
@@ -18,6 +20,7 @@
     "eslint": "^9.9.0",
     "eslint-plugin-html": "^8.1.4",
     "firebase": "^12.17.1",
+    "pg": "^8.23.0",
     "prettier": "^3.3.3"
   }
 }

@@ -35,37 +35,11 @@ body{overflow:auto;}
 /* speed lobby's fixed bottom chip tray - only shown while playing speed */
 /* same page box as the avatar lobby, so the two grids lay out identical cards */
 .speed-wrap{padding:22px 24px 60px;max-width:1400px;margin:0 auto;}
-.speed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px;}
-/* boxed like the avatar cards: the tile itself carries no padding so the still runs to its
-   edges, and the sections above and below it are padded individually */
-.speed-tile{
-  background:linear-gradient(165deg,var(--panel-hi) 0%,var(--panel) 55%);border:1px solid var(--line);border-radius:14px;
-  overflow:hidden;position:relative;box-shadow:0 8px 20px -14px rgba(0,0,0,.6);transition:border-color .2s ease, transform .2s ease;
-}
-.speed-tile-body{padding:0 15px 13px;}
-.speed-tile:hover{border-color:var(--brass-dim);}
-.speed-tile .head{display:flex;justify-content:space-between;align-items:center;padding:13px 15px 9px;}
-.speed-tile .head .name{font-weight:700;font-size:13px;color:var(--ink);}
-.speed-tile .head .shoe{font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);}
-/* the tile leads with the live still, bare - phase, score and countdown sit on their own
-   row beneath it, the same way the avatar cards read */
-.speed-thumb{
-  aspect-ratio:16/10;
-  background:url('../shared/assets/table-live.jpg') center/cover no-repeat;
-}
-.speed-tile-state{display:flex;align-items:center;gap:9px;padding:9px 1px;}
-.speed-tile-state .score-txt{font-family:var(--mono);font-weight:800;font-size:12.5px;color:var(--ink);}
-.speed-tile-state .speed-timer{margin-left:auto;font-family:var(--mono);font-weight:800;font-size:12.5px;color:var(--brass);background:rgba(0,0,0,.4);border-radius:10px;padding:2px 9px;}
-.speed-mini-road{display:flex;gap:1px;overflow-x:hidden;margin-bottom:8px;}
-.speed-mini-road .br-col{gap:1px;}
-.speed-mini-road .br-cell{width:7px;height:7px;border-width:1.5px;}
-.speed-mini-road .br-cell.tie-only{width:5px;height:5px;}
-.speed-mini-road .br-tie::before{height:1px;}
-.speed-mini-road .br-tie span{display:none;}
-.speed-mini-road .br-pair{width:2px;height:2px;}
-.speed-tile-stats{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-faint);font-family:var(--mono);margin-bottom:2px;}
-.speed-tile-stats b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
-.speed-hot-badge{position:absolute;top:7px;left:8px;background:var(--grad-gold);color:#071120;font-size:9px;font-weight:800;padding:3px 8px;border-radius:9px;z-index:2;box-shadow:0 3px 8px -2px rgba(217,178,106,.5);animation:hotPulse 1.8s ease-in-out infinite;}
+/* the Speed list reuses .lobby-grid / .lobby-card wholesale - only the live countdown pill
+   is its own, and the page box matches the avatar lobby's */
+.speed-wrap{padding:22px 24px 60px;max-width:1400px;margin:0 auto;}
+.card-status.live{background:rgba(255,255,255,.07);color:var(--brass);font-family:var(--mono);}
+.card-status.live b{font-weight:800;}
 .speed-mybets{margin-top:20px;}
 .speed-mybets .bet-history-mini{max-height:200px;overflow-y:auto;}
 </style>
@@ -170,7 +144,7 @@ body{overflow:auto;}
     <div class="speed-wrap">
       <div class="lobby-title"><span data-i18n="speedLobbyTitle">스피드 테이블</span> <span style="font-size:11px;color:var(--ink-faint);font-weight:400;">— <span data-i18n="speedLobbySub">여러 테이블을 동시에 베팅할 수 있습니다</span></span></div>
       <div id="speedToolbar"></div>
-      <div class="speed-grid" id="speedGrid"><div class="spin"></div></div>
+      <div class="lobby-grid" id="speedGrid"><div class="spin"></div></div>
       <div class="card speed-mybets"><h3 data-i18n="myBetHistory">내 베팅내역</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
     </div>
   </div>

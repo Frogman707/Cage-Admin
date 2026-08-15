@@ -367,8 +367,6 @@
   .modal-bg:has(.modal-sheet){align-items:flex-end;padding:0;}
   .modal-bg.open .modal-sheet{transform:translateY(0);}
 
-  .speed-grid{grid-template-columns:1fr 1fr;gap:10px;}
-  .speed-tile{padding:10px 11px;}
   .picker-wrap{padding:36px 16px;}
   .picker-grid{grid-template-columns:1fr;gap:14px;}
 

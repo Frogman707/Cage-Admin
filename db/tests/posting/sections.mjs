@@ -141,13 +141,16 @@ export const POSTING_SECTIONS = [
 // posting 절인데 테스트가 없고, 매핑된 op_* 가 하나라도 실재하는 절.
 // some 이다 — every 가 아니다. 연산이 둘인 절에서 하나만 구현돼도 계약 테스트가 필요하다.
 // pending 사유가 있어도 예외가 아니다 — op_* 가 하나 생기는 순간 유예는 그 자리에서 만료된다.
+// !s.test 다 — s.test === null 이 아니다. test 필드 자체가 생략된(undefined) 행도
+// "테스트 없음"으로 취급해야, 그 실수가 이 테스트가 아니라 파일 존재 검사에서
+// 알아보기 힘든 ERR_INVALID_ARG_TYPE 로 먼저 터지는 것을 막는다.
 export function uncoveredSections(sections, opNames) {
-  return sections.filter((s) => s.posting && s.test === null && s.ops.some((op) => opNames.has(op)));
+  return sections.filter((s) => s.posting && !s.test && s.ops.some((op) => opNames.has(op)));
 }
 
 // posting 절인데 테스트가 없고, pending 사유도 적혀 있지 않은 절.
 export function sectionsMissingReason(sections) {
-  return sections.filter((s) => s.posting && s.test === null && !s.pending);
+  return sections.filter((s) => s.posting && !s.test && !s.pending);
 }
 
 // 스키마에는 있지만 어느 절의 ops 에도 등재되지 않은 op_* (정렬됨).
@@ -156,4 +159,24 @@ export function sectionsMissingReason(sections) {
 export function unclaimedOps(sections, opNames) {
   const claimed = new Set(sections.flatMap((s) => s.ops));
   return [...opNames].filter((op) => !claimed.has(op)).sort();
+}
+
+// 절이 테스트를 "갖고 있다"는 사실만으로는, 그 절이 주장하는 op_* 전부가 실제로
+// 검증됐다는 뜻이 아니다 — 연산이 둘 이상인 절에서 이웃 op 의 테스트만 있어도
+// uncoveredSections 는 통과한다(§9: op_cancel_game 은 테스트가 있고
+// op_reverse_transaction 은 대장에만 적혀 있던 경우가 그것이다).
+//
+// sourceOf(testPath) -> 그 테스트 파일의 소스 텍스트. 실사용은 fs 읽기,
+// 합성 테스트는 in-memory 맵을 주입해 DB·파일시스템 없이 검증한다.
+// opNames 로 존재 여부를 먼저 거른다 — 아직 없는 op_* 를 인용 못 했다고 잡으면
+// pending 절의 test:null 케이스와 목적이 겹친다(그건 uncoveredSections 의 몫이다).
+export function sectionsWithUncitedOps(sections, opNames, sourceOf) {
+  return sections
+    .filter((s) => s.test)
+    .map((s) => {
+      const source = sourceOf(s.test);
+      const missing = s.ops.filter((op) => opNames.has(op) && !source.includes(op));
+      return { section: s, missing };
+    })
+    .filter((r) => r.missing.length > 0);
 }

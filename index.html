@@ -6065,7 +6065,7 @@ function renderIdVerify(){
  if(!id || !acc){ box.innerHTML = `<h3>${t('idVerifyTitle')}</h3><p class="hint">${t('toastNoAcc')}</p>`; return; }
  const photoCell = (src)=> src ? `<img src="${src}">` : t('noPhoto');
  box.innerHTML = `
-  <div style="display:flex;align-items:center;gap:10px;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
     <h3 style="margin:0;flex:1;">${t('idVerifyTitle')}</h3>
     <button class="btn btn-sm" onclick="openEditAccount()">${t('btnAccountUpdate')}</button>
   </div>

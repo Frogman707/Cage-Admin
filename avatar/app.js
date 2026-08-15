@@ -533,9 +533,9 @@ function avatarPreviewShellHtml(state){
 }
 // Shared by the avatar preview/active-session shells and the Speed detail screen. Mirrors
 // the board's own arrangement: tally + Bead Plate (육매) on the left, and on the right three
-// horizontal bands - Big Road (본매), then Big Eye Boy (빅아이), then a band split down the
-// middle holding Small Road (스몰로드) and Cockroach Road (카카로치) - with the P/B legend
-// rail running the full height of the right edge. `idSuffix` picks the element ids (only one
+// full-width bands stacked down the panel - Big Road (본매), Big Eye Boy (빅아이), Small Road
+// (스몰로드), Cockroach Road (카카로치) - with the P/B legend rail running the full height of
+// the right edge. `idSuffix` picks the element ids (only one
 // of 'avatar'/'detail' is ever mounted in its view at a time).
 function avatarScoreboardHtml(idSuffix){
   return `
@@ -550,10 +550,8 @@ function avatarScoreboardHtml(idSuffix){
         <div class="sd-road-main">
           <div class="sd-road-band"><div class="br-grid" id="road-${idSuffix}"></div></div>
           <div class="sd-road-band"><div class="derived-road-grid" id="bigeye-${idSuffix}"></div></div>
-          <div class="sd-road-band sd-road-split">
-            <div class="derived-road-grid" id="smallroad-${idSuffix}"></div>
-            <div class="derived-road-grid" id="cockroach-${idSuffix}"></div>
-          </div>
+          <div class="sd-road-band"><div class="derived-road-grid" id="smallroad-${idSuffix}"></div></div>
+          <div class="sd-road-band"><div class="derived-road-grid" id="cockroach-${idSuffix}"></div></div>
         </div>
         <div class="sd-road-legend-rail">
           <div class="rail-badge player">P<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>
@@ -573,12 +571,9 @@ function renderAvatarRoad(){
   const cockroachEl = document.getElementById('cockroach-avatar');
   if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`;
   const beadEl = document.getElementById('beadroad-avatar');
-  // Bead Plate fills left-to-right for the whole shoe and scrolls, rather than windowing the
-  // tail - a trailing slice would shift every bead one place on each new round.
-  if (beadEl){
-    beadEl.innerHTML = renderBeadRoad(AVATAR.history, AVATAR.pairFlags||[]) || `<span class="hint">${t('noRecord')}</span>`;
-    beadEl.scrollLeft = beadEl.scrollWidth;
-  }
+  // Bead Plate shows the recent window left-aligned, as the board does - grouping runs into
+  // columns makes the full shoe far wider than the panel.
+  if (beadEl) beadEl.innerHTML = renderBeadRoad(AVATAR.history.slice(-BEAD_WINDOW), (AVATAR.pairFlags||[]).slice(-BEAD_WINDOW)) || `<span class="hint">${t('noRecord')}</span>`;
 }
 function renderAvatarTally(){
   const listEl = document.getElementById('tallylist-avatar');
@@ -936,10 +931,7 @@ function renderSpeedDetailRoad(tableId){
   const cockroachEl = document.getElementById('cockroach-detail');
   if (cockroachEl) cockroachEl.innerHTML = renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`;
   const beadEl = document.getElementById('beadroad-detail');
-  if (beadEl){
-    beadEl.innerHTML = renderBeadRoad(history, pairFlags) || `<span class="hint">${t('noRecord')}</span>`;
-    beadEl.scrollLeft = beadEl.scrollWidth;
-  }
+  if (beadEl) beadEl.innerHTML = renderBeadRoad(history.slice(-BEAD_WINDOW), pairFlags.slice(-BEAD_WINDOW)) || `<span class="hint">${t('noRecord')}</span>`;
   renderSpeedDetailTally(tableId);
 }
 function renderSpeedDetailTally(tableId){

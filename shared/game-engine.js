@@ -164,25 +164,35 @@ function renderBigRoad(cols, maxRows){
   return cells.join('');
 }
 
-/* ---------------- Bead Road (진주로드) — strictly chronological, unlike every other road:
-   results fill straight down a column of 6 and then wrap to the next column, so one column
-   freely mixes P/B/T. (The value-change-starts-a-new-column rule applies to Big Road and the
-   derived roads, never here.) Each bead carries its result letter and any pair corner dot. */
+/* ---------------- Bead Road (진주로드) — follows the same column rule as Big Road on this
+   board: a result keeps stacking down the current column until the value changes, then a new
+   column starts, so a column only ever holds one of P/B/T. Runs deeper than the board wrap
+   into the next column. Each bead carries its result letter and any pair corner dot. */
 const BEAD_ROWS = 6;
+// how many recent results the Bead Plate keeps in view (grouping makes a full shoe far
+// wider than the panel)
+const BEAD_WINDOW = 40;
 const RESULT_LETTER = {player:'P', banker:'B', tie:'T'};
 function renderBeadRoad(results, pairFlags){
+  const cols = [];
+  results.forEach((r,i)=>{
+    const pf = (pairFlags && pairFlags[i]) || null;
+    if (cols.length && cols[cols.length-1].value===r) cols[cols.length-1].items.push(pf);
+    else cols.push({value:r, items:[pf]});
+  });
   let html = '';
-  for (let start=0; start<results.length; start+=BEAD_ROWS){
-    let colHtml = '';
-    results.slice(start, start+BEAD_ROWS).forEach((r,ri)=>{
-      const pf = pairFlags && pairFlags[start+ri];
-      let dots = '';
-      if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
-      if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
-      colHtml += `<div class="bd-cell ${r}">${RESULT_LETTER[r]}${dots}</div>`;
-    });
-    html += `<div class="br-col">${colHtml}</div>`;
-  }
+  cols.forEach(col=>{
+    for (let start=0; start<col.items.length; start+=BEAD_ROWS){
+      let colHtml = '';
+      col.items.slice(start, start+BEAD_ROWS).forEach(pf=>{
+        let dots = '';
+        if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
+        if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
+        colHtml += `<div class="bd-cell ${col.value}">${RESULT_LETTER[col.value]}${dots}</div>`;
+      });
+      html += `<div class="br-col">${colHtml}</div>`;
+    }
+  });
   return html;
 }
 

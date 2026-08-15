@@ -344,7 +344,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .id-verify-grid .photo-box img{object-fit:contain;}
 .id-verify-label{font-size:11.5px;color:var(--ink-dim);text-align:center;margin-top:5px;text-transform:uppercase;letter-spacing:.3px;font-weight:600;}
 .balance-grid{margin-top:14px;}
-.balance-sub-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px;}
+.balance-sub-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px;}
 .ticket-sm{position:relative;background:linear-gradient(155deg, var(--panel-hi), var(--panel) 70%);border:1px solid var(--brass-dim);border-radius:6px;padding:10px 6px;text-align:center;min-width:0;}
 .ticket-sm::before{content:'';position:absolute;top:0;left:6px;right:6px;height:1px;background:var(--grad-gold);opacity:.85;}
 .ticket-sm .lbl{font-size:9.5px;letter-spacing:.3px;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -563,6 +563,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
       <option value="NUSTAR">NUSTAR</option>
       <option value="HANN">HANN</option>
       <option value="SOLAIRE">SOLAIRE</option>
+      <option value="MIDORI">MIDORI</option>
       <option value="ONLINE">ONLINE</option>
     </select>
   </div>
@@ -1015,7 +1016,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         </div>
         <div class="grid grid-3">
           <div class="field"><label data-i18n="branchTransferTo"></label>
-            <select id="branchTransferTo"><option value="HANN">HANN</option><option value="SOLAIRE">SOLAIRE</option><option value="NUSTAR">NUSTAR</option><option value="ONLINE">ONLINE</option></select>
+            <select id="branchTransferTo"><option value="HANN">HANN</option><option value="SOLAIRE">SOLAIRE</option><option value="MIDORI">MIDORI</option><option value="NUSTAR">NUSTAR</option><option value="ONLINE">ONLINE</option></select>
           </div>
           <div class="field"><label data-i18n="amount"></label><input id="branchTransferAmt" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this)"></div>
           <div class="field"><label data-i18n="ioRemark"></label><input id="branchTransferMemo"></div>
@@ -1554,7 +1555,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="modal-close" onclick="closeModal('modal-branch-record')">×</button>
   <h3 data-i18n="branchRecordTitle"></h3>
   <div class="field" style="margin-top:10px;max-width:220px;"><label data-i18n="targetCasino"></label>
-    <select id="branchRecordCasino" onchange="renderBranchRecord()"><option>HANN</option><option>SOLAIRE</option><option>NUSTAR</option><option>ONLINE</option></select>
+    <select id="branchRecordCasino" onchange="renderBranchRecord()"><option>HANN</option><option>SOLAIRE</option><option>MIDORI</option><option>NUSTAR</option><option>ONLINE</option></select>
   </div>
   <div class="table-wrap"><table>
     <thead><tr>
@@ -5137,7 +5138,7 @@ ko:{
  cagePinAuthTitle:"핀코드 인증", cagePinAuthSub:"처리를 위해 근무자 핀코드를 입력하세요",
  toastRollingConfirmed:"롤링이 입력되었습니다.", notifRollingInput:"롤링 입력", detailViewTitle:"상세보기", colRollingCum:"롤링누계", receiptCol:"영수증",
  idVerifyTitle:"신원 확인", noPhoto:"등록된 사진 없음", proxyOff:"미사용",
- balanceHann:"HANN 잔액", balanceSolaire:"SOLAIRE 잔액", balanceNustar:"NUSTAR 잔액", balanceOnline:"ONLINE 잔액",
+ balanceHann:"HANN 잔액", balanceSolaire:"SOLAIRE 잔액", balanceMidori:"MIDORI 잔액", balanceNustar:"NUSTAR 잔액", balanceOnline:"ONLINE 잔액",
  depositAmtCol:"디파짓 금액", cashoutAmtCol:"캐쉬아웃 금액", markerRedeemAmtCol:"마커 리딤 금액", dealerTipsAmtCol:"딜러 팁 금액", houseTipsAmtCol:"하우스 팁 금액", workingChipsAmtCol:"워킹칩 금액",
  depositColShort:"디파짓", cashoutColShort:"캐쉬아웃", markerColShort:"마커 리딤", dealerTipsColShort:"딜러 팁", houseTipsColShort:"하우스 팁", workingChipsColShort:"워킹칩",
  specialRemark:"특이사항", floorStaffLabel:"근무자", nnDeductHint:"(캐쉬아웃·마커 리딤·워킹칩은 롤링에서 차감됩니다)",
@@ -5275,7 +5276,7 @@ en:{
  cagePinAuthTitle:"PIN Authentication", cagePinAuthSub:"Enter the staff PIN code to proceed",
  toastRollingConfirmed:"Rolling entry recorded.", notifRollingInput:"Rolling Entry", detailViewTitle:"Details", colRollingCum:"Rolling Cumulative", receiptCol:"Receipt",
  idVerifyTitle:"Identity Verification", noPhoto:"No photo on file", proxyOff:"Off",
- balanceHann:"HANN Balance", balanceSolaire:"SOLAIRE Balance", balanceNustar:"NUSTAR Balance", balanceOnline:"ONLINE Balance",
+ balanceHann:"HANN Balance", balanceSolaire:"SOLAIRE Balance", balanceMidori:"MIDORI Balance", balanceNustar:"NUSTAR Balance", balanceOnline:"ONLINE Balance",
  depositAmtCol:"Deposit Amount", cashoutAmtCol:"CashOut Amount", markerRedeemAmtCol:"Marker Redeem Amount", dealerTipsAmtCol:"Dealer Tips Amount", houseTipsAmtCol:"House Tips Amount", workingChipsAmtCol:"Working Chips Amount",
  depositColShort:"Deposit", cashoutColShort:"CashOut", markerColShort:"Marker Redeem", dealerTipsColShort:"Dealer Tips", houseTipsColShort:"House Tips", workingChipsColShort:"Working Chips",
  specialRemark:"Special Remark", floorStaffLabel:"Staff", nnDeductHint:"(CashOut / Marker Redeem / Working Chips are deducted from rolling)",
@@ -5413,7 +5414,7 @@ en:{
  cagePinAuthTitle:"PIN 驗證", cagePinAuthSub:"請輸入值班人員 PIN 碼以繼續",
  toastRollingConfirmed:"轉碼已輸入。", notifRollingInput:"轉碼輸入", detailViewTitle:"詳細資料", colRollingCum:"轉碼累計", receiptCol:"收據",
  idVerifyTitle:"身份驗證", noPhoto:"尚無照片", proxyOff:"未啟用",
- balanceHann:"HANN 餘額", balanceSolaire:"SOLAIRE 餘額", balanceNustar:"NUSTAR 餘額", balanceOnline:"ONLINE 餘額",
+ balanceHann:"HANN 餘額", balanceSolaire:"SOLAIRE 餘額", balanceMidori:"MIDORI 餘額", balanceNustar:"NUSTAR 餘額", balanceOnline:"ONLINE 餘額",
  depositAmtCol:"存入金額", cashoutAmtCol:"兌現金額", markerRedeemAmtCol:"馬克兌換金額", dealerTipsAmtCol:"荷官小費金額", houseTipsAmtCol:"公司小費金額", workingChipsAmtCol:"在檯碼金額",
  depositColShort:"存入", cashoutColShort:"兌現", markerColShort:"馬克兌換", dealerTipsColShort:"荷官小費", houseTipsColShort:"公司小費", workingChipsColShort:"在檯碼",
  specialRemark:"特別備註", floorStaffLabel:"值班人員", nnDeductHint:"（兌現／馬克兌換／在檯碼將從轉碼中扣除）",
@@ -5551,7 +5552,7 @@ en:{
  cagePinAuthTitle:"PIN 验证", cagePinAuthSub:"请输入值班人员 PIN 码以继续",
  toastRollingConfirmed:"转码已输入。", notifRollingInput:"转码输入", detailViewTitle:"详细资料", colRollingCum:"转码累计", receiptCol:"收据",
  idVerifyTitle:"身份验证", noPhoto:"尚无照片", proxyOff:"未启用",
- balanceHann:"HANN 余额", balanceSolaire:"SOLAIRE 余额", balanceNustar:"NUSTAR 余额", balanceOnline:"ONLINE 余额",
+ balanceHann:"HANN 余额", balanceSolaire:"SOLAIRE 余额", balanceMidori:"MIDORI 余额", balanceNustar:"NUSTAR 余额", balanceOnline:"ONLINE 余额",
  depositAmtCol:"存入金额", cashoutAmtCol:"兑现金额", markerRedeemAmtCol:"马克兑换金额", dealerTipsAmtCol:"荷官小费金额", houseTipsAmtCol:"公司小费金额", workingChipsAmtCol:"在台码金额",
  depositColShort:"存入", cashoutColShort:"兑现", markerColShort:"马克兑换", dealerTipsColShort:"荷官小费", houseTipsColShort:"公司小费", workingChipsColShort:"在台码",
  specialRemark:"特别备注", floorStaffLabel:"值班人员", nnDeductHint:"（兑现／马克兑换／在台码将从转码中扣除）",
@@ -5653,10 +5654,11 @@ let DB = null;
 function seedDB(){
  return {
   accounts:{
-   "MAIN-HANN":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"HANN MAIN ACCOUNT", isMain:true, openedCasino:"HANN", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"HANN Branch Main Account"},
-   "MAIN-SOLAIRE":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"SOLAIRE MAIN ACCOUNT", isMain:true, openedCasino:"SOLAIRE", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"SOLAIRE Branch Main Account"},
-   "MAIN-NUSTAR":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,NUSTAR:50000000,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"NUSTAR MAIN ACCOUNT", isMain:true, openedCasino:"NUSTAR", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"NUSTAR Branch Main Account"},
-   "MAIN-ONLINE":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"ONLINE MAIN ACCOUNT", isMain:true, openedCasino:"ONLINE", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"ONLINE Branch Main Account"},
+   "MAIN-HANN":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,MIDORI:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"HANN MAIN ACCOUNT", isMain:true, openedCasino:"HANN", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"HANN Branch Main Account"},
+   "MAIN-SOLAIRE":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,MIDORI:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"SOLAIRE MAIN ACCOUNT", isMain:true, openedCasino:"SOLAIRE", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"SOLAIRE Branch Main Account"},
+   "MAIN-MIDORI":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,MIDORI:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"MIDORI MAIN ACCOUNT", isMain:true, openedCasino:"MIDORI", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"MIDORI Branch Main Account"},
+   "MAIN-NUSTAR":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,MIDORI:0,NUSTAR:50000000,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"NUSTAR MAIN ACCOUNT", isMain:true, openedCasino:"NUSTAR", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"NUSTAR Branch Main Account"},
+   "MAIN-ONLINE":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,MIDORI:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"ONLINE MAIN ACCOUNT", isMain:true, openedCasino:"ONLINE", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"ONLINE Branch Main Account"},
    "SE7419":{member:"52049817", phone:"+63 912 345 6789", rate:"1.45%", telegram:"@teddy_lee", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null,
     telegramLinks:[{id:"@Sevip888", dt:"2025-09-17 16:25:29"}], openedCasino:"NUSTAR", openedDt:"2025-09-17 16:20", currency:"PHP", remark:"VIP"},
    "MK2201":{member:"63182047", phone:"+82 10 2233 4455", rate:"1.20%", telegram:"—", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2025-11-02 14:10", currency:"PHP", remark:""},
@@ -5786,7 +5788,7 @@ function migrateDB(saved){
  // never guest-deletable) - backfill only if missing. Demo guest accounts are intentionally NOT
  // backfilled here: doing so used to silently resurrect accounts the master Reset button had
  // just deleted on every page load.
- ['MAIN-HANN','MAIN-SOLAIRE','MAIN-NUSTAR','MAIN-ONLINE'].forEach(id=>{
+ ['MAIN-HANN','MAIN-SOLAIRE','MAIN-MIDORI','MAIN-NUSTAR','MAIN-ONLINE'].forEach(id=>{
   if(!saved.accounts[id]) saved.accounts[id] = fresh.accounts[id];
  });
  // One-time, explicitly-flagged backfill for 4 named NUSTAR demo accounts added to the seed after
@@ -6037,6 +6039,7 @@ function renderMemberCard(){
       <div class="balance-sub-grid">
         <div class="ticket-sm"><div class="lbl">${t('balanceHann')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.HANN)||0)}</div></div>
         <div class="ticket-sm"><div class="lbl">${t('balanceSolaire')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.SOLAIRE)||0)}</div></div>
+        <div class="ticket-sm"><div class="lbl">${t('balanceMidori')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.MIDORI)||0)}</div></div>
         <div class="ticket-sm"><div class="lbl">${t('balanceNustar')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.NUSTAR)||0)}</div></div>
         <div class="ticket-sm"><div class="lbl">${t('balanceOnline')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.ONLINE)||0)}</div></div>
       </div>` : ''}
@@ -6497,11 +6500,11 @@ function hasSufficientTotalBalance(accountId, amount){
  return accountTotalBalance(accountId) >= amount;
 }
 // Deduct amt from acc's balance starting with casino, spilling any shortfall into the other
-// branches (fixed HANN/SOLAIRE/NUSTAR/ONLINE order) - one writeLedgerEntry per branch actually
+// branches (fixed HANN/SOLAIRE/MIDORI/NUSTAR/ONLINE order) - one writeLedgerEntry per branch actually
 // drawn from, since a single ledger entry can only carry one casino tag.
 async function withdrawAcrossBranches(accountId, casino, amt, staffName, memo){
  const acc = DB.accounts[accountId];
- const order = [casino, ...['HANN','SOLAIRE','NUSTAR','ONLINE'].filter(c=>c!==casino)];
+ const order = [casino, ...['HANN','SOLAIRE','MIDORI','NUSTAR','ONLINE'].filter(c=>c!==casino)];
  let remaining = amt;
  let allOk = true;
  for(const c of order){
@@ -9064,7 +9067,7 @@ function renderTotalDeposit(){
  if(allInEl) allInEl.textContent = fmt(allIn);
  if(allOutEl) allOutEl.textContent = fmt(allOut);
  if(body){
-  body.innerHTML = ['NUSTAR','HANN','SOLAIRE','ONLINE'].map(c=>{
+  body.innerHTML = ['NUSTAR','HANN','SOLAIRE','MIDORI','ONLINE'].map(c=>{
    const v = byBranch[c]||{inn:0,out:0};
    return `<tr><td>${c}</td><td class="num">${fmt(v.inn)}</td><td class="num">${fmt(v.out)}</td></tr>`;
   }).join('');

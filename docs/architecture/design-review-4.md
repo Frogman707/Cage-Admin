@@ -2,7 +2,7 @@
 
 > **분류**: 작업 문서 (Issue Register)
 > **작성일**: 2026-08-15 · 브랜치 `backend`
-> **대상**: [`ddl/004_ledger.sql`](ddl/004_ledger.sql) 전량 (556줄) + [references.md](references.md) · 교차 검증 `006`·`008`·`010`·`012`·`013`
+> **대상**: [`ddl/004_ledger.sql`](../../db/schema/004_ledger.sql) 전량 (556줄) + [references.md](references.md) · 교차 검증 `006`·`008`·`010`·`012`·`013`
 > **상태**: 미해결 11건. **차단 1 · 높음 1 · 중간 5 · 낮음 4**
 > **선행 문서**: [design-review.md](design-review.md) DR-01~DR-23 · [design-review-2.md](design-review-2.md) DR-24~DR-37 · [design-review-3.md](design-review-3.md) DR-38~DR-49
 > **후속**: [design-review-5.md](design-review-5.md) — 5차 `DR-61`~`DR-65` (높음 2 · 중간 2 · 낮음 1) · [design-review-6.md](design-review-6.md) — 6차 `DR-66`~`DR-72` (차단 1 · 높음 2 · 중간 3 · 낮음 1) · [design-review-7.md](design-review-7.md) — 7차 `DR-73`~`DR-77` (높음 1 · 중간 2 · 낮음 2) · [design-review-8.md](design-review-8.md) — 8차 `DR-78`~`DR-82` (높음 2 · 중간 2 · 낮음 1) · [design-review-9.md](design-review-9.md) — 9차 `DR-83`~`DR-86` (높음 2 · 중간 2). 아홉 문서 합계 **86건 · 차단 13 — 2026-08-15 전부 해소** (`DR-38`만 부분 해소)
@@ -31,16 +31,16 @@
 
 | ID | 항목 | 등급 | 영향 | 근거 |
 |---|---|---|---|---|
-| **DR-50** | 역분개를 부를 애플리케이션 경로가 없다 | ~~차단~~ **해소** | M5 · M6 | [`008:518`](ddl/008_post_transaction.sql#L518) · [`012:7`](ddl/012_roles_and_grants.sql#L7) · [05:173](05-api-contract.md) |
-| **DR-51** | `posting_rules` 와일드카드가 3개 kind로 전파된다 | **높음** | — | [`004:237-251`](ddl/004_ledger.sql#L237) |
-| **DR-52** | 분개 0개 거래는 스키마 그물 밖이다 | 중간 | M6 | [`004:331`](ddl/004_ledger.sql#L331) · [`004:489`](ddl/004_ledger.sql#L489) |
-| **DR-53** | `reverses_tx_id`와 `kind`가 묶여 있지 않다 | 중간 | — | [`004:74`](ddl/004_ledger.sql#L74) · [`004:100`](ddl/004_ledger.sql#L100) |
-| **DR-54** | 멱등성 키에 주체 스코프가 없다 | 중간 | M5 | [`004:502`](ddl/004_ledger.sql#L502) |
-| **DR-55** | `posting_rules` 표 자신에 불변성 가드가 없다 | 중간 | — | [`004:165`](ddl/004_ledger.sql#L165) · [`013 R7`](ddl/013_reconciliation.sql) |
-| **DR-60** | 지점 추가 절차가 5곳에 흩어져 있다 | 중간 | — | [`004:56`](ddl/004_ledger.sql#L56) · `001` · `003` |
-| **DR-56** | `TRUNCATE`가 어디에서도 막히지 않는다 | 낮음 | — | [`004:468`](ddl/004_ledger.sql#L468) · `012` |
-| **DR-57** | `device_id`·`idempotency_key`에 컬럼 제약이 없다 | 낮음 | — | [`004:64`](ddl/004_ledger.sql#L64) · [`004:71`](ddl/004_ledger.sql#L71) |
-| **DR-58** | 기간 행에 개설자·시각 순서 검사가 없다 | 낮음 | — | [`004:22-37`](ddl/004_ledger.sql#L22) |
+| **DR-50** | 역분개를 부를 애플리케이션 경로가 없다 | ~~차단~~ **해소** | M5 · M6 | [`008:518`](../../db/schema/008_post_transaction.sql#L518) · [`012:7`](../../db/schema/012_roles_and_grants.sql#L7) · [05:173](05-api-contract.md) |
+| **DR-51** | `posting_rules` 와일드카드가 3개 kind로 전파된다 | **높음** | — | [`004:237-251`](../../db/schema/004_ledger.sql#L237) |
+| **DR-52** | 분개 0개 거래는 스키마 그물 밖이다 | 중간 | M6 | [`004:331`](../../db/schema/004_ledger.sql#L331) · [`004:489`](../../db/schema/004_ledger.sql#L489) |
+| **DR-53** | `reverses_tx_id`와 `kind`가 묶여 있지 않다 | 중간 | — | [`004:74`](../../db/schema/004_ledger.sql#L74) · [`004:100`](../../db/schema/004_ledger.sql#L100) |
+| **DR-54** | 멱등성 키에 주체 스코프가 없다 | 중간 | M5 | [`004:502`](../../db/schema/004_ledger.sql#L502) |
+| **DR-55** | `posting_rules` 표 자신에 불변성 가드가 없다 | 중간 | — | [`004:165`](../../db/schema/004_ledger.sql#L165) · [`013 R7`](../../db/schema/013_reconciliation.sql) |
+| **DR-60** | 지점 추가 절차가 5곳에 흩어져 있다 | 중간 | — | [`004:56`](../../db/schema/004_ledger.sql#L56) · `001` · `003` |
+| **DR-56** | `TRUNCATE`가 어디에서도 막히지 않는다 | 낮음 | — | [`004:468`](../../db/schema/004_ledger.sql#L468) · `012` |
+| **DR-57** | `device_id`·`idempotency_key`에 컬럼 제약이 없다 | 낮음 | — | [`004:64`](../../db/schema/004_ledger.sql#L64) · [`004:71`](../../db/schema/004_ledger.sql#L71) |
+| **DR-58** | 기간 행에 개설자·시각 순서 검사가 없다 | 낮음 | — | [`004:22-37`](../../db/schema/004_ledger.sql#L22) |
 | **DR-59** | `references.md`가 존재하지 않는 사용처를 가리킨다 | 낮음 | — | [references.md:19](references.md) |
 
 ---
@@ -51,15 +51,15 @@
 
 **증상.**
 
-`ledger.reverse_transaction()`은 [`008:518`](ddl/008_post_transaction.sql#L518)에 온전히 구현돼 있다. 원 거래를 미러링하고, 이미 역분개됐는지 검사하고([`008:542`](ddl/008_post_transaction.sql#L542)), 원 `category`를 보존한다([`008:547`](ddl/008_post_transaction.sql#L547)).
+`ledger.reverse_transaction()`은 [`008:518`](../../db/schema/008_post_transaction.sql#L518)에 온전히 구현돼 있다. 원 거래를 미러링하고, 이미 역분개됐는지 검사하고([`008:542`](../../db/schema/008_post_transaction.sql#L542)), 원 `category`를 보존한다([`008:547`](../../db/schema/008_post_transaction.sql#L547)).
 
-그런데 `008`은 **내부 전용**이다. ADR-013이 그렇게 정했고 [`012:7`](ddl/012_roles_and_grants.sql#L7) 주석이 명시한다:
+그런데 `008`은 **내부 전용**이다. ADR-013이 그렇게 정했고 [`012:7`](../../db/schema/012_roles_and_grants.sql#L7) 주석이 명시한다:
 
 > `ledger_app` 은 008 의 코어 함수(post_transaction · reverse_transaction · …
 
 `012`의 `GRANT EXECUTE` 목록에 `reverse_transaction`은 없다. `ledger_app`이 받는 것은 `business_date_of` · `account_id_of` · `house_account_id` 세 개의 조회 헬퍼와 `009`~`011`의 `op_*`뿐이다.
 
-`reverse_transaction`의 호출자를 전수 조사했다. **하나다** — [`010`의 `op_cancel_game()`](ddl/010_operations_game.sql). 그것도 대상이 한정돼 있다:
+`reverse_transaction`의 호출자를 전수 조사했다. **하나다** — [`010`의 `op_cancel_game()`](../../db/schema/010_operations_game.sql). 그것도 대상이 한정돼 있다:
 
 ```sql
 SELECT DISTINCT e.transaction_id
@@ -77,17 +77,17 @@ SELECT DISTINCT e.transaction_id
 
 잘못 입력한 입금·출금·계좌 이체·지점 이체·지갑 이체를 되돌릴 수단이 시스템에 없다.
 
-- `DELETE`는 [`004:433`](ddl/004_ledger.sql#L433)이 금지한다 — `append-only violation`
-- `UPDATE`는 [`004:437`](ddl/004_ledger.sql#L437)이 금지한다 — `이미 봉인된 거래`
+- `DELETE`는 [`004:433`](../../db/schema/004_ledger.sql#L433)이 금지한다 — `append-only violation`
+- `UPDATE`는 [`004:437`](../../db/schema/004_ledger.sql#L437)이 금지한다 — `이미 봉인된 거래`
 - 역분개는 권한이 없다
 
-그리고 설계 문서 전체가 세 번째 길을 유일한 답으로 제시한다. [`004:439`](ddl/004_ledger.sql#L439)의 오류 메시지가 직접 그렇게 말한다:
+그리고 설계 문서 전체가 세 번째 길을 유일한 답으로 제시한다. [`004:439`](../../db/schema/004_ledger.sql#L439)의 오류 메시지가 직접 그렇게 말한다:
 
 > `transaction % is already sealed — 정정은 역분개(reverses_tx_id)로만 가능하다`
 
 **운영자에게 그 문장은 실행 불가능한 지시다.**
 
-`op_adjustment`가 대안이 되지 못한다. [04-posting-rules.md](04-posting-rules.md) §11의 `adjustment`는 `house_cash`와 `suspense`만 건드린다([`004:211-214`](ddl/004_ledger.sql#L211)). 회원 예치금에 잘못 찍힌 금액을 되돌릴 조합이 규칙표에 없다.
+`op_adjustment`가 대안이 되지 못한다. [04-posting-rules.md](04-posting-rules.md) §11의 `adjustment`는 `house_cash`와 `suspense`만 건드린다([`004:211-214`](../../db/schema/004_ledger.sql#L211)). 회원 예치금에 잘못 찍힌 금액을 되돌릴 조합이 규칙표에 없다.
 
 **DR-38과 같은 병이되 더 나쁘다.** DR-38은 함수가 없다. 여기는 **함수가 완성돼 있고 권한 한 줄이 없다.** 그래서 설계자가 이미 만들었다고 착각하기 쉽다.
 
@@ -163,15 +163,15 @@ SELECT p.proname
 
 **증상.**
 
-`posting_rules`의 목적을 [`004:162-164`](ddl/004_ledger.sql#L162)가 직접 쓴다:
+`posting_rules`의 목적을 [`004:162-164`](../../db/schema/004_ledger.sql#L162)가 직접 쓴다:
 
 > 잔액 합이 0이라는 것만으로는 도둑질을 막지 못한다. 예: `member_deposit` 을 대변 기록하고 `suspense` 를 차변 기록하면 합은 0이지만 돈이 창조된다. 이 표가 그 조합을 존재하지 않게 만든다.
 
 표는 세 번의 INSERT로 채워진다. 순서대로 전개하면:
 
-**① [`004:176-234`](ddl/004_ledger.sql#L176)** — 명시 규칙 45행. 의도대로다.
+**① [`004:176-234`](../../db/schema/004_ledger.sql#L176)** — 명시 규칙 45행. 의도대로다.
 
-**② [`004:237-240`](ddl/004_ledger.sql#L237)** — 기초 잔액:
+**② [`004:237-240`](../../db/schema/004_ledger.sql#L237)** — 기초 잔액:
 
 ```sql
 INSERT INTO ledger.posting_rules (kind, category, account_kind, sign)
@@ -182,7 +182,7 @@ SELECT 'opening_balance', 'opening_balance', k, s
 
 `account_kind` 14종 × 부호 2 = **28행**. 주석은 "마이그레이션 전용"이라고 쓰지만 그 한정을 강제하는 것은 없다.
 
-**③ [`004:246-251`](ddl/004_ledger.sql#L246)** — 역분개 생성기:
+**③ [`004:246-251`](../../db/schema/004_ledger.sql#L246)** — 역분개 생성기:
 
 ```sql
 INSERT INTO ledger.posting_rules (kind, category, account_kind, sign)
@@ -204,7 +204,7 @@ SELECT DISTINCT rk, r.category, r.account_kind, (-r.sign)::SMALLINT
 
 **왜 높음인가.**
 
-`entries_posting_rule` 트리거([`004:280`](ddl/004_ledger.sql#L280))는 행 단위로 `(kind, category, account_kind, sign)`을 조회한다. 위 세 kind에서 `category='opening_balance'`를 쓰면 **어떤 계정 종류든 어떤 방향으로든 통과한다.** 004:164가 예로 든 "합은 0이지만 돈이 창조되는" 조합이 정확히 그 세 kind에서 합법이다.
+`entries_posting_rule` 트리거([`004:280`](../../db/schema/004_ledger.sql#L280))는 행 단위로 `(kind, category, account_kind, sign)`을 조회한다. 위 세 kind에서 `category='opening_balance'`를 쓰면 **어떤 계정 종류든 어떤 방향으로든 통과한다.** 004:164가 예로 든 "합은 0이지만 돈이 창조되는" 조합이 정확히 그 세 kind에서 합법이다.
 
 여기까지면 중간이다. 등급을 올리는 것은 **`013`의 R7이 같은 표를 기준으로 쓴다**는 점이다. R7의 주석이 자기 존재 이유를 이렇게 쓴다:
 
@@ -251,15 +251,15 @@ SELECT kind, count(*) AS rules
 
 ### DR-52 · 분개 0개 거래는 스키마 그물 밖이다 (중간)
 
-`assert_transaction_balanced`는 `AFTER INSERT ON ledger.entries`다([`004:331`](ddl/004_ledger.sql#L331)). **분개가 하나도 없으면 트리거가 발화하지 않는다.** 안에 있는 `v_legs < 2` 검사([`004:306`](ddl/004_ledger.sql#L306))는 분개가 1개일 때만 도는 반쪽 그물이다.
+`assert_transaction_balanced`는 `AFTER INSERT ON ledger.entries`다([`004:331`](../../db/schema/004_ledger.sql#L331)). **분개가 하나도 없으면 트리거가 발화하지 않는다.** 안에 있는 `v_legs < 2` 검사([`004:306`](../../db/schema/004_ledger.sql#L306))는 분개가 1개일 때만 도는 반쪽 그물이다.
 
-커밋 시점 그물인 `transactions_sealed`([`004:489`](ddl/004_ledger.sql#L489))는 `hash IS NULL`만 본다. 해시는 분개와 독립적으로 계산된다 — `entries_canon`이 `COALESCE(string_agg(...), '')`이므로([`008:84`](ddl/008_post_transaction.sql#L84)) 분개 0개도 정상 봉인된다.
+커밋 시점 그물인 `transactions_sealed`([`004:489`](../../db/schema/004_ledger.sql#L489))는 `hash IS NULL`만 본다. 해시는 분개와 독립적으로 계산된다 — `entries_canon`이 `COALESCE(string_agg(...), '')`이므로([`008:84`](../../db/schema/008_post_transaction.sql#L84)) 분개 0개도 정상 봉인된다.
 
 `008:277-281`이 `p_entries` 길이를 검사하므로 정상 경로로는 만들 수 없다. **문제는 그 검사가 애플리케이션 층에만 있다는 것이다.** `004`라는 파일 전체의 존재 이유가 "앱이 약속한 것을 DB가 강제한다"인데, `≥2 legs`만 그 원칙에서 빠져 있다.
 
 만들어지면 어디에도 안 잡힌다:
 - R1은 통화별 합을 보므로 0-leg 거래는 기여가 0 — 초록색 유지
-- `v_transaction_detail`은 `JOIN ledger.entries` INNER([`004:548`](ddl/004_ledger.sql#L548)) — 감사 뷰에서 안 보인다
+- `v_transaction_detail`은 `JOIN ledger.entries` INNER([`004:548`](../../db/schema/004_ledger.sql#L548)) — 감사 뷰에서 안 보인다
 - 해시 체인에는 들어간다
 
 **체인에는 있고 감사에는 없는 행**이 남는다.
@@ -278,9 +278,9 @@ END IF;
 
 ### DR-53 · `reverses_tx_id`와 `kind`가 묶여 있지 않다 (중간)
 
-[`004:100`](ddl/004_ledger.sql#L100)의 부분 UNIQUE 인덱스는 좋은 설계다. 주석이 이유까지 정확히 쓴다 — 일반 인덱스면 "이미 역분개됐는가" 검사가 Read Committed의 check-then-act가 되어 잔액이 과복구된다.
+[`004:100`](../../db/schema/004_ledger.sql#L100)의 부분 UNIQUE 인덱스는 좋은 설계다. 주석이 이유까지 정확히 쓴다 — 일반 인덱스면 "이미 역분개됐는가" 검사가 Read Committed의 check-then-act가 되어 잔액이 과복구된다.
 
-그런데 `reverses_tx_id`를 채울 수 있는 `kind`가 제한되지 않는다. [`004:245`](ddl/004_ledger.sql#L245) 주석은 이미 그 결합을 전제로 쓴다:
+그런데 `reverses_tx_id`를 채울 수 있는 `kind`가 제한되지 않는다. [`004:245`](../../db/schema/004_ledger.sql#L245) 주석은 이미 그 결합을 전제로 쓴다:
 
 > 역분개 여부는 `transactions.kind='reversal'` 과 `reverses_tx_id` 로 구분한다.
 
@@ -298,11 +298,11 @@ CONSTRAINT tx_reverses_kind CHECK (
 
 ### DR-54 · 멱등성 키에 주체 스코프가 없다 (중간)
 
-`key TEXT PRIMARY KEY`([`004:502`](ddl/004_ledger.sql#L502)) — 전역 단일 네임스페이스다.
+`key TEXT PRIMARY KEY`([`004:502`](../../db/schema/004_ledger.sql#L502)) — 전역 단일 네임스페이스다.
 
 [05-api-contract.md](05-api-contract.md) §2가 인용한 IETF 초안은 "The idempotency key MUST be unique"라고만 쓴다. **무엇에 대해 유일한지는 규정하지 않는다.** 스코프는 구현의 책임이고, 여기서는 아무 스코프도 없다.
 
-결과: 키가 같고 `request_fingerprint`가 같으면, 호출자가 누구든 저장된 `response_body`가 그대로 재생된다([`004:498`](ddl/004_ledger.sql#L498)의 규약). 지문은 `SHA-256(method || path || canonical body)`이므로 **행위자를 포함하지 않는다.** 같은 조작을 같은 인자로 요청한 다른 지점 스태프가 앞사람의 응답 — 거래 `external_id`, 잔액 — 을 받는다.
+결과: 키가 같고 `request_fingerprint`가 같으면, 호출자가 누구든 저장된 `response_body`가 그대로 재생된다([`004:498`](../../db/schema/004_ledger.sql#L498)의 규약). 지문은 `SHA-256(method || path || canonical body)`이므로 **행위자를 포함하지 않는다.** 같은 조작을 같은 인자로 요청한 다른 지점 스태프가 앞사람의 응답 — 거래 `external_id`, 잔액 — 을 받는다.
 
 지점 RLS는 여기서 도움이 안 된다. `idempotency_keys`는 `012:296-302`의 RLS 대상 목록에 없고, 응답은 이미 JSONB로 굳어 있어 정책이 필터할 행 구조가 아니다.
 
@@ -319,9 +319,9 @@ ledger.request_fingerprint('deposit', v_args, p_actor_staff_id)
 
 ### DR-55 · `posting_rules` 표 자신에 불변성 가드가 없다 (중간)
 
-`004`는 자금 테이블에 불변성을 건다 — `entries_immutable`([`004:468`](ddl/004_ledger.sql#L468)), `transactions_seal_only`([`004:464`](ddl/004_ledger.sql#L464)). `posting_rules`에는 아무것도 없다.
+`004`는 자금 테이블에 불변성을 건다 — `entries_immutable`([`004:468`](../../db/schema/004_ledger.sql#L468)), `transactions_seal_only`([`004:464`](../../db/schema/004_ledger.sql#L464)). `posting_rules`에는 아무것도 없다.
 
-`ledger_app`은 SELECT만 갖는다([`012:123`](ddl/012_roles_and_grants.sql#L123)). 그러나 소유자 세션과 마이그레이션 스크립트는 쓸 수 있고, **행 하나를 넣으면 그 조합이 합법이 된다.** 감사 흔적은 남지 않는다 — 이 표에는 `updated_at`도 변경 이력도 없다.
+`ledger_app`은 SELECT만 갖는다([`012:123`](../../db/schema/012_roles_and_grants.sql#L123)). 그러나 소유자 세션과 마이그레이션 스크립트는 쓸 수 있고, **행 하나를 넣으면 그 조합이 합법이 된다.** 감사 흔적은 남지 않는다 — 이 표에는 `updated_at`도 변경 이력도 없다.
 
 DR-51과 같은 곳을 다른 방향에서 친다. `013`의 R7이 이 표를 **대조의 기준**으로 삼기 때문이다. 표가 오염되면 R7은 오염된 기준으로 초록색을 낸다. **자기 자신을 검증하지 않는 기준 데이터**다.
 
@@ -343,13 +343,13 @@ CREATE TRIGGER posting_rules_immutable
 
 | # | 위치 | 작업 |
 |---|---|---|
-| 1 | [`001`](ddl/001_types_and_extensions.sql) | `ALTER TYPE ledger.branch_code ADD VALUE` |
-| 2 | [`001:209`](ddl/001_types_and_extensions.sql#L209) | `branch_config` 행 (DR-39의 임계값 포함) |
-| 3 | [`004:56`](ddl/004_ledger.sql#L56) | `chain_heads` 행 — 제네시스 해시 생성 |
-| 4 | [`003:283`](ddl/003_accounts.sql#L283) | `MAIN-{branch}` 하우스 계정 부트스트랩 (DR-41의 PHP 하드코딩) |
+| 1 | [`001`](../../db/schema/001_types_and_extensions.sql) | `ALTER TYPE ledger.branch_code ADD VALUE` |
+| 2 | [`001:209`](../../db/schema/001_types_and_extensions.sql#L209) | `branch_config` 행 (DR-39의 임계값 포함) |
+| 3 | [`004:56`](../../db/schema/004_ledger.sql#L56) | `chain_heads` 행 — 제네시스 해시 생성 |
+| 4 | [`003:283`](../../db/schema/003_accounts.sql#L283) | `MAIN-{branch}` 하우스 계정 부트스트랩 (DR-41의 PHP 하드코딩) |
 | 5 | `identity` | 스태프 지점 배정 |
 
-3번을 빠뜨리면 그 지점의 **첫 거래**에서 터진다 — `chain head missing for branch %`([`008:391`](ddl/008_post_transaction.sql#L391)). 스키마 적용 시점이 아니라 운영 중에 터진다는 게 나쁘다.
+3번을 빠뜨리면 그 지점의 **첫 거래**에서 터진다 — `chain head missing for branch %`([`008:391`](../../db/schema/008_post_transaction.sql#L391)). 스키마 적용 시점이 아니라 운영 중에 터진다는 게 나쁘다.
 
 [README.md](README.md) 미확정 사항 4번("지점 확장 계획 — 현행 `HANN`/`NUSTAR`/`ONLINE` 하드코딩")이 이 문제다. 다만 README는 "확장할 것인가"를 묻고, 여기서는 **확장하기로 하면 절차가 원자적이지 않다**는 점을 지적한다.
 
@@ -377,7 +377,7 @@ CREATE TRIGGER entries_no_truncate
 
 ### DR-57 · `device_id`·`idempotency_key`에 컬럼 제약이 없다 (낮음)
 
-둘 다 `TEXT NOT NULL`뿐이다([`004:64`](ddl/004_ledger.sql#L64), [`004:71`](ddl/004_ledger.sql#L71)). `''`가 유효한 값이다.
+둘 다 `TEXT NOT NULL`뿐이다([`004:64`](../../db/schema/004_ledger.sql#L64), [`004:71`](../../db/schema/004_ledger.sql#L71)). `''`가 유효한 값이다.
 
 `008:283-289`가 정상 경로에서 막는다 — 확인했다. 그래서 낮음이다. 남는 것은 원칙 문제다: 이 파일의 다른 모든 불변식은 스키마에 있는데 이 둘만 함수에 있다.
 
@@ -391,9 +391,9 @@ CREATE TRIGGER entries_no_truncate
 
 두 가지다.
 
-**① `closed_by`는 있고 `opened_by`는 없다**([`004:29`](ddl/004_ledger.sql#L29)). 마감은 누가 했는지 남고 개설은 안 남는다. `ensure_period_row`([`006:76`](ddl/006_periods_balancing.sql#L76))가 첫 거래 시 자동 생성하므로 "사람이 없다"가 맞는 답일 수 있다 — 그렇다면 컬럼 대신 주석으로 명시해야 한다. 지금은 비대칭이 의도인지 누락인지 읽어서 알 수 없다.
+**① `closed_by`는 있고 `opened_by`는 없다**([`004:29`](../../db/schema/004_ledger.sql#L29)). 마감은 누가 했는지 남고 개설은 안 남는다. `ensure_period_row`([`006:76`](../../db/schema/006_periods_balancing.sql#L76))가 첫 거래 시 자동 생성하므로 "사람이 없다"가 맞는 답일 수 있다 — 그렇다면 컬럼 대신 주석으로 명시해야 한다. 지금은 비대칭이 의도인지 누락인지 읽어서 알 수 없다.
 
-**② `periods_status_timestamps` CHECK**([`004:32`](ddl/004_ledger.sql#L32))는 NULL 여부만 본다. `frozen_at >= opened_at`, `settled_at >= frozen_at`은 검사하지 않는다. `011`의 마감 함수가 `clock_timestamp()`를 쓰므로 정상 경로에서는 성립하지만, 순서 자체가 제약에 없다.
+**② `periods_status_timestamps` CHECK**([`004:32`](../../db/schema/004_ledger.sql#L32))는 NULL 여부만 본다. `frozen_at >= opened_at`, `settled_at >= frozen_at`은 검사하지 않는다. `011`의 마감 함수가 `clock_timestamp()`를 쓰므로 정상 경로에서는 성립하지만, 순서 자체가 제약에 없다.
 
 **개선.** CHECK에 두 항 추가. `opened_by`는 결정 후 컬럼 추가 또는 주석.
 
@@ -407,10 +407,10 @@ CREATE TRIGGER entries_no_truncate
 
 `ddl/*.sql`과 `ddl/README.md` 어디에도 `SET CONSTRAINTS`가 없다(전 파일 grep 무결과).
 
-인용만 있고 사용처가 없다는 것 자체는 사소하다. **문제는 그 자리에 있어야 할 경고가 없다는 것이다.** 이 설계의 I1·I2는 전부 `DEFERRABLE INITIALLY DEFERRED` 제약 트리거다([`004:332`](ddl/004_ledger.sql#L332), [`004:381`](ddl/004_ledger.sql#L381)). 세션이 `SET CONSTRAINTS ALL IMMEDIATE`를 실행하면:
+인용만 있고 사용처가 없다는 것 자체는 사소하다. **문제는 그 자리에 있어야 할 경고가 없다는 것이다.** 이 설계의 I1·I2는 전부 `DEFERRABLE INITIALLY DEFERRED` 제약 트리거다([`004:332`](../../db/schema/004_ledger.sql#L332), [`004:381`](../../db/schema/004_ledger.sql#L381)). 세션이 `SET CONSTRAINTS ALL IMMEDIATE`를 실행하면:
 
 - I1이 분개 삽입 순서에 의존하게 된다 — 첫 분개에서 `has 1 entry(ies)`로 실패
-- I2가 [`004:339`](ddl/004_ledger.sql#L339) 주석이 경고한 바로 그 상태가 된다 — 게임 종료 정산 7개 계정이 삽입 순서에 좌우된다
+- I2가 [`004:339`](../../db/schema/004_ledger.sql#L339) 주석이 경고한 바로 그 상태가 된다 — 게임 종료 정산 7개 계정이 삽입 순서에 좌우된다
 
 **설계 전체를 한 문장으로 무력화하는 명령인데 그 사실이 어디에도 적혀 있지 않다.**
 
@@ -493,10 +493,10 @@ DR-52 · DR-53 · DR-56 · DR-57은 전부 같은 형태다 — **불변식이 `
 
 | 의심 | 반증 근거 |
 |---|---|
-| `ledger.transactions`·`entries`에 RLS가 없다 | [`012:296-302`](ddl/012_roles_and_grants.sql#L296)의 `DO` 루프가 배열로 켠다. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` 문자열 grep에 안 잡힌다 — `format()` 안에 있다 |
-| R6가 모든 `branch_transfer`를 오탐으로 잡는다 | [`013`의 `v_check_entry_branch`](ddl/013_reconciliation.sql)가 [`008:421`](ddl/008_post_transaction.sql#L421)과 **같은 CASE 식**을 쓴다. 오탐 없다. [`004:121`](ddl/004_ledger.sql#L121) 주석의 "부모와의 일치"라는 표현만 부정확하다 — 실제로는 "계정 귀속 또는 부모" |
-| 회계 기간 행을 만들 경로가 없다 | [`006:76`](ddl/006_periods_balancing.sql#L76) `ensure_period_row()`가 있고 [`008:361`](ddl/008_post_transaction.sql#L361)이 부른다. 이름이 `ensure_period_open`에서 바뀐 이력까지 주석에 있다 |
-| 빈 `device_id`·멱등성 키가 통과한다 | [`008:283-289`](ddl/008_post_transaction.sql#L283)가 막는다. DR-57은 **컬럼 제약 부재**로만 남겼다 |
+| `ledger.transactions`·`entries`에 RLS가 없다 | [`012:296-302`](../../db/schema/012_roles_and_grants.sql#L296)의 `DO` 루프가 배열로 켠다. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` 문자열 grep에 안 잡힌다 — `format()` 안에 있다 |
+| R6가 모든 `branch_transfer`를 오탐으로 잡는다 | [`013`의 `v_check_entry_branch`](../../db/schema/013_reconciliation.sql)가 [`008:421`](../../db/schema/008_post_transaction.sql#L421)과 **같은 CASE 식**을 쓴다. 오탐 없다. [`004:121`](../../db/schema/004_ledger.sql#L121) 주석의 "부모와의 일치"라는 표현만 부정확하다 — 실제로는 "계정 귀속 또는 부모" |
+| 회계 기간 행을 만들 경로가 없다 | [`006:76`](../../db/schema/006_periods_balancing.sql#L76) `ensure_period_row()`가 있고 [`008:361`](../../db/schema/008_post_transaction.sql#L361)이 부른다. 이름이 `ensure_period_open`에서 바뀐 이력까지 주석에 있다 |
+| 빈 `device_id`·멱등성 키가 통과한다 | [`008:283-289`](../../db/schema/008_post_transaction.sql#L283)가 막는다. DR-57은 **컬럼 제약 부재**로만 남겼다 |
 
 첫 번째가 특히 중요하다. **`format()` 안의 DDL은 문자열 검색으로 안 잡힌다.** 앞선 세 차례 검토에서 `012`의 RLS 커버리지를 판단할 때 같은 방식으로 놓쳤을 가능성이 있다. 다음 검토는 `012`의 `DO` 블록 세 개를 손으로 전개해야 한다.
 
@@ -504,10 +504,10 @@ DR-52 · DR-53 · DR-56 · DR-57은 전부 같은 형태다 — **불변식이 `
 
 이번 파일은 앞선 셋보다 밀도가 높다. 특히:
 
-- [`004:97-101`](ddl/004_ledger.sql#L97) — `reverses_tx_id` UNIQUE 부분 인덱스. 주석이 "일반 인덱스면 Read Committed의 check-then-act가 되어 잔액이 과복구된다"까지 쓴다. 왜 이 인덱스가 성능이 아니라 **정합성** 장치인지 읽는 사람이 안다
-- [`004:394-399`](ddl/004_ledger.sql#L394) — `FOR SHARE` 주석. 경합 시나리오를 3단계로 쓰고, **외래키가 자동으로 잡는 `FOR KEY SHARE`로는 왜 부족한지**까지 설명한다. 3차 DR-45가 지적한 `005`의 잠금 실수가 여기서는 정확하다
-- [`004:443-453`](ddl/004_ledger.sql#L443) — 봉인 가드가 컬럼을 나열하지 않고 행 전체를 비교한다. 주석: "컬럼을 나열해 비교하면 나중에 컬럼이 추가될 때 검사에서 조용히 빠진다." 미래의 자기 자신을 막는 코드다
-- [`004:242-245`](ddl/004_ledger.sql#L242) — 역분개가 원 `category`를 유지하는 이유. `'reversal'`로 덮으면 `013`의 파생 뷰가 정정을 반영하지 못한다는 것까지 추적했다
+- [`004:97-101`](../../db/schema/004_ledger.sql#L97) — `reverses_tx_id` UNIQUE 부분 인덱스. 주석이 "일반 인덱스면 Read Committed의 check-then-act가 되어 잔액이 과복구된다"까지 쓴다. 왜 이 인덱스가 성능이 아니라 **정합성** 장치인지 읽는 사람이 안다
+- [`004:394-399`](../../db/schema/004_ledger.sql#L394) — `FOR SHARE` 주석. 경합 시나리오를 3단계로 쓰고, **외래키가 자동으로 잡는 `FOR KEY SHARE`로는 왜 부족한지**까지 설명한다. 3차 DR-45가 지적한 `005`의 잠금 실수가 여기서는 정확하다
+- [`004:443-453`](../../db/schema/004_ledger.sql#L443) — 봉인 가드가 컬럼을 나열하지 않고 행 전체를 비교한다. 주석: "컬럼을 나열해 비교하면 나중에 컬럼이 추가될 때 검사에서 조용히 빠진다." 미래의 자기 자신을 막는 코드다
+- [`004:242-245`](../../db/schema/004_ledger.sql#L242) — 역분개가 원 `category`를 유지하는 이유. `'reversal'`로 덮으면 `013`의 파생 뷰가 정정을 반영하지 못한다는 것까지 추적했다
 
 **DR-45(잠금)와 004:394의 대비가 3차 §7의 관찰을 다시 확인한다.** 같은 저자가 한 파일에서는 잠금 종류를 세 단계로 따지고, 다른 파일에서는 `FOR SHARE` 뒤에 `UPDATE`를 놓는다. 규율이 사람 기억에 있으면 파일마다 다르다.
 

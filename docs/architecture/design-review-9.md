@@ -2,7 +2,7 @@
 
 **검토일:** 2026-08-15
 **대상:** [`index.html`](../../index.html)의 정산 · 계좌 해지 · 이벤트 커미션 · 컨시어지 블록 본문 (`:6210-6248` · `:6758-6795` · `:7118-7300` · `:8608-8624` · `:8781-8935` · `:8958-9078`)
-**대조 기준:** [`01`](01-current-system.md) §3·§7·§9·§17 · [`04`](04-posting-rules.md) · [`05`](05-api-contract.md) §3·§9 · [`ddl/001`](ddl/001_types_and_extensions.sql)·[`005`](ddl/005_games_rolling.sql)·[`009`](ddl/009_operations_money.sql)~[`011`](ddl/011_operations_admin.sql) · [`07`](07-migration.md) M11
+**대조 기준:** [`01`](01-current-system.md) §3·§7·§9·§17 · [`04`](04-posting-rules.md) · [`05`](05-api-contract.md) §3·§9 · [`ddl/001`](../../db/schema/001_types_and_extensions.sql)·[`005`](../../db/schema/005_games_rolling.sql)·[`009`](../../db/schema/009_operations_money.sql)~[`011`](../../db/schema/011_operations_admin.sql) · [`07`](07-migration.md) M11
 **상태:** 미해결 4건 — 차단 0 · 높음 2 · 중간 2 · **등록 제외 4건**
 
 > **이 회차가 생긴 경위.** 앞선 여덟 회차는 전부 "읽고 대조"였다. 9차는 **문서를 고치다 나왔다.** [6차](design-review-6.md) §6 착수 순서 1번(01 기준선 정정)을 수행하려고 `index.html`의 해당 블록들을 **본문까지** 처음 읽었고, 그 과정에서 8건이 나왔다. 그중 **목표 설계의 요구사항을 바꾸는 4건만** 등록한다 — [`00`](00-system-map.md) §7의 기준이다. 나머지 4건의 처리는 §4.
@@ -15,7 +15,7 @@
 
 | ID | 등급 | 한 줄 | 위치 |
 |---|---|---|---|
-| `DR-83` | 높음 | `account_status` 3값 중 **2값이 도달 불가** — 그리고 현행 해지는 원장을 물리 삭제한다 | [`001:69`](ddl/001_types_and_extensions.sql#L69) · `index.html:6231-6248` |
+| `DR-83` | 높음 | `account_status` 3값 중 **2값이 도달 불가** — 그리고 현행 해지는 원장을 물리 삭제한다 | [`001:69`](../../db/schema/001_types_and_extensions.sql#L69) · `index.html:6231-6248` |
 | `DR-84` | 높음 | 롤링 커미션 **요율의 권위가 UI select의 옵션 라벨**이다 — 5홉을 거치고 프리셋 하나는 자릿수가 틀린다 | `index.html:6770` → `:6923` → `:7127` |
 | `DR-85` | 중간 | 정산 재실행 방지가 **종료 게임에만** 있다 | `index.html:7231` · `:7246` · `:7249` |
 | `DR-86` | 중간 | 이벤트 커미션이 정산과 원자적이지 않고 **실패가 어디에도 남지 않는다** | `index.html:7259` · `:9064` · `:9071` |
@@ -30,7 +30,7 @@
 
 ### DR-83: `account_status` 3값 중 2값이 도달 불가 — 그리고 현행 해지는 원장을 지운다
 
-**등급: 높음** · 근거 [`001:69`](ddl/001_types_and_extensions.sql#L69) · [`001:140`](ddl/001_types_and_extensions.sql#L140) · [`05:202-203`](05-api-contract.md) · [`05:395`](05-api-contract.md) · `index.html:6210-6248`
+**등급: 높음** · 근거 [`001:69`](../../db/schema/001_types_and_extensions.sql#L69) · [`001:140`](../../db/schema/001_types_and_extensions.sql#L140) · [`05:202-203`](05-api-contract.md) · [`05:395`](05-api-contract.md) · `index.html:6210-6248`
 
 #### 목표 측 — 선언은 셋, 경로는 하나
 

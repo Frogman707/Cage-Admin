@@ -32,10 +32,10 @@
 
 | 계층 | 위치 | 상태 |
 |---|---|---|
-| 타입 | [`ddl/001:88-91`](ddl/001_types_and_extensions.sql) `tx_kind` 4종 | ✅ |
-| 계정 | [`ddl/003:54-56`](ddl/003_accounts.sql) `player_wallet` · `player_points` · `partner_share_payable` | ✅ |
+| 타입 | [`ddl/001:88-91`](../../db/schema/001_types_and_extensions.sql) `tx_kind` 4종 | ✅ |
+| 계정 | [`ddl/003:54-56`](../../db/schema/003_accounts.sql) `player_wallet` · `player_points` · `partner_share_payable` | ✅ |
 | 분개 | [04 §13-2·§13-3](04-posting-rules.md) — "아바타 영향을 받지 않으므로 먼저 확정한다" | ✅ |
-| RBAC 권한 | [`ddl/002:145-146`](ddl/002_identity.sql) `('partner_admin', 'member.point_earn')` · `'member.point_convert'` | ✅ (포인트만) |
+| RBAC 권한 | [`ddl/002:145-146`](../../db/schema/002_identity.sql) `('partner_admin', 'member.point_earn')` · `'member.point_convert'` | ✅ (포인트만) |
 | **op 함수** | `009`~`011` 전수 — `op_point_*` · `op_share_*` **없음** | ❌ |
 | GRANT | `012` — 부여할 대상 함수가 없음 | ❌ |
 
@@ -75,10 +75,10 @@
 
 목표 스키마의 "회원"은 **케이지 손님**이다:
 
-- [`ddl/003:183-212`](ddl/003_accounts.sql) `ledger.member_profiles` — 여권·현장사진·`rolling_rate`("1.45%") 등 **케이지 `accounts` 대응 필드**뿐이다.
-- [`ddl/001:40`](ddl/001_types_and_extensions.sql) `party_type 'member'` 주석 — "현행 accounts 중 isMain=false". 케이지 한정.
+- [`ddl/003:183-212`](../../db/schema/003_accounts.sql) `ledger.member_profiles` — 여권·현장사진·`rolling_rate`("1.45%") 등 **케이지 `accounts` 대응 필드**뿐이다.
+- [`ddl/001:40`](../../db/schema/001_types_and_extensions.sql) `party_type 'member'` 주석 — "현행 accounts 중 isMain=false". 케이지 한정.
 
-반면 `account_kind 'player_wallet'`("현행 memberLedger", [`003:54`](ddl/003_accounts.sql))은 존재한다 — **온라인 회원의 돈 계정은 정의됐는데 그 소유 주체가 어느 party인지 규칙이 없다.** 케이지 손님(SE7419)과 온라인 회원(`members/SEN1001`)이 같은 party인지, 대응(매칭) 규칙은 무엇인지 미정 — [04 §12](04-posting-rules.md) `wallet_transfer`는 둘의 연결을 전제하는 신규 기능이다.
+반면 `account_kind 'player_wallet'`("현행 memberLedger", [`003:54`](../../db/schema/003_accounts.sql))은 존재한다 — **온라인 회원의 돈 계정은 정의됐는데 그 소유 주체가 어느 party인지 규칙이 없다.** 케이지 손님(SE7419)과 온라인 회원(`members/SEN1001`)이 같은 party인지, 대응(매칭) 규칙은 무엇인지 미정 — [04 §12](04-posting-rules.md) `wallet_transfer`는 둘의 연결을 전제하는 신규 기능이다.
 
 `members` 컬렉션의 나머지 실체도 목표에 없다: `memberType` 4종(정회원/준회원/관리회원/멀티회원), `status` 3종(정상/정지/블랙리스트), `smsVerified`, `parentAgent`(소속이동), `betMax`/`betMin`, `pw`/`withdrawPw`(평문 → identity 이전 대상). [02:51](02-target-architecture.md)이 Identity 스코프에 "회원 인증"을 선언했지만 `002`에 회원 인증 테이블은 없다.
 

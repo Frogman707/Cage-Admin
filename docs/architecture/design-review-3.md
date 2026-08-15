@@ -30,7 +30,7 @@ DR-45(잠금 승격)는 PostgreSQL의 행 잠금 충돌 규칙에 근거하며, 
 저장소에 없다 — [DR-12](design-review.md#dr-12).
 
 **철회한 주장 1건**: "계정 상태(`accounts.status`)를 아무도 검사하지 않는다"고 의심했으나
-[`008:436`](ddl/008_post_transaction.sql#L436)에 `AND a.status <> 'active'` 검사가 있다.
+[`008:436`](../../db/schema/008_post_transaction.sql#L436)에 `AND a.status <> 'active'` 검사가 있다.
 계정 쪽은 정상이다. 주체(`parties.status`) 쪽만 문제이며 DR-44로 좁혀 기록했다.
 
 ---
@@ -61,7 +61,7 @@ DR-45(잠금 승격)는 PostgreSQL의 행 잠금 충돌 규칙에 근거하며, 
 <a id="dr-38"></a>
 ### DR-38 · 선언만 있고 op 함수가 없는 도메인 4개 — 앱이 기록할 방법이 없다
 
-**등급: 차단** · 근거 [`001:86-92`](ddl/001_types_and_extensions.sql#L86) · [`009`](ddl/009_operations_money.sql) · [`010`](ddl/010_operations_game.sql) · [`011`](ddl/011_operations_admin.sql) 전수
+**등급: 차단** · 근거 [`001:86-92`](../../db/schema/001_types_and_extensions.sql#L86) · [`009`](../../db/schema/009_operations_money.sql) · [`010`](../../db/schema/010_operations_game.sql) · [`011`](../../db/schema/011_operations_admin.sql) 전수
 
 #### 증상
 
@@ -71,9 +71,9 @@ op 함수는 전부 18개다.
 
 | 파일 | 함수 |
 |---|---|
-| [`009`](ddl/009_operations_money.sql) | `op_deposit` · `op_withdraw` · `op_transfer` · `op_branch_transfer` · `op_wallet_transfer` · `op_adjustment` |
-| [`010`](ddl/010_operations_game.sql) | `op_open_game` · `op_add_buyin` · `op_record_rolling` · `op_settle_game` · `op_cancel_game` · `op_main_cage_entry` |
-| [`011`](ddl/011_operations_admin.sql) | `op_request_approval` · `op_cast_vote` · `op_record_balancing` · `op_freeze_period` · `op_settle_period` · `op_shift_event` · `op_open_account` |
+| [`009`](../../db/schema/009_operations_money.sql) | `op_deposit` · `op_withdraw` · `op_transfer` · `op_branch_transfer` · `op_wallet_transfer` · `op_adjustment` |
+| [`010`](../../db/schema/010_operations_game.sql) | `op_open_game` · `op_add_buyin` · `op_record_rolling` · `op_settle_game` · `op_cancel_game` · `op_main_cage_entry` |
+| [`011`](../../db/schema/011_operations_admin.sql) | `op_request_approval` · `op_cast_vote` · `op_record_balancing` · `op_freeze_period` · `op_settle_period` · `op_shift_event` · `op_open_account` |
 
 이 18개가 다루지 않는 도메인:
 
@@ -85,7 +85,7 @@ op 함수는 전부 18개다.
 | 마이그레이션 개시 | `opening_balance` | `opening_equity` | 04 §14 · 07 전체 | **없다** |
 
 `tx_kind` 18종 중 **7종**, `account_kind` 14종 중 **5종**이 op 함수 어디에도 등장하지 않는다.
-`ledger.partner_profiles` 테이블([`003:227`](ddl/003_accounts.sql#L227))도 `009`~`011`·`013`
+`ledger.partner_profiles` 테이블([`003:227`](../../db/schema/003_accounts.sql#L227))도 `009`~`011`·`013`
 어디에서도 읽히지 않는다.
 
 #### 왜 차단인가
@@ -97,7 +97,7 @@ op 함수는 전부 18개다.
 그 구조에서 **op 함수가 없는 자금은 애플리케이션이 기록할 방법이 존재하지 않는다.**
 "나중에 추가하면 되는 기능"이 아니라 지금 뚫려 있는 구멍이다.
 
-특히 `opening_balance`가 심각하다. [`003:303-308`](ddl/003_accounts.sql#L303)이
+특히 `opening_balance`가 심각하다. [`003:303-308`](../../db/schema/003_accounts.sql#L303)이
 `OPENING-EQUITY` 주체와 계정을 부트스트랩에서 정성껏 만들어 두고,
 [07-migration.md](07-migration.md) 전체가 이 계정에 개시 잔액을 싣는 것을 전제로 서 있다.
 **그 분개를 발행할 함수가 없다.** 마이그레이션 계획 문서가 현재 실행 불가능하다.
@@ -161,7 +161,7 @@ WHERE n.nspname = 'ledger' AND t.typname = 'account_kind'
 <a id="dr-39"></a>
 ### DR-39 · 4-eyes 승인 임계가 기본값 NULL — 승인이 한 번도 발동하지 않는다
 
-**등급: 차단** · 근거 [`001:204`](ddl/001_types_and_extensions.sql#L204) · [`001:209`](ddl/001_types_and_extensions.sql#L209) · [`009:99`](ddl/009_operations_money.sql#L99)
+**등급: 차단** · 근거 [`001:204`](../../db/schema/001_types_and_extensions.sql#L204) · [`001:209`](../../db/schema/001_types_and_extensions.sql#L209) · [`009:99`](../../db/schema/009_operations_money.sql#L99)
 
 #### 증상
 
@@ -173,8 +173,8 @@ approval_threshold_minor BIGINT CHECK (approval_threshold_minor > 0),
 INSERT INTO ledger.branch_config (branch) VALUES ('HANN'), ('NUSTAR'), ('ONLINE');
 ```
 
-[`009:99`](ddl/009_operations_money.sql#L99)의 임계 검사가 읽는 값은
-**신규 설치 직후 항상 NULL**이다. 그리고 [`001:202`](ddl/001_types_and_extensions.sql#L202)의
+[`009:99`](../../db/schema/009_operations_money.sql#L99)의 임계 검사가 읽는 값은
+**신규 설치 직후 항상 NULL**이다. 그리고 [`001:202`](../../db/schema/001_types_and_extensions.sql#L202)의
 주석이 그 의미를 정의한다 — **"NULL 이면 임계 없음"**.
 
 #### 왜 차단인가
@@ -185,7 +185,7 @@ INSERT INTO ledger.branch_config (branch) VALUES ('HANN'), ('NUSTAR'), ('ONLINE'
 
 - `identity.approvals` · `identity.approval_votes` 테이블
 - `consume_approval()`의 6단 검사
-- [`011`](ddl/011_operations_admin.sql)의 `op_request_approval` · `op_cast_vote`
+- [`011`](../../db/schema/011_operations_admin.sql)의 `op_request_approval` · `op_cast_vote`
 - [06-security.md](06-security.md)의 4-eyes 절 전체
 - [05-api-contract.md](05-api-contract.md) §6-2 "임계 금액 초과 → approval"
 
@@ -216,11 +216,11 @@ INSERT INTO ledger.branch_config (branch, approval_threshold_minor) VALUES
   ('ONLINE', 20000000);   -- ₱200,000.00
 ```
 
-`NOT NULL`을 택하면 "임계 없음" 의미가 사라지므로 [`001:202`](ddl/001_types_and_extensions.sql#L202)
+`NOT NULL`을 택하면 "임계 없음" 의미가 사라지므로 [`001:202`](../../db/schema/001_types_and_extensions.sql#L202)
 주석도 함께 고친다. 임계를 실제로 끄고 싶은 지점이 있다면 `BIGINT` 최댓값을 넣게 하고,
 그것이 명시적 선택임을 데이터로 남긴다.
 
-**대안(임계 없음을 유지해야 한다면)**: [`009:99`](ddl/009_operations_money.sql#L99)가 NULL을 만나면
+**대안(임계 없음을 유지해야 한다면)**: [`009:99`](../../db/schema/009_operations_money.sql#L99)가 NULL을 만나면
 통과가 아니라 **거부**하게 바꾼다.
 
 ```sql
@@ -248,7 +248,7 @@ SELECT branch FROM ledger.branch_config WHERE approval_threshold_minor IS NULL;
 <a id="dr-40"></a>
 ### DR-40 · 파트너 계층에 순환 방지가 없다
 
-**등급: 높음** · 근거 [`003:240-241`](ddl/003_accounts.sql#L240)
+**등급: 높음** · 근거 [`003:240-241`](../../db/schema/003_accounts.sql#L240)
 
 ```sql
 -- 자기 자신을 상위로 둘 수 없다. 더 깊은 순환은 애플리케이션이 막는다.
@@ -256,7 +256,7 @@ CONSTRAINT partner_no_self_parent CHECK (parent_id IS NULL OR parent_id <> party
 ```
 
 주석이 항복 선언이다. `A → B → A`는 통과한다.
-[`depth`](ddl/003_accounts.sql#L232)는 부모의 `depth`와 대조되지 않아 장식이며,
+[`depth`](../../db/schema/003_accounts.sql#L232)는 부모의 `depth`와 대조되지 않아 장식이며,
 `CHECK (depth BETWEEN 1 AND 8)`은 각 행을 따로 볼 뿐 트리를 보지 않는다.
 
 순환이 있는 트리에서 쉐어를 상향 정산하면 무한 루프이거나 이중 지급이다.
@@ -297,7 +297,7 @@ END;
 $$;
 ```
 
-기존 `partner_profiles_party_kind` 트리거([`003:268`](ddl/003_accounts.sql#L268))에 이어 붙인다.
+기존 `partner_profiles_party_kind` 트리거([`003:268`](../../db/schema/003_accounts.sql#L268))에 이어 붙인다.
 
 > **함께 처리할 것**: 순환은 지금 발생하지 않는다 — 쉐어 정산 함수가 없기 때문이다(DR-38).
 > **DR-38의 `op_accrue_share`를 만드는 커밋에 이 트리거가 함께 들어가야 한다.**
@@ -305,7 +305,7 @@ $$;
 <a id="dr-41"></a>
 ### DR-41 · 비-PHP 통화에 상대 계정이 없다
 
-**등급: 높음** · 근거 [`001:186-189`](ddl/001_types_and_extensions.sql#L186) · [`003:283-299`](ddl/003_accounts.sql#L283)
+**등급: 높음** · 근거 [`001:186-189`](../../db/schema/001_types_and_extensions.sql#L186) · [`003:283-299`](../../db/schema/003_accounts.sql#L283)
 
 `001`이 PHP · USD · KRW 세 통화를 시드한다.
 `003`의 지점 하우스 부트스트랩은 `'PHP'`가 하드코딩돼 있어, 지점당 하우스 계정 8종이 전부 PHP다.
@@ -313,7 +313,7 @@ $$;
 USD 회원 계좌를 열면 상대편 `house_cash` USD 계정이 **존재하지 않는다.**
 분개가 성립하지 못하고 런타임에 실패한다.
 
-더 나쁜 것은 탐지되지 않는다는 점이다. [`013:19-26`](ddl/013_reconciliation.sql#L19)의 R1은
+더 나쁜 것은 탐지되지 않는다는 점이다. [`013:19-26`](../../db/schema/013_reconciliation.sql#L19)의 R1은
 통화별로 나눠 합산하므로, **USD 쪽이 통째로 비뚤어져도 PHP가 맞으면 R1은 초록불이다.**
 2차의 [DR-24](design-review-2.md#dr-24) · [DR-28](design-review-2.md#dr-28)과 같은 사각 —
 검사가 자기 사각지대를 모른다.
@@ -334,11 +334,11 @@ INSERT INTO ledger.currencies (code, scale, symbol) VALUES
 <a id="dr-42"></a>
 ### DR-42 · 물리 칩 재고가 대사 대상이 아니다
 
-**등급: 높음** · 근거 [`005:286`](ddl/005_games_rolling.sql#L286) · [`013`](ddl/013_reconciliation.sql) R1~R7
+**등급: 높음** · 근거 [`005:286`](../../db/schema/005_games_rolling.sql#L286) · [`013`](../../db/schema/013_reconciliation.sql) R1~R7
 
 `cage.chip_inventory_events`는 불변성 트리거가 걸려 있고 append-only다. 거기까지는 좋다.
 
-`013`에서 이 테이블이 등장하는 곳은 [`013:274`](ddl/013_reconciliation.sql#L274) 한 군데,
+`013`에서 이 테이블이 등장하는 곳은 [`013:274`](../../db/schema/013_reconciliation.sql#L274) 한 군데,
 `v_shift_counters`의 **표시용 집계**뿐이다. **R1~R7 어디에도 없다.**
 
 즉 발행된 `chips_outstanding` 합과 금고에서 빠져나간 재고를 대조하는 검사가 없다.
@@ -375,7 +375,7 @@ SELECT v.branch,
 `ledger.v_integrity_status`의 R 목록에 `R9_chip_inventory`를 등재하고,
 `security_invoker`를 반드시 붙인다(2차 [DR-24](design-review-2.md#dr-24)).
 
-> **부수**: [`005:291`](ddl/005_games_rolling.sql#L291)의 `reason ledger.entry_category`는
+> **부수**: [`005:291`](../../db/schema/005_games_rolling.sql#L291)의 `reason ledger.entry_category`는
 > 자금 분류 ENUM을 물리 재고 사유에 재사용한다. R9를 넣을 때 전용 ENUM 분리를 함께 검토할 것.
 
 ---
@@ -385,15 +385,15 @@ SELECT v.branch,
 <a id="dr-43"></a>
 ### DR-43 · `games.chips_account_id`가 종류 · 소유자 · 통화와 결속되지 않는다
 
-**등급: 중간** · 근거 [`005:27`](ddl/005_games_rolling.sql#L27) · [`005:222`](ddl/005_games_rolling.sql#L222)
+**등급: 중간** · 근거 [`005:27`](../../db/schema/005_games_rolling.sql#L27) · [`005:222`](../../db/schema/005_games_rolling.sql#L222)
 
 FK만 걸려 있다. 그 계정이 `chips_outstanding`인지, `game_party_id` 소유인지,
 `games.currency`와 통화가 같은지 **아무것도 검사하지 않는다.**
 `UNIQUE (chips_account_id)`도 없어 두 게임이 한 계정을 가리킬 수 있다.
 
-지금은 [`010:111`](ddl/010_operations_game.sql#L111)이 항상 옳게 만들어 주지만,
+지금은 [`010:111`](../../db/schema/010_operations_game.sql#L111)이 항상 옳게 만들어 주지만,
 **검사가 데이터가 아니라 코드에 있다.** 결속이 깨지면
-[`assert_chips_settled`](ddl/005_games_rolling.sql#L222)가 엉뚱한 계정 잔액을 0으로 요구한다 —
+[`assert_chips_settled`](../../db/schema/005_games_rolling.sql#L222)가 엉뚱한 계정 잔액을 0으로 요구한다 —
 게임이 영원히 종료되지 않거나, 칩 발행 분개가 하우스 현금에 꽂힌다.
 
 트리거 하나로 세 가지를 함께 검사하고, `UNIQUE (chips_account_id)`를 추가한다.
@@ -401,7 +401,7 @@ FK만 걸려 있다. 그 계정이 `chips_outstanding`인지, `game_party_id` �
 <a id="dr-44"></a>
 ### DR-44 · `ledger.parties.status`를 어떤 연산도 검사하지 않는다
 
-**등급: 중간** · 근거 [`008:436`](ddl/008_post_transaction.sql#L436)
+**등급: 중간** · 근거 [`008:436`](../../db/schema/008_post_transaction.sql#L436)
 
 `post_transaction`이 검사하는 것은 `accounts.status`뿐이다.
 `ledger.parties.status`는 `active` · `suspended` · `closed` 세 값을 갖지만 아무도 읽지 않는다.
@@ -414,18 +414,18 @@ FK만 걸려 있다. 그 계정이 `chips_outstanding`인지, `game_party_id` �
 <a id="dr-45"></a>
 ### DR-45 · 트리거의 `FOR SHARE`가 잠금 승격 함정
 
-**등급: 중간** · 근거 [`005:129`](ddl/005_games_rolling.sql#L129) · [`005:153`](ddl/005_games_rolling.sql#L153) · [`010:17`](ddl/010_operations_game.sql#L17)
+**등급: 중간** · 근거 [`005:129`](../../db/schema/005_games_rolling.sql#L129) · [`005:153`](../../db/schema/005_games_rolling.sql#L153) · [`010:17`](../../db/schema/010_operations_game.sql#L17)
 
 `assert_game_ongoing()`이 게임 행을 `FOR SHARE`로 잡고,
 같은 트랜잭션의 AFTER 트리거 `apply_rolling_projection()`이 그 행을 `UPDATE`한다.
 `FOR SHARE` 보유 후 `UPDATE`는 전형적인 **잠금 승격**이며,
 같은 행에 대해 두 트랜잭션이 동시에 하면 교착이다.
 
-**지금은 교착이 나지 않는다.** [`010:17` `cage.lock_ongoing_game()`](ddl/010_operations_game.sql#L17)이
+**지금은 교착이 나지 않는다.** [`010:17` `cage.lock_ongoing_game()`](../../db/schema/010_operations_game.sql#L17)이
 `FOR UPDATE`를 먼저 잡아 승격 구간을 없애기 때문이다.
 
 문제는 그 안전이 **규율에만 의존한다**는 점이다. 그리고
-[`005:118`](ddl/005_games_rolling.sql#L118)의 주석을 보면 트리거 저자는 `FOR SHARE` 자체가
+[`005:118`](../../db/schema/005_games_rolling.sql#L118)의 주석을 보면 트리거 저자는 `FOR SHARE` 자체가
 보호 수단이라고 믿고 있다 — `010`이 이미 더 강한 잠금을 잡는다는 사실을 인지하지 못한 상태다.
 두 계층이 서로 상대가 지키고 있다고 가정한다.
 
@@ -444,13 +444,13 @@ FK만 걸려 있다. 그 계정이 `chips_outstanding`인지, `game_party_id` �
 <a id="dr-46"></a>
 ### DR-46 · 분개는 불변인데 계정 정의는 가변
 
-**등급: 중간** · 근거 [`003:44`](ddl/003_accounts.sql#L44)
+**등급: 중간** · 근거 [`003:44`](../../db/schema/003_accounts.sql#L44)
 
 `ledger.accounts`와 `ledger.parties`에 `deny_mutation` 트리거가 없다.
 `accounts.currency`나 `accounts.party_id`를 UPDATE하면
 **이미 쌓인 모든 분개의 의미가 소급해서 바뀐다.**
 
-`kind` · `normal_balance`는 [`003:118`](ddl/003_accounts.sql#L118) 트리거가 짝을 강제하지만,
+`kind` · `normal_balance`는 [`003:118`](../../db/schema/003_accounts.sql#L118) 트리거가 짝을 강제하지만,
 짝을 함께 바꾸는 것은 막지 못한다.
 
 원장 불변성이 분개 행에서만 성립하고 그 분개가 가리키는 좌표에서는 성립하지 않는다.
@@ -460,10 +460,10 @@ FK만 걸려 있다. 그 계정이 `chips_outstanding`인지, `game_party_id` �
 <a id="dr-47"></a>
 ### DR-47 · `identity.staff.partner_party_id`에 주체 종류 검사가 없다
 
-**등급: 중간** · 근거 [`003:316-318`](ddl/003_accounts.sql#L316) · [`003:250`](ddl/003_accounts.sql#L250)
+**등급: 중간** · 근거 [`003:316-318`](../../db/schema/003_accounts.sql#L316) · [`003:250`](../../db/schema/003_accounts.sql#L250)
 
 `003`이 FK만 건다. 같은 파일의 `partner_profiles`는
-[`assert_partner_party()`](ddl/003_accounts.sql#L250)로 `party_type = 'partner'`를 강제하는데
+[`assert_partner_party()`](../../db/schema/003_accounts.sql#L250)로 `party_type = 'partner'`를 강제하는데
 staff 쪽은 하지 않는다. **한 파일 안에서 같은 종류의 검사가 한쪽에만 있다.**
 
 `partner_operator` 주체가 `member` 주체에 묶이면 파트너 계층 스코프 판정이 어긋나고,
@@ -472,7 +472,7 @@ staff 쪽은 하지 않는다. **한 파일 안에서 같은 종류의 검사가
 <a id="dr-48"></a>
 ### DR-48 · 지점 누계 인덱스에 지점이 없다
 
-**등급: 낮음** · 근거 [`005:82-83`](ddl/005_games_rolling.sql#L82) · [`013:331`](ddl/013_reconciliation.sql#L331)
+**등급: 낮음** · 근거 [`005:82-83`](../../db/schema/005_games_rolling.sql#L82) · [`013:331`](../../db/schema/013_reconciliation.sql#L331)
 
 ```sql
 CREATE INDEX rolling_events_branch_total_idx
@@ -480,7 +480,7 @@ CREATE INDEX rolling_events_branch_total_idx
 ```
 
 이름은 "지점 누계"인데 `cage.rolling_events`에 `branch` 컬럼이 없다.
-[`013:331`](ddl/013_reconciliation.sql#L331)의 `v_branch_rolling_total`은
+[`013:331`](../../db/schema/013_reconciliation.sql#L331)의 `v_branch_rolling_total`은
 `cage.games`를 조인해야 지점을 얻으며, 이 인덱스는 그 질의를 돕지 못한다.
 
 `rolling_events`에 `branch`를 비정규화하거나(다른 테이블들이 이미 그렇게 한다) 인덱스 이름을 고친다.
@@ -488,13 +488,13 @@ CREATE INDEX rolling_events_branch_total_idx
 <a id="dr-49"></a>
 ### DR-49 · 주석이 R4 위치를 `010`이라고 쓴다
 
-**등급: 낮음** · 근거 [`005:38`](ddl/005_games_rolling.sql#L38) · [`013:128`](ddl/013_reconciliation.sql#L128)
+**등급: 낮음** · 근거 [`005:38`](../../db/schema/005_games_rolling.sql#L38) · [`013:128`](../../db/schema/013_reconciliation.sql#L128)
 
 ```sql
 -- 프로젝션. rolling_events 합과 상시 대조한다 (010 R4)
 ```
 
-R4는 [`013:128`](ddl/013_reconciliation.sql#L128) `cage.v_check_rolling_projection`이다.
+R4는 [`013:128`](../../db/schema/013_reconciliation.sql#L128) `cage.v_check_rolling_projection`이다.
 `010`이 아니라 `013`이다. 검사 자체는 정상적으로 존재한다.
 
 ---
@@ -544,22 +544,22 @@ DR-47(주체 종류 미검증). 네 건을 따로 고치면 네 번 손댄다.
 `013`의 R 검사 목록 대조.
 
 **아직 읽지 않은 것**: [01-current-system.md](01-current-system.md)(581줄) ·
-[references.md](references.md) · [`004_ledger.sql`](ddl/004_ledger.sql) 전량(1차에서 부분만).
+[references.md](references.md) · [`004_ledger.sql`](../../db/schema/004_ledger.sql) 전량(1차에서 부분만).
 **49건이 전부라는 뜻이 아니다.**
 
 **철회**: "계정 상태를 아무도 검사하지 않는다"는 의심은
-[`008:436`](ddl/008_post_transaction.sql#L436)의 `AND a.status <> 'active'`로 반증됐다.
+[`008:436`](../../db/schema/008_post_transaction.sql#L436)의 `AND a.status <> 'active'`로 반증됐다.
 같은 지적이 다시 제기되지 않도록 근거를 남긴다. 남은 문제는 주체 상태뿐이며 DR-44다.
 
 **검증 수준**: 전부 파일 · 행 근거가 있다. 런타임 재현은 없다.
 DR-45는 PostgreSQL 행 잠금 충돌 규칙에 근거하며 동시성 테스트로 확인해야 한다.
 
-**칭찬할 것 하나**: [`003:87-93`](ddl/003_accounts.sql#L87)은 `account_kind` CASE에서
+**칭찬할 것 하나**: [`003:87-93`](../../db/schema/003_accounts.sql#L87)은 `account_kind` CASE에서
 `v_expected IS NULL`을 명시적으로 막고, 그 이유를 주석에 남긴다 —
 "ENUM 에 값을 추가하고 이 CASE 를 빠뜨리면 검사가 조용히 통과한다."
 **조용한 통과를 경계할 줄 아는 저자다.**
 
-그런데 [`005:97`](ddl/005_games_rolling.sql#L97)의 `correction` 분기는 검사 없이 `RETURN NEW`한다.
+그런데 [`005:97`](../../db/schema/005_games_rolling.sql#L97)의 `correction` 분기는 검사 없이 `RETURN NEW`한다.
 같은 규율이 한 파일에서는 적용되고 다른 파일에서는 적용되지 않는다.
 **규율이 사람의 기억에만 있으면 파일마다 다르게 적용된다** — [DR-12](design-review.md#dr-12)가
 이번에도 근거를 하나 더 얻었다.

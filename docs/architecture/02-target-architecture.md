@@ -192,7 +192,7 @@ game       라운드 · 테이블 · 아바타 · 채팅          ← 플레이�
 
 > **`ledger_relay`·`identity_app`은 신규다.** 이전 판은 `ledger_app` 하나가 자금 연산과 아웃박스 소비를 겸했다. **아웃박스 소비자가 침해되면 자금 연산 권한까지 딸려 온다** — 릴레이는 읽기만 하면 되는데 쓰기 권한을 들고 있을 이유가 없다. `ledger_app`에서 `outbox` 접근을 회수한다 ([`spec/03`](../spec/03-api-idempotency.md) `R-03-31`).
 
-**`ledger_app`은 `ledger.post_transaction()`에도 EXECUTE 권한이 없다.** 그 함수는 내부 전용이고, 애플리케이션이 호출할 수 있는 것은 [`ddl/009`](ddl/009_operations_money.sql)~[`011`](ddl/011_operations_admin.sql)의 연산 함수뿐이다. 범용 기록 함수를 앱에 노출하면 [04-posting-rules.md](04-posting-rules.md)의 분개 정의표가 장식이 된다.
+**`ledger_app`은 `ledger.post_transaction()`에도 EXECUTE 권한이 없다.** 그 함수는 내부 전용이고, 애플리케이션이 호출할 수 있는 것은 [`ddl/009`](../../db/schema/009_operations_money.sql)~[`011`](../../db/schema/011_operations_admin.sql)의 연산 함수뿐이다. 범용 기록 함수를 앱에 노출하면 [04-posting-rules.md](04-posting-rules.md)의 분개 정의표가 장식이 된다.
 
 `SECURITY DEFINER` 함수는 PostgreSQL 문서 권고대로 `SET search_path`를 명시하고 `pg_temp`를 마지막에 둔다. 근거와 패턴은 [06-security.md](06-security.md) 4절.
 
@@ -269,7 +269,7 @@ game       라운드 · 테이블 · 아바타 · 채팅          ← 플레이�
 | 오류 | Sentry | — |
 | **원장 무결성** | 전용 대사 배치 | **위반 시 즉시 호출** |
 
-원장 무결성 알람은 일반 알람과 등급이 다르다. 일곱 가지를 감시한다 (상세: [`ddl/013_reconciliation.sql`](ddl/013_reconciliation.sql)).
+원장 무결성 알람은 일반 알람과 등급이 다르다. 일곱 가지를 감시한다 (상세: [`ddl/013_reconciliation.sql`](../../db/schema/013_reconciliation.sql)).
 
 | # | 검사 | 주기 |
 |---|---|---|

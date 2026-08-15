@@ -9,12 +9,12 @@
 
 | 주제 | 사용처 | URL |
 |---|---|---|
-| `CREATE TRIGGER` — 제약 트리거 | [03 §7-1](03-ledger-model.md) · [`ddl/004`](ddl/004_ledger.sql) | https://www.postgresql.org/docs/current/sql-createtrigger.html |
-| `CREATE FUNCTION` — `SECURITY DEFINER` | [06 §4-2](06-security.md) · [`ddl/008`](ddl/008_post_transaction.sql) | https://www.postgresql.org/docs/current/sql-createfunction.html |
+| `CREATE TRIGGER` — 제약 트리거 | [03 §7-1](03-ledger-model.md) · [`ddl/004`](../../db/schema/004_ledger.sql) | https://www.postgresql.org/docs/current/sql-createtrigger.html |
+| `CREATE FUNCTION` — `SECURITY DEFINER` | [06 §4-2](06-security.md) · [`ddl/008`](../../db/schema/008_post_transaction.sql) | https://www.postgresql.org/docs/current/sql-createfunction.html |
 | 트랜잭션 격리 수준 | [03 §7-3](03-ledger-model.md) · [08 ADR-004](08-adr.md) | https://www.postgresql.org/docs/current/transaction-iso.html |
-| 명시적 잠금 · 데드락 | [03 §7-3](03-ledger-model.md) · [`ddl/008`](ddl/008_post_transaction.sql) | https://www.postgresql.org/docs/current/explicit-locking.html |
+| 명시적 잠금 · 데드락 | [03 §7-3](03-ledger-model.md) · [`ddl/008`](../../db/schema/008_post_transaction.sql) | https://www.postgresql.org/docs/current/explicit-locking.html |
 | 수치 데이터 타입 | [03 §6](03-ledger-model.md) · [08 ADR-003](08-adr.md) | https://www.postgresql.org/docs/current/datatype-numeric.html |
-| Row Level Security | [06 §4-3](06-security.md) · [`ddl/012`](ddl/012_roles_and_grants.sql) | https://www.postgresql.org/docs/current/ddl-rowsecurity.html |
+| Row Level Security | [06 §4-3](06-security.md) · [`ddl/012`](../../db/schema/012_roles_and_grants.sql) | https://www.postgresql.org/docs/current/ddl-rowsecurity.html |
 | 논리 디코딩 | [02 §4-1](02-target-architecture.md) · [08 ADR-007](08-adr.md) | https://www.postgresql.org/docs/current/logicaldecoding.html |
 | `SET CONSTRAINTS` | [`ddl/README`](ddl/README.md) | https://www.postgresql.org/docs/current/sql-set-constraints.html |
 | PostgreSQL 18 릴리스 | [02 §5-1](02-target-architecture.md) | https://www.postgresql.org/about/news/postgresql-18-released-3142/ |
@@ -42,7 +42,7 @@
 > "Applications using this level must be prepared to retry transactions due to serialization failures."
 > "It is important that an environment which uses this technique have a generalized way of handling serialization failures (which always return with an SQLSTATE value of '40001')"
 
-**잠금과 데드락** — [`ddl/008`](ddl/008_post_transaction.sql)의 잠금 순서 규칙 근거
+**잠금과 데드락** — [`ddl/008`](../../db/schema/008_post_transaction.sql)의 잠금 순서 규칙 근거
 
 > "`FOR UPDATE` causes the rows retrieved by the `SELECT` statement to be locked as though for update. This prevents them from being locked, modified or deleted by other transactions until the current transaction ends."
 > "The best defense against deadlocks is generally to avoid them by being certain that all applications using a database acquire locks on multiple objects in a consistent order."
@@ -59,7 +59,7 @@
 > "Use timestamptz (also known as timestamp with time zone) instead" — 순수 `timestamp` 대신
 > "Don't use the type char(n). You probably want text."
 
-**Row Level Security** — [`ddl/012`](ddl/012_roles_and_grants.sql)의 근거
+**Row Level Security** — [`ddl/012`](../../db/schema/012_roles_and_grants.sql)의 근거
 
 > "If no policy exists for the table, a default-deny policy is used, meaning that no rows are visible or can be modified."
 > "Superusers and roles with the `BYPASSRLS` attribute always bypass the row security system when accessing a table. Table owners normally bypass row security as well, though a table owner can choose to be subject to row security with `ALTER TABLE ... FORCE ROW LEVEL SECURITY`."
@@ -70,8 +70,8 @@
 
 | 주제 | 사용처 | URL |
 |---|---|---|
-| OWASP Password Storage Cheat Sheet | [06 §3-1](06-security.md) · [`ddl/002`](ddl/002_identity.sql) | https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html |
-| RFC 6238 — TOTP | [06 §3-2](06-security.md) · [`ddl/002`](ddl/002_identity.sql) | https://datatracker.ietf.org/doc/html/rfc6238 |
+| OWASP Password Storage Cheat Sheet | [06 §3-1](06-security.md) · [`ddl/002`](../../db/schema/002_identity.sql) | https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html |
+| RFC 6238 — TOTP | [06 §3-2](06-security.md) · [`ddl/002`](../../db/schema/002_identity.sql) | https://datatracker.ietf.org/doc/html/rfc6238 |
 
 ### Argon2id 권장 파라미터
 
@@ -96,7 +96,7 @@ m=7168  (7 MiB),  t=5, p=1
 > "at most one time step is allowed as the network delay"
 > "The verifier MUST NOT accept the second attempt of the OTP after the successful validation has been issued for the first OTP, which ensures one-time only use of an OTP."
 
-마지막 문장이 [`ddl/002`](ddl/002_identity.sql)의 `identity.totp_used` 테이블 근거다.
+마지막 문장이 [`ddl/002`](../../db/schema/002_identity.sql)의 `identity.totp_used` 테이블 근거다.
 
 ---
 
@@ -104,7 +104,7 @@ m=7168  (7 MiB),  t=5, p=1
 
 | 주제 | 사용처 | URL |
 |---|---|---|
-| `Idempotency-Key` 헤더 (draft-ietf-httpapi-idempotency-key-header-07) | [05 §2](05-api-contract.md) · [`ddl/004`](ddl/004_ledger.sql) | https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-07 |
+| `Idempotency-Key` 헤더 (draft-ietf-httpapi-idempotency-key-header-07) | [05 §2](05-api-contract.md) · [`ddl/004`](../../db/schema/004_ledger.sql) | https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-07 |
 | 워킹그룹 문서 이력 | — | https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/ |
 
 ### 인용

@@ -475,7 +475,7 @@ winLoss = chips_outstanding[GAME] 총 차변(회수)
 
 ## 11. 상시 대사
 
-세 가지를 상시 검증한다. 구현은 [`ddl/013_reconciliation.sql`](ddl/013_reconciliation.sql).
+세 가지를 상시 검증한다. 구현은 [`ddl/013_reconciliation.sql`](../../db/schema/013_reconciliation.sql).
 
 ```sql
 -- R1. 전역 복식부기 항등식 — 통화별 합이 0이어야 한다

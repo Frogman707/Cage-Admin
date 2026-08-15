@@ -2,7 +2,7 @@
 
 **이 표가 구현 계약이다.** 모든 자금 연산은 여기 정의된 분개만 생성한다.
 
-> **이 표는 주석이 아니라 제약이다.** 각 행이 [`ddl/004_ledger.sql`](ddl/004_ledger.sql)의 `ledger.posting_rules` 테이블에 들어가고, `entries_posting_rule` 트리거가 모든 분개 삽입을 그 표와 대조한다. **표에 없는 `(거래종류, 분개범주, 계정종류, 부호)` 조합은 커밋되지 않는다.** 상세는 18절.
+> **이 표는 주석이 아니라 제약이다.** 각 행이 [`ddl/004_ledger.sql`](../../db/schema/004_ledger.sql)의 `ledger.posting_rules` 테이블에 들어가고, `entries_posting_rule` 트리거가 모든 분개 삽입을 그 표와 대조한다. **표에 없는 `(거래종류, 분개범주, 계정종류, 부호)` 조합은 커밋되지 않는다.** 상세는 18절.
 >
 > 잔액 합이 0이라는 것만으로는 부족하다. 예를 들어 `member_deposit`을 대변 기록하고 `suspense`를 차변 기록하면 합은 0이지만 돈이 창조된다. 이 표가 그 조합을 존재하지 않게 만든다.
 
@@ -352,7 +352,7 @@ op_settle_commission (트랜잭션 A)
 
 > 금액이 0인 항목은 분개를 생성하지 않는다 (`entries.amount_minor <> 0` 제약).
 
-> **구현상의 축약:** 위 12행 중 홀수 행(1·3·5·7·9·11)은 계정과 `category`가 모두 같다 — `chips_outstanding[GAME]` 차변, `chips_redeem`. [`ddl/010_operations_game.sql`](ddl/010_operations_game.sql)의 `cage.op_settle_game()`은 이를 **합계 1행**으로 기록한다. 의미는 동일하고 행 수만 줄어든다. 따라서 실제 분개는 최대 7행(칩 회수 1 + 대변 6)이다.
+> **구현상의 축약:** 위 12행 중 홀수 행(1·3·5·7·9·11)은 계정과 `category`가 모두 같다 — `chips_outstanding[GAME]` 차변, `chips_redeem`. [`ddl/010_operations_game.sql`](../../db/schema/010_operations_game.sql)의 `cage.op_settle_game()`은 이를 **합계 1행**으로 기록한다. 의미는 동일하고 행 수만 줄어든다. 따라서 실제 분개는 최대 7행(칩 회수 1 + 대변 6)이다.
 
 **해석:**
 - 1·2 — 칩을 반납하고 계좌로 입금 → 현행 `applyAccountTransaction(g.account, 'IN', cc.deposit + nn.deposit)` (`index.html:7279`)와 동일
@@ -458,7 +458,7 @@ WHERE e.account_id = :chips_outstanding_account_id;
 |---|---|---|---|
 | (원 분개 전부) | 반전 | 동일 | **원 category 그대로** |
 
-> **역분개는 `category`를 바꾸지 않는다.** 이전 판은 전부 `'reversal'`로 덮었는데, 그러면 `category` 기준 파생 뷰([`ddl/013_reconciliation.sql`](ddl/013_reconciliation.sql)의 교대 카운터·윈로스)가 정정을 반영하지 못한다 — 바이인을 역분개해도 `cash_buyin_shift`가 원래 값 그대로 남는다. 원 `category`를 유지하면 부호가 뒤집힌 같은 범주 분개가 합계에서 자동으로 상쇄된다.
+> **역분개는 `category`를 바꾸지 않는다.** 이전 판은 전부 `'reversal'`로 덮었는데, 그러면 `category` 기준 파생 뷰([`ddl/013_reconciliation.sql`](../../db/schema/013_reconciliation.sql)의 교대 카운터·윈로스)가 정정을 반영하지 못한다 — 바이인을 역분개해도 `cash_buyin_shift`가 원래 값 그대로 남는다. 원 `category`를 유지하면 부호가 뒤집힌 같은 범주 분개가 합계에서 자동으로 상쇄된다.
 >
 > 역분개 여부는 `transactions.kind`(`reversal` · `game_cancel`)와 `reverses_tx_id`로 구분한다.
 
@@ -800,7 +800,7 @@ CREATE TRIGGER entries_posting_rule
   FOR EACH ROW EXECUTE FUNCTION ledger.assert_posting_rule();
 ```
 
-**분개를 만드는 주체는 저장 프로시저뿐이다.** 애플리케이션 역할은 `ledger.entries`에 INSERT 권한이 없고, `ledger.post_transaction()`에 EXECUTE 권한도 없다. 호출할 수 있는 것은 [`ddl/009`](ddl/009_operations_money.sql)~[`011`](ddl/011_operations_admin.sql)의 `op_*` 함수뿐이며, 이 함수들이 계정과 부호를 직접 구성한다. **호출자가 임의 분개를 주입할 인터페이스 자체가 존재하지 않는다.**
+**분개를 만드는 주체는 저장 프로시저뿐이다.** 애플리케이션 역할은 `ledger.entries`에 INSERT 권한이 없고, `ledger.post_transaction()`에 EXECUTE 권한도 없다. 호출할 수 있는 것은 [`ddl/009`](../../db/schema/009_operations_money.sql)~[`011`](../../db/schema/011_operations_admin.sql)의 `op_*` 함수뿐이며, 이 함수들이 계정과 부호를 직접 구성한다. **호출자가 임의 분개를 주입할 인터페이스 자체가 존재하지 않는다.**
 
 세 겹이다.
 

@@ -153,5 +153,6 @@
 | 문서 | 관계 |
 |---|---|
 | [`00-decisions.md`](00-decisions.md) | 이 세트의 전제. **스펙과 어긋나면 결정 대장이 맞다** |
+| [`docs/superpowers/ROADMAP.md`](../superpowers/ROADMAP.md) | **이 세트의 하위** — 각 스펙을 계층(DB · 현행 JS · API)으로 갈라 계획 파일 24개로 배분한 대장. 착수 순서 · 선행 결정 4건 · 차단 결정 5건 |
 | [`docs/architecture/`](../architecture/README.md) | 설계 원본 |
 | [`docs/partner-admin/`](../partner-admin/README.md) · [`docs/avatar-speed/`](../avatar-speed/README.md) | 현행 파트너·플레이어 문서. [`10`](10-partner-console.md)·[`13`](13-player-domain-deferred.md)의 입력 |

@@ -69,10 +69,10 @@
 |---|---|
 | [`ddl/`](ddl/) | 실행 가능한 PostgreSQL 스키마 (13개 파일, 번호 순서대로 적용) |
 | [`ddl/001`~`007`](ddl/) | 테이블 · 타입 · 불변식 |
-| [`ddl/008_post_transaction.sql`](ddl/008_post_transaction.sql) | **원장 코어 — 내부 전용.** 앱에 노출하지 않는다 |
+| [`ddl/008_post_transaction.sql`](../../db/schema/008_post_transaction.sql) | **원장 코어 — 내부 전용.** 앱에 노출하지 않는다 |
 | [`ddl/009`~`011`](ddl/) | **연산 함수 — 애플리케이션 API.** 이것만 호출 가능 |
-| [`ddl/012_roles_and_grants.sql`](ddl/012_roles_and_grants.sql) | 역할 · 권한 · RLS — 위 규칙을 실제로 강제한다 |
-| [`ddl/013_reconciliation.sql`](ddl/013_reconciliation.sql) | 상시 대사 R1~R9 — 하나라도 위반하면 즉시 알람 |
+| [`ddl/012_roles_and_grants.sql`](../../db/schema/012_roles_and_grants.sql) | 역할 · 권한 · RLS — 위 규칙을 실제로 강제한다 |
+| [`ddl/013_reconciliation.sql`](../../db/schema/013_reconciliation.sql) | 상시 대사 R1~R9 — 하나라도 위반하면 즉시 알람 |
 
 > **이 계층이 설계의 핵심이다.** `ledger_app` 역할은 자금 테이블에 DML 권한이 없고, `ledger.post_transaction()`에도 EXECUTE 권한이 없다. 가진 것은 `009`~`011`의 `op_*` 함수 EXECUTE와 조회 SELECT뿐이다. 분개는 함수가 만든다 — **호출자가 계정과 부호를 지정할 인터페이스 자체가 존재하지 않는다.** ([08-adr.md](08-adr.md) ADR-013)
 >

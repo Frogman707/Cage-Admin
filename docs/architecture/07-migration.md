@@ -222,7 +222,7 @@ M8(로컬/클라우드 이중 경로)은 "일부 데이터가 로컬에만 있�
 
 5단계를 실행할 함수가 **없었다.** [design-review-3.md `DR-38`](design-review-3.md) — `003`이 `OPENING-EQUITY` 주체와 계정을 부트스트랩에서 만들어 두고 이 문서 전체가 그 계정에 개시 잔액을 싣는 것을 전제로 서 있었는데, `opening_balance` 분개를 발행할 `op_*` 함수가 없었다. [ADR-013](08-adr.md)이 `post_transaction()`을 앱에 노출하지 않기로 했으므로 op 함수가 없는 자금은 기록할 경로 자체가 없다. **이관 계획이 실행 불가능한 상태였다.**
 
-`ledger.op_load_opening_balance()`([`011`](ddl/011_operations_admin.sql))가 그 경로다.
+`ledger.op_load_opening_balance()`([`011`](../../db/schema/011_operations_admin.sql))가 그 경로다.
 
 | 항목 | 값 |
 |---|---|

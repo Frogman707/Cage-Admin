@@ -6,6 +6,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "db:apply": "bash db/scripts/apply.sh",
+    "db:reset": "bash db/scripts/reset.sh",
+    "docs:check-links": "node tools/check-doc-links.mjs",
     "test:balance-emulator": "npx --yes firebase-tools emulators:exec --only firestore --project cage-admin-balance-emulator-test \"node test/balance-emulator.test.js\"",
     "test:dual-write-compat": "npx --yes firebase-tools emulators:exec --only firestore --project cage-admin-balance-compat-test \"node test/dual-write-compat.test.js\""
   },

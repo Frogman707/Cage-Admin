@@ -77,12 +77,12 @@ DR-26은 `013`과 `007`을, DR-27은 `006`을 고친다 — 전부 원장 코어
 
 | 뷰 | 파일:줄 | `security_invoker` |
 |---|---|---|
-| `ledger.v_account_balances` | [`003:156`](ddl/003_accounts.sql#L156) | ✅ |
-| `ledger.v_transaction_detail` | [`004:526`](ddl/004_ledger.sql#L526) | ✅ |
-| `013`의 뷰 12개 전부 | [`013`](ddl/013_reconciliation.sql) | ❌ |
-| `archive.v_unscrubbed` | [`007:129`](ddl/007_outbox_audit.sql#L129) | ❌ |
+| `ledger.v_account_balances` | [`003:156`](../../db/schema/003_accounts.sql#L156) | ✅ |
+| `ledger.v_transaction_detail` | [`004:526`](../../db/schema/004_ledger.sql#L526) | ✅ |
+| `013`의 뷰 12개 전부 | [`013`](../../db/schema/013_reconciliation.sql) | ❌ |
+| `archive.v_unscrubbed` | [`007:129`](../../db/schema/007_outbox_audit.sql#L129) | ❌ |
 
-그중 **넷이 `ledger_app`에 GRANT되어 있고**([`013:382-386`](ddl/013_reconciliation.sql#L382)),
+그중 **넷이 `ledger_app`에 GRANT되어 있고**([`013:382-386`](../../db/schema/013_reconciliation.sql#L382)),
 전부 RLS가 켜진 테이블을 읽는다.
 
 | 뷰 | 읽는 RLS 테이블 |
@@ -94,7 +94,7 @@ DR-26은 `013`과 `007`을, DR-27은 `006`을 고친다 — 전부 원장 코어
 
 #### 왜 심각한가
 
-[`012:221-226`](ddl/012_roles_and_grants.sql#L221)이 `FORCE ROW LEVEL SECURITY`를 의도적으로
+[`012:221-226`](../../db/schema/012_roles_and_grants.sql#L221)이 `FORCE ROW LEVEL SECURITY`를 의도적으로
 쓰지 않는다고 명시한다. 따라서 **뷰 소유자는 RLS를 통과한다.** 정의자 뷰는 소유자 권한으로
 실행되므로, `ledger_app`이 뷰를 거치는 순간 지점 필터가 사라진다.
 
@@ -103,15 +103,15 @@ DR-26은 `013`과 `007`을, DR-27은 `006`을 고친다 — 전부 원장 코어
 
 #### 개선 방안
 
-1. `013`의 뷰 12개와 [`007:129`](ddl/007_outbox_audit.sql#L129) `archive.v_unscrubbed`에
+1. `013`의 뷰 12개와 [`007:129`](../../db/schema/007_outbox_audit.sql#L129) `archive.v_unscrubbed`에
    `WITH (security_invoker = true)` 추가
 
 2. **⚠️ 함께 고쳐야 한다 — 단독 수정은 런타임 실패를 만든다.**
 
    `ledger.v_integrity_status`도 현재 정의자 뷰라서, `ledger_app`이 하위 `v_check_*` 뷰의
-   SELECT 권한 **없이도** 통과하고 있다([`013:374-380`](ddl/013_reconciliation.sql#L374)은
+   SELECT 권한 **없이도** 통과하고 있다([`013:374-380`](../../db/schema/013_reconciliation.sql#L374)은
    하위 뷰를 `ledger_read`에만 부여한다). `security_invoker`를 붙이는 순간
-   `ledger.integrity_ok()`([`013:244`](ddl/013_reconciliation.sql#L244))가
+   `ledger.integrity_ok()`([`013:244`](../../db/schema/013_reconciliation.sql#L244))가
    `permission denied`로 깨진다.
 
    ```sql
@@ -125,7 +125,7 @@ DR-26은 `013`과 `007`을, DR-27은 `006`을 고친다 — 전부 원장 코어
    ```
 
    또는 `integrity_ok()`를 `SECURITY DEFINER`로 바꾸고 하위 뷰는 `ledger_read`에만 남긴다
-   — [`013:107-110`](ddl/013_reconciliation.sql#L107)의 `verify_hash_chain()`이 이미
+   — [`013:107-110`](../../db/schema/013_reconciliation.sql#L107)의 `verify_hash_chain()`이 이미
    같은 이유로 정의자 함수다. **이쪽이 권장이다.** 하위 뷰 12개를 앱에 여는 것보다
    판정 결과 하나만 돌려주는 쪽이 노출면이 작다.
 
@@ -161,13 +161,13 @@ DR-26은 `013`과 `007`을, DR-27은 `006`을 고친다 — 전부 원장 코어
 
 #### 근거
 
-[`012:50`](ddl/012_roles_and_grants.sql#L50)이 전 스키마를 PUBLIC에서 회수한다.
+[`012:50`](../../db/schema/012_roles_and_grants.sql#L50)이 전 스키마를 PUBLIC에서 회수한다.
 
 ```sql
 REVOKE ALL ON SCHEMA ledger, cage, identity, audit, archive FROM PUBLIC;
 ```
 
-이후 `audit` 스키마에 대한 권한 부여는 **한 곳뿐이다** ([`012:185-188`](ddl/012_roles_and_grants.sql#L185)).
+이후 `audit` 스키마에 대한 권한 부여는 **한 곳뿐이다** ([`012:185-188`](../../db/schema/012_roles_and_grants.sql#L185)).
 
 ```sql
 GRANT USAGE  ON SCHEMA audit TO audit_writer;
@@ -176,13 +176,13 @@ GRANT USAGE  ON ALL SEQUENCES IN SCHEMA audit TO audit_writer;
 -- SELECT · UPDATE · DELETE 를 주지 않는다. 앱은 감사 로그를 읽거나 지울 수 없다.
 ```
 
-`ledger_read`는 [`012:165`](ddl/012_roles_and_grants.sql#L165)에서 `ledger` · `cage`만,
-[`012:174`](ddl/012_roles_and_grants.sql#L174)에서 `identity`만 받는다.
-`archive_reader`는 [`012:195`](ddl/012_roles_and_grants.sql#L195)에서 `archive`만 받는다.
+`ledger_read`는 [`012:165`](../../db/schema/012_roles_and_grants.sql#L165)에서 `ledger` · `cage`만,
+[`012:174`](../../db/schema/012_roles_and_grants.sql#L174)에서 `identity`만 받는다.
+`archive_reader`는 [`012:195`](../../db/schema/012_roles_and_grants.sql#L195)에서 `archive`만 받는다.
 **`audit`에 USAGE를 가진 역할은 `audit_writer` 하나이고 그 역할은 INSERT만 갖는다.**
 
-추가로 [`002:107`](ddl/002_identity.sql#L107)이 RBAC 역할 `auditor`("조회 전용")를 정의하지만,
-[`002:149`](ddl/002_identity.sql#L149)가 **"auditor 는 권한을 갖지 않는다. 조회는 ledger_read
+추가로 [`002:107`](../../db/schema/002_identity.sql#L107)이 RBAC 역할 `auditor`("조회 전용")를 정의하지만,
+[`002:149`](../../db/schema/002_identity.sql#L149)가 **"auditor 는 권한을 갖지 않는다. 조회는 ledger_read
 역할과 RLS 가 담당한다"** 고 못 박는다 — 그런데 `ledger_read`가 `audit`을 못 본다.
 
 #### 왜 심각한가
@@ -213,7 +213,7 @@ COMMENT ON ROLE audit_reader IS
 KYC 열람 기록이 들어간다. 두 접근을 같은 자격증명으로 묶으면 감사 로그 조회 자체가
 감사되지 않는다.
 
-부수 결정: [`002:107`](ddl/002_identity.sql#L107)의 RBAC `auditor`와 DB 역할 `audit_reader`의
+부수 결정: [`002:107`](../../db/schema/002_identity.sql#L107)의 RBAC `auditor`와 DB 역할 `audit_reader`의
 관계를 [`06-security.md`](06-security.md)에 명시한다. 지금은 이름만 비슷하고 연결이 없다.
 
 #### 검증
@@ -235,7 +235,7 @@ DB 쓰기 권한을 쥔 공격자가 과거 거래를 고쳐도 **R1~R7이 전�
 
 해시 체인 검사는 두 겹이다.
 
-**R3(a) 링크 검사** — [`013:67-85`](ddl/013_reconciliation.sql#L67)
+**R3(a) 링크 검사** — [`013:67-85`](../../db/schema/013_reconciliation.sql#L67)
 
 ```sql
 lag(t.hash) OVER (PARTITION BY t.branch ORDER BY t.id) AS expected_prev
@@ -243,7 +243,7 @@ lag(t.hash) OVER (PARTITION BY t.branch ORDER BY t.id) AS expected_prev
 WHEN o.expected_prev IS NOT NULL THEN o.prev_hash = o.expected_prev
 ```
 
-**R3(b) 내용 재계산** — [`013:113-121`](ddl/013_reconciliation.sql#L113)
+**R3(b) 내용 재계산** — [`013:113-121`](../../db/schema/013_reconciliation.sql#L113)
 
 ```sql
 sha256(t.prev_hash || convert_to(ledger.canonical_digest(t.id), 'UTF8'))
@@ -268,11 +268,11 @@ R3(b)는 **저장된 `prev_hash`를 그대로 입력으로 쓴다.** 따라서 �
 
 | 필요한 것 | 현재 상태 |
 |---|---|
-| 앵커 저장 테이블 | ✅ [`007:90`](ddl/007_outbox_audit.sql#L90) `audit.chain_anchors` |
-| 앵커 기록 절차 | ⚠️ [`013:421-424`](ddl/013_reconciliation.sql#L421) 주석의 수동 SQL만 |
+| 앵커 저장 테이블 | ✅ [`007:90`](../../db/schema/007_outbox_audit.sql#L90) `audit.chain_anchors` |
+| 앵커 기록 절차 | ⚠️ [`013:421-424`](../../db/schema/013_reconciliation.sql#L421) 주석의 수동 SQL만 |
 | **앵커 대조 검사** | ❌ **R1~R7에 없다** |
 | 앵커를 읽을 역할 | ❌ [DR-25](#dr-25) |
-| 앵커 쓰기 주체 분리 | ❌ [`012:190`](ddl/012_roles_and_grants.sql#L190) |
+| 앵커 쓰기 주체 분리 | ❌ [`012:190`](../../db/schema/012_roles_and_grants.sql#L190) |
 
 마지막 항목이 특히 나쁘다.
 
@@ -326,12 +326,12 @@ GRANT USAGE  ON SCHEMA audit TO audit_anchorer;
 GRANT INSERT ON audit.chain_anchors TO audit_anchorer;
 ```
 
-`GRANT audit_writer TO ledger_app`([`012:190`](ddl/012_roles_and_grants.sql#L190))은 유지한다
+`GRANT audit_writer TO ledger_app`([`012:190`](../../db/schema/012_roles_and_grants.sql#L190))은 유지한다
 — 앱은 `access_log`를 계속 써야 한다. 앵커만 떼면 된다.
 
 **(3) 외부 서명을 실제로 정의한다.**
 
-[`007:97`](ddl/007_outbox_audit.sql#L97) `anchor_ref TEXT`가 "외부 저장소 위치 · 서명 참조"라고만
+[`007:97`](../../db/schema/007_outbox_audit.sql#L97) `anchor_ref TEXT`가 "외부 저장소 위치 · 서명 참조"라고만
 되어 있다. **무엇에 어떻게 서명하는지가 어디에도 없다.** DB 안에만 있는 앵커는 DB를 침해한
 공격자가 함께 고칠 수 있으므로 (1)만으로는 부족하다. 최소한 다음을 정한다.
 
@@ -360,18 +360,18 @@ GRANT INSERT ON audit.chain_anchors TO audit_anchorer;
 #### 증상
 
 밸런싱(실사)에서 차액이 발생해도 **조정 거래 없이 검증 완료할 수 있다.**
-[`006:46`](ddl/006_periods_balancing.sql#L46)의 주석 — "차액이 조용히 묻히지 않는다" — 과 정반대다.
+[`006:46`](../../db/schema/006_periods_balancing.sql#L46)의 주석 — "차액이 조용히 묻히지 않는다" — 과 정반대다.
 
 #### 근거
 
-컬럼은 생성 열이다 ([`006:27-28`](ddl/006_periods_balancing.sql#L27)).
+컬럼은 생성 열이다 ([`006:27-28`](../../db/schema/006_periods_balancing.sql#L27)).
 
 ```sql
 variance_minor BIGINT GENERATED ALWAYS AS
                  (counted_total_minor - system_total_minor) STORED,
 ```
 
-강제는 `BEFORE` 트리거다 ([`006:66-68`](ddl/006_periods_balancing.sql#L66)).
+강제는 `BEFORE` 트리거다 ([`006:66-68`](../../db/schema/006_periods_balancing.sql#L66)).
 
 ```sql
 CREATE TRIGGER balancing_variance_adjusted
@@ -379,7 +379,7 @@ CREATE TRIGGER balancing_variance_adjusted
   FOR EACH ROW EXECUTE FUNCTION cage.assert_variance_adjusted();
 ```
 
-트리거 본문 ([`006:54-56`](ddl/006_periods_balancing.sql#L54)):
+트리거 본문 ([`006:54-56`](../../db/schema/006_periods_balancing.sql#L54)):
 
 ```sql
 IF NEW.verified_by IS NOT NULL
@@ -394,7 +394,7 @@ IF NEW.verified_by IS NOT NULL
 #### 왜 심각한가
 
 - 실사 차액 흡수는 이 설계가 현행 `memberCompanyDiffVal`(차액을 스칼라에 숫자만 저장)을
-  대체하겠다고 내세운 개선 그 자체다 ([`006:9`](ddl/006_periods_balancing.sql#L9))
+  대체하겠다고 내세운 개선 그 자체다 ([`006:9`](../../db/schema/006_periods_balancing.sql#L9))
 - 실패가 **조용하다.** 예외도 경고도 없고, 스키마를 읽으면 보호되는 것처럼 보인다
 - R5(`v_check_suspense`)는 `suspense` 잔액만 본다. 차액이 `suspense`를 거치지 않고
   묻히면 어떤 대사에도 걸리지 않는다
@@ -432,7 +432,7 @@ $$;
 
 **(B) `AFTER` 제약 트리거로 옮긴다.** 생성 열이 계산된 뒤에 실행되므로 `NEW.variance_minor`를
 그대로 읽을 수 있다. 다만 `op_record_balancing`이 실사 기록과 조정 거래를 같은 트랜잭션에서
-만들므로([`011:126-128`](ddl/011_operations_admin.sql#L126)) `DEFERRABLE INITIALLY DEFERRED`가
+만들므로([`011:126-128`](../../db/schema/011_operations_admin.sql#L126)) `DEFERRABLE INITIALLY DEFERRED`가
 필요하고, 그러면 ADR-005의 지연 제약 트리거 목록에 항목이 하나 늘어난다.
 
 **공통으로 필요한 것**: 같은 유형의 실수를 저장소 전체에서 찾는다. `GENERATED ALWAYS AS ...
@@ -460,7 +460,7 @@ VALUES ('HANN', current_date, 'cash', '{"1000": 1}'::jsonb,
 
 **R2가 INNER JOIN이라 잔액 행이 없는 계정을 대사에서 놓친다** — 높음
 
-[`013:47-49`](ddl/013_reconciliation.sql#L47):
+[`013:47-49`](../../db/schema/013_reconciliation.sql#L47):
 
 ```sql
 FROM ledger.accounts a
@@ -481,13 +481,13 @@ JOIN ledger.account_balances b ON b.account_id = a.id   -- INNER
 
 **`scrub_secrets()`가 `pw`를 지우지 않는다 — 평문 파트너 비밀번호가 아카이브에 영구 잔존** — 높음
 
-[`002:6`](ddl/002_identity.sql#L6)이 현행 스키마를 명시한다.
+[`002:6`](../../db/schema/002_identity.sql#L6)이 현행 스키마를 명시한다.
 
 ```
 partnerStaff/{id} { id, pw, name, role }    partner-admin/app.js:170-172
 ```
 
-[`007:147-149`](ddl/007_outbox_audit.sql#L147)의 제거 대상:
+[`007:147-149`](../../db/schema/007_outbox_audit.sql#L147)의 제거 대상:
 
 ```sql
 - 'pin' - 'totpSecret' - 'withdrawPw'
@@ -495,10 +495,10 @@ partnerStaff/{id} { id, pw, name, role }    partner-admin/app.js:170-172
 - 'sitePhoto' - 'signaturePhoto'
 ```
 
-**`pw`가 없다.** [`007:150-158`](ddl/007_outbox_audit.sql#L150)의 `had_*` 플래그에도 없어서
+**`pw`가 없다.** [`007:150-158`](../../db/schema/007_outbox_audit.sql#L150)의 `had_*` 플래그에도 없어서
 **남아 있다는 사실조차 기록되지 않는다.**
 
-[`007:108-115`](ddl/007_outbox_audit.sql#L108)의 경고가 정확히 이 상황을 예상했다 —
+[`007:108-115`](../../db/schema/007_outbox_audit.sql#L108)의 경고가 정확히 이 상황을 예상했다 —
 "아카이브에 평문 원본이 남으면 그 전환이 무의미해진다."
 
 **개선**: 제거 목록에 `'pw'` 추가, `had_partner_pw` 플래그 추가. 더 나아가 **필드 목록을
@@ -515,8 +515,8 @@ partnerStaff/{id} { id, pw, name, role }    partner-admin/app.js:170-172
 **승인 · 교대 연산 3종에 멱등키가 없다** — 높음
 
 자금 연산은 전부 첫 인자가 `p_idempotency_key TEXT`인데
-([`012:61-89`](ddl/012_roles_and_grants.sql#L61)) 다음 셋만 빠졌다
-([`012:94-97`](ddl/012_roles_and_grants.sql#L94)).
+([`012:61-89`](../../db/schema/012_roles_and_grants.sql#L61)) 다음 셋만 빠졌다
+([`012:94-97`](../../db/schema/012_roles_and_grants.sql#L94)).
 
 | 함수 | 시그니처 첫 인자 | 재시도 시 결과 |
 |---|---|---|
@@ -546,8 +546,8 @@ partnerStaff/{id} { id, pw, name, role }    partner-admin/app.js:170-172
 
 **`identity.approval_votes`에 RLS가 없다** — 중간
 
-[`012:398-400`](ddl/012_roles_and_grants.sql#L398)이 `identity.approvals`에만 지점 스코프
-정책을 붙인다. `approval_votes`는 [`012:150`](ddl/012_roles_and_grants.sql#L150)에서
+[`012:398-400`](../../db/schema/012_roles_and_grants.sql#L398)이 `identity.approvals`에만 지점 스코프
+정책을 붙인다. `approval_votes`는 [`012:150`](../../db/schema/012_roles_and_grants.sql#L150)에서
 `ledger_app`에 SELECT가 부여되지만 RLS가 켜져 있지 않다 —
 **전 지점의 승인 투표 내역이 조회된다.**
 
@@ -564,7 +564,7 @@ CREATE POLICY app_branch_scope ON identity.approval_votes FOR SELECT TO ledger_a
                     AND a.branch = ANY (ledger.current_branches())));
 ```
 
-`cage.rolling_events`가 게임 경유로 지점을 따르는 방식([`012:316`](ddl/012_roles_and_grants.sql#L316))과
+`cage.rolling_events`가 게임 경유로 지점을 따르는 방식([`012:316`](../../db/schema/012_roles_and_grants.sql#L316))과
 같은 패턴이다.
 
 ---
@@ -573,7 +573,7 @@ CREATE POLICY app_branch_scope ON identity.approval_votes FOR SELECT TO ledger_a
 
 **`ledger_app`이 `identity.sessions`에 컬럼 무제한 UPDATE 권한을 갖는다** — 중간
 
-[`012:155`](ddl/012_roles_and_grants.sql#L155):
+[`012:155`](../../db/schema/012_roles_and_grants.sql#L155):
 
 ```sql
 GRANT SELECT, INSERT, UPDATE ON identity.sessions TO ledger_app;
@@ -591,7 +591,7 @@ GRANT UPDATE (revoked_at, revoked_reason) ON identity.sessions TO ledger_app;
 ```
 
 리프레시 토큰 회전은 "기존 행 revoke + 새 행 INSERT"로 표현한다 — 어차피
-[`002:164`](ddl/002_identity.sql#L164)의 `refresh_family` 설계가 그 형태를 전제한다.
+[`002:164`](../../db/schema/002_identity.sql#L164)의 `refresh_family` 설계가 그 형태를 전제한다.
 `sessions` 행이 append-only가 되면 재사용 감지 이력도 함께 남는다.
 
 관련: [DR-03](design-review.md#dr-03) `identity_app` 역할 분리 — 그 작업과 함께 정리하면 좋다.
@@ -602,7 +602,7 @@ GRANT UPDATE (revoked_at, revoked_reason) ON identity.sessions TO ledger_app;
 
 **`ledger.op_open_account`에 재인증 인자 자체가 없다** — 중간
 
-[`012:104`](ddl/012_roles_and_grants.sql#L104):
+[`012:104`](../../db/schema/012_roles_and_grants.sql#L104):
 
 ```sql
 ledger.op_open_account(TEXT, BIGINT, ledger.branch_code, TEXT, TEXT, JSONB, TEXT)
@@ -617,7 +617,7 @@ ledger.op_open_account(TEXT, BIGINT, ledger.branch_code, TEXT, TEXT, JSONB, TEXT
 
 **개선**: [DR-03](design-review.md#dr-03)의 `p_step_up_id BIGINT` 도입 시 함께 추가한다.
 계정 개설을 4-eyes 대상으로 올릴지는 사업 결정이다 —
-[`002:139`](ddl/002_identity.sql#L139)이 `account.open`을 `cage_manager`와 `partner_admin`
+[`002:139`](../../db/schema/002_identity.sql#L139)이 `account.open`을 `cage_manager`와 `partner_admin`
 양쪽에 주고 있으므로, 최소한 재인증은 요구해야 한다.
 
 ---
@@ -626,7 +626,7 @@ ledger.op_open_account(TEXT, BIGINT, ledger.branch_code, TEXT, TEXT, JSONB, TEXT
 
 **`partner_admin`에 `approval.vote` 권한이 없다 — 파트너 조직 내 4-eyes가 성립하지 않는다** — 중간
 
-[`002:143-148`](ddl/002_identity.sql#L143):
+[`002:143-148`](../../db/schema/002_identity.sql#L143):
 
 ```sql
 ('partner_admin', 'account.open'),
@@ -638,7 +638,7 @@ ledger.op_open_account(TEXT, BIGINT, ledger.branch_code, TEXT, TEXT, JSONB, TEXT
 ```
 
 `approval.request`는 있고 **`approval.vote`가 없다.** `approval.vote`를 가진 역할은
-`cage_manager` 하나뿐이다([`002:141`](ddl/002_identity.sql#L141)).
+`cage_manager` 하나뿐이다([`002:141`](../../db/schema/002_identity.sql#L141)).
 
 결과: 파트너 운영자가 올린 승인 요청은 **케이지 매니저만 승인할 수 있다.**
 `partner.share_settle`(파트너 쉐어 정산 — 실제 자금 이동)까지 케이지 측 승인에 매달린다.
@@ -648,7 +648,7 @@ ledger.op_open_account(TEXT, BIGINT, ledger.branch_code, TEXT, TEXT, JSONB, TEXT
 `partner_approver`(승인).
 
 `op_cast_vote`가 `assert_actor_authorized(actor, v_a.branch, 'approval.vote')`를 호출하는데
-([`011:83`](ddl/011_operations_admin.sql#L83)) 파트너 운영자에게는 `staff_branches` 행이
+([`011:83`](../../db/schema/011_operations_admin.sql#L83)) 파트너 운영자에게는 `staff_branches` 행이
 없을 가능성이 높다는 점도 함께 확인해야 한다 — 그렇다면 권한을 줘도 지점 검사에서 막힌다.
 
 관련: [DR-07](design-review.md#dr-07)(포인트 · 쉐어 연산 함수 전무), [DR-15](design-review.md#dr-15).
@@ -659,7 +659,7 @@ ledger.op_open_account(TEXT, BIGINT, ledger.branch_code, TEXT, TEXT, JSONB, TEXT
 
 **`identity.totp_used`에 정리 경로가 없다** — 낮음
 
-[`012:156`](ddl/012_roles_and_grants.sql#L156):
+[`012:156`](../../db/schema/012_roles_and_grants.sql#L156):
 
 ```sql
 GRANT SELECT, INSERT ON identity.totp_used TO ledger_app;
@@ -669,7 +669,7 @@ DELETE 권한을 가진 역할이 **아무도 없다.** 직원 × 30초 스텝�
 RFC 6238 재사용 차단은 허용 창(±1 스텝) 밖의 기록을 보관할 이유가 없다.
 
 **개선**: 보존 창을 지나면 지우는 유지보수 함수를 추가하고
-([`013:427`](ddl/013_reconciliation.sql#L427)의 `purge_expired_idempotency()`와 같은 자리),
+([`013:427`](../../db/schema/013_reconciliation.sql#L427)의 `purge_expired_idempotency()`와 같은 자리),
 전용 유지보수 역할에만 EXECUTE를 준다.
 
 ---
@@ -678,14 +678,14 @@ RFC 6238 재사용 차단은 허용 창(±1 스텝) 밖의 기록을 보관할 �
 
 **`REVOKE` · `ALTER DEFAULT PRIVILEGES` 목록에서 `audit` 스키마만 빠졌다** — 낮음
 
-[`012:52`](ddl/012_roles_and_grants.sql#L52):
+[`012:52`](../../db/schema/012_roles_and_grants.sql#L52):
 
 ```sql
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA ledger, cage, identity, archive FROM PUBLIC;
 --                                    ^ audit 없음
 ```
 
-[`012:206`](ddl/012_roles_and_grants.sql#L206):
+[`012:206`](../../db/schema/012_roles_and_grants.sql#L206):
 
 ```sql
 ALTER DEFAULT PRIVILEGES IN SCHEMA ledger, cage, identity, archive
@@ -693,7 +693,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA ledger, cage, identity, archive
 --                                 ^ audit 없음
 ```
 
-[`012:50`](ddl/012_roles_and_grants.sql#L50)의 `REVOKE ALL ON SCHEMA`에는 `audit`이 포함돼 있어
+[`012:50`](../../db/schema/012_roles_and_grants.sql#L50)의 `REVOKE ALL ON SCHEMA`에는 `audit`이 포함돼 있어
 지금은 무해하다. 그러나 `audit` 스키마에 함수가 추가되는 순간 PUBLIC 노출 경로가 생긴다.
 [DR-25](#dr-25)의 `audit_reader` 작업과 함께 정리한다.
 
@@ -703,7 +703,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA ledger, cage, identity, archive
 
 **R1에 지점 · 기간 분해가 없다 — 위반이 떠도 위치를 특정할 수 없다** — 중간
 
-[`013:19-26`](ddl/013_reconciliation.sql#L19):
+[`013:19-26`](../../db/schema/013_reconciliation.sql#L19):
 
 ```sql
 SELECT currency, sum(amount_minor) AS imbalance_minor, ...
@@ -713,7 +713,7 @@ GROUP BY currency;
 
 두 문제가 있다.
 
-1. **위반 시 조사 시작점이 없다.** [`013:414`](ddl/013_reconciliation.sql#L414)의 운영 절차는
+1. **위반 시 조사 시작점이 없다.** [`013:414`](../../db/schema/013_reconciliation.sql#L414)의 운영 절차는
    "R1 → `v_check_double_entry` 조회"라고 하지만, 그 뷰가 주는 것은 통화별 총합 하나뿐이다.
    수백만 행 중 어디가 깨졌는지 알 수 없다
 2. **상쇄되는 두 오류를 못 잡는다.** 지점 A에서 +100, 지점 B에서 −100이면 전역 합은 0이다
@@ -746,9 +746,9 @@ HAVING sum(e.amount_minor) <> 0;
 
 | 기존 ID | 갱신 내용 |
 |---|---|
-| [DR-03](design-review.md#dr-03) | 앱 자기신고 재인증 검사 지점이 **7곳**이 됐다 — [`011:97`](ddl/011_operations_admin.sql#L97) `op_cast_vote` 추가. **4-eyes의 두 눈이 모두 앱의 주장만 믿는다** |
-| [DR-05](design-review.md#dr-05) | 베팅을 체인에서 제외하면 [`013:71`](ddl/013_reconciliation.sql#L71)의 `lag(hash)`가 미체인 행에서 NULL을 반환해 제네시스 비교로 떨어진다 → 대량 오탐. [DR-24](#dr-24)·[DR-26](#dr-26)과 함께 설계해야 한다 |
-| [DR-10](design-review.md#dr-10) | `outbox` RLS 부재에 더해, `ledger_read`가 [`012:166`](ddl/012_roles_and_grants.sql#L166) `ALL TABLES` GRANT로 `outbox` · `chain_heads` · 멱등키 테이블까지 전량 조회한다 |
+| [DR-03](design-review.md#dr-03) | 앱 자기신고 재인증 검사 지점이 **7곳**이 됐다 — [`011:97`](../../db/schema/011_operations_admin.sql#L97) `op_cast_vote` 추가. **4-eyes의 두 눈이 모두 앱의 주장만 믿는다** |
+| [DR-05](design-review.md#dr-05) | 베팅을 체인에서 제외하면 [`013:71`](../../db/schema/013_reconciliation.sql#L71)의 `lag(hash)`가 미체인 행에서 NULL을 반환해 제네시스 비교로 떨어진다 → 대량 오탐. [DR-24](#dr-24)·[DR-26](#dr-26)과 함께 설계해야 한다 |
+| [DR-10](design-review.md#dr-10) | `outbox` RLS 부재에 더해, `ledger_read`가 [`012:166`](../../db/schema/012_roles_and_grants.sql#L166) `ALL TABLES` GRANT로 `outbox` · `chain_heads` · 멱등키 테이블까지 전량 조회한다 |
 | [DR-12](design-review.md#dr-12) | [DR-27](#dr-27)은 **골든 테스트 한 줄이면 즉시 잡혔을 결함이다.** 이번 14건 중 최소 4건(DR-24 · DR-27 · DR-28 · DR-30)이 같은 성격이다 |
 | [DR-15](design-review.md#dr-15) | `identity.staff` RLS 부재에 [DR-31](#dr-31) `approval_votes`, [DR-32](#dr-32) `sessions`가 더해진다. `identity` 스키마 전체의 RLS 설계가 한 번에 필요하다 |
 
@@ -788,13 +788,13 @@ HAVING sum(e.amount_minor) <> 0;
 정독했다. 1차 검토에서 얕게 지나간 계층이다.
 
 **아직 정독하지 않은 것.** [`01-current-system.md`](01-current-system.md) 581줄,
-[`ddl/001`](ddl/001_types_and_extensions.sql) · [`003`](ddl/003_accounts.sql) ·
-[`005`](ddl/005_games_rolling.sql) 전량, [`references.md`](references.md).
+[`ddl/001`](../../db/schema/001_types_and_extensions.sql) · [`003`](../../db/schema/003_accounts.sql) ·
+[`005`](../../db/schema/005_games_rolling.sql) 전량, [`references.md`](references.md).
 
 **철회한 지적.** 검토 중 제기됐다가 근거 확인 후 기각한 것 — 재론을 막기 위해 남긴다.
 
 - **"`approval_decision`의 `reject`가 무의미하다 (`consume_approval`이 approve만 센다)"**
-  — 성립하지 않는다. [`011:105-108`](ddl/011_operations_admin.sql#L105)이 거부 1표에
+  — 성립하지 않는다. [`011:105-108`](../../db/schema/011_operations_admin.sql#L105)이 거부 1표에
   즉시 `status = 'rejected'`로 전이시키고, `consume_approval`의 `status <> 'pending'`
   검사가 그 이후를 막는다. 정상 동작이다.
 

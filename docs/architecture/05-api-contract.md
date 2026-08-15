@@ -118,7 +118,7 @@ CREATE TABLE ledger.idempotency_keys (
 
 멱등성을 애플리케이션 계층에만 두면 재시도가 유니크 제약 충돌(23505)로 터지고, 규약이 약속한 "저장된 응답 재생"이 성립하지 않는다.
 
-[`ddl/008_post_transaction.sql`](ddl/008_post_transaction.sql)의 두 함수가 위 표를 그대로 구현하며, `009`~`011`의 모든 연산 함수가 첫 줄에서 호출한다.
+[`ddl/008_post_transaction.sql`](../../db/schema/008_post_transaction.sql)의 두 함수가 위 표를 그대로 구현하며, `009`~`011`의 모든 연산 함수가 첫 줄에서 호출한다.
 
 ```sql
 v_idem := ledger.begin_idempotent(p_key, ledger.request_fingerprint('deposit', v_args));
@@ -319,7 +319,7 @@ POST /v1/approvals
 
 ### 3-6. 정정 — 역분개
 
-**잘못 기록된 거래를 되돌리는 유일한 경로다.** 삭제도 수정도 없다 — `ledger.transactions`·`entries`는 append-only이고 `DELETE`·`UPDATE`를 트리거가 거부한다 ([`004:433`](ddl/004_ledger.sql#L433)·[`004:437`](ddl/004_ledger.sql#L437)).
+**잘못 기록된 거래를 되돌리는 유일한 경로다.** 삭제도 수정도 없다 — `ledger.transactions`·`entries`는 append-only이고 `DELETE`·`UPDATE`를 트리거가 거부한다 ([`004:433`](../../db/schema/004_ledger.sql#L433)·[`004:437`](../../db/schema/004_ledger.sql#L437)).
 
 | 엔드포인트 | 함수 | 비고 |
 |---|---|---|
@@ -340,7 +340,7 @@ POST /v1/transactions/018f2c1e-7a3b-7c4d-9e0f-1a2b3c4d5e6f/reverse
 - **원 거래는 `external_id`(UUID)로 지목한다.** 내부 `BIGINT` id는 API 표면에 나오지 않는다.
 - **지점은 요청에 넣지 않는다.** 서버가 원 거래의 지점을 읽어 그 지점 기준으로 인가한다 — 다른 지점 거래를 자기 지점 권한으로 되돌리는 경로를 만들지 않기 위해서다.
 - **승인은 금액과 무관하게 항상 필요하다.** `branch_config` 임계 검사를 거치지 않는다. 승인 요청의 `subject_kind`는 `reversal`, `payload`는 `{ "original_external_id": "..." }`이다.
-- **한 거래는 한 번만 역분개된다.** 두 번째 요청은 `409`로 거부된다 ([`004`](ddl/004_ledger.sql)의 `transactions_reverses_uq` 부분 UNIQUE + 원 거래 행 `FOR UPDATE` 잠금).
+- **한 거래는 한 번만 역분개된다.** 두 번째 요청은 `409`로 거부된다 ([`004`](../../db/schema/004_ledger.sql)의 `transactions_reverses_uq` 부분 UNIQUE + 원 거래 행 `FOR UPDATE` 잠금).
 
 역분개 거래는 원 거래의 `category`를 **그대로 유지하고** 금액 부호만 뒤집는다. `category`를 `reversal`로 덮으면 `category` 기준 파생 뷰(교대 카운터·윈로스)가 정정을 반영하지 못한다. 역분개 여부는 `transactions.kind = 'reversal'`과 `reverses_tx_id`로 구분한다.
 
@@ -528,7 +528,7 @@ PERFORM identity.assert_actor_authorized(p_actor_staff_id, p_branch, 'ledger.wit
 
 `ledger.branch_config.approval_threshold_minor` (지점별). 출금·지점이체가 이 값 이상이면 `p_approval_id` 없이는 `approval-required`로 거부된다. 차액 조정·월정산·역분개는 **금액과 무관하게 항상** 승인이 필요하다.
 
-**이 컬럼은 `NOT NULL`이고 기본값이 없다** ([`001`](ddl/001_types_and_extensions.sql), design-review-3.md `DR-39`). 지점을 만들 때 임계를 반드시 정해야 한다. 예전에는 `NULL`이 "임계 없음"을 뜻했고 시드가 값을 주지 않아 **신규 설치가 4-eyes 전체 비활성 상태로 출발했다** — 오류도 로그도 화면 변화도 없이. 임계를 실제로 끄려는 지점은 `BIGINT` 최댓값을 넣어 그 선택을 데이터로 남긴다. `branch_config` 행이 없는 지점은 통과가 아니라 `configuration_limit_exceeded`로 거부된다.
+**이 컬럼은 `NOT NULL`이고 기본값이 없다** ([`001`](../../db/schema/001_types_and_extensions.sql), design-review-3.md `DR-39`). 지점을 만들 때 임계를 반드시 정해야 한다. 예전에는 `NULL`이 "임계 없음"을 뜻했고 시드가 값을 주지 않아 **신규 설치가 4-eyes 전체 비활성 상태로 출발했다** — 오류도 로그도 화면 변화도 없이. 임계를 실제로 끄려는 지점은 `BIGINT` 최댓값을 넣어 그 선택을 데이터로 남긴다. `branch_config` 행이 없는 지점은 통과가 아니라 `configuration_limit_exceeded`로 거부된다.
 
 ---
 
@@ -615,7 +615,7 @@ Content-Type: application/problem+json
 
 **`writeLedgerEntry`에 해당하는 범용 엔드포인트를 만들지 않는다.** 임의 분개를 외부에서 주입할 수 있으면 분개 정의표가 무의미해진다.
 
-이것은 규율이 아니라 권한 설정이다. `ledger_app` 역할은 `ledger.post_transaction()`에 EXECUTE 권한이 **없고**, `ledger.entries`에 INSERT 권한도 **없다**. 위 표의 `op_*` 함수만 호출할 수 있다 ([`ddl/012_roles_and_grants.sql`](ddl/012_roles_and_grants.sql)).
+이것은 규율이 아니라 권한 설정이다. `ledger_app` 역할은 `ledger.post_transaction()`에 EXECUTE 권한이 **없고**, `ledger.entries`에 INSERT 권한도 **없다**. 위 표의 `op_*` 함수만 호출할 수 있다 ([`ddl/012_roles_and_grants.sql`](../../db/schema/012_roles_and_grants.sql)).
 
 ---
 

@@ -103,7 +103,7 @@ ID 접두사 `DR-`는 저장소의 기존 체계(`TA-` · `G-` · `P-` · `M*` �
 
 #### 근거
 
-[`ddl/011_operations_admin.sql:304-313`](ddl/011_operations_admin.sql#L304):
+[`ddl/011_operations_admin.sql:304-313`](../../db/schema/011_operations_admin.sql#L304):
 
 ```sql
 SELECT COALESCE(sum(b.balance_minor), 0) INTO v_suspense
@@ -112,7 +112,7 @@ IF v_suspense <> 0 THEN
   RAISE EXCEPTION 'cannot freeze %/%: suspense balance is % (미해소 차액)', ...
 ```
 
-[`ddl/004_ledger.sql:211-214`](ddl/004_ledger.sql#L211) — `posting_rules`에서 `suspense`가 등장하는
+[`ddl/004_ledger.sql:211-214`](../../db/schema/004_ledger.sql#L211) — `posting_rules`에서 `suspense`가 등장하는
 조합은 `adjustment` 하나뿐이다:
 
 ```sql
@@ -144,7 +144,7 @@ IF v_suspense <> 0 THEN
 
 차액의 **종착지 계정**을 만들고, 해소 연산과 분개 규칙을 정의한다.
 
-**(1) 계정 종류 추가** — [`ddl/001`](ddl/001_types_and_extensions.sql)
+**(1) 계정 종류 추가** — [`ddl/001`](../../db/schema/001_types_and_extensions.sql)
 
 ```sql
 -- ledger.account_kind 에 추가
@@ -155,7 +155,7 @@ IF v_suspense <> 0 THEN
 `ledger.tx_kind`에 `suspense_resolve` 추가. `ledger.entry_category`에
 `suspense_resolve_out` · `suspense_resolve_in` 추가.
 
-> [`ddl/003:63-120`](ddl/003_accounts.sql#L63)의 `assert_account_kind_consistent()` CASE 문에
+> [`ddl/003:63-120`](../../db/schema/003_accounts.sql#L63)의 `assert_account_kind_consistent()` CASE 문에
 > 두 종류를 함께 추가해야 한다. 빠뜨리면 `v_expected IS NULL` 분기가 잡아 준다 — 그 방어가
 > 여기서 실제로 작동한다.
 
@@ -199,7 +199,7 @@ IF v_suspense <> 0 THEN
 
 #### 근거
 
-[`ddl/011_operations_admin.sql:284-291`](ddl/011_operations_admin.sql#L284):
+[`ddl/011_operations_admin.sql:284-291`](../../db/schema/011_operations_admin.sql#L284):
 
 ```sql
 SELECT count(*) INTO v_open_games
@@ -210,18 +210,18 @@ IF v_open_games > 0 THEN
 ```
 
 `cage.games.business_date`는 **개설 시점**에 확정된다 —
-[`ddl/010_operations_game.sql:122`](ddl/010_operations_game.sql#L122):
+[`ddl/010_operations_game.sql:122`](../../db/schema/010_operations_game.sql#L122):
 
 ```sql
 ledger.business_date_of(p_branch, clock_timestamp())
 ```
 
-컷오프는 06:00 — [`ddl/001:199`](ddl/001_types_and_extensions.sql#L199).
+컷오프는 06:00 — [`ddl/001:199`](../../db/schema/001_types_and_extensions.sql#L199).
 
 #### 왜 심각한가
 
 **게임을 끝내는 것으로 피해 갈 수 없다.** 게임 종료는 `chips_outstanding = 0`을 요구한다 —
-[`ddl/005:236`](ddl/005_games_rolling.sql#L236). 손님이 칩을 들고 앉아 있으면 종료가
+[`ddl/005:236`](../../db/schema/005_games_rolling.sql#L236). 손님이 칩을 들고 앉아 있으면 종료가
 DB 레벨에서 거부된다. 즉:
 
 ```
@@ -234,7 +234,7 @@ D-1 은 그때까지 열려 있다
 
 VIP 세션이 며칠 이어지면 그 기간 전부가 동결 불가다. 그리고 `op_settle_period`는 `frozen`을
 전제하므로 **월정산도 연쇄로 막힌다** —
-[`ddl/011:369`](ddl/011_operations_admin.sql#L369).
+[`ddl/011:369`](../../db/schema/011_operations_admin.sql#L369).
 
 카지노에서 게임이 영업일 경계를 넘는 것은 예외가 아니라 **정상 운영**이다.
 
@@ -247,7 +247,7 @@ VIP 세션이 며칠 이어지면 그 기간 전부가 동결 불가다. 그리�
 동결이 보장해야 하는 것은 "이 영업일에 **새 거래가 들어오지 않는다**"이지 "이 영업일에 시작한
 모든 활동이 끝났다"가 아니다. 게임 정산 거래는 이미 **정산 시점의 영업일**로 귀속된다 —
 `post_transaction`이 `business_date_of(clock_timestamp())`를 쓰기 때문이다
-([`ddl/008:360`](ddl/008_post_transaction.sql#L360)). 진행 중 게임이 남아 있어도 그 게임의
+([`ddl/008:360`](../../db/schema/008_post_transaction.sql#L360)). 진행 중 게임이 남아 있어도 그 게임의
 미래 거래는 미래 기간으로 간다.
 
 ```sql
@@ -297,7 +297,7 @@ CREATE TABLE cage.game_rollovers (
 
 #### 근거
 
-[`ddl/009_operations_money.sql:206-210`](ddl/009_operations_money.sql#L206):
+[`ddl/009_operations_money.sql:206-210`](../../db/schema/009_operations_money.sql#L206):
 
 ```sql
 IF p_auth_method NOT IN ('withdraw_pw', 'totp', 'approval') THEN
@@ -311,7 +311,7 @@ IF p_auth_method NOT IN ('withdraw_pw', 'totp', 'approval') THEN
 `op_cast_vote`(`011:97`).
 
 검사 대상이 **입력 파라미터 그 자체**다. `ledger_app`이 `'withdraw_pw'`를 넘기면 통과한다.
-그리고 그 값이 [`ddl/004:70`](ddl/004_ledger.sql#L70)의 `transactions.auth_method`에 그대로
+그리고 그 값이 [`ddl/004:70`](../../db/schema/004_ledger.sql#L70)의 `transactions.auth_method`에 그대로
 저장된다.
 
 #### 왜 심각한가
@@ -330,7 +330,7 @@ IF p_auth_method NOT IN ('withdraw_pw', 'totp', 'approval') THEN
    있다"고 약속한 컬럼이, 실제로는 **앱이 무엇이라고 주장했는지**만 기록한다.
 
 같은 문서 안에서 4-eyes는 다르게 처리된다. `identity.consume_approval()`이 투표 행을 실제로
-세고 payload를 대조한다 — [`ddl/002:316`](ddl/002_identity.sql#L316). **승인은 DB가 검증하는데
+세고 payload를 대조한다 — [`ddl/002:316`](../../db/schema/002_identity.sql#L316). **승인은 DB가 검증하는데
 재인증은 앱이 자기신고한다.** 신뢰 모델이 두 갈래다.
 
 #### 개선 방안
@@ -380,7 +380,7 @@ CREATE TABLE identity.step_up_tokens (
 #### 왜 지금인가
 
 `op_*` 함수는 M1에서 확정된다. M2가 끝난 뒤에 하면 **함수 17개의 시그니처와 그에 딸린
-`GRANT EXECUTE` 전부**를 바꾸는 일이 된다 — [`ddl/012:60-105`](ddl/012_roles_and_grants.sql#L60)는
+`GRANT EXECUTE` 전부**를 바꾸는 일이 된다 — [`ddl/012:60-105`](../../db/schema/012_roles_and_grants.sql#L60)는
 인자 타입을 전부 나열한다.
 
 #### 검증
@@ -399,7 +399,7 @@ CREATE TABLE identity.step_up_tokens (
 
 #### 근거
 
-[`ddl/008_post_transaction.sql:164-174`](ddl/008_post_transaction.sql#L164):
+[`ddl/008_post_transaction.sql:164-174`](../../db/schema/008_post_transaction.sql#L164):
 
 ```sql
 -- 만료된 키는 새 요청으로 취급한다 (보존 24시간)
@@ -411,7 +411,7 @@ END IF;
 ```
 
 `fresh = TRUE`를 받은 호출자는 연산을 진행한다. 그런데
-[`ddl/004:64`](ddl/004_ledger.sql#L64):
+[`ddl/004:64`](../../db/schema/004_ledger.sql#L64):
 
 ```sql
 idempotency_key TEXT NOT NULL UNIQUE,
@@ -486,7 +486,7 @@ END IF;
 
 #### 근거
 
-[`ddl/008_post_transaction.sql:386-393`](ddl/008_post_transaction.sql#L386):
+[`ddl/008_post_transaction.sql:386-393`](../../db/schema/008_post_transaction.sql#L386):
 
 ```sql
 -- ---- 잠금 3: 해시 체인 헤드 ----------------------------------------------
@@ -505,7 +505,7 @@ SELECT last_hash INTO v_prev_hash
 
 #### 왜 심각한가
 
-`ledger.chain_heads`는 **지점당 1행**이다 — [`ddl/004:47`](ddl/004_ledger.sql#L47).
+`ledger.chain_heads`는 **지점당 1행**이다 — [`ddl/004:47`](../../db/schema/004_ledger.sql#L47).
 `ONLINE` 지점의 모든 자금 거래가 그 한 행 뒤에 직렬화된다.
 
 아바타 39초 루프 · 스피드 21초 루프에서 라운드마다 `bet` + `payout`이 발생한다
@@ -550,9 +550,9 @@ END IF;
 
 | 대상 | 현재 | 변경 |
 |---|---|---|
-| `transactions_sealed` 지연 트리거 ([`004:489`](ddl/004_ledger.sql#L489)) | 모든 거래가 `hash NOT NULL` | 체인 대상만 |
-| `v_check_hash_chain` R3(a) ([`013:67`](ddl/013_reconciliation.sql#L67)) | 전 거래를 `lag()`로 연결 | `WHERE chained` 필터 |
-| `op_freeze_period` 미봉인 검사 ([`011:296`](ddl/011_operations_admin.sql#L296)) | `hash IS NULL`이면 거부 | 체인 대상 중 미봉인만 |
+| `transactions_sealed` 지연 트리거 ([`004:489`](../../db/schema/004_ledger.sql#L489)) | 모든 거래가 `hash NOT NULL` | 체인 대상만 |
+| `v_check_hash_chain` R3(a) ([`013:67`](../../db/schema/013_reconciliation.sql#L67)) | 전 거래를 `lag()`로 연결 | `WHERE chained` 필터 |
+| `op_freeze_period` 미봉인 검사 ([`011:296`](../../db/schema/011_operations_admin.sql#L296)) | `hash IS NULL`이면 거부 | 체인 대상 중 미봉인만 |
 
 **(4) 머클 앵커링을 실제로 설계한다** — 체인 밖 거래의 무결성 대체 수단
 
@@ -569,9 +569,9 @@ CREATE TABLE audit.merkle_anchors (
 );
 ```
 
-**ADR-006이 이 테이블을 전제하는데 [`ddl/007`](ddl/007_outbox_audit.sql)의 `audit.chain_anchors`는
+**ADR-006이 이 테이블을 전제하는데 [`ddl/007`](../../db/schema/007_outbox_audit.sql)의 `audit.chain_anchors`는
 체인 헤드용이다.** 머클 루트 계산 방식(정렬 기준 · 리프 직렬화)을 `canonical_digest()`처럼
-함수 하나로 고정해야 기록과 검증이 갈리지 않는다 — [`008:95`](ddl/008_post_transaction.sql#L95)가
+함수 하나로 고정해야 기록과 검증이 갈리지 않는다 — [`008:95`](../../db/schema/008_post_transaction.sql#L95)가
 같은 이유로 그렇게 돼 있다.
 
 #### 검증
@@ -590,11 +590,11 @@ CREATE TABLE audit.merkle_anchors (
 **다통화가 설계에는 있고 DDL에는 없다. PHP 외 통화로 자금 연산을 호출하면 실패한다.**
 
 `ledger.currencies`에 PHP · USD · KRW 3종이 있고
-([`ddl/001:186`](ddl/001_types_and_extensions.sql#L186)), [`03 §5-1`](03-ledger-model.md)은
+([`ddl/001:186`](../../db/schema/001_types_and_extensions.sql#L186)), [`03 §5-1`](03-ledger-model.md)은
 "손님이 PHP와 USD를 모두 보유하면 계정이 2개"라고 설계한다.
 
 그런데 하우스 계정 부트스트랩은 **PHP만 만든다** —
-[`ddl/003:297-298`](ddl/003_accounts.sql#L297):
+[`ddl/003:297-298`](../../db/schema/003_accounts.sql#L297):
 
 ```sql
 INSERT INTO ledger.accounts (party_id, kind, currency, normal_balance, allow_negative)
@@ -602,7 +602,7 @@ VALUES (v_party, v_kind, 'PHP', v_normal, v_negok);
 ```
 
 `op_deposit(p_currency := 'USD')`를 호출하면 `house_account_id`가 `no_data_found`로 터진다
-([`ddl/008:595`](ddl/008_post_transaction.sql#L595)). [`05 §7`](05-api-contract.md) 오류 표에도 없다.
+([`ddl/008:595`](../../db/schema/008_post_transaction.sql#L595)). [`05 §7`](05-api-contract.md) 오류 표에도 없다.
 
 그리고 **환전 연산이 정의되지 않았다** — [`08-adr.md` U2](08-adr.md)가 인정한다.
 `tx_kind`에 `fx_exchange`가 없고 `posting_rules`에도 통화 간 분개가 없다. 현행 설계는
@@ -632,14 +632,14 @@ VALUES (v_party, v_kind, 'PHP', v_normal, v_negok);
 
 | 산출물 | 위치 | 상태 |
 |---|---|---|
-| `account_kind`에 `player_points` · `partner_share_payable` · `commission_expense` | [`001:55-64`](ddl/001_types_and_extensions.sql#L55) | ✅ |
-| `entry_category` 5종 · `tx_kind` 4종 | [`001:88-108`](ddl/001_types_and_extensions.sql#L88) | ✅ |
-| `posting_rules` 8행 | [`004:226-234`](ddl/004_ledger.sql#L226) | ✅ |
-| 권한 문자열 `member.point_earn` · `partner.share_settle` 등 | [`002:145-148`](ddl/002_identity.sql#L145) | ✅ |
+| `account_kind`에 `player_points` · `partner_share_payable` · `commission_expense` | [`001:55-64`](../../db/schema/001_types_and_extensions.sql#L55) | ✅ |
+| `entry_category` 5종 · `tx_kind` 4종 | [`001:88-108`](../../db/schema/001_types_and_extensions.sql#L88) | ✅ |
+| `posting_rules` 8행 | [`004:226-234`](../../db/schema/004_ledger.sql#L226) | ✅ |
+| 권한 문자열 `member.point_earn` · `partner.share_settle` 등 | [`002:145-148`](../../db/schema/002_identity.sql#L145) | ✅ |
 | [`04 §13-2`](04-posting-rules.md) · [`§13-3`](04-posting-rules.md) 분개 정의 | 문서 | ✅ |
 | **`op_point_earn` · `op_point_convert` · `op_share_accrue` · `op_share_settle`** | — | **없음** |
 
-`ledger_app`은 `op_*`만 호출할 수 있다([`ddl/012:60`](ddl/012_roles_and_grants.sql#L60)). 함수가
+`ledger_app`은 `op_*`만 호출할 수 있다([`ddl/012:60`](../../db/schema/012_roles_and_grants.sql#L60)). 함수가
 없으면 **그 분개를 만들 경로가 시스템에 존재하지 않는다.** 타입과 규칙표는 계약이고, 계약만으로는
 아무것도 실행되지 않는다.
 
@@ -648,7 +648,7 @@ VALUES (v_party, v_kind, 'PHP', v_normal, v_negok);
 1. [`00-system-map.md` §8](00-system-map.md)의 A4 상태를 `⚠ 부분 — 타입 · 규칙만`으로 정정한다.
    **나머지 `✅` 5건(A3 · A5 · A6 · A7 · A9)도 같은 기준으로 재검증한다** — "산출물 목록에
    적힌 파일이 존재하는가"가 아니라 "그 기능을 실행할 수 있는가"로.
-2. `ddl/016_operations_partner.sql` 신설 — 위 4개 함수 + [`ddl/012`](ddl/012_roles_and_grants.sql)에
+2. `ddl/016_operations_partner.sql` 신설 — 위 4개 함수 + [`ddl/012`](../../db/schema/012_roles_and_grants.sql)에
    `GRANT EXECUTE`.
 3. `op_share_accrue`의 멱등키는 [`04 §13-3`](04-posting-rules.md)이 정한
    `share_accrue:{partner_code}:{period_code}`를 그대로 쓴다 — 기간별 1회라 재계산해도 중복
@@ -661,7 +661,7 @@ VALUES (v_party, v_kind, 'PHP', v_normal, v_negok);
 
 **`member_deposit` 외의 계정을 만드는 경로가 없다. 파트너 주체를 등록할 방법 자체가 DDL에 없다.**
 
-[`ddl/011:451-457`](ddl/011_operations_admin.sql#L451) — `op_open_account`가 만드는 것:
+[`ddl/011:451-457`](../../db/schema/011_operations_admin.sql#L451) — `op_open_account`가 만드는 것:
 
 ```sql
 INSERT INTO ledger.parties (code, party_type, display_name, home_branch)
@@ -681,10 +681,10 @@ VALUES (v_party, 'member_deposit', ...);           -- kind 가 'member_deposit' 
 | `party_type = 'partner'` 주체 | `partner_profiles` · `party_visible()` | **등록 경로 없음** |
 
 `op_wallet_transfer`는 `account_id_of(p_member_code, 'player_wallet', ...)`를 호출한다
-([`ddl/009:414`](ddl/009_operations_money.sql#L414)). **그 계정을 만든 적이 없으므로 항상
+([`ddl/009:414`](../../db/schema/009_operations_money.sql#L414)). **그 계정을 만든 적이 없으므로 항상
 `no_data_found`다.** [`04 §12`](04-posting-rules.md)가 정의한 신규 기능 전체가 동작하지 않는다.
 
-#### 개선 방안 — [`ddl/011`](ddl/011_operations_admin.sql)에 두 함수 추가
+#### 개선 방안 — [`ddl/011`](../../db/schema/011_operations_admin.sql)에 두 함수 추가
 
 ```sql
 -- 1) 기존 주체에 계정을 추가한다. 계정 종류 화이트리스트로 제한.
@@ -698,12 +698,12 @@ ledger.op_register_partner(p_partner_code, p_parent_code, p_share_rate_bp, ...)
 ```
 
 `op_register_partner`가 **`depth = parent.depth + 1`을 강제해야 한다.**
-[`ddl/003:232`](ddl/003_accounts.sql#L232)의 `CHECK (depth BETWEEN 1 AND 8)`은 값 범위만 보고,
-[`003:241`](ddl/003_accounts.sql#L241)의 `partner_no_self_parent`는 직접 자기참조만 막는다.
+[`ddl/003:232`](../../db/schema/003_accounts.sql#L232)의 `CHECK (depth BETWEEN 1 AND 8)`은 값 범위만 보고,
+[`003:241`](../../db/schema/003_accounts.sql#L241)의 `partner_no_self_parent`는 직접 자기참조만 막는다.
 A → B → A 순환은 아무도 막지 않는다.
 
 `partner_subtree()`의 재귀 종료가 그 제약에 의존한다 —
-[`ddl/012:277-284`](ddl/012_roles_and_grants.sql#L277). `UNION`이 중복을 제거하므로 순환이 있어도
+[`ddl/012:277-284`](../../db/schema/012_roles_and_grants.sql#L277). `UNION`이 중복을 제거하므로 순환이 있어도
 실제로는 종료하지만, **`WITH RECURSIVE`의 종료가 우연에 기대는 구조는 남기지 않는다.**
 이 함수는 RLS 정책이 매 조회마다 호출한다.
 
@@ -713,7 +713,7 @@ A → B → A 순환은 아무도 막지 않는다.
 
 **`409 request-in-progress`는 도달할 수 없는 코드다. 동시 요청은 409 대신 무한정 잠금 대기한다.**
 
-[`ddl/008:182-186`](ddl/008_post_transaction.sql#L182):
+[`ddl/008:182-186`](../../db/schema/008_post_transaction.sql#L182):
 
 ```sql
 IF v_row.state = 'in_progress' THEN
@@ -721,7 +721,7 @@ IF v_row.state = 'in_progress' THEN
     USING ERRCODE = 'object_not_in_prerequisite_state', HINT = 'request-in-progress';
 ```
 
-같은 파일 [128-131줄](ddl/008_post_transaction.sql#L128) 주석이 설계 의도를 스스로 설명한다:
+같은 파일 [128-131줄](../../db/schema/008_post_transaction.sql#L128) 주석이 설계 의도를 스스로 설명한다:
 
 > `DO UPDATE`는 그 행을 잠그고 **상대 트랜잭션이 끝날 때까지 대기한다.**
 
@@ -766,7 +766,7 @@ IF v_row.state = 'in_progress' THEN
 
 **`ledger.outbox`에 RLS가 없다. `ledger_app`이 전 지점의 거래 분개를 그대로 조회할 수 있다.**
 
-[`ddl/012:158-160`](ddl/012_roles_and_grants.sql#L158):
+[`ddl/012:158-160`](../../db/schema/012_roles_and_grants.sql#L158):
 
 ```sql
 GRANT SELECT               ON ledger.outbox TO ledger_app;
@@ -774,7 +774,7 @@ GRANT UPDATE (published_at) ON ledger.outbox TO ledger_app;
 ```
 
 `ledger.outbox.payload`에는 계좌 코드 · 계정 종류 · 금액 · 범주가 전부 들어 있다 —
-[`ddl/008:481-495`](ddl/008_post_transaction.sql#L481).
+[`ddl/008:481-495`](../../db/schema/008_post_transaction.sql#L481).
 
 [`06 §4-3`](06-security.md)이 나열한 **RLS 대상 13개 테이블에 `outbox`가 없다.**
 [`02 §4-2`](02-target-architecture.md)는 이렇게 주장한다:
@@ -815,7 +815,7 @@ Realtime Gateway는 `ledger_relay`로, API 서버는 `ledger_app`으로 붙는�
 
 **롤링 정정이 지점 누계를 오염시킨다. 바이인분 정정이 관측 롤링에서 차감된다.**
 
-[`ddl/010:325-329`](ddl/010_operations_game.sql#L325) — `op_record_rolling`은 항상 같은 값을 넣는다:
+[`ddl/010:325-329`](../../db/schema/010_operations_game.sql#L325) — `op_record_rolling`은 항상 같은 값을 넣는다:
 
 ```sql
 INSERT INTO cage.rolling_events
@@ -824,7 +824,7 @@ VALUES
   (v_g.id, p_amount_minor, 'manual', TRUE, p_actor_staff_id, ...);
 ```
 
-그리고 [`ddl/005:101-107`](ddl/005_games_rolling.sql#L101)이 그 조합을 강제한다:
+그리고 [`ddl/005:101-107`](../../db/schema/005_games_rolling.sql#L101)이 그 조합을 강제한다:
 
 ```sql
 v_expected := (NEW.source = 'manual');
@@ -844,12 +844,12 @@ IF NEW.counts_toward_branch_total <> v_expected THEN RAISE EXCEPTION ...
 지점 관측 롤링 누계 = 넣은 적 없는 금액만큼 줄어든다
 ```
 
-`cage.v_branch_rolling_total`([`ddl/013:331`](ddl/013_reconciliation.sql#L331))과
-`v_shift_counters.rolling_cash_shift`([`ddl/013:322`](ddl/013_reconciliation.sql#L322))가 함께
+`cage.v_branch_rolling_total`([`ddl/013:331`](../../db/schema/013_reconciliation.sql#L331))과
+`v_shift_counters.rolling_cash_shift`([`ddl/013:322`](../../db/schema/013_reconciliation.sql#L322))가 함께
 틀린다. **R4는 이것을 잡지 못한다** — 게임별 총액은 여전히 이벤트 합과 일치하기 때문이다.
 
 `op_cancel_game`은 이 문제를 정확히 인식하고 값별로 나눠 기록한다
-([`ddl/010:599-609`](ddl/010_operations_game.sql#L599)). **같은 인식이 `op_record_rolling`에는
+([`ddl/010:599-609`](../../db/schema/010_operations_game.sql#L599)). **같은 인식이 `op_record_rolling`에는
 적용되지 않았다.**
 
 #### 개선 방안
@@ -864,7 +864,7 @@ cage.op_record_rolling(..., p_corrects_source cage.rolling_source DEFAULT NULL)
 ```
 
 `assert_rolling_source_consistent`는 `correction`을 이미 예외 처리하므로 트리거 변경은 필요 없다
-([`ddl/005:97`](ddl/005_games_rolling.sql#L97)). [`04 §6`](04-posting-rules.md)에 정정 입력
+([`ddl/005:97`](../../db/schema/005_games_rolling.sql#L97)). [`04 §6`](04-posting-rules.md)에 정정 입력
 규칙을 명시한다.
 
 ---
@@ -916,12 +916,12 @@ DR-08(`no_data_found`) · DR-11(누계 오염). 사람이 문서를 읽어서 �
 
 **게임 취소가 손님 잔액 부족으로 실패할 수 있고, 그때의 대응 절차가 없다.**
 
-[`ddl/010:578-595`](ddl/010_operations_game.sql#L578) — `op_cancel_game`은 칩 계정을 건드린
+[`ddl/010:578-595`](../../db/schema/010_operations_game.sql#L578) — `op_cancel_game`은 칩 계정을 건드린
 모든 거래를 역분개한다. 중간정산에서 손님 계좌로 입금된 건이 있으면 그 역분개는
 `member_deposit` **차변**(+)이다 — 표시 잔액이 줄어든다.
 
 손님이 이미 그 돈을 출금했으면 `member_deposit` 잔액이 양수가 되어 지연 제약 트리거
-([`ddl/004:368`](ddl/004_ledger.sql#L368))가 **커밋을 거부한다.**
+([`ddl/004:368`](../../db/schema/004_ledger.sql#L368))가 **커밋을 거부한다.**
 
 설계상 옳은 동작이다 — 없는 돈을 회수할 수는 없다. 문제는 **그 상태에서 할 수 있는 일이
 문서에 없다는 것**이다. 게임은 `ongoing`으로 남고, 그러면 DR-02에 의해 기간 마감도 막힌다.
@@ -950,7 +950,7 @@ DR-08(`no_data_found`) · DR-11(누계 오염). 사람이 문서를 읽어서 �
 
 **`op_deposit`에만 재인증 요구가 없다. 실물 현금 없이 금고 잔액을 부풀릴 수 있다.**
 
-[`ddl/009:120-167`](ddl/009_operations_money.sql#L120) — `p_auth_method`를 받아 그대로
+[`ddl/009:120-167`](../../db/schema/009_operations_money.sql#L120) — `p_auth_method`를 받아 그대로
 `post_transaction`에 넘길 뿐 검사하지 않는다. `op_withdraw` · `op_transfer` · `op_open_game` ·
 `op_settle_game`에는 전부 있는 검사다.
 
@@ -982,7 +982,7 @@ DR-03과 결합하면 검사를 추가해도 앱이 참칭할 수 있다.
 
 **분할 출금(structuring)에 대한 방어가 설계에 언급조차 없다.**
 
-[`ddl/009:86-115`](ddl/009_operations_money.sql#L86) — `require_approval_if_over_threshold()`는
+[`ddl/009:86-115`](../../db/schema/009_operations_money.sql#L86) — `require_approval_if_over_threshold()`는
 **건별 금액**만 본다:
 
 ```sql
@@ -1014,9 +1014,9 @@ SELECT COALESCE(sum(e.amount_minor), 0) INTO v_recent
 ```
 
 **동시성 주의**: 이 검사는 check-then-act다. `post_transaction`이 계정 잔액 행을 `FOR UPDATE`로
-잠그므로([`ddl/008:376`](ddl/008_post_transaction.sql#L376)) 같은 계좌에 대해서는 직렬화되지만,
+잠그므로([`ddl/008:376`](../../db/schema/008_post_transaction.sql#L376)) 같은 계좌에 대해서는 직렬화되지만,
 **`op_withdraw`는 `post_transaction` 호출 *전에* 임계를 검사한다**
-([`ddl/009:212`](ddl/009_operations_money.sql#L212)). 누적 검사 전에 해당 계정 잔액 행을
+([`ddl/009:212`](../../db/schema/009_operations_money.sql#L212)). 누적 검사 전에 해당 계정 잔액 행을
 먼저 잠가야 두 요청이 동시에 통과하지 않는다.
 
 **U5(규제 관할)와 함께 결정한다** — 임계값과 윈도는 법적 요건이 정한다.
@@ -1028,10 +1028,10 @@ SELECT COALESCE(sum(e.amount_minor), 0) INTO v_recent
 **파트너 콘솔 운영자가 케이지 전 직원 목록과 역할 구성을 조회할 수 있다.**
 
 파트너 운영자와 케이지 직원은 **같은 `ledger_app` 역할로 DB에 붙는다**.
-[`ddl/002:30`](ddl/002_identity.sql#L30)의 `principal_type`은 데이터 가시성용 컬럼이지 DB 역할이
+[`ddl/002:30`](../../db/schema/002_identity.sql#L30)의 `principal_type`은 데이터 가시성용 컬럼이지 DB 역할이
 아니다.
 
-[`ddl/012:144-152`](ddl/012_roles_and_grants.sql#L144):
+[`ddl/012:144-152`](../../db/schema/012_roles_and_grants.sql#L144):
 
 ```sql
 GRANT SELECT (id, external_id, code, name, principal_type, partner_party_id,
@@ -1045,14 +1045,14 @@ TO ledger_app;
 ```
 
 이 테이블들에 **RLS가 없다**. `identity.approvals`만 지점 스코프가 걸려 있다 —
-[`ddl/012:398`](ddl/012_roles_and_grants.sql#L398).
+[`ddl/012:398`](../../db/schema/012_roles_and_grants.sql#L398).
 
 인증 비밀값은 컬럼 GRANT로 막혔다 — [P-12](../partner-admin/explanation-known-gaps.md)의
 재발은 아니다. 하지만 노출되는 것: 전 직원 명단 · 지점 배치 · 역할 구성 · 잠금 상태 · 교대 기록.
 **파트너 운영자가 케이지 조직도 전체를 볼 수 있다.**
 
 `ledger.party_visible()`이 파트너 계층 경계를 정교하게 만들어 놓았는데
-([`ddl/012:340`](ddl/012_roles_and_grants.sql#L340)) `identity` 쪽에는 그 경계가 없다.
+([`ddl/012:340`](../../db/schema/012_roles_and_grants.sql#L340)) `identity` 쪽에는 그 경계가 없다.
 
 #### 개선 방안
 
@@ -1079,10 +1079,10 @@ ALTER TABLE identity.shift_events   ENABLE ROW LEVEL SECURITY;
 
 **게임 윈로스의 원천이 둘이다. 저장된 스냅샷과 파생 뷰가 갈릴 수 있다.**
 
-[`ddl/010:517-526`](ddl/010_operations_game.sql#L517) — 종료 시 `cage.games.win_loss_minor`에
+[`ddl/010:517-526`](../../db/schema/010_operations_game.sql#L517) — 종료 시 `cage.games.win_loss_minor`에
 스냅샷을 저장한다.
 
-[`ddl/013:350`](ddl/013_reconciliation.sql#L350) — `cage.v_game_win_loss`가 같은 값을 원장에서
+[`ddl/013:350`](../../db/schema/013_reconciliation.sql#L350) — `cage.v_game_win_loss`가 같은 값을 원장에서
 실시간 파생한다.
 
 [`04 §8-3`](04-posting-rules.md):
@@ -1106,14 +1106,14 @@ ALTER TABLE identity.shift_events   ENABLE ROW LEVEL SECURITY;
 
 **서로 다른 멱등키로 같은 `game_no`를 개설하면 매핑되지 않은 23505로 터진다.**
 
-[`ddl/010:106-112`](ddl/010_operations_game.sql#L106) — `op_open_game`은
+[`ddl/010:106-112`](../../db/schema/010_operations_game.sql#L106) — `op_open_game`은
 `ledger.parties.code = 'GAME-' || p_game_no`를 INSERT한다. `parties.code`는 UNIQUE
-([`ddl/003:24`](ddl/003_accounts.sql#L24)), `games.game_no`도 UNIQUE
-([`ddl/005:22`](ddl/005_games_rolling.sql#L22)).
+([`ddl/003:24`](../../db/schema/003_accounts.sql#L24)), `games.game_no`도 UNIQUE
+([`ddl/005:22`](../../db/schema/005_games_rolling.sql#L22)).
 
 멱등키가 같으면 `begin_idempotent`가 막는다. **다르면 막지 못한다.** 두 단말이 같은 게임 번호를
 동시에 생성하면(현행은 클라이언트가 `'YYMMDD'`+3자리로 만든다 —
-[`ddl/005:22`](ddl/005_games_rolling.sql#L22) 주석) 두 번째가 23505로 실패한다.
+[`ddl/005:22`](../../db/schema/005_games_rolling.sql#L22) 주석) 두 번째가 23505로 실패한다.
 
 [`05 §7`](05-api-contract.md) 오류 표에 없어 API가 500을 뱉는다.
 
@@ -1135,8 +1135,8 @@ ALTER TABLE identity.shift_events   ENABLE ROW LEVEL SECURITY;
 
 | 위치 | 키 |
 |---|---|
-| [`011:185`](ddl/011_operations_admin.sql#L185) `op_record_balancing` | `p_idempotency_key \|\| ':adj'` |
-| [`010:589`](ddl/010_operations_game.sql#L589) `op_cancel_game` | `p_idempotency_key \|\| ':' \|\| v_tx_id` |
+| [`011:185`](../../db/schema/011_operations_admin.sql#L185) `op_record_balancing` | `p_idempotency_key \|\| ':adj'` |
+| [`010:589`](../../db/schema/010_operations_game.sql#L589) `op_cancel_game` | `p_idempotency_key \|\| ':' \|\| v_tx_id` |
 
 이 키들은 `transactions.idempotency_key`에는 들어가지만 `ledger.idempotency_keys` 테이블에는
 **행이 만들어지지 않는다.** `complete_idempotent()`도 호출되지 않는다.
@@ -1214,14 +1214,14 @@ M0이 끝나지 않는다.**
 
 **분개 0행 거래를 막는 최종 방어선이 없다.**
 
-[`ddl/004:294-333`](ddl/004_ledger.sql#L294) — `assert_transaction_balanced`는
+[`ddl/004:294-333`](../../db/schema/004_ledger.sql#L294) — `assert_transaction_balanced`는
 `AFTER INSERT ON ledger.entries`다. **분개가 한 행도 없으면 트리거가 아예 실행되지 않는다.**
 
 `transactions_sealed` 지연 트리거는 `hash IS NOT NULL`만 본다
-([`ddl/004:473`](ddl/004_ledger.sql#L473)).
+([`ddl/004:473`](../../db/schema/004_ledger.sql#L473)).
 
 현재는 `post_transaction`의 `IF NOT FOUND` 검사가 막는다
-([`ddl/008:427`](ddl/008_post_transaction.sql#L427)). 즉 **방어가 함수 안에만 있고 스키마에는
+([`ddl/008:427`](../../db/schema/008_post_transaction.sql#L427)). 즉 **방어가 함수 안에만 있고 스키마에는
 없다.** 이 설계의 다른 불변식은 전부 두 겹인데 I1만 한 겹이다.
 
 #### 개선 방안
@@ -1244,10 +1244,10 @@ END IF;
 
 [ADR-016](08-adr.md)이 역분개를 "원 `category` 유지"로 바꾸면서 `'reversal'` category는
 사용처가 사라졌다. `posting_rules` 어느 행에도 없고, 역분개 규칙 자동 생성
-([`ddl/004:246-251`](ddl/004_ledger.sql#L246))은 원 category를 그대로 쓴다.
+([`ddl/004:246-251`](../../db/schema/004_ledger.sql#L246))은 원 category를 그대로 쓴다.
 
 그런데 [`04 §16`](04-posting-rules.md)의 `entry_category` 목록에는 남아 있고
-[`ddl/001:109`](ddl/001_types_and_extensions.sql#L109)의 ENUM에도 있다.
+[`ddl/001:109`](../../db/schema/001_types_and_extensions.sql#L109)의 ENUM에도 있다.
 
 #### 개선 방안
 

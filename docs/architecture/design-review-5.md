@@ -29,9 +29,9 @@
 
 | ID | 항목 | 등급 | 영향 | 근거 |
 |---|---|---|---|---|
-| **DR-61** | `v_shift_counters`의 칩 유입 카운터 2개가 중복 계상한다 | **높음** | M10 | [`013`](ddl/013_reconciliation.sql) · [01 §9](01-current-system.md) |
+| **DR-61** | `v_shift_counters`의 칩 유입 카운터 2개가 중복 계상한다 | **높음** | M10 | [`013`](../../db/schema/013_reconciliation.sql) · [01 §9](01-current-system.md) |
 | **DR-62** | 파트너 쉐어 · 롤링 커미션은 현행 구현이 없다 | **높음** | — | [01:90](01-current-system.md) · [01:425](01-current-system.md) · `001` · `004:231` |
-| **DR-63** | 이관 거래의 고정 필드값이 정의되지 않았다 | 중간 | M5 · M9 | [`004:64-77`](ddl/004_ledger.sql#L64) · [07](07-migration.md) |
+| **DR-63** | 이관 거래의 고정 필드값이 정의되지 않았다 | 중간 | M5 · M9 | [`004:64-77`](../../db/schema/004_ledger.sql#L64) · [07](07-migration.md) |
 | **DR-64** | 지점 분산 출금 폐기 근거가 폐기 대상과 어긋난다 | 중간 | — | [04:79](04-posting-rules.md#L79) · [01 §4-4](01-current-system.md) |
 | **DR-65** | 데모/실거래 판별 단서가 이미 있는데 쓰이지 않는다 | 낮음 | — | [01:457](01-current-system.md) · [README](README.md) 미확정 1 |
 
@@ -53,7 +53,7 @@
 
 **서로소다.** 정산 입력 `nn { deposit, cashout, marker, working }`의 세 필드가 각각 자기 카운터로 간다.
 
-목표 설계의 후계자는 `cage.v_shift_counters`([013](ddl/013_reconciliation.sql))다. 세 카운터의 정의를 보면:
+목표 설계의 후계자는 `cage.v_shift_counters`([013](../../db/schema/013_reconciliation.sql))다. 세 카운터의 정의를 보면:
 
 ```sql
 -- 현행 nnChipInShift · ccChipInShift (금고로 돌아온 칩)
@@ -100,7 +100,7 @@ nn_chip_in_shift ⊇ nn_cashout_shift ∪ nn_marker_shift
 
 **개선 방안.**
 
-`reason` 필터 한 줄. 값은 이미 있다 — `chip_inventory_events.reason`이 `ledger.entry_category`이므로([`005:291`](ddl/005_games_rolling.sql#L291)) `settle_deposit`이 유효한 값이다.
+`reason` 필터 한 줄. 값은 이미 있다 — `chip_inventory_events.reason`이 `ledger.entry_category`이므로([`005:291`](../../db/schema/005_games_rolling.sql#L291)) `settle_deposit`이 유효한 값이다.
 
 ```sql
 -- 현행 nnChipInShift · ccChipInShift (정산 입금분만. 캐시아웃 · 마커는 별도 카운터다)
@@ -149,9 +149,9 @@ SELECT * FROM cage.v_shift_counters
 |---|---|---|
 | 타입 | `tx_kind` `share_accrue` · `share_settle` | `001` |
 | 타입 | `account_kind` `partner_share_payable` · `commission_expense` | `001` |
-| 분개 규칙 | 4행 | [`004:231-234`](ddl/004_ledger.sql#L231) |
+| 분개 규칙 | 4행 | [`004:231-234`](../../db/schema/004_ledger.sql#L231) |
 | 컬럼 | `member_profiles.rolling_rate NUMERIC(7,4)` | `003` |
-| 쓰기 경로 | `op_open_account`가 그 값을 채운다 | [`011:467`](ddl/011_operations_admin.sql#L467) |
+| 쓰기 경로 | `op_open_account`가 그 값을 채운다 | [`011:467`](../../db/schema/011_operations_admin.sql#L467) |
 | **계산 규칙** | **없음** | — |
 
 요율 × **무엇** = 얼마인지가 어느 문서에도 없다. [README](README.md) 미확정 사항 3번이 정확히 그것을 묻는다:
@@ -181,7 +181,7 @@ README 전제 1이 이 문서 세트의 헌법이다:
 **개선 방안.**
 
 1. **DR-38 결정 문서에 이 사실을 명시한다.** "현행 구현이 없다"는 결정의 입력이지 결과가 아니다.
-2. 요율 계산 규칙이 확정되기 전까지 `share_accrue` · `share_settle` · `partner_share_payable` · `commission_expense`와 [`004:231-234`](ddl/004_ledger.sql#L231) 4행을 DDL에서 제외한다.
+2. 요율 계산 규칙이 확정되기 전까지 `share_accrue` · `share_settle` · `partner_share_payable` · `commission_expense`와 [`004:231-234`](../../db/schema/004_ledger.sql#L231) 4행을 DDL에서 제외한다.
 3. `member_profiles.rolling_rate`는 **유지한다.** 현행에 값이 실제로 저장돼 있으므로(`"1.45%"`) 이관 대상이다. 계산에 안 쓰일 뿐 데이터는 실재한다. 컬럼 주석에 "현행 저장값 보존. 계산 규칙 미확정"이라고 적는다.
 4. README 미확정 3번을 **DR-38의 선행 조건**으로 승격한다. 지금은 별개 목록에 있어 연결이 안 보인다.
 
@@ -295,7 +295,7 @@ M5가 이렇게 쓴다 — "중복 거래 가능성 · 호출 시점 생성 ID �
 | §4-4 지점 분산 출금 | 목표에 대응 op가 없다 | [04:79](04-posting-rules.md#L79)가 **명시적으로 폐기 결정 + 근거**를 썼다. 누락이 아니라 결정이다 (근거 자체의 문제는 DR-64) |
 | §3 KYC 이미지 3종 base64 | 여권 사진만 모델링하고 현장·서명 사진이 빠졌다 | `003`의 `member_profiles`가 **3종 전부** `*_photo_ref` + `*_photo_sha`로 모델링한다. base64 인라인 → 객체 스토리지 키 + 무결성 해시로 승격. [07:123](07-migration.md#L123)이 이관 시 누락 위험도 별도로 기록한다 |
 | §10 `{cash,nn,cc}BreakdownCounts` 권종별 매수 | 원장으로 승격하며 권종 정보가 소실된다 | `006`의 `balancing_counts.denomination_counts JSONB`가 **현행 구조를 그대로 유지**한다(`{"1000": 25, ...}`). `variance_minor` 생성 컬럼과 4-eyes CHECK까지 추가됐다 |
-| §6 `rollingEvents.memo` 7종 | `source` 승격에서 일부 값이 누락된다 | [`001:155-163`](ddl/001_types_and_extensions.sql#L155) `cage.rolling_source`가 **7종 전부 + `correction`**을 담고, 각 값에 원 memo 문자열을 주석으로 붙였다. M2의 "빈 문자열 = `'rolling'`" 모호성도 `manual`로 해소 |
+| §6 `rollingEvents.memo` 7종 | `source` 승격에서 일부 값이 누락된다 | [`001:155-163`](../../db/schema/001_types_and_extensions.sql#L155) `cage.rolling_source`가 **7종 전부 + `correction`**을 담고, 각 값에 원 memo 문자열을 주석으로 붙였다. M2의 "빈 문자열 = `'rolling'`" 모호성도 `manual`로 해소 |
 | §9 교대 카운터 9개 | 일부 필드가 파생 뷰에 없다 | `cage.v_shift_counters`가 **9개 전부** 매핑한다. 각 컬럼에 현행 필드명 주석까지 있다 (단 2개가 다른 값을 계산 — DR-61) |
 | §13-2 `correction` 카테고리 | 목표에 대응 kind가 없다 | [04:552](04-posting-rules.md#L552)가 명시한다 — "현행 `correction`(라운드 취소 환불·회수)은 신규 모델에서 `reversal`이 대신하되, 원 `category`를 유지한다" (실행 경로 부재는 4차 DR-50) |
 

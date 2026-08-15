@@ -74,7 +74,7 @@ COMMENT ON COLUMN identity.staff.partner_party_id IS
 -- 전 데이터를 받아 필터링한다. 신규는 서버가 강제한다.
 CREATE TABLE identity.staff_branches (
   staff_id BIGINT NOT NULL REFERENCES identity.staff ON DELETE CASCADE,
-  branch   ledger.branch_code NOT NULL,
+  branch   TEXT NOT NULL REFERENCES ledger.branches(code),
   PRIMARY KEY (staff_id, branch)
 );
 
@@ -216,7 +216,7 @@ CREATE TABLE identity.approvals (
   payload        JSONB NOT NULL,        -- 승인 완료 시 실행할 요청 원본
   required_count SMALLINT NOT NULL DEFAULT 2 CHECK (required_count >= 2),
   status         identity.approval_status NOT NULL DEFAULT 'pending',
-  branch         ledger.branch_code NOT NULL,
+  branch         TEXT NOT NULL REFERENCES ledger.branches(code),
   requested_by   BIGINT NOT NULL REFERENCES identity.staff,
   requested_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   resolved_at    TIMESTAMPTZ,
@@ -267,7 +267,7 @@ CREATE TRIGGER approval_votes_immutable
 -- 세 가지를 한 번에 본다: 직원 상태 · 지점 소속 · 역할 권한.
 CREATE FUNCTION identity.assert_actor_authorized(
   p_staff_id   BIGINT,
-  p_branch     ledger.branch_code,
+  p_branch     TEXT,
   p_permission TEXT
 ) RETURNS VOID
 LANGUAGE plpgsql
@@ -333,7 +333,7 @@ COMMENT ON FUNCTION identity.assert_actor_authorized IS
 CREATE FUNCTION identity.consume_approval(
   p_approval_id  BIGINT,
   p_subject_kind identity.approval_subject,
-  p_branch       ledger.branch_code,
+  p_branch       TEXT,
   p_payload      JSONB
 ) RETURNS VOID
 LANGUAGE plpgsql
@@ -406,7 +406,7 @@ COMMENT ON FUNCTION identity.consume_approval IS
 CREATE TABLE identity.shift_events (
   id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   staff_id      BIGINT NOT NULL REFERENCES identity.staff,
-  branch        ledger.branch_code NOT NULL,
+  branch        TEXT NOT NULL REFERENCES ledger.branches(code),
   action        identity.shift_action NOT NULL,
   business_date DATE NOT NULL,
   recorded_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()

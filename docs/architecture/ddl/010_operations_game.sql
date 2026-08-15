@@ -44,7 +44,7 @@ CREATE FUNCTION cage.op_open_game(
   p_actor_staff_id     BIGINT,
   p_step_up_id         BIGINT,
   p_device_id          TEXT,
-  p_branch             ledger.branch_code,
+  p_branch             TEXT,
   p_game_no            TEXT,
   p_member_code        TEXT,
   p_table_code         TEXT,
@@ -649,7 +649,7 @@ CREATE FUNCTION cage.op_main_cage_entry(
   p_actor_staff_id  BIGINT,
   p_step_up_id      BIGINT,
   p_device_id       TEXT,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_kind            cage.main_cage_kind,
   p_amount_minor    BIGINT               -- 절대값. 부호는 종류가 결정한다
 ) RETURNS JSONB

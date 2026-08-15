@@ -33,10 +33,15 @@
 | `chips_outstanding` | credit | `−balance_minor` |
 | `tips_dealer` · `tips_house` | credit | `−balance_minor` |
 | `house_gaming` | credit | `−balance_minor` |
+| `cage_point` | credit | `−balance_minor` |
 | `house_cash` | debit | `balance_minor` |
 | `marker_receivable` | debit | `balance_minor` |
 | `promo_expense` | debit | `balance_minor` |
+| `point_liability` | debit | `balance_minor` |
 | `suspense` | debit (`allow_negative = true`) | `balance_minor` |
+
+> `cage_point`·`point_liability`는 케이지 포인트 전용이다 (B2 분리 결정 · §13-4). 파트너 측 `player_points`와 **다른 계정 종류**다.
+> **`point_liability`는 이름과 달리 차변 계정이다** — 손님 쪽 의무는 `cage_point`(credit)가 지고, 이것은 그 발행분을 받는 하우스 쪽 상대 계정이다.
 
 ---
 
@@ -144,6 +149,19 @@
 |---|---|---|---|
 | `marker_receivable[branch]` | `+` | B | `buyin_marker` |
 | `chips_outstanding[GAME]` | `−` | B | `chips_issue` |
+
+#### 5-3-1. 마커 발행 — `marker_issue` (바이인과 별개 거래)
+
+| 계정 | 부호 | 금액 | `category` |
+|---|---|---|---|
+| `marker_receivable[branch]` | `+` | M | `marker_issue` |
+| `member_deposit[member]` | `−` | M | `marker_issue` |
+
+**발행과 사용을 나누는 이유**: 위 5-3은 "발행된 마커로 칩을 산다"이고 이것은 "마커를 발행한다"이다. 둘을 한 거래로 묶으면 **발행 기록 없이 마커 바이인이 성립**하고, 미수금이 언제 어떤 승인으로 생겼는지가 남지 않는다 ([`spec/04`](../spec/04-cage-game-rolling.md) `R-04-21`).
+
+**4-eyes 대상이다.** 마커 발행은 신용 공여이며 금액과 무관하게 두 사람이 필요하다.
+
+**멱등키:** `marker_issue:{member_code}:{client_request_id}`
 
 ### 5-4. 워킹칩 발행 (동시 발생 가능)
 
@@ -253,6 +271,59 @@ accounts.rate "1.45%" → select 옵션 라벨 "Rolling 1.45%" → games.type �
 **막아야 하는 것은 "두 번"이 아니라 "같은 롤링에 두 번"이다.** `cage.commission_settlements.rolling_base_minor`의 게임별 합이 `games.rolling_total_minor`를 넘지 못한다 (`005`의 `assert_commission_base_available` 트리거). 현행은 종료된 게임에만 재정산 방지가 있었고 진행 중 게임에는 아무 키도 없었다 ([design-review-9.md `DR-85`](design-review-9.md)).
 
 취소된 게임은 지급 대상이 아니다. 잘못 지급한 커미션은 삭제가 아니라 역분개로 되돌린다 ([05 §3-6](05-api-contract.md)).
+
+### U3 확정 — 무엇에 요율을 곱하는가
+
+**관측 롤링 총액 × 요율이다.** 2026-08-15 결정([`00-decisions`](../spec/00-decisions.md) §4). 바이인 대비도 윈로스 대비도 아니다. 요율 변경은 **소급하지 않는다** — 위 스냅샷 규약이 그 결정의 구현이다.
+
+근거 3건이 전부 같은 기준을 쓰고 있었다:
+
+| 출처 | 계산 | 위치 |
+|---|---|---|
+| 케이지 수동 지급 | 롤링 × 요율 | `_doSettleGame` (`index.html:7250`) |
+| 이벤트 커미션 | `Math.round(rolling*rate/100)` | `payEventCommissionForSettle` (`index.html:8961`) |
+| 파트너 표시 계산 | `rolling * 0.015` (1.5% 하드코딩) | `partner-admin/app.js` `userList` 파생 컬럼 |
+
+---
+
+## 6-2. 이벤트 보너스 커미션 — `event_commission`
+
+**현행:** 이벤트 기간 중 롤링 커미션 정산이 일어나면 보너스가 자동 지급된다 (`payEventCommissionForSettle`, `index.html:8958`). B1(2026-08-15)이 **계속 운영 + 재구현**으로 확정했다 ([`00-decisions`](../spec/00-decisions.md) §7 · [`spec/06`](../spec/06-event-commission.md)).
+
+| 계정 | 부호 | 금액 | `category` |
+|---|---|---|---|
+| `commission_expense[branch]` | `+` | B | `event_commission` |
+| `member_deposit[member]` | `−` | B | `event_commission` |
+
+**§6-1과 분개 모양이 같지만 별개 거래다.** `tx_kind`를 나눈 이유는 리포트가 두 축을 따로 합산해야 하고, 이벤트 보너스만 되돌리는 역분개가 성립해야 하기 때문이다.
+
+**멱등키:** `event_comm:{settlement_id}` — 정산 1건당 1회.
+
+### 연쇄 규약 — 아웃박스 비동기
+
+```
+op_settle_commission (트랜잭션 A)
+  ├─ 롤링 커미션 분개 확정            ← 이것은 되돌아가지 않는다
+  └─ outbox INSERT {topic:'event_commission', settlement_id, ...}
+                             ↓  (같은 트랜잭션에서 커밋)
+소비자 (트랜잭션 B)
+  ├─ 활성 이벤트 조회 (서버 시각 기준)
+  ├─ op_pay_event_commission(...)
+  └─ 실패 시 bonus_event_payouts.status='failed' + failure_reason + attempt_count++
+```
+
+**같은 트랜잭션에 넣지 않는 이유**: 보너스 실패가 정산을 되돌린다. **수동 연산으로 하지 않는 이유**: 현행 UX가 자동 지급이고 그것을 바꾸지 않는다 (`DR-67` 결정 · `AC-67-5`).
+
+### 현행 결함 4건 — 재구현하는 이유
+
+| # | 현행 | 결과 |
+|---|---|---|
+| 1 | 요율 권위가 DOM — `document.getElementById('eventRate').value` | 화면 값과 저장 값이 갈라지면 **지급액은 화면을 따른다** |
+| 2 | `if(!txn) return` | **미지급이 어디에도 안 남아 사후 보전 불가** |
+| 3 | `await` 없이 트리거 (`index.html:7259`) | 정산 완료 토스트가 보너스 성패를 모른다 |
+| 4 | 기간 판정이 클라이언트 시계 문자열 비교 | **단말 시계를 바꾸면 종료된 이벤트가 되살아난다** |
+
+**목표**: 기간 판정은 서버 시각(`now()`), 요율 권위는 `cage.bonus_events.rate_bp` 저장값(bp 정수), 지급 행이 적용 요율을 스냅샷으로 남긴다.
 
 ---
 
@@ -591,7 +662,41 @@ CREATE TABLE cage.main_cage_events (
 
 **멱등키:** `share_settle:{partner_code}:{client_request_id}`
 
-> **요율 계산 규칙은 미확정이다.** `ledger.partner_profiles.share_rate_bp`에 요율을 basis point로 두었으나(현행 `partners.shareRate`는 부동소수점 `Number`), **무엇에 곱하는지**(롤링 누계인지 순손익인지)와 상위 파트너로의 배분 규칙은 정해지지 않았다 — [08-adr.md](08-adr.md) U3. 계정과 분개는 그 결정과 무관하게 확정할 수 있으므로 먼저 세운다.
+> **요율 계산 규칙은 여전히 미확정이다.** U3(2026-08-15)는 **케이지 롤링 커미션**만 확정했다 — 관측 롤링 × 요율, 시점 스냅샷, 소급 없음(§6-1). **파트너 쉐어는 그 결정 밖이다**([`00-decisions`](../spec/00-decisions.md) §4). `ledger.partner_profiles.share_rate_bp`에 요율을 basis point로 두었으나 **무엇에 곱하는지**(롤링 누계인지 순손익인지)와 상위 파트너 배분 규칙은 정해지지 않았다. 계정과 분개는 그 결정과 무관하게 확정할 수 있으므로 먼저 세운다.
+>
+> **`share_settle`은 U3와 무관하게 만든다** — 입력이 금액이지 요율이 아니다(`AC-07-6`). 미확정인 것은 `share_accrue`의 산정식뿐이다.
+
+> ⚠️ **`shareRate` 표기 함정.** 현행 `partners.shareRate`는 부동소수점 퍼센트다 — `0.5`는 **0.5%**이며 `50`bp이다. 순진하게 `×10000`하면 `5000`bp가 되어 **100배 오지급**이 난다([`spec/10`](../spec/10-partner-console.md) `R-10-43`).
+
+---
+
+## 13-4. 케이지 포인트 — `point_grant` · `point_use`
+
+**§13-2와 다른 시스템이다.** 저 위는 파트너/플레이어 측 `player_points`이고, 이것은 **케이지 손님 계좌**(`SE7419`류)에 붙는 포인트다. B2(2026-08-15)가 **분리**로 확정했다 — 흡수하려면 "케이지 손님 = 온라인 회원" 매핑 규칙(`DR-75`)이 선행하는데 그것이 A1/A8 보류에 묶여 있다 ([`00-decisions`](../spec/00-decisions.md) §8 · [`spec/05`](../spec/05-cage-points.md)).
+
+**현행:** `DB.pointsByAccount{accountId:number}` · `DB.pointsHistory[]` — **`localStorage` 전용**이다(`index.html:8958-8990`). 잔액이 단말에만 있고, 포인트 발행에 재인증이 없으며, 발행 상한도 없다.
+
+### 발행
+
+| 계정 | 부호 | 금액 | `category` |
+|---|---|---|---|
+| `point_liability[branch]` | `+` | P | `point_grant` |
+| `cage_point[member]` | `−` | P | `point_grant` |
+
+**멱등키:** `point:{account_code}:{seq}`
+
+### 사용
+
+| 계정 | 부호 | 금액 | `category` |
+|---|---|---|---|
+| `cage_point[member]` | `+` | P | `point_use` |
+| `point_liability[branch]` | `−` | P | `point_use` |
+
+**잔액 부족은 사전 검사가 아니라 지연 제약 트리거(I2)가 잡는다.** 애플리케이션 검사에 의존하면 동시 사용 두 건이 각각 통과한다.
+
+> **발행·사용 양쪽이 스텝업 재인증을 요구한다** — 현행에 없는 통제다([`spec/05`](../spec/05-cage-points.md) `R-05-12`). 사유는 필수이며 `CHECK (length BETWEEN 1 AND 200)`이다. 현행의 `'—'` 기본값을 이식하지 않는다.
+
+> **포인트 ↔ 자금 전환은 만들지 않는다.** 현행에 없다. 요구가 생기면 그때 분개를 추가한다.
 
 ---
 
@@ -620,7 +725,11 @@ CREATE TABLE cage.main_cage_events (
 | 월정산 | `index.html:8274-8280` | 기간 마감 + 다음 기간 개시 |
 | 실사 카운트 입력 | `cageConfig.*BreakdownCounts` | `cage.balancing_counts` (차액 발생 시에만 11절 거래) |
 | 계좌 개설 · KYC 수정 | — | `ledger.parties` · `ledger.member_profiles` |
-| 공지 · 문의 · 채팅 | — | `game` 스키마 |
+| 계좌 차단 · 해지 | `applyBlock`·`unblock` | `ledger.accounts.status` + 상태 이력 ([`spec/08`](../spec/08-account-lifecycle.md)) |
+| 컨시어지 예약 (호텔·차량·항공) | `index.html:8792`·`8843`·`8894` | `concierge` 스키마 ([`spec/07`](../spec/07-concierge.md)) |
+| 공지 · 문의 · 채팅 | `partner-admin/` 고객센터 7화면 | `support` 스키마 ([`spec/11`](../spec/11-chat-notice-support.md)) |
+| 텔레그램 알림 발송 | `functions/index.js` | `notify` 스키마 ([`spec/09`](../spec/09-notifications.md)) |
+| 이벤트 활성화 · 종료 | `activateEvent` (`index.html:9003`) | `cage.bonus_event_activations` (§6-2) |
 
 ---
 
@@ -633,6 +742,7 @@ deposit_cash            withdraw_cash
 transfer_out            transfer_in
 branch_transfer_out     branch_transfer_in
 buyin_account           buyin_cash            buyin_marker
+marker_issue
 chips_issue             chips_redeem
 working_chip_issue      working_chip_return
 settle_deposit          settle_cashout        settle_marker_redeem
@@ -640,13 +750,16 @@ settle_dealer_tip       settle_house_tip
 wallet_transfer_out     wallet_transfer_in
 bet                     payout
 point_earn              point_convert_out     point_convert_in
+point_grant             point_use
 share_accrue            share_settle
-commission_payout
+commission_payout       event_commission
 adjustment              suspense_resolve_out  suspense_resolve_in
-reversal                opening_balance
+opening_balance
 ```
 
-> **아직 대응이 없는 현행 카테고리가 셋 남아 있다** — `avatar_tip` · `dealer_tip`(`avatar/app.js:716`)과 가입 보너스(`shared/game-engine.js:76`, 현행은 `deposit`으로 기록). 전부 아바타/스피드 도메인이라 A1과 함께 확정한다. 현행 `correction`(라운드 취소 환불·회수)은 신규 모델에서 `reversal`이 대신하되, **원 `category`를 유지한다**(18절).
+> **`reversal`은 이 목록에서 제거했다** (`DR-23` 결정 · `AC-23-1`). ADR-016 이후 역분개는 **원 `category`를 그대로 유지**하므로 이 값을 쓰는 경로가 없다. 미사용 값을 남기면 다음 사람이 "쓸 수 있다"고 읽는다. M1 착수 전이라 타입 재생성이 싸다(`AC-23-2`). `tx_kind`의 `reversal`은 그대로 있다 — 역분개 여부는 그쪽으로 판별한다(18절).
+
+> **아직 대응이 없는 현행 카테고리가 셋 남아 있다** — `avatar_tip` · `dealer_tip`(`avatar/app.js:716`)과 가입 보너스(`shared/game-engine.js:76`, 현행은 `deposit`으로 기록). 전부 아바타/스피드 도메인이라 A1과 함께 확정한다. 현행 `correction`(라운드 취소 환불·회수)은 신규 모델에서 `reversal` 거래가 대신한다.
 
 ---
 

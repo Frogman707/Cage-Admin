@@ -20,7 +20,7 @@ BEGIN;
 -- 회계 기간  (현행 cageConfig 의 *Baseline 스칼라 6종을 대체)
 -- -----------------------------------------------------------------------------
 CREATE TABLE ledger.accounting_periods (
-  branch        ledger.branch_code NOT NULL,
+  branch        TEXT NOT NULL REFERENCES ledger.branches(code),
   business_date DATE NOT NULL,
   status        ledger.period_status NOT NULL DEFAULT 'open',
   opened_at     TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
@@ -45,15 +45,17 @@ COMMENT ON TABLE ledger.accounting_periods IS
 -- 전역 단일 체인은 모든 거래를 직렬화한다. 지점별로 나눠 병렬성을 확보한다.
 -- 08-adr.md ADR-006.
 CREATE TABLE ledger.chain_heads (
-  branch     ledger.branch_code PRIMARY KEY,
+  branch     TEXT PRIMARY KEY REFERENCES ledger.branches(code),
   last_tx_id BIGINT,
   last_hash  BYTEA NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
 
+-- U4 전환(2026-08-15): 지점 목록을 하드코딩하지 않고 ledger.branches 에서 읽는다.
+-- 지점 추가 시 여기를 고치지 않는다 — provision_branch() 가 chain_heads 행을 만든다.
 INSERT INTO ledger.chain_heads (branch, last_hash)
-SELECT b, sha256(('cage-admin-genesis:' || b::text)::bytea)
-  FROM unnest(ARRAY['HANN','NUSTAR','ONLINE']::ledger.branch_code[]) AS b;
+SELECT code, sha256(('cage-admin-genesis:' || code)::bytea)
+  FROM ledger.branches;
 
 -- -----------------------------------------------------------------------------
 -- 거래
@@ -63,7 +65,7 @@ CREATE TABLE ledger.transactions (
   external_id     UUID NOT NULL DEFAULT uuidv7() UNIQUE,
   idempotency_key TEXT NOT NULL UNIQUE,                    -- I4
   kind            ledger.tx_kind NOT NULL,
-  branch          ledger.branch_code NOT NULL,
+  branch          TEXT NOT NULL REFERENCES ledger.branches(code),
   business_date   DATE NOT NULL,                           -- 서버 계산 (001 의 함수)
 
   actor_staff_id  BIGINT REFERENCES identity.staff,
@@ -119,7 +121,7 @@ CREATE TABLE ledger.entries (
   -- 부모 거래의 지점을 비정규화해 둔다. RLS 정책을 단순 컬럼 비교로 쓸 수 있고
   -- (상관 서브쿼리 정책은 분개 스캔마다 실행된다) 파생 뷰에서 조인이 하나 준다.
   -- 부모와의 일치는 013 의 R6 가 상시 대조한다.
-  branch         ledger.branch_code NOT NULL,
+  branch         TEXT NOT NULL REFERENCES ledger.branches(code),
 
   CONSTRAINT entries_amount_nonzero CHECK (amount_minor <> 0)
 );
@@ -272,7 +274,22 @@ INSERT INTO ledger.posting_rules (kind, category, account_kind, sign) VALUES
   -- cage.commission_settlements 가 따로 보존한다 — F&B 매출 인식에는 전용 계정
   -- 종류가 필요하고 이번 범위 밖이다 (README 미확정).
   ('commission_payout','commission_payout',   'commission_expense',    1),
-  ('commission_payout','commission_payout',   'member_deposit',       -1);
+  ('commission_payout','commission_payout',   'member_deposit',       -1),
+  -- §5-3 마커 발행 (docs/spec/04-cage-game-rolling.md R-04-21)
+  -- 바이인과 분리한 별개 거래다. 현행은 마커 바이인이 발행 기록 없이 성립했다.
+  ('marker_issue',    'marker_issue',         'marker_receivable',     1),
+  ('marker_issue',    'marker_issue',         'member_deposit',       -1),
+  -- §13-4 케이지 포인트 (B2 분리 결정 · docs/spec/05-cage-points.md §3-1)
+  -- 파트너 측 point_earn/point_convert 와 계정도 값도 겹치지 않는다.
+  ('point_grant',     'point_grant',          'point_liability',       1),
+  ('point_grant',     'point_grant',          'cage_point',           -1),
+  ('point_use',       'point_use',            'cage_point',            1),
+  ('point_use',       'point_use',            'point_liability',      -1),
+  -- §6-2 이벤트 보너스 커미션 (B1 계속운영 결정 · docs/spec/06-event-commission.md)
+  -- commission_payout 과 분개 모양은 같지만 별개 거래다 — 아웃박스 후속이며
+  -- 실패해도 정산을 되돌리지 않는다. 리포트가 두 축을 따로 합산해야 한다.
+  ('event_commission','event_commission',     'commission_expense',    1),
+  ('event_commission','event_commission',     'member_deposit',       -1);
 
 -- §14 기초 잔액 — 전 계정 종류가 양방향으로 가능하다 (마이그레이션 전용)
 INSERT INTO ledger.posting_rules (kind, category, account_kind, sign)

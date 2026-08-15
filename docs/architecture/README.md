@@ -51,6 +51,7 @@
 | 06 | [보안 아키텍처](06-security.md) | 인증·권한·암호화·감사·4-eyes |
 | 07 | [마이그레이션 계획](07-migration.md) | Firestore → PostgreSQL 이관, 단계별 일정 |
 | 08 | [설계 결정 기록 (ADR)](08-adr.md) | 주요 선택과 그 근거·대안·트레이드오프 |
+| 10 | [수용 기준 등록부](10-acceptance-criteria.md) | 설계 검토 잔여 72건을 마일스톤별 검증 가능 기준(`AC-*`)으로 전환 |
 | — | [설계 검토 (결함 등록부)](design-review.md) | **위 문서와 `ddl/`을 서로 대조한 결과. 미해결 23건 — 차단 5.** 구현 착수 전 해소 대상 |
 | — | [설계 검토 2차 (권한 · 대사 · 감사)](design-review-2.md) | **`012`·`013`·`002`·`006`·`007` 정독 결과. 미해결 14건 — 차단 4.** 1차와 합쳐 37건 |
 | — | [설계 검토 3차 (타입 · 계정 · 게임)](design-review-3.md) | **`001`·`003`·`005` 정독 + op 함수 18개 전수 조사. 미해결 12건 — 차단 2.** 세 문서 합계 **49건 — 차단 11** |
@@ -71,11 +72,13 @@
 | [`ddl/008_post_transaction.sql`](ddl/008_post_transaction.sql) | **원장 코어 — 내부 전용.** 앱에 노출하지 않는다 |
 | [`ddl/009`~`011`](ddl/) | **연산 함수 — 애플리케이션 API.** 이것만 호출 가능 |
 | [`ddl/012_roles_and_grants.sql`](ddl/012_roles_and_grants.sql) | 역할 · 권한 · RLS — 위 규칙을 실제로 강제한다 |
-| [`ddl/013_reconciliation.sql`](ddl/013_reconciliation.sql) | 상시 대사 R1~R7 — 하나라도 위반하면 즉시 알람 |
+| [`ddl/013_reconciliation.sql`](ddl/013_reconciliation.sql) | 상시 대사 R1~R9 — 하나라도 위반하면 즉시 알람 |
 
 > **이 계층이 설계의 핵심이다.** `ledger_app` 역할은 자금 테이블에 DML 권한이 없고, `ledger.post_transaction()`에도 EXECUTE 권한이 없다. 가진 것은 `009`~`011`의 `op_*` 함수 EXECUTE와 조회 SELECT뿐이다. 분개는 함수가 만든다 — **호출자가 계정과 부호를 지정할 인터페이스 자체가 존재하지 않는다.** ([08-adr.md](08-adr.md) ADR-013)
 >
-> **아직 실제 psql 적용으로 검증되지 않았다.** 자체 검토만 거친 상태다.
+> **2026-08-15: PostgreSQL 18 컨테이너에 13개 파일 전량 클린 적용을 확인했다.** U4 전환(`branch_code` ENUM → `ledger.branches`) 이후 재검증했고 `v_integrity_status` 9행 전부 `violations = 0`, 드리프트 검사 2종 0행이다.
+>
+> **그것은 사람이 손으로 돌린 것이고 CI가 아니다.** 자동화가 M0의 첫 작업이다 ([`spec/12`](../spec/12-ci-golden-tests.md)). 손으로 한 번 통과한 것과 매 PR에서 통과하는 것은 다른 보증이다.
 
 ---
 
@@ -115,15 +118,18 @@ if(!okIn){
 | 멱등성 | 호출 시점 생성 UUID. **앱 레벨 재시도는 여전히 중복 문서를 만든다** | `Idempotency-Key` + 자연키 |
 | 정정 | 문서 삭제 | 역분개 (`reverses_tx_id`) |
 | 인증 | PIN·마스터 비밀번호 평문/무솔트 저장. 검증 위치만 Cloud Functions로 이동 | Argon2id, 서버 검증 |
-| 실시간 | `onSnapshot` × 8 | WebSocket × 8 채널 (Outbox 기반) |
+| 실시간 | `onSnapshot` × 8 (케이지) | WebSocket × 8 채널 (Outbox 기반) — **케이지 범위**. 파트너·플레이어 채널은 별도 ([02](02-target-architecture.md) §4-2) |
+| 통화 | 계좌는 `PHP` 하드코딩, 게임만 5종 표기 | **통화별 계정 5종** (PHP·USD·HKD·CNY·KRW). 환전 연산 없음 |
+| 지점 | `HANN`/`NUSTAR`/`ONLINE` 하드코딩 | `ledger.branches` 참조 테이블 + FK |
 
 ### 무엇을 바꾸지 않는가
 
 - 화면 구성과 조작 흐름
 - 조작마다 PIN/TOTP 재인증하는 현행 UX (좋은 설계다)
-- 지점 3개 스코프 모델
 - 롤링을 자금과 분리해 별도 집계하는 구조
 - append-only 원장 원칙
+
+> **"지점 3개 스코프 모델"은 더 이상 여기 없다.** U4 결정으로 지점 수가 고정이 아니다 — 3개는 시드값이지 제약이 아니다.
 
 ---
 
@@ -133,12 +139,32 @@ if(!okIn){
 - **DB를 만든다면** → 03 → 04 → `ddl/`
 - **API를 만든다면** → 04 → 05 → 06
 - **왜 이렇게 했는지 궁금하면** → 08
+- **무엇을 언제 만드는지** → [`docs/spec/`](../spec/README.md)
 
-## 미확정 사항
+## 미확정 사항 — 2026-08-15 전건 결정 완료
 
-구현 착수 전 반드시 확정해야 할 4가지. [08-adr.md](08-adr.md) 말미에 상세.
+**U1~U5는 결정됐다.** 결정 · 결정일 · 결정자와 코드 근거는 [`docs/spec/00-decisions.md`](../spec/00-decisions.md)에, 요약은 [08-adr.md](08-adr.md) 말미에 있다.
 
-1. 현재 Firestore 데이터가 실거래인가 데모인가
-2. 다통화 실사용 계획
-3. 롤링 요율(`rate`) 커미션 계산 규칙 — 필드는 있으나 계산 코드를 찾지 못함
-4. 지점 확장 계획 (현행 `HANN`/`NUSTAR`/`ONLINE` 하드코딩)
+| # | 결정 |
+|---|---|
+| U1 | **데모다** — 데이터는 이관하지 않는다. 기능과 스키마는 전부 이식 |
+| U2 | **통화별 계정 정식 5종** — 환전 연산은 만들지 않는다 |
+| U3 | **관측 롤링 × 요율** — 시점 스냅샷, 소급 없음. 파트너 쉐어는 이 결정 밖 |
+| U4 | **참조 테이블** — `branch_code` ENUM 폐기 |
+| U5 | **유예** — 구조만 만들고 값은 `branch_config` 설정으로 |
+
+남아 있는 미확정 5건(파트너 쉐어 요율 · 잔액 남은 계좌 해지 · 관할 수치 · 이벤트 지점범위 · 아바타 일정)은 [08-adr.md](08-adr.md) "남아 있는 미확정" 절에 있다.
+
+---
+
+## 실행 계약 — `docs/spec/`
+
+이 문서 세트는 **무엇을 만드는가**를 답한다. **누가 무엇을 언제 만드는가**는 [`docs/spec/`](../spec/README.md)에 있다.
+
+| 세트 | 답하는 질문 |
+|---|---|
+| `docs/architecture/` (여기) | 무엇을 만드는가 — 모델 · 분개 규칙 · 보안 설계 |
+| [`10-acceptance-criteria.md`](10-acceptance-criteria.md) | 무엇이 참이어야 끝난 것인가 — `AC-*` 86건 |
+| [`docs/spec/`](../spec/README.md) | 누가 무엇을 언제 — 도메인별 `R-*` · 마일스톤 순서 |
+
+**착수 지점은 M0다** — [`spec/12`](../spec/12-ci-golden-tests.md)(CI · 골든 테스트)와 [`spec/01`](../spec/01-ledger-foundation.md) §2(지점 참조 테이블 전환).

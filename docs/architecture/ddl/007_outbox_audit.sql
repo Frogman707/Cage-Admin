@@ -71,7 +71,7 @@ CREATE TABLE audit.access_log (
   action        TEXT NOT NULL,            -- 'auth.login' · 'kyc.view' · 'role.grant' ...
   target_kind   TEXT,
   target_ref    TEXT,
-  branch        ledger.branch_code,
+  branch        TEXT REFERENCES ledger.branches(code),
   outcome       TEXT NOT NULL,            -- 'success' · 'denied' · 'error'
   source_ip     INET,
   device_id     TEXT,
@@ -89,7 +89,7 @@ CREATE TRIGGER access_log_immutable
 -- 해시 체인 외부 앵커링 기록 (03-ledger-model.md §7-5)
 CREATE TABLE audit.chain_anchors (
   id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  branch        ledger.branch_code NOT NULL,
+  branch        TEXT NOT NULL REFERENCES ledger.branches(code),
   business_date DATE NOT NULL,
   last_tx_id    BIGINT NOT NULL,
   chain_hash    BYTEA NOT NULL,
@@ -107,7 +107,7 @@ CREATE TRIGGER chain_anchors_immutable
 -- 없었다. 위 chain_anchors 는 체인 **헤드**용이라 대체가 되지 않는다.
 -- chain_policy.chained = false 인 거래 종류가 여기 걸린다.
 CREATE TABLE audit.merkle_anchors (
-  branch        ledger.branch_code NOT NULL,
+  branch        TEXT NOT NULL REFERENCES ledger.branches(code),
   business_date DATE NOT NULL,
   tx_kind       ledger.tx_kind NOT NULL,
   tx_count      BIGINT NOT NULL CHECK (tx_count > 0),

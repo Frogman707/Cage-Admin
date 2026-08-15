@@ -84,7 +84,7 @@ $$;
 -- 임계 금액 초과 시 4-eyes 를 요구한다.
 -- 승인이 필요한데 없으면 여기서 막힌다 (API: 202 approval-required).
 CREATE FUNCTION ledger.require_approval_if_over_threshold(
-  p_branch       ledger.branch_code,
+  p_branch       TEXT,
   p_amount_minor BIGINT,
   p_approval_id  BIGINT,
   p_subject_kind identity.approval_subject,
@@ -132,7 +132,7 @@ CREATE FUNCTION ledger.op_deposit(
   p_actor_staff_id  BIGINT,
   p_step_up_id      BIGINT,
   p_device_id       TEXT,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_account_code    TEXT,
   p_amount_minor    BIGINT,
   p_currency        TEXT DEFAULT 'PHP',
@@ -189,7 +189,7 @@ CREATE FUNCTION ledger.op_withdraw(
   p_actor_staff_id  BIGINT,
   p_step_up_id      BIGINT,
   p_device_id       TEXT,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_account_code    TEXT,
   p_amount_minor    BIGINT,
   p_currency        TEXT   DEFAULT 'PHP',
@@ -257,7 +257,7 @@ CREATE FUNCTION ledger.op_transfer(
   p_actor_staff_id  BIGINT,
   p_step_up_id      BIGINT,
   p_device_id       TEXT,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_from_code       TEXT,
   p_to_code         TEXT,
   p_amount_minor    BIGINT,
@@ -329,8 +329,8 @@ CREATE FUNCTION ledger.op_branch_transfer(
   p_actor_staff_id  BIGINT,
   p_step_up_id      BIGINT,
   p_device_id       TEXT,
-  p_from_branch     ledger.branch_code,
-  p_to_branch       ledger.branch_code,
+  p_from_branch     TEXT,
+  p_to_branch       TEXT,
   p_amount_minor    BIGINT,
   p_currency        TEXT   DEFAULT 'PHP',
   p_memo            TEXT   DEFAULT NULL,
@@ -401,7 +401,7 @@ CREATE FUNCTION ledger.op_wallet_transfer(
   p_actor_staff_id  BIGINT,
   p_step_up_id      BIGINT,
   p_device_id       TEXT,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_account_code    TEXT,
   p_member_code     TEXT,
   p_amount_minor    BIGINT,
@@ -472,7 +472,7 @@ CREATE FUNCTION ledger.op_adjustment(
   p_actor_staff_id  BIGINT,
   p_step_up_id      BIGINT,
   p_device_id       TEXT,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_variance_minor  BIGINT,               -- 실사 − 시스템. 양수면 과잉, 음수면 부족
   p_approval_id     BIGINT,
   p_currency        TEXT DEFAULT 'PHP',
@@ -551,7 +551,7 @@ CREATE FUNCTION ledger.op_resolve_suspense(
   p_actor_staff_id  BIGINT,
   p_step_up_id      BIGINT,
   p_device_id       TEXT,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_resolution      TEXT,             -- 조사 결과. NULL · 빈 문자열 불가
   p_approval_id     BIGINT,           -- NULL 불가. 금액과 무관하게 항상 4-eyes
   p_currency        TEXT DEFAULT 'PHP'

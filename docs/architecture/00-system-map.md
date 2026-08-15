@@ -270,27 +270,32 @@ point_earn   point_convert   share_accum   avatar_tip   dealer_tip
 
 무엇이 코드에 있고, 문서화됐고, 목표 설계가 있고, DDL이 있는가.
 
+> **2026-08-15 갱신.** 목표 설계가 ❌였던 도메인이 전부 [`docs/spec/`](../spec/README.md)로 채워졌다
+> ([`00-decisions.md`](../spec/00-decisions.md) §11 범위 결정). **"목표 설계" 열은 이제 빈 칸이 없다.**
+> DDL 열은 아직 비어 있고 **그것이 남은 작업이다** — 이 두 열의 차이가 곧 M2·M4의 크기다.
+
 | 도메인 | 현행 코드 | 현행 문서 | 목표 설계 | DDL |
 | --- | --- | --- | --- | --- |
-| 케이지 계좌 · 원장 | `index.html` | `01` §3·§4 | `03` · `04` §1~4 | ✅ 003·004·008 |
-| 케이지 게임 · 롤링 · 중간정산 · 종료 | `index.html` | `01` §5·§6·§7-1~7-3 | `04` §5~10 | ✅ 005·010 |
-| **케이지 롤링 커미션 정산** | `index.html` `_doSettleGame` | ✅ `01` §7-0 *(2026-08-15 신규)* | ✅ `04` §6-1 · `05` §3-2 *(2026-08-15, `DR-66` 해소)* | ✅ `commission_payout` · `cage.commission_settlements` · `op_settle_commission` |
-| **이벤트 커미션** | `index.html` `payEventCommissionForSettle` | ✅ `01` §7-4 *(신규)* | ❌ **없음** — `DR-67` | ❌ 없음 |
-| **케이지 포인트** | `index.html` `grantPoints`·`usePoints` | ✅ `01` §3-1 *(신규)* | ❌ **없음** — `DR-68`. 아래 "포인트 · 파트너 쉐어" 행은 **파트너 측 전용**이다 | ❌ 없음 |
-| **컨시어지 — 호텔 · 차량 · 항공** | `index.html` | ✅ `01` §3-2 *(신규)* | ❌ **없음** — `DR-69` | ❌ 없음 |
-| **계좌 차단** | `index.html` `applyBlock`·`unblock` | ✅ `01` §3-3 *(신규)* | ⚠ `account_status='suspended'` 값만, 조작 경로 없음 — `DR-70` | ⚠ ENUM만 |
+| 케이지 계좌 · 원장 | `index.html` | `01` §3·§4 | `03` · `04` §1~4 · [`spec/01`](../spec/01-ledger-foundation.md) | ✅ 003·004·008 |
+| 케이지 게임 · 롤링 · 중간정산 · 종료 | `index.html` | `01` §5·§6·§7-1~7-3 | `04` §5~10 · [`spec/04`](../spec/04-cage-game-rolling.md) | ✅ 005·010 |
+| **케이지 롤링 커미션 정산** | `index.html` `_doSettleGame` | ✅ `01` §7-0 *(2026-08-15 신규)* | ✅ `04` §6-1 · `05` §3-2 *(`DR-66` 해소)* · [`spec/04`](../spec/04-cage-game-rolling.md) §2 *(U3 확정)* | ✅ `commission_payout` · `cage.commission_settlements` · `op_settle_commission` |
+| **이벤트 커미션** | `index.html` `payEventCommissionForSettle` | ✅ `01` §7-4 | ✅ [`spec/06`](../spec/06-event-commission.md) *(2026-08-15, `DR-67`·B1 해소)* | ⚠ `tx_kind`·`entry_category`·분개 2행만. `cage.bonus_events` 미작성 |
+| **케이지 포인트** | `index.html` `grantPoints`·`usePoints` | ✅ `01` §3-1 | ✅ [`spec/05`](../spec/05-cage-points.md) *(2026-08-15, `DR-68`·B2 **분리**로 해소)*. 아래 "포인트 · 파트너 쉐어" 행은 **파트너 측 전용**이다 | ⚠ `cage_point`·`point_liability` 계정 종류 + 분개 4행만. `op_point_grant`/`op_point_use` 미작성 |
+| **컨시어지 — 호텔 · 차량 · 항공** | `index.html` | ✅ `01` §3-2 | ✅ [`spec/07`](../spec/07-concierge.md) *(2026-08-15, `DR-69` 해소)* | ❌ 없음 — `concierge` 스키마 신설 필요 |
+| **계좌 차단 · 생명주기** | `index.html` `applyBlock`·`unblock` | ✅ `01` §3-3 | ✅ [`spec/08`](../spec/08-account-lifecycle.md) *(2026-08-15, `DR-70`·`DR-83` 해소)* | ⚠ `account_status` ENUM + `approval_subject='account_status'`만. `op_set_account_status` 미작성 |
 | 메인케이지 · 교대 · 실사 | `index.html` | `01` §8~10 | `03` §9 · `04` §11 | ✅ 006 |
 | 지점 간 이체 | `index.html` | `01` §11 | `04` §4 | ✅ 009 |
-| 직원 인증 · TOTP · 4-eyes | `index.html` + `functions/` | `01` §12 · `06` | `06` §3 | ✅ 002 |
-| 회원 보유금 원장 | 3개 앱 공통 | `01` §13 (전수) | `04` §13 (베팅·페이아웃만) | ⚠ ENUM만 |
-| 계좌 마스터 데이터 | **`localStorage`** | ✅ `01` §3 · `07` M11 | `ledger.parties` | ⚠ 수집이 M0 선행 조건 |
-| **파트너 주체 · 운영자** | `partner-admin/` | ✅ `01` §13-1 | ✅ `06` §1·§6-1 | ✅ 001·002·003·012 |
-| **포인트 · 파트너 쉐어** *(파트너 측)* | `partner-admin/` | ✅ `01` §13-3 | ✅ `04` §13-2·§13-3 | ✅ 001·003·004 |
-| **플레이어 라운드 · 베팅** | `avatar/` + `game-engine.js` | ✅ `avatar-speed/` | ⏸ **보류** | ⏸ 보류 |
-| **아바타 대리베팅** | `avatar/` + `partner-admin/` | ✅ 양쪽 | ⏸ **보류** | ⏸ 보류 |
-| **파트너 콘솔 58화면** | `partner-admin/` | ✅ `partner-admin/` | ❌ **없음** | ❌ 없음 |
-| **채팅 · 공지 · 고객센터** | `partner-admin/` + `avatar/` | ✅ `reference-screens.md` | ❌ **없음** | ❌ 없음 |
-| 텔레그램 연동 | `functions/` | `reference-cloud-functions.md` | ⚠ `06` §8만 | ❌ 없음 |
+| 직원 인증 · TOTP · 4-eyes | `index.html` + `functions/` | `01` §12 · `06` | `06` §3 · [`spec/02`](../spec/02-identity-access.md) | ✅ 002 |
+| 회원 보유금 원장 | 3개 앱 공통 | `01` §13 (전수) | `04` §13 (베팅·페이아웃만) · [`spec/13`](../spec/13-player-domain-deferred.md) *(§2~§4 확정분)* | ⚠ ENUM만 |
+| 계좌 마스터 데이터 | **`localStorage`** | ✅ `01` §3 · `07` M11 | `ledger.parties` · [`spec/08`](../spec/08-account-lifecycle.md) §4 | ⚠ 모델 정의가 M0. **수집은 U1=데모로 소멸** |
+| **파트너 주체 · 운영자** | `partner-admin/` | ✅ `01` §13-1 | ✅ `06` §1·§6-1 · [`spec/10`](../spec/10-partner-console.md) | ✅ 001·002·003·012 |
+| **포인트 · 파트너 쉐어** *(파트너 측)* | `partner-admin/` | ✅ `01` §13-3 | ✅ `04` §13-2·§13-3 · [`spec/10`](../spec/10-partner-console.md) §5 | ⚠ 001·003·004 (`share_accrue` **요율 규칙 미확정**) |
+| **플레이어 라운드 · 베팅** | `avatar/` + `game-engine.js` | ✅ `avatar-speed/` | ⏸ **보류** — 단 [`spec/13`](../spec/13-player-domain-deferred.md) §2~§4(배당 규약·페이아웃 멱등키·행위자 모델)는 **보류 밖** | ⏸ 보류 |
+| **아바타 대리베팅** | `avatar/` + `partner-admin/` | ✅ 양쪽 | ⏸ **보류** — 행위자 2행 모델은 [`spec/13`](../spec/13-player-domain-deferred.md) §4에서 지금 확정 | ⏸ 보류 |
+| **파트너 콘솔 58화면** | `partner-admin/` | ✅ `partner-admin/` | ✅ [`spec/10`](../spec/10-partner-console.md) *(2026-08-15 신규)* | ❌ 없음 |
+| **채팅 · 공지 · 고객센터** | `partner-admin/` + `avatar/` | ✅ `reference-screens.md` | ✅ [`spec/11`](../spec/11-chat-notice-support.md) *(2026-08-15 신규)* | ❌ 없음 — `support` 스키마 신설 필요 |
+| 텔레그램 연동 | `functions/` | `reference-cloud-functions.md` | ✅ `06` §8 + [`spec/09`](../spec/09-notifications.md) *(2026-08-15 신규)* | ❌ 없음 — `notify` 스키마 신설 필요 |
+| **CI · 골든 테스트** | 없음 | — | ✅ [`spec/12`](../spec/12-ci-golden-tests.md) *(2026-08-15 신규)* | ❌ 없음 — **M0의 첫 커밋** |
 
 [02-target-architecture.md](02-target-architecture.md)의 스키마 지도가 이미 이렇게 적어 두었다:
 
@@ -354,7 +359,7 @@ point_earn   point_convert   share_accum   avatar_tip   dealer_tip
 | **A2** | 플레이어 자금 연산 규칙 | `04` §13이 베팅 · 페이아웃 2종만 다룬다. 취소 · 정정 · 팁 · 보너스가 없다 | `04` §13-2~ + `ddl/015_operations_player.sql` | ⏸ **보류** |
 | **A8** | 플레이어 · 파트너 API | `05` §3·§4에 해당 엔드포인트가 0개 | `05` §3-6 신규 | ⏸ 부분 보류 |
 | **A10** | **케이지 기준선 정정 — 누락 도메인 5종** | `01`이 케이지 자금 이동 2곳(롤링 커미션 정산 · 이벤트 커미션)과 화면 도메인 3곳(포인트 · 컨시어지 · 차단)을 서술하지 않았고, 그 공백이 목표 설계 공백으로 전파됐다 (`DR-66`~`DR-70`) | `01` §3-1~3-4 · §7-0 · §7-4 · §9 라인 재고정 · §17 12~14행 · 위 §6 매트릭스 6행 | ✅ **서술 완료** · 목표 설계는 `DR-66`만 완료 |
-| **A11** | **차단 13건 설계 반영 (1단계)** | 아홉 회차 검토의 차단 13건이 해소되기 전에는 스펙을 쓸 수 없다 — 스펙이 참조할 경로가 설계에 없어 구현자가 시그니처와 분개를 즉석에서 지어내게 된다 | `ddl/` 001~013 · `04` §6-1·§11-2 · `05` §2-3·§3-2·§3-6·§6-2·§6-4 · `06` §4-1·§9-2·§10 · `07` §3-1·§9 | ✅ **완료 (2026-08-15)** — `DR-38`만 부분. **적용 검증은 미완** (B1) |
+| **A11** | **차단 13건 설계 반영 (1단계)** | 아홉 회차 검토의 차단 13건이 해소되기 전에는 스펙을 쓸 수 없다 — 스펙이 참조할 경로가 설계에 없어 구현자가 시그니처와 분개를 즉석에서 지어내게 된다 | `ddl/` 001~013 · `04` §6-1·§11-2 · `05` §2-3·§3-2·§3-6·§6-2·§6-4 · `06` §4-1·§9-2·§10 · `07` §3-1·§9 | ✅ **완료 (2026-08-15)** — `DR-38`만 부분. **적용 검증 완료** (B1) |
 
 ### A1 · A2 · A8을 보류하는 이유
 
@@ -382,8 +387,8 @@ A6  결함 ID 재배정          TA- 접두사                                �
 A9  상호 링크 · 매트릭스 갱신                                        ✅
 A10 케이지 기준선 정정      01 §3-1~3-4 · §7-0 · §7-4 · §9 · §17     ✅ 서술만
                           누락 도메인 5종 (DR-66~70) · 6차 착수순서 1번
-A11 차단 13건 설계 반영     ddl/001~013 · 04 §6-1·§11-2 · 05 · 06 · 07  ✅ 반영 완료
-                          DR-38 만 부분. 적용 검증 미완 (B1)
+A11 차단 13건 설계 반영     ddl/001~013 · 04 §6-1·§11-2 · 05 · 06 · 07  ✅ 완료
+                          DR-38 만 부분. PG 18.6 적용·동작 검증 통과
 ```
 
 **A4의 팁(`avatar_tip`·`dealer_tip`)과 가입 보너스는 이번 범위에서 뺐다** — 아바타 도메인
@@ -398,8 +403,9 @@ A11 차단 13건 설계 반영     ddl/001~013 · 04 §6-1·§11-2 · 05 · 06 �
 | ~~**A10 후속 — 롤링 커미션 정산**~~ | ~~`04` 분개 규칙 · `05` 엔드포인트 · `ddl` `tx_kind`·`posting_rules`·`op_settle_commission`·GRANT~~ | ✅ **완료 (2026-08-15)** — `DR-66` 해소. `04` §6-1 · `05` `POST /v1/games/{game_no}/commission-settle` · `cage.commission_settlements` · `commission_payout`. `DR-84`·`DR-85`도 함께 편입 |
 | **A10 후속 — 이벤트 커미션 · 케이지 포인트** | 사업 결정 선행(이벤트 지속 여부 · 포인트 흡수/분리/폐기) 후 설계 | `DR-67`·`DR-68`. 파트너 쉐어 사업 규칙 수집과 같은 회의 |
 | **A10 후속 — 컨시어지 · 계좌 차단** | 자금 무관. 테이블 + CRUD, 차단은 이력 테이블 + 재인증 | `DR-69`·`DR-70`. 화면 이식 순서에 맞춰 후순위 |
-| **B1 — `ddl/` 적용 검증** | 2026-08-15 차단 13건 반영분이 실제 PostgreSQL에 클린 적용되는지 확인 | **선행 조건.** `DR-03`이 함수 19개 시그니처를 바꿨다. [ddl/README.md](ddl/README.md)의 검증 쿼리 3종 |
-| **B2 — 2단계: 높음 이하 73건** | 남은 검토 항목을 스펙 수용 기준으로 전환 | 차단이 비었으므로 착수 가능 |
+| ~~**B1 — `ddl/` 적용 검증**~~ | ~~2026-08-15 차단 13건 반영분이 실제 PostgreSQL에 클린 적용되는지 확인~~ | ✅ **완료 (2026-08-15)** — PostgreSQL 18.6에 001~013 클린 적용 + op 함수 실동작 확인. 새 결함 1건(함수 7개 PUBLIC EXECUTE 노출) 발견·수정. [ddl/README.md](ddl/README.md) |
+| ~~**B2 — 2단계: 높음 이하 73건**~~ | ~~남은 검토 항목을 스펙 수용 기준으로 전환~~ | ✅ **완료 (2026-08-15)** — [10-acceptance-criteria.md](10-acceptance-criteria.md). 잔여 **72건**을 마일스톤별로 묶고 `AC-*` 수용 기준으로 전환했다 |
+| **B3 — 3단계: 마일스톤별 스펙 작성** | `AC-*`를 구현 스펙으로 전개 | **선행: §2 결정 6건** (U1·U2·U3·U5·B1·B2). 결정 없이 쓸 수 있는 것은 M0·M1의 스키마 항목뿐이다 |
 | 파트너 콘솔 58화면 · 채팅 · 공지 · 고객센터 | 목표 설계 없음 | 우선순위 미정 |
 | 텔레그램 연동 | `06` §8 외 설계 없음 | 우선순위 미정 |
 
@@ -408,7 +414,22 @@ A11 차단 13건 설계 반영     ddl/001~013 · 04 §6-1·§11-2 · 05 · 06 �
 **2026-08-14: `ddl/` 001~013 전 파일이 PostgreSQL 18에 클린 적용되는 것을 처음으로 확인했다.**
 그 과정에서 `008`의 `begin_idempotent()`(PL/pgSQL 다중 타깃 `INTO`에 행 변수)와 `012`의
 GRANT/정의 순서 역전이 드러났고 함께 고쳤다 — **둘 다 `009`~`013` 전체를 적용 불가로 만들고
-있었다.** 상세는 [`ddl/README.md`](ddl/README.md).
+있었다.**
+
+**2026-08-15: 차단 13건 반영분을 PostgreSQL 18.6에 적용하고 연산 함수 동작까지 확인했다.**
+적용 오류 0. `DR-03` 스텝업(정상 1 + 거부 6종) · `DR-04` 멱등키 · `DR-01` 차액 해소 ·
+`DR-50` 역분개 · `DR-66` 커미션 정산 · `DR-38` 개시 잔액이 전부 의도대로 동작했고
+R1~R9 위반 0이다. **`DR-26`의 논거도 실증했다** — 체인을 통째로 재작성하면
+R1~R7·R9가 전부 통과하고 **R8만 잡는다.**
+
+여기서 **새 결함 하나가 드러났다.** 함수 7개(`SECURITY DEFINER`)가 PUBLIC EXECUTE로
+열려 있었다. `012`의 `REVOKE ALL ON ALL FUNCTIONS`가 실행 시점의 함수만 대상이고,
+막고 있다고 적혀 있던 `ALTER DEFAULT PRIVILEGES ... REVOKE ... ON FUNCTIONS FROM PUBLIC`은
+PostgreSQL 18에서 **아무 일도 하지 않기 때문이다.** `013` 끝의 사후 일괄 REVOKE로
+막고 `ledger.v_check_public_execute`를 드리프트 검사에 추가했다. `DR-24`와 같은 병 —
+한쪽에서 닫고 다른 쪽에서 기본값으로 다시 열렸다.
+
+상세는 [`ddl/README.md`](ddl/README.md).
 
 ---
 
@@ -418,6 +439,7 @@ GRANT/정의 순서 역전이 드러났고 함께 고쳤다 — **둘 다 `009`~
 | --- | --- |
 | [README.md](README.md) | 이 문서 세트의 목적과 두 트랙 구분 |
 | [design-review.md](design-review.md) | **설계 검토 결과 (DR-01~DR-23).** 위 §8의 `✅` 표기 재검증 대상 포함 |
+| [10-acceptance-criteria.md](10-acceptance-criteria.md) | **수용 기준 등록부.** 검토 잔여 72건을 마일스톤별 `AC-*` 로 전환. §8 B3 의 입력 |
 | [01-current-system.md](01-current-system.md) | 현행 케이지 어드민 사실 기준선 |
 | [02-target-architecture.md](02-target-architecture.md) | 목표 서비스 경계와 스키마 지도 |
 | [`docs/avatar-speed/`](../avatar-speed/README.md) | 플레이어 사이트 전체 문서 8건 |

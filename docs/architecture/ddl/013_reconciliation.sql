@@ -97,7 +97,7 @@ COMMENT ON VIEW ledger.v_check_hash_chain IS
 -- R3(b) 심층 재계산. 범위를 받아 야간 배치가 그날치만 검증한다.
 -- 전량 검증은 감사 시점에만 수행한다 (거래 수에 비례해 비싸다).
 CREATE FUNCTION ledger.verify_hash_chain(
-  p_branch  ledger.branch_code,
+  p_branch  TEXT,
   p_from_id BIGINT DEFAULT 0,
   p_to_id   BIGINT DEFAULT 9223372036854775807
 )
@@ -266,7 +266,7 @@ COMMENT ON VIEW ledger.v_check_chain_anchor IS
 -- SECURITY DEFINER 인 이유: canonical_digest() 는 012 에서 조회 역할에 EXECUTE 가
 -- 회수돼 있다. verify_hash_chain() 과 같은 사정이다.
 CREATE FUNCTION audit.merkle_root_for(
-  p_branch        ledger.branch_code,
+  p_branch        TEXT,
   p_business_date DATE,
   p_kind          ledger.tx_kind
 ) RETURNS BYTEA
@@ -566,8 +566,43 @@ TO ledger_read;
 
 GRANT EXECUTE ON FUNCTION
   ledger.integrity_ok(),
-  ledger.verify_hash_chain(ledger.branch_code, BIGINT, BIGINT)
+  ledger.verify_hash_chain(TEXT, BIGINT, BIGINT)
 TO ledger_app, ledger_read;
+
+-- =============================================================================
+-- 최종 차단 — 모든 함수가 만들어진 뒤 한 번
+-- =============================================================================
+-- 012 의 `REVOKE ALL ON ALL FUNCTIONS` 은 그 시점의 함수만 대상으로 한다. 그 뒤
+-- 012 자신이 RLS 헬퍼 넷을, 013 이 verify_hash_chain · integrity_ok ·
+-- merkle_root_for 를 만들고, 이들은 모두 내장 기본값인 PUBLIC EXECUTE 를 받는다.
+-- 일곱 개 전부 SECURITY DEFINER 라서 소유자 권한으로 돈다 — archive_reader 든
+-- audit_writer 든 클러스터의 아무 역할이나 부를 수 있는 상태였다.
+--
+-- ALTER DEFAULT PRIVILEGES 로는 막을 수 없다 (012 의 해당 주석 참조). 순서상
+-- 마지막인 이 자리에서 한 번 쓸어내는 것이 유일하게 동작하는 방법이다.
+-- FROM PUBLIC 이므로 위에서 역할에 준 EXECUTE 는 그대로 남는다.
+--
+-- 함수를 추가하는 파일이 013 뒤에 생기면 이 블록을 그 파일 끝으로 옮긴다.
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA ledger, cage, identity, audit, archive
+  FROM PUBLIC;
+
+-- 위 REVOKE 가 빠지거나 뒤에 새 파일이 붙었을 때를 잡는다. 012 · 013 어느 쪽도
+-- 손대지 않은 새 함수가 하나라도 있으면 여기 나온다.
+CREATE VIEW ledger.v_check_public_execute
+  WITH (security_invoker = true) AS
+SELECT n.nspname AS schema_name,
+       p.proname AS function_name,
+       p.prosecdef AS is_security_definer
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname IN ('ledger','cage','identity','audit','archive')
+   AND has_function_privilege('public', p.oid, 'EXECUTE');
+
+COMMENT ON VIEW ledger.v_check_public_execute IS
+  '행이 나오면 그 함수를 클러스터의 아무 역할이나 부를 수 있다는 뜻이다. '
+  'is_security_definer 가 true 면 소유자 권한으로 돈다. 배포 전 0행이어야 한다.';
+
+GRANT SELECT ON ledger.v_check_public_execute TO ledger_read;
 
 COMMIT;
 

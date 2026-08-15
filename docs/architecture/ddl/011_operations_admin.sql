@@ -21,7 +21,7 @@ BEGIN;
 -- 다른 요청을 실행하는 경로가 없다.
 CREATE FUNCTION identity.op_request_approval(
   p_actor_staff_id BIGINT,
-  p_branch         ledger.branch_code,
+  p_branch         TEXT,
   p_subject_kind   identity.approval_subject,
   p_subject_ref    TEXT,
   p_payload        JSONB,
@@ -138,7 +138,7 @@ CREATE FUNCTION cage.op_record_balancing(
   p_actor_staff_id      BIGINT,
   p_step_up_id          BIGINT,
   p_device_id           TEXT,
-  p_branch              ledger.branch_code,
+  p_branch              TEXT,
   p_count_kind          cage.count_kind,
   p_denomination_counts JSONB,
   p_counted_total_minor BIGINT,
@@ -247,7 +247,7 @@ CREATE FUNCTION ledger.op_freeze_period(
   p_actor_staff_id  BIGINT,
   p_step_up_id      BIGINT,
   p_device_id       TEXT,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_business_date   DATE,
   p_approval_id     BIGINT DEFAULT NULL
 ) RETURNS JSONB
@@ -356,7 +356,7 @@ CREATE FUNCTION ledger.op_settle_period(
   p_actor_staff_id  BIGINT,
   p_step_up_id      BIGINT,
   p_device_id       TEXT,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_business_date   DATE,
   p_approval_id     BIGINT
 ) RETURNS JSONB
@@ -418,7 +418,7 @@ $$;
 -- =============================================================================
 CREATE FUNCTION identity.op_shift_event(
   p_actor_staff_id BIGINT,
-  p_branch         ledger.branch_code,
+  p_branch         TEXT,
   p_action         identity.shift_action
 ) RETURNS JSONB
 LANGUAGE plpgsql
@@ -447,7 +447,7 @@ $$;
 CREATE FUNCTION ledger.op_open_account(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_account_code    TEXT,
   p_display_name    TEXT,
   p_profile         JSONB DEFAULT '{}'::JSONB,
@@ -534,7 +534,7 @@ DECLARE
   v_args   JSONB := jsonb_build_object('original_external_id', p_original_ext_id);
   v_idem   ledger.idem_result;
   v_tx_id  BIGINT;
-  v_branch ledger.branch_code;
+  v_branch TEXT;
   v_rev    ledger.posted_tx;
   v_body   JSONB;
 BEGIN
@@ -596,7 +596,7 @@ CREATE FUNCTION ledger.op_load_opening_balance(
   p_idempotency_key TEXT,
   p_actor_staff_id  BIGINT,
   p_device_id       TEXT,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_balances        JSONB,          -- [{"account_id": 12, "amount_minor": -55000000}, ...]
   p_memo            TEXT DEFAULT NULL
 ) RETURNS JSONB

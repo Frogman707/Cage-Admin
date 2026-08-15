@@ -53,7 +53,9 @@ COMMENT ON ROLE ledger_migrator IS '마이그레이션 전용. 평시 사용 금
 -- -----------------------------------------------------------------------------
 REVOKE ALL ON SCHEMA        ledger, cage, identity, audit, archive FROM PUBLIC;
 REVOKE ALL ON ALL TABLES    IN SCHEMA ledger, cage, identity, audit, archive FROM PUBLIC;
-REVOKE ALL ON ALL FUNCTIONS IN SCHEMA ledger, cage, identity, archive FROM PUBLIC;
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA ledger, cage, identity, audit, archive FROM PUBLIC;
+-- 이 REVOKE 는 **지금 존재하는** 함수만 대상으로 한다. 이 파일 뒤쪽과 013 이 만드는
+-- 함수는 다시 PUBLIC EXECUTE 를 받는다. 최종 차단은 013 끝의 일괄 REVOKE 다.
 
 -- =============================================================================
 -- ledger_app — 연산 함수 EXECUTE + 조회 SELECT. 그 외 아무것도 없다
@@ -63,26 +65,26 @@ GRANT USAGE ON SCHEMA ledger, cage, identity TO ledger_app;
 -- ---- 자금 연산 (009) --------------------------------------------------------
 GRANT EXECUTE ON FUNCTION
   ledger.op_deposit(TEXT, BIGINT, BIGINT, TEXT,
-                    ledger.branch_code, TEXT, BIGINT, TEXT, TEXT),
+                    TEXT, TEXT, BIGINT, TEXT, TEXT),
   ledger.op_withdraw(TEXT, BIGINT, BIGINT, TEXT,
-                     ledger.branch_code, TEXT, BIGINT, TEXT, TEXT, BIGINT),
+                     TEXT, TEXT, BIGINT, TEXT, TEXT, BIGINT),
   ledger.op_transfer(TEXT, BIGINT, BIGINT, TEXT,
-                     ledger.branch_code, TEXT, TEXT, BIGINT, TEXT, TEXT),
+                     TEXT, TEXT, TEXT, BIGINT, TEXT, TEXT),
   ledger.op_branch_transfer(TEXT, BIGINT, BIGINT, TEXT,
-                            ledger.branch_code, ledger.branch_code, BIGINT,
+                            TEXT, TEXT, BIGINT,
                             TEXT, TEXT, BIGINT),
   ledger.op_wallet_transfer(TEXT, BIGINT, BIGINT, TEXT,
-                            ledger.branch_code, TEXT, TEXT, BIGINT, BOOLEAN, TEXT, TEXT),
+                            TEXT, TEXT, TEXT, BIGINT, BOOLEAN, TEXT, TEXT),
   ledger.op_adjustment(TEXT, BIGINT, BIGINT, TEXT,
-                       ledger.branch_code, BIGINT, BIGINT, TEXT, TEXT),
+                       TEXT, BIGINT, BIGINT, TEXT, TEXT),
   -- design-review.md DR-01. 이것이 없으면 실사 차액이 난 지점은 영원히 마감되지 않는다.
   ledger.op_resolve_suspense(TEXT, BIGINT, BIGINT, TEXT,
-                             ledger.branch_code, TEXT, BIGINT, TEXT)
+                             TEXT, TEXT, BIGINT, TEXT)
 TO ledger_app;
 
 -- ---- 게임 연산 (010) --------------------------------------------------------
 GRANT EXECUTE ON FUNCTION
-  cage.op_open_game(TEXT, BIGINT, BIGINT, TEXT, ledger.branch_code,
+  cage.op_open_game(TEXT, BIGINT, BIGINT, TEXT, TEXT,
                     TEXT, TEXT, TEXT, TEXT, cage.game_start_type, cage.game_start_kind,
                     BIGINT, BIGINT, TEXT, TEXT),
   cage.op_add_buyin(TEXT, BIGINT, BIGINT, TEXT, TEXT,
@@ -96,22 +98,22 @@ GRANT EXECUTE ON FUNCTION
   cage.op_settle_commission(TEXT, BIGINT, BIGINT, TEXT, TEXT,
                             BIGINT, BIGINT, BIGINT, TEXT),
   cage.op_main_cage_entry(TEXT, BIGINT, BIGINT, TEXT,
-                          ledger.branch_code, cage.main_cage_kind, BIGINT)
+                          TEXT, cage.main_cage_kind, BIGINT)
 TO ledger_app;
 
 -- ---- 운영 연산 (011) --------------------------------------------------------
 GRANT EXECUTE ON FUNCTION
-  identity.op_request_approval(BIGINT, ledger.branch_code, identity.approval_subject,
+  identity.op_request_approval(BIGINT, TEXT, identity.approval_subject,
                                TEXT, JSONB, SMALLINT, INTERVAL),
   identity.op_cast_vote(BIGINT, BIGINT, identity.approval_decision, BIGINT, TEXT),
-  identity.op_shift_event(BIGINT, ledger.branch_code, identity.shift_action),
-  cage.op_record_balancing(TEXT, BIGINT, BIGINT, TEXT, ledger.branch_code,
+  identity.op_shift_event(BIGINT, TEXT, identity.shift_action),
+  cage.op_record_balancing(TEXT, BIGINT, BIGINT, TEXT, TEXT,
                            cage.count_kind, JSONB, BIGINT, BIGINT, BIGINT, BIGINT, TEXT),
   ledger.op_freeze_period(TEXT, BIGINT, BIGINT, TEXT,
-                          ledger.branch_code, DATE, BIGINT),
+                          TEXT, DATE, BIGINT),
   ledger.op_settle_period(TEXT, BIGINT, BIGINT, TEXT,
-                          ledger.branch_code, DATE, BIGINT),
-  ledger.op_open_account(TEXT, BIGINT, ledger.branch_code, TEXT, TEXT, JSONB, TEXT),
+                          TEXT, DATE, BIGINT),
+  ledger.op_open_account(TEXT, BIGINT, TEXT, TEXT, TEXT, JSONB, TEXT),
   -- design-review-4.md DR-50. 008 의 reverse_transaction 자체는 계속 비부여다.
   -- 부여 대상은 011 의 래퍼뿐이고, 그 래퍼가 인가 · 승인 · 멱등을 강제한다.
   ledger.op_reverse_transaction(TEXT, BIGINT, BIGINT, TEXT,
@@ -123,9 +125,9 @@ TO ledger_app;
 -- 세션 스코프 헬퍼(current_branches · current_partner_id · partner_subtree ·
 -- party_visible)는 이 파일 뒤쪽에서 정의되므로 GRANT 도 그 뒤에 있다.
 GRANT EXECUTE ON FUNCTION
-  ledger.business_date_of(ledger.branch_code, TIMESTAMPTZ),
+  ledger.business_date_of(TEXT, TIMESTAMPTZ),
   ledger.account_id_of(TEXT, ledger.account_kind, TEXT),
-  ledger.house_account_id(ledger.branch_code, ledger.account_kind, TEXT)
+  ledger.house_account_id(TEXT, ledger.account_kind, TEXT)
 TO ledger_app;
 
 -- ---- 조회 SELECT ------------------------------------------------------------
@@ -283,7 +285,7 @@ GRANT EXECUTE ON FUNCTION archive.scrub_secrets() TO ledger_migrator;
 -- 쓰는 ledger_migrator 전용으로 둔다. 07-migration.md 가 실행 절차를 정한다.
 GRANT USAGE ON SCHEMA ledger, identity TO ledger_migrator;
 GRANT EXECUTE ON FUNCTION
-  ledger.op_load_opening_balance(TEXT, BIGINT, TEXT, ledger.branch_code, JSONB, TEXT),
+  ledger.op_load_opening_balance(TEXT, BIGINT, TEXT, TEXT, JSONB, TEXT),
   ledger.account_id_of(TEXT, ledger.account_kind, TEXT)
 TO ledger_migrator;
 GRANT SELECT ON ledger.accounts, ledger.parties TO ledger_migrator;
@@ -291,9 +293,18 @@ GRANT SELECT ON ledger.accounts, ledger.parties TO ledger_migrator;
 -- =============================================================================
 -- 향후 생성 객체 기본 권한
 -- =============================================================================
--- 새 함수가 PUBLIC 에 노출되지 않게 한다. 새 테이블은 리포팅에만 열어 둔다.
-ALTER DEFAULT PRIVILEGES IN SCHEMA ledger, cage, identity, archive
-  REVOKE ALL ON FUNCTIONS FROM PUBLIC;
+-- 새 테이블은 리포팅에만 열어 둔다.
+--
+-- 함수는 여기서 막지 않는다. `ALTER DEFAULT PRIVILEGES ... REVOKE ... ON FUNCTIONS
+-- FROM PUBLIC` 은 PostgreSQL 18 에서 **아무 일도 하지 않는다** — pg_default_acl 에
+-- 행이 남지 않고 (`\ddp` 에도 안 보인다), 그 뒤 만든 함수는 그대로 `=X/postgres` 를
+-- 받는다. REVOKE 는 ALTER DEFAULT PRIVILEGES GRANT 로 넣어 둔 항목을 빼는 명령이고,
+-- 내장 기본값인 PUBLIC EXECUTE 는 그 대상이 아니다. 2026-08-15 PostgreSQL 18.6
+-- 컨테이너에서 단일/다중 스키마, ALL/EXECUTE, FOR ROLE 명시까지 네 형태 모두 실패를
+-- 확인했다. 여기에 그 문장을 두면 막혔다고 오독하게 되므로 두지 않는다.
+--
+-- 실제 차단은 013 끝의 사후 일괄 REVOKE 하나뿐이고, 드리프트 검사는
+-- ledger.v_check_public_execute 가 한다.
 ALTER DEFAULT PRIVILEGES IN SCHEMA ledger, cage
   GRANT SELECT ON TABLES TO ledger_read;
 -- audit 스키마에 테이블이 하나 늘 때마다 두 역할을 다시 챙기지 않아도 되게 한다
@@ -329,13 +340,13 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA audit
 -- 이전 판은 current_setting('app.branches') 문자열을 그대로 신뢰했다.
 -- 즉 앱이 'HANN,NUSTAR,ONLINE' 을 써 넣으면 그만이었다.
 -- 신규는 세션의 직원 ID 로 staff_branches 를 조회한다.
-CREATE OR REPLACE FUNCTION ledger.current_branches() RETURNS ledger.branch_code[]
+CREATE OR REPLACE FUNCTION ledger.current_branches() RETURNS TEXT[]
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = ledger, identity, pg_temp
 AS $$
-  SELECT COALESCE(array_agg(sb.branch), ARRAY[]::ledger.branch_code[])
+  SELECT COALESCE(array_agg(sb.branch), ARRAY[]::TEXT[])
     FROM identity.staff_branches sb
     JOIN identity.staff s ON s.id = sb.staff_id AND s.status = 'active'
    WHERE sb.staff_id = NULLIF(current_setting('app.staff_id', TRUE), '')::BIGINT;

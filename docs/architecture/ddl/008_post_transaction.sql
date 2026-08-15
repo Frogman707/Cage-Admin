@@ -270,7 +270,7 @@ $$;
 CREATE FUNCTION ledger.post_transaction(
   p_idempotency_key TEXT,
   p_kind            ledger.tx_kind,
-  p_branch          ledger.branch_code,
+  p_branch          TEXT,
   p_actor_staff_id  BIGINT,
   p_auth_method     identity.auth_method,
   p_device_id       TEXT,
@@ -571,7 +571,7 @@ SECURITY DEFINER
 SET search_path = ledger, cage, identity, pg_temp
 AS $$
 DECLARE
-  v_branch  ledger.branch_code;
+  v_branch  TEXT;
   v_entries JSONB;
 BEGIN
   -- 원 거래 행을 잠근다. 잠그지 않으면 아래 중복 검사가 check-then-act 가 되어
@@ -649,7 +649,7 @@ $$;
 
 -- 지점 하우스 계정 (MAIN-{branch})
 CREATE FUNCTION ledger.house_account_id(
-  p_branch   ledger.branch_code,
+  p_branch   TEXT,
   p_kind     ledger.account_kind,
   p_currency TEXT DEFAULT 'PHP'
 ) RETURNS BIGINT

@@ -126,7 +126,17 @@ relay 구현 두 가지. 상세는 [08-adr.md](08-adr.md) ADR-007.
 | `subscribeCageConfigCloud` | `cageconfig:{branch}` | 기간·실사 상태 |
 | `subscribeBranchTransfersCloud` | `branchtransfers` | 지점 간 이체 |
 
-**개선점:** 현행은 컬렉션 전량을 구독한다. 신규 채널은 지점 스코프가 채널 이름에 들어가 서버가 인가를 강제할 수 있다 — 다른 지점 데이터가 애초에 전송되지 않는다.
+**위 8채널은 케이지 어드민 범위다.** 파트너 콘솔과 플레이어 앱은 별도 채널이 필요하며 아직 매핑되지 않았다.
+
+| 대상 | 신규 채널 | 스코프 규칙 | 상태 |
+|---|---|---|---|
+| 파트너 콘솔 | `partner:{party_code}:requests` · `:members` · `:share` | **지점이 아니라 계층** (`party_visible()` 서브트리) | 매핑 필요 — [`spec/10`](../spec/10-partner-console.md) |
+| 고객센터 채팅 | `support:chat:{table_id}` | 파트너 계층 | 매핑 필요 — [`spec/11`](../spec/11-chat-notice-support.md) §7 |
+| 플레이어 라운드 | `game:round:{table_id}` | ⏸ A1 보류 | 아바타 개선 후 |
+
+> **채널 스코프 규칙이 둘이다.** 케이지는 `{branch}`, 파트너는 `{party_code}` 서브트리다. 같은 서버가 두 규칙을 강제해야 하므로 채널 이름 규약에 어느 쪽인지가 드러나야 한다.
+
+**개선점:** 현행은 컬렉션 전량을 구독한다. 신규 채널은 스코프가 채널 이름에 들어가 서버가 인가를 강제할 수 있다 — 권한 밖 데이터가 애초에 전송되지 않는다.
 
 ### 4-3. 소멸하는 코드
 
@@ -177,10 +187,32 @@ game       라운드 · 테이블 · 아바타 · 채팅          ← 플레이�
 | `audit_writer` | `audit` 스키마 INSERT만. SELECT · UPDATE · DELETE 없음 |
 | `archive_reader` | 레거시 아카이브 조회 전용 |
 | `ledger_migrator` | 마이그레이션 전용. 평시 사용 금지 |
+| `ledger_relay` | **아웃박스 소비 전용** — `outbox` SELECT + 커서 갱신. 자금 함수 EXECUTE 없음 |
+| `identity_app` | 인증 · 세션 · 승인 연산 전용. `ledger` 자금 테이블 접근 없음 |
+
+> **`ledger_relay`·`identity_app`은 신규다.** 이전 판은 `ledger_app` 하나가 자금 연산과 아웃박스 소비를 겸했다. **아웃박스 소비자가 침해되면 자금 연산 권한까지 딸려 온다** — 릴레이는 읽기만 하면 되는데 쓰기 권한을 들고 있을 이유가 없다. `ledger_app`에서 `outbox` 접근을 회수한다 ([`spec/03`](../spec/03-api-idempotency.md) `R-03-31`).
 
 **`ledger_app`은 `ledger.post_transaction()`에도 EXECUTE 권한이 없다.** 그 함수는 내부 전용이고, 애플리케이션이 호출할 수 있는 것은 [`ddl/009`](ddl/009_operations_money.sql)~[`011`](ddl/011_operations_admin.sql)의 연산 함수뿐이다. 범용 기록 함수를 앱에 노출하면 [04-posting-rules.md](04-posting-rules.md)의 분개 정의표가 장식이 된다.
 
 `SECURITY DEFINER` 함수는 PostgreSQL 문서 권고대로 `SET search_path`를 명시하고 `pg_temp`를 마지막에 둔다. 근거와 패턴은 [06-security.md](06-security.md) 4절.
+
+### 5-2-1. 운영 파라미터 — 코드가 아니라 설정에 둔다
+
+**값이 코드에 박히면 운영이 그것을 바꾸려고 배포를 기다린다.** 아래는 전부 `ledger.branch_config` 또는 세션 설정이다.
+
+| 파라미터 | 위치 | 기본값 | 비고 |
+|---|---|---|---|
+| 영업일 컷오프 | `branch_config.cutoff_time` | `06:00` | 지점별 |
+| 타임존 | `branch_config.timezone` | `Asia/Manila` | 지점별 |
+| 4-eyes 임계 금액 | `branch_config.approval_threshold_minor` | **없음 — NOT NULL** | 지점 생성 시 반드시 정한다 (`DR-39`) |
+| 분할 출금 윈도 | `branch_config.approval_window` | **미정 — U5 유예** | 값이 없으면 방어가 꺼진 것이다 |
+| 분할 출금 누적 임계 | `branch_config.approval_cumulative_minor` | **미정 — U5 유예** | NULL로 조용히 꺼지지 않게 센티널을 쓴다 |
+| 감사 로그 보존 기간 | `branch_config` | **미정 — U5 유예** | 컬럼과 배치는 만들고 값만 뒤로 |
+| 포인트 발행 4-eyes 여부 | `branch_config` | **꺼짐** | 꺼져 있다는 사실이 주석에 있다 ([`spec/05`](../spec/05-cage-points.md) `R-05-16`) |
+| 잠금 대기 시간 | 세션 `lock_timeout` | 연산별 | [`spec/03`](../spec/03-api-idempotency.md) §2 매핑표 |
+| 멱등 응답 보존 | `purge_expired_idempotency()` | 24시간 | 키의 영구 유일성과 별개 |
+
+> **U5 유예 3건은 값이 비어 있고, 비어 있다는 것이 곧 "그 방어가 꺼져 있다"는 뜻이다.** 오픈 전 채운다 ([`00-decisions`](../spec/00-decisions.md) §6). `DR-39`가 정확히 이 실패였다 — 임계 미지정 상태에서 4-eyes 전체가 오류도 로그도 없이 비활성이었다.
 
 ### 5-3. 고가용성
 

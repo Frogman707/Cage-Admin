@@ -232,6 +232,26 @@ M8(로컬/클라우드 이중 경로)은 "일부 데이터가 로컬에만 있�
 | 호출 횟수 | 지점당 1회. 멱등키가 재실행을 막는다 |
 | 균형 | `opening_equity` 행은 함수가 자동으로 만든다. 호출자가 넣지 않는다 |
 
+**`p_balances` 형식.** 계정을 **`account_id` 로 지목한다.** 코드·종류가 아니다.
+
+```sql
+SELECT ledger.op_load_opening_balance(
+  'opening:HANN:2026-09-01',            -- 멱등키
+  :migrator_staff_id, :device_id, 'HANN',
+  (SELECT jsonb_agg(jsonb_build_object(
+            'account_id',   a.id,
+            'amount_minor', v.amount_minor))
+     FROM confirmed_opening_balances v                  -- 4단계 산출물
+     JOIN ledger.accounts a ON a.id = v.account_id),
+  '2026-09-01 컷오버 개시 잔액');
+```
+
+`opening_equity` 행은 넣지 않는다 — 합계의 반대 부호로 함수가 만든다.
+
+> 키 이름을 틀리면 `account_id` 가 NULL 이 되고, 오류는 `post_transaction()`
+> 안쪽에서 `account <NULL> has no balance row` 로 나온다. 원인을 가리키지 않는
+> 메시지다. **호출 전에 `jsonb_agg` 결과를 눈으로 확인한다.**
+
 **앱에 열지 않는 이유.** 이 함수는 임의 금액을 무에서 만든다. 상시 접속하는 애플리케이션 자격증명이 이것을 가지면 그 자체가 화폐 발행 API다. 컷오버 기간에만 쓰는 역할로 격리하고, 끝나면 회수한다.
 
 **컷오버 담당자에게 필요한 것 셋.** DB 역할 `ledger_migrator`, RBAC 역할 `migrator`, 그리고 세 지점 전부에 대한 `identity.staff_branches` 행 — `assert_actor_authorized()`가 지점 소속을 검사하기 때문이다. 셋 중 하나라도 없으면 5단계에서 막힌다.

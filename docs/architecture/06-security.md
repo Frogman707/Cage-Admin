@@ -148,7 +148,37 @@ CREATE TABLE identity.totp_used (
 | 출금 · 계좌 간 이체 · 계좌 바이인 | `requestWithdrawAuth()` | 출금 비밀번호 |
 | 임계 금액 초과 · 차액 조정 · 기간 동결 | — | **2인 승인 (4-eyes)** |
 
+**2026-08-15 결정으로 추가되는 조작.** 아래 넷은 **현행에 통제가 없다** — 신규 통제이며 그 사실을 명시한다.
+
+| 조작 | 현행 | 요구 인증 | 근거 |
+|---|---|---|---|
+| 계정 개설 | 재인증 없음 | **스텝업** (4-eyes 아님) | `DR-33` 결정 · `AC-33-3`. 개설 자체는 자금 이동이 아니고 첫 입금에서 임계 검사가 걸린다 |
+| 계좌 `suspended` 전이 | `applyBlock` — 재인증 없음 | **스텝업** | `DR-70` 결정 · `AC-70-2` |
+| 계좌 `closed` 전이 | 연쇄 삭제 | **4-eyes** | `DR-70` 결정. **해지가 비가역이다** |
+| 케이지 포인트 발행 · 사용 | 재인증 없음 | **스텝업** | B2 결정 · [`spec/05`](../spec/05-cage-points.md) `R-05-12` |
+| 마커 발행 | 발행 기록 자체가 없음 | **4-eyes** | [`spec/04`](../spec/04-cage-game-rolling.md) `R-04-21`. 신용 공여는 금액 무관 |
+| 이벤트 활성화 · 종료 | 재인증 없음 | **스텝업** | B1 결정 · [`spec/06`](../spec/06-event-commission.md) `R-06-31` |
+| 역분개 | — | **4-eyes** (금액 무관) | `DR-50` |
+| 실사 차액 확정 해소 | — | **4-eyes** (금액 무관) | `DR-01` |
+
 검증 결과는 `ledger.transactions.auth_method`에 기록된다. **어떤 인증으로 승인된 거래인지 사후에 확인할 수 있다.**
+
+### 3-5. 파트너 조직 내 4-eyes — 도입하지 않는다 (의도된 결정)
+
+**`DR-34` 결정 (2026-08-15 · ungkey)**: 파트너 조직 내부에 2인 승인을 만들지 않는다. `partner_admin` 역할에 `approval.vote` 권한을 주지 않고, 파트너가 올린 승인 요청은 **케이지 매니저가 승인한다.**
+
+**이것이 누락이 아니라 결정임을 여기 기록한다** (`AC-34-1` · `AC-34-2`). 현행에도 파트너 4-eyes가 없다:
+
+```js
+approveDeposit(id)     운영자 한 명이 누르면 상태 전이 + memberLedger 기장   partner-admin/app.js:890
+processPayment(id, s)  같은 구조                                          partner-admin/app.js:1664
+```
+
+파트너 콘솔의 승인은 **요청자(회원)와 승인자(운영자)가 다른 2단계**이지 승인자 2인 구조가 아니다. 4-eyes 도입은 신규 통제이며 이번 범위 밖이다.
+
+**남는 통제**: 파트너 운영자도 `identity.staff_branches` 행 검사에 걸리는 연산이 있다 (`AC-34-4`). 승인 권한이 없다는 것이 지점 검사까지 면제된다는 뜻은 아니다.
+
+**받아들이는 위험**: 파트너 운영자 계정 하나가 침해되면 그 서브트리의 입금 승인이 단독으로 통과한다. 케이지 측 4-eyes가 막는 것과 같은 종류의 위험인데 파트너 측에는 장치가 없다. **의도적으로 감수한다.**
 
 ---
 
@@ -229,9 +259,11 @@ COMMIT;
 **지점 목록을 앱이 직접 넘기지 않는다.**
 
 ```sql
-CREATE FUNCTION ledger.current_branches() RETURNS ledger.branch_code[]
+-- U4 전환(2026-08-15): 반환형이 ledger.branch_code[] -> TEXT[] 로 바뀌었다.
+-- 지점이 ENUM 이 아니라 ledger.branches 참조 테이블이기 때문이다.
+CREATE FUNCTION ledger.current_branches() RETURNS TEXT[]
 SECURITY DEFINER AS $$
-  SELECT COALESCE(array_agg(sb.branch), ARRAY[]::ledger.branch_code[])
+  SELECT COALESCE(array_agg(sb.branch), ARRAY[]::TEXT[])
     FROM identity.staff_branches sb
     JOIN identity.staff s ON s.id = sb.staff_id AND s.status = 'active'
    WHERE sb.staff_id = NULLIF(current_setting('app.staff_id', TRUE), '')::BIGINT;
@@ -242,17 +274,24 @@ $$;
 
 미설정이면 빈 배열 → 기본 거부. 조용히 새는 게 아니라 즉시 빈 결과가 되므로 누락을 바로 안다.
 
-**RLS를 켜는 테이블 (13개).** 이전 판은 `transactions`와 `games` 둘뿐이었는데, `entries`에 정책이 없어 조인 한 번으로 우회됐다.
+**RLS를 켜는 테이블 (17개).** 이전 판은 `transactions`와 `games` 둘뿐이었는데, `entries`에 정책이 없어 조인 한 번으로 우회됐다.
 
 ```
 ledger:  transactions · entries · accounts · parties · account_balances ·
          accounting_periods · member_profiles
 cage:    games · rolling_events · game_settlements · main_cage_events ·
          chip_inventory_events · balancing_counts
-identity: approvals
+identity: approvals · sessions · shift_events
+audit:   access_log
 ```
 
+> **13 → 17로 늘어난 이유** ([`spec/02`](../spec/02-identity-access.md) §4). `identity.sessions`는 다른 직원의 세션 메타를 보여주고, `identity.shift_events`는 지점 교대 이력이며, `audit.access_log`는 누가 무엇을 조회했는지를 담는다. **셋 다 지점 경계를 가로지르면 안 되는데 정책이 없었다.** 목록에 없다는 것은 "지점 중립"이 아니라 "검토되지 않았다"였다.
+
+**2026-08-15 범위 결정으로 추가되는 테이블도 같은 판정을 받는다.** `cage.bonus_events`·`bonus_event_payouts`(지점별 이벤트) · `concierge.*`(지점 손님) · `support.*`(파트너 계층) · `notify.*`. 스키마를 만들 때 RLS 판정을 함께 적는다 — **나중에 붙이면 이 목록이 다시 13개짜리 사각을 만든다.**
+
 계정 체계는 지점으로 가르지 않는다 — **손님은 지점을 옮겨 다니므로 회원 계정은 지점 중립**이다. 하우스·게임 계정만 지점 스코프를 적용한다.
+
+**파트너 콘솔은 지점이 아니라 계층으로 자른다.** `identity.principal_type = 'partner_operator'`는 `partner_party_id`의 서브트리만 본다(`party_visible()`). 두 스코프 규칙이 한 DB에 공존한다.
 
 **파트너 계정도 지점 중립**이지만 가시성 규칙은 다르다. 파트너는 지점이 아니라 **계층**으로 가린다 — 파트너 콘솔 운영자는 자기 파트너와 그 하위만 본다(`ledger.partner_subtree()`), 케이지 직원은 자기 지점 소속 파트너만 본다. 판정은 `ledger.party_visible()` 한 함수에 모여 있다(`ddl/012`). 현행 파트너 콘솔은 이 경계가 아예 없어 **모든 파트너의 데이터를 무제한으로 본다.**
 

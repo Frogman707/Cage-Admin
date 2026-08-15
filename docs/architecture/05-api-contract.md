@@ -86,6 +86,34 @@ CREATE TABLE ledger.idempotency_keys (
 
 테이블 증가는 `ledger.purge_expired_idempotency()`를 일 1회 돌려 정리한다. **행이 지워져도 위 판정은 유지된다** — `begin_idempotent()`가 캐시 행이 없을 때도 `ledger.transactions`를 확인하기 때문이다.
 
+#### 2-3-1. 멱등키 접두사 대장
+
+**멱등키 공간은 전역이다.** 접두사가 겹치면 서로 다른 연산이 같은 키를 놓고 충돌하고, `begin_idempotent()`가 남의 행을 찾아 지문 불일치로 **422**를 던진다. 새 연산을 추가할 때 이 표에 행을 먼저 넣는다.
+
+| 접두사 | 형태 | 연산 | 유일성 근거 |
+|---|---|---|---|
+| `deposit` · `withdraw` | `{op}:{account_code}:{client_request_id}` | §3-1 | 클라이언트 발급 |
+| `transfer` | `transfer:{from}:{to}:{client_request_id}` | §3-1 | 클라이언트 발급 |
+| `branch_transfer` | `branch_transfer:{from_branch}:{to_branch}:{client_request_id}` | §3-1 | 클라이언트 발급 |
+| `game_open` · `buyin` | `{op}:{game_no}:{seq}` | §3-2 | 게임번호 + 순번 |
+| `mid_settle` | `mid_settle:{game_no}:{seq}` | §3-2 | 게임번호 + 순번 |
+| `game_end` | `game_end:{game_no}` | §3-2 | **게임당 1회** |
+| `marker_issue` | `marker_issue:{member_code}:{client_request_id}` | [`04` §5-3-1](04-posting-rules.md) | 클라이언트 발급 |
+| `commission` | `commission:{settlement_id}` | [`04` §6-1](04-posting-rules.md) | 정산 1건당 1회 |
+| `event_comm` | `event_comm:{settlement_id}` | [`04` §6-2](04-posting-rules.md) | 정산 1건당 1회 (아웃박스 파생) |
+| `point` | `point:{account_code}:{seq}` | [`04` §13-4](04-posting-rules.md) | 계좌 + 순번 |
+| `point_earn` | `point_earn:{member_code}:{source_ref}` | [`04` §13-2](04-posting-rules.md) | 적립 근거 |
+| `point_convert` | `point_convert:{member_code}:{client_request_id}` | [`04` §13-2](04-posting-rules.md) | 클라이언트 발급 |
+| `share_accrue` | `share_accrue:{partner_code}:{period_code}` | [`04` §13-3](04-posting-rules.md) | **기간당 1회** |
+| `share_settle` | `share_settle:{partner_code}:{client_request_id}` | [`04` §13-3](04-posting-rules.md) | 클라이언트 발급 |
+| `acct_status` | `acct_status:{account_code}:{client_request_id}` | [`spec/08`](../spec/08-account-lifecycle.md) | 클라이언트 발급 |
+| `bet` | `bet:{round_id}:{member_code}:{bet_type}` | [`04` §13](04-posting-rules.md) | 라운드 + 회원 + 베팅종류 |
+| `payout` | `payout:{round_id}:{member_code}:{bet_type}` | [`04` §13](04-posting-rules.md) | **`bet`과 반드시 분리** |
+
+> **`bet`/`payout` 분리가 왜 필수인가.** 한 접두사를 공유하면 페이아웃이 베팅 행을 찾아 지문 불일치로 거절되고, 키를 비우면 필수 검사에서 거절된다 — **두 경로 모두 지급 불가**다. 무승부 푸시(`mult = 1`)는 원금과 **같은 금액**의 페이아웃을 만들어 이 충돌을 매 라운드로 끌어올린다 ([`spec/13`](../spec/13-player-domain-deferred.md) §3).
+
+> **파생 키는 원 키에서 결정적으로 만든다.** 아웃박스 소비자가 만드는 후속 거래(`event_comm`)는 랜덤값을 쓰지 않는다 — 소비자가 재시도돼도 같은 키가 나와야 중복 지급이 없다.
+
 ### 2-5. 구현 위치 — 이 규약은 DB가 강제한다
 
 멱등성을 애플리케이션 계층에만 두면 재시도가 유니크 제약 충돌(23505)로 터지고, 규약이 약속한 "저장된 응답 재생"이 성립하지 않는다.
@@ -337,6 +365,57 @@ GET /v1/transactions/{external_id}               거래 상세 (분개 포함)
 ```
 
 > **`shift-counters`는 저장값이 아니라 파생값이다.** 현행 9개 카운터와 같은 형태로 응답하므로 화면 코드가 거의 바뀌지 않는다. [03-ledger-model.md](03-ledger-model.md) 4-3절 매핑표 참조.
+
+### 4-1. 2026-08-15 범위 결정으로 추가되는 엔드포인트
+
+[`00-decisions.md`](../spec/00-decisions.md) §11이 미설계 도메인을 전부 범위에 넣었다. **아래는 목록이며 상세 계약은 각 스펙이 갖는다.**
+
+```
+# 마커                    spec/04
+POST /v1/markers                                  마커 발행 (4-eyes)
+
+# 케이지 포인트            spec/05
+GET  /v1/accounts/{code}/points                   포인트 잔액
+GET  /v1/accounts/{code}/points/history           이력 (5열: 일시·계좌·증감·잔여·비고)
+POST /v1/accounts/{code}/points/grant             발행 (스텝업)
+POST /v1/accounts/{code}/points/use                사용 (스텝업)
+
+# 이벤트 커미션            spec/06
+GET  /v1/bonus-events/active                      활성 이벤트 (서버 시각 기준)
+POST /v1/bonus-events                             활성화 (스텝업)
+POST /v1/bonus-events/{id}/end                    종료 (스텝업)
+GET  /v1/bonus-events/activations                 활성화 내역 5열
+GET  /v1/bonus-events/payouts                     지급 내역 6열 — failed 행도 보인다
+
+# 컨시어지                spec/07
+GET|POST|PATCH /v1/concierge/hotels               호텔
+GET|POST|PATCH /v1/concierge/vehicles             차량
+GET|POST|PATCH /v1/concierge/flights              항공
+
+# 계좌 생명주기           spec/08
+PATCH /v1/accounts/{code}/status                  suspended=스텝업 · closed=4-eyes
+GET   /v1/accounts/{code}/status-history          상태 전이 이력
+
+# 알림                   spec/09
+GET|POST /v1/notify/telegram-links                텔레그램 연결
+GET      /v1/notify/messages                      발송 이력 (실패 포함)
+
+# 파트너 콘솔             spec/10
+POST /v1/partners                                 파트너 등록 (주체+프로필+계정 원자)
+POST /v1/ledger-accounts                          계정 개설 (화이트리스트)
+POST /v1/partner/requests/{id}/approve            요청 승인 (단일 승인 — DR-34)
+
+# 고객센터                spec/11
+GET|POST|PATCH /v1/support/notices                공지
+GET|POST|PATCH /v1/support/ticker-notices         한줄공지
+GET|POST|PATCH /v1/support/in-game-notices        인게임공지
+GET|POST /v1/support/inquiries                    문의
+POST     /v1/support/inquiries/{id}/replies       답변 (덮어쓰기 아님)
+GET      /v1/support/chat-messages                채팅 로그
+GET|PUT  /v1/support/cs-contacts                  연락처
+```
+
+> **활성 여부·기간 판정은 전부 서버 시각이다.** 클라이언트가 보낸 `created_at`·요율·금액은 무시한다 — 이 원칙이 이벤트 커미션(`AC-67-2`·`AC-67-3`)과 공지(`R-11-08`)에 같이 적용된다.
 
 ---
 

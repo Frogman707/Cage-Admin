@@ -24,7 +24,7 @@ CREATE TABLE ledger.parties (
   code         TEXT NOT NULL UNIQUE,      -- 'SE7419' · 'MAIN-HANN' · 'GAME-260810001'
   party_type   ledger.party_type NOT NULL,
   display_name TEXT,
-  home_branch  ledger.branch_code,        -- house/game 필수, member 는 개설 지점
+  home_branch  TEXT REFERENCES ledger.branches(code),        -- house/game 필수, member 는 개설 지점
   status       ledger.account_status NOT NULL DEFAULT 'active',
   created_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
 
@@ -84,6 +84,9 @@ BEGIN
     WHEN 'suspense'              THEN 'debit'
     WHEN 'shortage_expense'      THEN 'debit'
     WHEN 'overage_income'        THEN 'credit'
+    -- 케이지 포인트 (B2 분리 결정 2026-08-15 · docs/spec/05-cage-points.md)
+    WHEN 'cage_point'            THEN 'credit'
+    WHEN 'point_liability'       THEN 'debit'
   END::ledger.normal_balance;
 
   -- 001 의 ENUM 에 값을 추가하고 이 CASE 를 빠뜨리면 v_expected 가 NULL 이 되고,
@@ -194,7 +197,7 @@ CREATE TABLE ledger.member_profiles (
   proxy               TEXT,
   rolling_rate        NUMERIC(7,4),                -- 현행 rate "1.45%" → 1.4500
   default_currency    TEXT REFERENCES ledger.currencies(code),
-  opened_branch       ledger.branch_code,
+  opened_branch       TEXT REFERENCES ledger.branches(code),
   opened_at           TIMESTAMPTZ,
   remark              TEXT,
 
@@ -274,15 +277,25 @@ CREATE TRIGGER partner_profiles_party_kind
 -- -----------------------------------------------------------------------------
 -- 지점 하우스 계정 부트스트랩
 -- -----------------------------------------------------------------------------
+-- U4 전환(2026-08-15): 지점 목록을 하드코딩하지 않고 ledger.branches 에서 읽는다.
+-- ⚠️ 이 블록은 **부트스트랩 전용**이며 지점 추가 경로가 아니다. 지점 추가는
+-- ledger.provision_branch() 가 한 트랜잭션에서 처리한다 — 여기서 INSERT 만 하면
+-- branch_config · chain_heads 가 빠진 반쪽 지점이 남는다 (AC-60-3).
+--
+-- ⚠️ U2 와 곱해진다. 아래 통화가 'PHP' 로 고정돼 있는데, U2 결정에 따라
+-- 하우스 계정은 branches × currencies × house account_kind 곱집합이어야 한다
+-- (docs/spec/01-ledger-foundation.md R-01-11 · AC-06-4). **그 확장은 M0 작업이며
+-- 이 블록은 아직 PHP 만 만든다** — 다른 통화 거래는 상대 하우스 계정이 없어
+-- 실패한다. 현재 상태를 숨기지 않기 위해 여기 적는다.
 DO $$
 DECLARE
-  v_branch  ledger.branch_code;
+  v_branch  TEXT;
   v_party   BIGINT;
   v_kind    ledger.account_kind;
   v_normal  ledger.normal_balance;
   v_negok   BOOLEAN;
 BEGIN
-  FOREACH v_branch IN ARRAY ARRAY['HANN','NUSTAR','ONLINE']::ledger.branch_code[] LOOP
+  FOR v_branch IN SELECT code FROM ledger.branches ORDER BY code LOOP
     INSERT INTO ledger.parties (code, party_type, display_name, home_branch)
     VALUES ('MAIN-' || v_branch, 'house', v_branch || ' MAIN ACCOUNT', v_branch)
     RETURNING id INTO v_party;
@@ -291,10 +304,14 @@ BEGIN
       'house_cash','marker_receivable','tips_dealer','tips_house',
       'promo_expense','commission_expense','suspense','house_gaming',
       -- 실사 차액 종착지 (design-review.md DR-01). 지점별로 있어야 한다.
-      'shortage_expense','overage_income'
+      'shortage_expense','overage_income',
+      -- 케이지 포인트 발행의 하우스 측 상대 계정 (B2 분리 결정 · spec/05 R-05-02).
+      -- 지점별로 있어야 손님 포인트 발행이 상대 계정을 찾는다.
+      'point_liability'
     ]::ledger.account_kind[] LOOP
       v_normal := CASE WHEN v_kind IN ('house_cash','marker_receivable','promo_expense',
-                                       'commission_expense','suspense','shortage_expense')
+                                       'commission_expense','suspense','shortage_expense',
+                                       'point_liability')
                        THEN 'debit' ELSE 'credit' END::ledger.normal_balance;
       v_negok  := v_kind IN ('suspense','house_gaming','promo_expense');
 

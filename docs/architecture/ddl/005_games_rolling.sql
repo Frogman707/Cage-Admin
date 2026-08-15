@@ -20,7 +20,7 @@ CREATE TABLE cage.games (
   id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   external_id         UUID NOT NULL DEFAULT uuidv7() UNIQUE,
   game_no             TEXT NOT NULL UNIQUE,        -- 현행 'YYMMDD'+3자리 (index.html:6791)
-  branch              ledger.branch_code NOT NULL,
+  branch              TEXT NOT NULL REFERENCES ledger.branches(code),
 
   member_party_id     BIGINT NOT NULL REFERENCES ledger.parties,
   game_party_id       BIGINT NOT NULL REFERENCES ledger.parties,   -- 'GAME-{game_no}'
@@ -374,7 +374,7 @@ CREATE CONSTRAINT TRIGGER games_chips_settled
 -- 신규는 저장 시점에 부호를 확정해 읽는 쪽이 규칙을 다시 알 필요가 없게 한다.
 CREATE TABLE cage.main_cage_events (
   id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  branch        ledger.branch_code NOT NULL,
+  branch        TEXT NOT NULL REFERENCES ledger.branches(code),
   kind          cage.main_cage_kind NOT NULL,
   amount_minor  BIGINT NOT NULL,             -- 부호 적용 완료 (redeem 은 음수)
   staff_id      BIGINT NOT NULL REFERENCES identity.staff,
@@ -401,7 +401,7 @@ CREATE TRIGGER main_cage_immutable
 -- 현행 nnChipInShift · ccChipInShift 등이 여기로 매핑된다.
 CREATE TABLE cage.chip_inventory_events (
   id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  branch         ledger.branch_code NOT NULL,
+  branch         TEXT NOT NULL REFERENCES ledger.branches(code),
   chip_type      cage.chip_type NOT NULL,
   delta_minor    BIGINT NOT NULL CHECK (delta_minor <> 0),
   reason         ledger.entry_category NOT NULL,

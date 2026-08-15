@@ -15,7 +15,7 @@ BEGIN;
 
 CREATE TABLE cage.balancing_counts (
   id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  branch              ledger.branch_code NOT NULL,
+  branch              TEXT NOT NULL REFERENCES ledger.branches(code),
   business_date       DATE NOT NULL,
   count_kind          cage.count_kind NOT NULL,
 
@@ -89,7 +89,7 @@ CREATE TRIGGER balancing_variance_adjusted
 -- 개폐 여부 판정은 004 의 assert_period_open() 트리거가 FOR SHARE 잠금과 함께 한다.
 -- (이전 이름 ensure_period_open 은 검사를 하는 것처럼 읽혀 오해를 낳았다.)
 CREATE FUNCTION ledger.ensure_period_row(
-  p_branch        ledger.branch_code,
+  p_branch        TEXT,
   p_business_date DATE
 ) RETURNS VOID
 LANGUAGE plpgsql

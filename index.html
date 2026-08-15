@@ -562,7 +562,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <select id="branchSel" onchange="switchBranch(this.value)">
       <option value="NUSTAR">NUSTAR</option>
       <option value="HANN">HANN</option>
-      <option value="ONLINE">SOLAIRE</option>
+      <option value="ONLINE">ONLINE</option>
     </select>
   </div>
   <div class="status-chip dt-only"><span class="status-dot" id="nfcDot"></span><span id="nfcTxt" data-i18n="nfcConnected"></span></div>
@@ -1014,7 +1014,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         </div>
         <div class="grid grid-3">
           <div class="field"><label data-i18n="branchTransferTo"></label>
-            <select id="branchTransferTo"><option value="HANN">HANN</option><option value="NUSTAR">NUSTAR</option><option value="ONLINE">SOLAIRE</option></select>
+            <select id="branchTransferTo"><option value="HANN">HANN</option><option value="NUSTAR">NUSTAR</option><option value="ONLINE">ONLINE</option></select>
           </div>
           <div class="field"><label data-i18n="amount"></label><input id="branchTransferAmt" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this)"></div>
           <div class="field"><label data-i18n="ioRemark"></label><input id="branchTransferMemo"></div>
@@ -1553,7 +1553,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="modal-close" onclick="closeModal('modal-branch-record')">×</button>
   <h3 data-i18n="branchRecordTitle"></h3>
   <div class="field" style="margin-top:10px;max-width:220px;"><label data-i18n="targetCasino"></label>
-    <select id="branchRecordCasino" onchange="renderBranchRecord()"><option value="HANN">HANN</option><option value="NUSTAR">NUSTAR</option><option value="ONLINE">SOLAIRE</option></select>
+    <select id="branchRecordCasino" onchange="renderBranchRecord()"><option>HANN</option><option>NUSTAR</option><option>ONLINE</option></select>
   </div>
   <div class="table-wrap"><table>
     <thead><tr>
@@ -4618,12 +4618,6 @@ function getRollingDailyTotal(){
 
 /* ---- Branch-scoped balancing data (HANN/NUSTAR/ONLINE each have independent cage/balancing state) ---- */
 function currentBranch(){ return DB.currentCasino || 'HANN'; }
-// The internal branch code stays 'ONLINE' everywhere it's stored (Firestore casino field, the
-// MAIN-ONLINE account id, etc.) - renaming that too would stop matching every existing live
-// document already tagged 'ONLINE'. Only what staff actually see is renamed to the real venue
-// name, through this one mapping, rather than by changing the stored value itself.
-const CASINO_DISPLAY_NAMES = { ONLINE: 'SOLAIRE' };
-function casinoDisplayName(code){ return CASINO_DISPLAY_NAMES[code] || code; }
 // Guest accounts are shared across every branch (a member can be found and transacted with
 // regardless of which branch registered them - only their per-branch balances.HANN/NUSTAR/ONLINE
 // differ). MAIN accounts are the exception: each one is a branch's own house bank, so it only
@@ -6331,7 +6325,7 @@ function nowDateTimeParts(){
  const [date, time] = now.split(' ');
  return {date, time};
 }
-function branchLabel(){ return casinoDisplayName(currentBranch()); }
+function branchLabel(){ return currentBranch(); }
 function last3Digits(id){ return String(id||'').slice(-3); }
 function sendCageNotification(accountId, lines){
  const acc = DB.accounts[accountId];
@@ -6478,7 +6472,7 @@ function processIo(){
   }
   if(!hasSufficientTotalBalance(DB.currentAccount, amt)){
    toast(t('toastInsufficientBalance'));
-   pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casinoDisplayName(casino)}`);
+   pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
    return;
   }
   requestWithdrawAuth(DB.currentAccount, ()=>_doProcessIo(amt));
@@ -6557,7 +6551,7 @@ async function _doProcessIo(amt){
  }
  if(DB.ioType==='withdraw' && !hasSufficientTotalBalance(DB.currentAccount, amt)){
   toast(t('toastInsufficientBalance'));
-  pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casinoDisplayName(casino)}`);
+  pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
   return;
  }
  let newBal;
@@ -6579,7 +6573,7 @@ async function _doProcessIo(amt){
  }
  document.getElementById('ioAmount').value=''; document.getElementById('ioMemo').value = DB.ioType==='deposit' ? 'Cash Deposit' : 'Cash Out';
  saveDB(); renderMemberCard(); renderLedger(); renderBalancingSummary();
- pushNotification(DB.ioType==='deposit'?'notifDeposit':'notifWithdraw', `${DB.currentAccount} · ${casinoDisplayName(casino)} · ${fmt(amt)}`);
+ pushNotification(DB.ioType==='deposit'?'notifDeposit':'notifWithdraw', `${DB.currentAccount} · ${casino} · ${fmt(amt)}`);
  toast(t('toastProcessed'));
  const {date, time} = nowDateTimeParts();
  const curLabel = (acc && acc.currency) || 'PHP';
@@ -6620,7 +6614,7 @@ function doTransfer(){
  const casino = currentBranch();
  if(!hasSufficientBalance(DB.currentAccount, casino, amt)){
   toast(t('toastInsufficientBalance'));
-  pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casinoDisplayName(casino)}`);
+  pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
   return;
  }
  requestWithdrawAuth(DB.currentAccount, ()=>_doTransfer(amt));
@@ -6630,7 +6624,7 @@ async function _doTransfer(amt){
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  if(!hasSufficientBalance(DB.currentAccount, casino, amt)){
   toast(t('toastInsufficientBalance'));
-  pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casinoDisplayName(casino)}`);
+  pushNotification('notifInsufficientBalance', `${DB.currentAccount} · ${casino}`);
   return;
  }
  const fromAcc = DB.accounts[DB.currentAccount];
@@ -6652,7 +6646,7 @@ async function _doTransfer(amt){
  document.getElementById('transferEngName').value='';
  transferTargetAcc = null;
  saveDB(); renderMemberCard(); renderLedger();
- pushNotification('notifTransferT', `${DB.currentAccount} → ${toAccId} · ${casinoDisplayName(casino)} · ${fmt(amt)}`);
+ pushNotification('notifTransferT', `${DB.currentAccount} → ${toAccId} · ${casino} · ${fmt(amt)}`);
  toast(t('toastTransfer'));
  const {date, time} = nowDateTimeParts();
  sendCageNotification(DB.currentAccount, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${DB.currentAccount}`, `AMT.: ${fmt(amt)}`, `CURR.: ${(fromAcc&&fromAcc.currency)||'PHP'}`, `BAL: ${fmt(fromPriorBal-amt)}`, `REMARKS: TO ${toAccId}`]);
@@ -6794,7 +6788,7 @@ function checkAccountBuyinBalance(account, buyin){
  const casino = currentBranch();
  if(!hasSufficientBalance(account, casino, buyin)){
   toast(t('toastInsufficientBalance'));
-  pushNotification('notifInsufficientBalance', `${account} · ${casinoDisplayName(casino)}`);
+  pushNotification('notifInsufficientBalance', `${account} · ${casino}`);
   return false;
  }
  return true;

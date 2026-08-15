@@ -426,7 +426,9 @@
 .speed-detail-head .meta{font-size:11.5px;color:var(--ink-faint);font-family:var(--mono);}
 .speed-detail-close{margin-left:auto;}
 .speed-detail-grid{
-  display:grid;gap:12px;grid-template-columns:1.35fr 1fr;grid-template-rows:auto 285px;
+  /* the road row holds four six-deep boards stacked (Big Road at full cell size, the three
+     derived roads at half), which is 355px once the graph-paper padding is counted. */
+  display:grid;gap:12px;grid-template-columns:1.35fr 1fr;grid-template-rows:auto 355px;
   grid-template-areas:
     "stage bets"
     "tally road";
@@ -453,7 +455,9 @@
   border:1px solid #e4e4e4;border-radius:12px;color:#1a1a1a;
 }
 /* the board rules the bead side in bigger squares than the road side */
-.sd-tally{grid-area:tally;--rc:22px;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
+/* The Bead Plate is exactly six rows and no more, so the panel ends with it rather than
+   stretching to match the taller four-board road panel beside it. */
+.sd-tally{grid-area:tally;--rc:22px;align-self:start;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
 .sd-tally-head{display:flex;justify-content:space-between;align-items:center;height:var(--rc);font-size:10.5px;color:#8a8a8a;flex-shrink:0;}
 .sd-tally-head b{color:#1a1a1a;font-family:var(--mono);font-weight:700;}
 .sd-tally-body{display:flex;flex:1;min-height:0;}

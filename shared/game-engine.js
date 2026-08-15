@@ -157,109 +157,125 @@ async function writeRoundDoc(db, {tableId, tableType, roundNo, shoeNo, sim, star
   return id;
 }
 
-/* ---------------- Big Road roadmap builder ---------------- */
+/* ---------------- Big Road roadmap builder ----------------
+   buildBigRoad groups the shoe into runs (a run = consecutive wins by the same side, which is
+   what one Big Road column represents), and layoutRoadGrid places those runs on the board the
+   way every live-casino board does it. */
 function buildBigRoad(results, pairFlags){
   // results: array of 'player'|'banker'|'tie', oldest first.
   // pairFlags (optional): parallel array of {playerPair,bankerPair} - real boards mark a
   // pair hit as a small corner dot on the result circle rather than a separate symbol.
-  const cols = [];
-  results.forEach((r,i)=>{
-    const pf = pairFlags && pairFlags[i];
-    if (r==='tie'){
-      if (cols.length) cols[cols.length-1].ties = (cols[cols.length-1].ties||0)+1;
-      else { cols.push({side:null, items:[], pairs:[], ties:1}); }
-      return;
-    }
-    if (cols.length && cols[cols.length-1].side===r){
-      cols[cols.length-1].items.push(r);
-      cols[cols.length-1].pairs.push(pf);
-    } else {
-      cols.push({side:r, items:[r], pairs:[pf], ties:0});
-    }
-  });
-  return cols;
-}
-function renderBigRoad(cols, maxRows){
-  maxRows = maxRows || 6;
-  const cells = [];
-  cols.forEach(col=>{
-    if (!col.side){ cells.push(`<div class="br-col"><div class="br-cell tie-only">${col.ties}</div></div>`); return; }
-    // A run longer than the board is deep continues in the next column ("dragon tail")
-    // rather than being cut off with a counter, which is what a real board draws.
-    for (let start=0; start<col.items.length; start+=maxRows){
-      let colHtml = '';
-      col.items.slice(start, start+maxRows).forEach((it,ri)=>{
-        const idx = start + ri;
-        const showTie = idx===0 && col.ties>0;
-        const pf = col.pairs[idx];
-        let dots = '';
-        if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
-        if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
-        // A tie is the diagonal through the ring; the count rides along only when the same
-        // spot took more than one, and must sit in its own <span> for the badge styling
-        // (and the mini-roads' hide rule) to apply to it.
-        const tie = showTie ? `<span class="br-tie">${col.ties>1?`<span>${col.ties}</span>`:''}</span>` : '';
-        colHtml += `<div class="br-cell ${it}">${tie}${dots}</div>`;
-      });
-      cells.push(`<div class="br-col">${colHtml}</div>`);
-    }
-  });
-  return cells.join('');
-}
-
-/* ---------------- Bead Road (진주로드) — follows the same column rule as Big Road on this
-   board: a result keeps stacking down the current column until the value changes, then a new
-   column starts, so a column only ever holds one of P/B/T. Runs deeper than the board wrap
-   into the next column. Each bead carries its result letter and any pair corner dot. */
-const BEAD_ROWS = 6;
-// how many recent results the Bead Plate keeps in view (grouping makes a full shoe far
-// wider than the panel)
-const BEAD_WINDOW = 40;
-const RESULT_LETTER = {player:'P', banker:'B', tie:'T'};
-function renderBeadRoad(results, pairFlags){
-  const cols = [];
+  const runs = [];
   results.forEach((r,i)=>{
     const pf = (pairFlags && pairFlags[i]) || null;
-    if (cols.length && cols[cols.length-1].value===r) cols[cols.length-1].items.push(pf);
-    else cols.push({value:r, items:[pf]});
+    const cur = runs[runs.length-1];
+    if (r==='tie'){
+      // A tie does not take a cell of its own: it is a green slash drawn across the hand that
+      // is currently showing, and a repeat tie on the same hand bumps that slash's count. Only
+      // a tie before any decision has nowhere to land, and gets its own green marker.
+      if (cur && cur.items.length) cur.items[cur.items.length-1].ties++;
+      else runs.push({side:null, items:[{side:null, pair:null, ties:1}]});
+      return;
+    }
+    if (cur && cur.side===r) cur.items.push({side:r, pair:pf, ties:0});
+    else runs.push({side:r, items:[{side:r, pair:pf, ties:0}]});
   });
-  let html = '';
-  cols.forEach(col=>{
-    for (let start=0; start<col.items.length; start+=BEAD_ROWS){
-      let colHtml = '';
-      col.items.slice(start, start+BEAD_ROWS).forEach(pf=>{
-        let dots = '';
-        if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
-        if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
-        colHtml += `<div class="bd-cell ${col.value}">${RESULT_LETTER[col.value]}${dots}</div>`;
-      });
-      html += `<div class="br-col">${colHtml}</div>`;
+  return runs;
+}
+/* Places runs on a maxRows-deep board under the standard rules, and returns the board as an
+   array of columns (each a sparse array indexed by row).
+     - a run opens at the top of the first column free at row 0, one column right of where the
+       previous run opened;
+     - it then walks down one cell per hand;
+     - when it would leave the bottom row, or when the cell below is already taken by an earlier
+       run's tail, it turns right instead and keeps going right for the rest of the run.
+   That right turn is the "dragon tail" - the reason a long streak runs along the bottom of a
+   real board rather than restarting at the top of the next column. */
+function layoutRoadGrid(runs, maxRows){
+  const grid = [];
+  const taken = (c,r) => !!(grid[c] && grid[c][r]);
+  const put = (c,r,v) => { (grid[c] = grid[c] || [])[r] = v; };
+  let head = 0;
+  runs.forEach(run=>{
+    let c = head, r = 0;
+    while (taken(c,0)) c++;
+    head = c + 1;
+    put(c, 0, run.items[0]);
+    let turned = false;
+    for (let k=1;k<run.items.length;k++){
+      if (!turned && r+1 < maxRows && !taken(c,r+1)) r++;
+      else { turned = true; c++; while (taken(c,r)) c++; }
+      put(c, r, run.items[k]);
     }
   });
+  return grid;
+}
+/* Renders a laid-out board. Every column is emitted at full depth, empty cells included, so the
+   marks keep their row positions once a dragon tail has left holes above it - and so the board
+   stays the same height whatever the shoe is doing. .br-cell's border is transparent until a
+   side class colours it, so an empty cell is already an invisible spacer. */
+function renderRoadGrid(grid, maxRows, cellHtmlFn){
+  return grid.map(col=>{
+    let html = '';
+    for (let r=0;r<maxRows;r++) html += cellHtmlFn((col && col[r]) || null);
+    return `<div class="br-col">${html}</div>`;
+  }).join('');
+}
+function renderBigRoad(runs, maxRows){
+  maxRows = maxRows || 6;
+  return renderRoadGrid(layoutRoadGrid(runs, maxRows), maxRows, it=>{
+    if (!it) return '<div class="br-cell"></div>';
+    if (!it.side) return `<div class="br-cell tie-only">${it.ties>1?it.ties:''}</div>`;
+    let dots = '';
+    if (it.pair && it.pair.playerPair) dots += '<i class="br-pair player"></i>';
+    if (it.pair && it.pair.bankerPair) dots += '<i class="br-pair banker"></i>';
+    // The count rides along only when the same spot took more than one tie, and must sit in its
+    // own <span> for the badge styling (and the mini-roads' hide rule) to apply to it.
+    const tie = it.ties ? `<span class="br-tie">${it.ties>1?`<span>${it.ties}</span>`:''}</span>` : '';
+    return `<div class="br-cell ${it.side}">${tie}${dots}</div>`;
+  });
+}
+
+/* ---------------- Bead Plate (진주로드 / 珠盤路) ----------------
+   The Bead Plate is the plain chronological log: one bead per hand, in the order the shoe dealt
+   them, filling a column top to bottom and only then moving to the next column. It does NOT
+   start a new column when the result changes - that is the Big Road's rule, not this one - so a
+   column normally holds a mix of P/B/T. Blue = player, red = banker, green = tie, each bead
+   carrying its result letter and any pair corner dot. */
+const BEAD_ROWS = 6;
+// how many recent hands the Bead Plate keeps in view - six rows by twelve columns is the
+// standard board size, so the panel holds a dozen columns and scrolls to the newest.
+const BEAD_WINDOW = 72;
+const RESULT_LETTER = {player:'P', banker:'B', tie:'T'};
+function renderBeadRoad(results, pairFlags){
+  let html = '', colHtml = '';
+  results.forEach((r,i)=>{
+    const pf = (pairFlags && pairFlags[i]) || null;
+    let dots = '';
+    if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
+    if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
+    colHtml += `<div class="bd-cell ${r}">${RESULT_LETTER[r]}${dots}</div>`;
+    if ((i+1) % BEAD_ROWS === 0){ html += `<div class="br-col">${colHtml}</div>`; colHtml = ''; }
+  });
+  if (colHtml) html += `<div class="br-col">${colHtml}</div>`;
   return html;
 }
 
-/* ---------------- shared column-grouping for the derived roads + Bead Road: groups
-   consecutive equal values into one column, exactly like Big Road groups consecutive
-   same-side results - a value change always starts a new column. ---------------- */
+/* ---------------- shared column-grouping for the derived roads: groups consecutive equal
+   values into one run, exactly like buildBigRoad groups consecutive same-side results. The
+   derived roads are then placed by the same rules as the Big Road - down a column, turning
+   right at the bottom - which is why they share layoutRoadGrid. ---------------- */
 function groupIntoRoadColumns(values){
-  const cols = [];
+  const runs = [];
   values.forEach(v=>{
-    if (cols.length && cols[cols.length-1].value===v) cols[cols.length-1].items.push(v);
-    else cols.push({value:v, items:[v]});
+    if (runs.length && runs[runs.length-1].value===v) runs[runs.length-1].items.push(v);
+    else runs.push({value:v, items:[v]});
   });
-  return cols;
+  return runs;
 }
-function renderRoadColumns(cols, cellHtmlFn, maxRows){
+function renderRoadColumns(runs, cellHtmlFn, maxRows){
   maxRows = maxRows || 6;
-  let html = '';
-  cols.forEach(col=>{
-    // same dragon-tail wrap as Big Road: overflow continues in the next column
-    for (let start=0; start<col.items.length; start+=maxRows){
-      html += `<div class="br-col">${col.items.slice(start, start+maxRows).map(cellHtmlFn).join('')}</div>`;
-    }
-  });
-  return html;
+  return renderRoadGrid(layoutRoadGrid(runs, maxRows), maxRows, m => m ? cellHtmlFn(m) : '<div class="dr-cell"></div>');
 }
 
 /* ---------------- table-list stats (vendor feedback: 오늘/총 베팅액, P/B/T 승수, 좋은 흐름) ---------------- */
@@ -294,6 +310,8 @@ function tableBetVolume(betLedgerRows){
    (matching pattern) / blue (breaking pattern). offset 1/2/3 = Big Eye Boy/
    Small Road/Cockroach Road respectively - same comparison, deeper look-back. */
 function deriveRoad(cols, offset){
+  // A leading tie carries a marker but is not a Big Road column, so it contributes no depth.
+  const depth = i => (cols[i] && cols[i].side) ? cols[i].items.length : 0;
   const out = [];
   for (let i=offset;i<cols.length;i++){
     const col = cols[i];
@@ -302,12 +320,12 @@ function deriveRoad(cols, offset){
       let mark;
       if (j===0){
         if (i<offset+1) continue;
-        mark = cols[i-offset].items.length === cols[i-offset-1].items.length ? 'red' : 'blue';
+        mark = depth(i-offset) === depth(i-offset-1) ? 'red' : 'blue';
       } else {
         // the streak continued: compare the cell one column back on this row with the one
         // above it. Both filled or both empty means the pattern repeated (red); exactly one
         // filled means it broke (blue) - which is only when that column ends at this row.
-        mark = cols[i-offset].items.length === j ? 'blue' : 'red';
+        mark = depth(i-offset) === j ? 'blue' : 'red';
       }
       out.push(mark);
     }
@@ -319,9 +337,10 @@ function deriveSmallRoad(cols){ return deriveRoad(cols, 2); }
 function deriveCockroachRoad(cols){ return deriveRoad(cols, 3); }
 // The three derived roads are distinguished by their mark, not their position: Big Eye Boy
 // draws hollow rings, Small Road solid dots ('filled'), Cockroach Road diagonal ticks
-// ('diagonal') - the same trio the P/B legend rail spells out. They stack three-to-a-panel
-// under Big Road, so they run 3 rows deep rather than Big Road's 6.
-const DERIVED_ROAD_ROWS = 3;
+// ('diagonal') - the same trio the P/B legend rail spells out. Like the Big Road they are six
+// marks deep; the marks are drawn at half a Big Road cell so those six fit in three ruled
+// squares, which is how a real board stacks all four roads into one panel.
+const DERIVED_ROAD_ROWS = 6;
 function renderDerivedRoad(marks, style){
   const cols = groupIntoRoadColumns(marks);
   return renderRoadColumns(cols, m=>`<div class="dr-cell ${m}${style?' '+style:''}"></div>`, DERIVED_ROAD_ROWS);

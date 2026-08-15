@@ -437,9 +437,13 @@ git commit -m "test(db): add golden test harness and drift checks (R-12-05)"
   - `issueStepUp({staffId, deviceId, scope, method}) -> Promise<number>`
   - `approve(client, {actor, approvers, branch, subjectKind, subjectRef, payload, deviceId}) -> Promise<number>` — `identity.op_request_approval` + `op_cast_vote`를 거쳐 소비 가능한 승인 id를 돌려준다
   - `createMember(client, {code, branch, currency, kinds}) -> Promise<number>`
-  - `withActor(options, act) -> Promise<T>` — 소유자로 픽스처를 만들고, 앱 역할(`as: 'migrator'`면 이관 역할)로 `act`를 돌린다
+  - `createActor(options) -> Promise<ctx>` — 소유자 트랜잭션 하나로 직원·픽스처를 만들고 **커밋한** `ctx`를 준다
+  - `asActor(ctx, act) -> Promise<T>` — 그 `ctx`로 앱 역할(`as: 'migrator'`면 이관 역할) 트랜잭션을 **하나** 열고 끝에서 커밋한다
+  - `withActor(options, act) -> Promise<T>` — 위 둘의 합성. 커밋 경계를 나눌 필요가 없는 대다수 테스트가 쓴다
 
 **픽스처는 소유자, `op_*`는 앱 역할.** `identity.staff` · `ledger.parties` 삽입은 앱 역할 권한 밖이다(확인함: `permission denied for table entries`와 같은 계열). 커넥션이 다르므로 **한 트랜잭션에 담을 수 없다.** 이미 전부 커밋하는 구조라 문제되지 않는다 — `withActor`가 이 두 단계를 감춘다.
+
+**커밋 경계는 `asActor` 콜백 하나다.** `act` 안에서 `op_*`가 만든 행은 COMMIT 전까지 다른 커넥션에서 **보이지 않는다.** 그래서 `act` 한복판에서 소유자 픽스처(`asOwner`)로 그 행을 고치려 하면 `UPDATE`가 **0행을 치고 에러 없이 지나간다.** `op_*`가 만든 행을 픽스처가 손대야 하면 `createActor` + `asActor` 2회로 나눈다 — Task 8 §6-1이 그 경우다.
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
@@ -694,19 +698,36 @@ export async function createMember(client, { code, branch, currency = 'PHP', kin
 //
 // 이 래퍼를 거치지 않고 소유자로 op_* 를 부르면 GRANT EXECUTE 누락 ·
 // 지점 격리 실패가 전부 통과한다. 검사할 경계 바깥에서 검사하는 셈이다.
+//
+// **커밋 경계 규칙.** `asActor` 콜백 하나가 앱 트랜잭션 하나다. 그 안에서 op_* 가
+// 만든 행은 콜백이 끝나 COMMIT 될 때까지 **다른 커넥션에서 보이지 않는다.**
+// 그래서 op_* 가 만든 행을 소유자 커넥션(`asOwner` 픽스처)이 읽거나 고쳐야 하면
+// `asActor` 를 두 번 부른다 — 한 콜백 안에서 섞으면 픽스처의 UPDATE 가
+// 0행을 치고 조용히 지나간다 (§6-1 커미션 요율 스냅샷이 그 경우다).
 import { asOwner, asStaff, asMigrator, uniq } from '../helpers/db.mjs';
 import { createStaff } from './actors.mjs';
 
+// 액터만 만든다. 소유자 트랜잭션 하나로 끝나고 커밋된다.
 // as: 'app'(기본) 또는 'migrator'. §14 만 migrator 를 쓴다 —
 // ledger.op_load_opening_balance 의 EXECUTE 가 ledger_migrator 에만 있다.
-export async function withActor({ branches = ['HANN'], roles = ['cage_manager'], setup, as = 'app' } = {}, act) {
-  const ctx = await asOwner(async (client) => {
+export async function createActor({ branches = ['HANN'], roles = ['cage_manager'], setup, as = 'app' } = {}) {
+  return asOwner(async (client) => {
     const staffId = await createStaff(client, { code: uniq('T-MGR'), branches, roles });
     const extra = setup ? await setup(client, { staffId }) : {};
-    return { staffId, device: uniq('dev'), branch: branches[0], ...extra };
+    return { staffId, device: uniq('dev'), branch: branches[0], as, ...extra };
   });
-  const run = as === 'migrator' ? asMigrator : asStaff;
+}
+
+// 이미 만든 액터로 앱(또는 migrator) 트랜잭션을 **하나** 연다. 끝에서 COMMIT 한다.
+// 커밋 경계를 넘겨야 하면 같은 ctx 로 여러 번 부른다.
+export async function asActor(ctx, act) {
+  const run = ctx.as === 'migrator' ? asMigrator : asStaff;
   return run(ctx.staffId, (client) => act(client, ctx));
+}
+
+// 액터 생성 + 앱 트랜잭션 하나. 커밋 경계를 나눌 필요가 없는 대다수 테스트용.
+export async function withActor(opts = {}, act) {
+  return asActor(await createActor(opts), act);
 }
 ```
 
@@ -1236,7 +1257,7 @@ git commit -m "test(db): assert posting contracts for 04 sections 2 and 4 (R-12-
 
 **Interfaces:**
 
-- Consumes: `asOwner`, `asStaff`, `uniq`, `closePool` (Task 1) · `createStaff`, `issueStepUp`, `approve` (Task 2) · `entriesOf` (Task 3)
+- Consumes: `asOwner`, `asStaff`, `query`, `uniq`, `closePool` (Task 1) · `createStaff`, `issueStepUp`, `approve` (Task 2) · `entriesOf` (Task 3)
 - Produces: 없음 (검증 전용)
 
 **한 파일에 두 절을 넣는 이유.** `op_resolve_suspense`는 금액을 인자로 받지 않는다. **현재 `suspense` 잔액을 직접 읽어** 그만큼을 해소한다 ([`04` §11-2](../../architecture/04-posting-rules.md) "금액을 호출자가 정하지 않는다"). 두 테스트를 나누면 §11-2가 보는 잔액이 §11이 만든 것인지 다른 테스트가 남긴 것인지 알 수 없다. 한 흐름에서 만들고 바로 해소한다.
@@ -1254,7 +1275,7 @@ git commit -m "test(db): assert posting contracts for 04 sections 2 and 4 (R-12-
 // 정확히 같아야 하고, 요청자는 자기 요청에 투표할 수 없다 — 직원 3명이 필요하다.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { asOwner, asStaff, uniq, closePool } from '../helpers/db.mjs';
+import { asOwner, asStaff, query, uniq, closePool } from '../helpers/db.mjs';
 import { createStaff, issueStepUp, approve } from '../fixtures/actors.mjs';
 import { entriesOf } from '../helpers/entries.mjs';
 
@@ -1360,10 +1381,15 @@ test('R-12-02 · AC-12-2 04 §11 현금 과잉 조정 → §11-2 과잉분 확�
 test('R-12-02 cage.op_record_balancing 이 §11 과 같은 분개를 낸다', async () => {
   const { actor, approverA, approverB } = await threeStaff();
   const device = uniq('dev');
+  const countKind = 'cash';
   const counted = 108000;
   const system = 100000;
-  const variance = counted - system;
 
+  // payload 는 op_record_balancing 의 v_args 와 **정확히** 같아야 한다
+  // (011:156-159). 키가 하나만 달라도 consume_approval 이
+  // approval N payload does not match ... 로 거부한다.
+  // op_adjustment 의 v_args({branch, variance_minor, currency})와 다르다 —
+  // 같은 'adjustment' subject_kind 라도 payload 는 부르는 함수를 따른다.
   const approvalId = await asOwner((client) =>
     approve(client, {
       actor,
@@ -1371,16 +1397,22 @@ test('R-12-02 cage.op_record_balancing 이 §11 과 같은 분개를 낸다', as
       branch: BRANCH,
       subjectKind: 'adjustment',
       subjectRef: uniq('bal'),
-      payload: { branch: BRANCH, variance_minor: variance, currency: 'PHP' },
+      payload: {
+        branch: BRANCH,
+        count_kind: countKind,
+        counted_total_minor: counted,
+        system_total_minor: system,
+      },
       deviceId: device,
     })
   );
 
   await asStaff(actor, async (client) => {
+    // 스텝업 scope 는 'balancing.count' 다 (011:174). 'cage.balancing' 이 아니다.
     const token = await issueStepUp({
       staffId: actor,
       deviceId: device,
-      scope: 'cage.balancing',
+      scope: 'balancing.count',
       method: 'totp',
     });
     const { rows } = await client.query(
@@ -1391,7 +1423,7 @@ test('R-12-02 cage.op_record_balancing 이 §11 과 같은 분개를 낸다', as
         token,
         device,
         BRANCH,
-        'cash',
+        countKind,
         JSON.stringify({ 1000: counted / 1000 }),
         counted,
         system,
@@ -1400,15 +1432,21 @@ test('R-12-02 cage.op_record_balancing 이 §11 과 같은 분개를 낸다', as
       ]
     );
 
+    assert.equal(BigInt(rows[0].result.variance_minor), BigInt(counted - system));
     assert.deepEqual(await entriesOf(client, rows[0].result), [
       ['house_cash', 1, 'adjustment'],
       ['suspense', -1, 'adjustment'],
     ]);
   });
+
+  // 승인은 1회용이다. 소비되지 않았다면 payload 나 scope 가 어긋난 채
+  // 다른 경로로 통과했다는 뜻이다 — 그것까지 고정한다.
+  const [approval] = await query('SELECT status FROM identity.approvals WHERE id = $1', [approvalId]);
+  assert.equal(approval.status, 'approved');
 });
 ```
 
-**주의:** `cage.op_record_balancing`의 스텝업 `scope`와 인자 순서는 구현 시점에 `\df cage.op_record_balancing`으로 다시 확인한다. 위 값은 [`db/schema/011_operations_admin.sql:136`](../../../db/schema/011_operations_admin.sql) 기준이며, 이 절에서 검사하는 것은 **분개 집합이 `ledger.op_adjustment`와 같다**는 사실이다.
+**확인한 사실:** 스텝업 `scope`는 `balancing.count`([`011:172-174`](../../../db/schema/011_operations_admin.sql)), 승인 `payload`는 `{branch, count_kind, counted_total_minor, system_total_minor}`([`011:156-159`](../../../db/schema/011_operations_admin.sql))다. 인자 순서는 [`011:136`](../../../db/schema/011_operations_admin.sql) 기준이며 구현 시점에 `\df cage.op_record_balancing`으로 한 번 더 대조한다. 이 절에서 검사하는 것은 **분개 집합이 `ledger.op_adjustment`와 같다**는 사실이다.
 
 - [ ] **Step 2: 통과를 확인한다**
 
@@ -1596,8 +1634,12 @@ git commit -m "test(db): assert posting contracts for 04 sections 12 and 14 (R-1
 
 **Interfaces:**
 
-- Consumes: `asOwner`, `asStaff`, `uniq`, `closePool` (Task 1) · `issueStepUp`, `createMember`, `withActor` (Task 2) · `entriesOf` (Task 3)
-- Produces: `openGame(client, ctx, {gameNo, member, buyin, workingChip}) -> Promise<object>` — 게임을 열고 반환 JSON을 준다
+- Consumes: `asOwner`, `asStaff`, `uniq`, `closePool` (Task 1) · `issueStepUp`, `createMember`, `createActor`, `asActor`, `withActor` (Task 2) · `entriesOf` (Task 3)
+- Produces:
+  - `openGame(client, ctx, {gameNo, member, buyin, workingChip}) -> Promise<object>` — 게임을 열고 반환 JSON을 준다
+  - `chipsOutstanding(client, gameNo) -> Promise<bigint>` — 미회수 칩 잔액
+  - `setCommissionRate(gameNo, rateBp) -> Promise<Result>` — 요율 스냅샷을 세운다. **커밋된 게임 행이 있어야 한다** (rowCount 1을 단언한다)
+  - `scenario.mjs` 교체본이 `createActor` · `asActor` · `withActor`를 낸다 (Task 2의 계약을 유지한 채 `ctx.stepUp` 추가)
 
 **이 절들의 함수는 `cage` 스키마에 있다.** `ledger.op_game_*`가 아니다:
 
@@ -1621,10 +1663,11 @@ commission_payout commission_expense +1 commission_payout  member_deposit    −
 game_end          chips_outstanding +1 chips_redeem        house_cash        −1 settle_cashout
 ```
 
-**두 개의 함정.**
+**세 개의 함정.**
 
 1. `cage.games.commission_rate_bp`를 채우는 `op_*`가 **없다.** `op_open_game` 인자에도 없다. NULL이면 `op_settle_commission`이 `game G has no commission rate snapshot`으로 거부한다. 픽스처가 소유자 커넥션에서 직접 `UPDATE`한다 — 스키마 공백을 우회가 아니라 **기록**하기 위해서다.
-2. `op_settle_game('final')`은 게임의 `chips_outstanding` 잔액이 0이 아니면 거부한다. 이 검사는 **지연 제약 트리거**([`005:367`](../../../db/schema/005_games_rolling.sql))라 COMMIT 에서 터진다. 정산 금액을 미리 계산해 넣는다.
+2. **그 `UPDATE`는 커밋 경계를 넘는다.** 소유자 커넥션은 앱 트랜잭션이 아직 커밋하지 않은 `cage.games` 행을 보지 못한다. `op_open_game`과 `setCommissionRate`를 한 `asActor` 콜백 안에 두면 `UPDATE`가 **0행을 치고 에러 없이 지나가고**, 뒤이은 `op_settle_commission`이 `no commission rate snapshot`으로 거부되어 통과해야 할 테스트가 실패한다. §6-1만 `createActor` + `asActor` 2회로 나눈다.
+3. `op_settle_game('final')`은 게임의 `chips_outstanding` 잔액이 0이 아니면 거부한다. 이 검사는 **지연 제약 트리거**([`005:367`](../../../db/schema/005_games_rolling.sql))라 COMMIT 에서 터진다. 정산 금액을 미리 계산해 넣는다.
 
 - [ ] **Step 1: 게임 픽스처를 만든다**
 
@@ -1674,10 +1717,23 @@ export async function chipsOutstanding(client, gameNo) {
 }
 
 // 요율 스냅샷을 세운다. 소유자 커넥션이 필요하다 (cage.games 는 앱 역할 UPDATE 불가).
+//
+// **op_open_game 트랜잭션이 커밋된 뒤에 불러야 한다.** 소유자 커넥션은 별도
+// 트랜잭션이라 아직 커밋되지 않은 cage.games 행을 보지 못한다 — 그 상태로 부르면
+// UPDATE 가 0행을 치고 조용히 통과한 뒤, 이어지는 op_settle_commission 이
+// `game G has no commission rate snapshot` 으로 거부된다. rowCount 를 단언해
+// 그 실수가 여기서 바로 터지게 한다.
 export async function setCommissionRate(gameNo, rateBp) {
-  return asOwner((client) =>
+  const result = await asOwner((client) =>
     client.query('UPDATE cage.games SET commission_rate_bp = $2 WHERE game_no = $1', [gameNo, rateBp])
   );
+  if (result.rowCount !== 1) {
+    throw new Error(
+      `setCommissionRate(${gameNo}) updated ${result.rowCount} rows — ` +
+        '게임 행이 아직 커밋되지 않았다. op_open_game 을 별도 asActor 트랜잭션으로 먼저 커밋한다.'
+    );
+  }
+  return result;
 }
 ```
 
@@ -1689,27 +1745,40 @@ export async function setCommissionRate(gameNo, rateBp) {
 //
 // 이 래퍼를 거치지 않고 소유자로 op_* 를 부르면 GRANT EXECUTE 누락 ·
 // 지점 격리 실패가 전부 통과한다. 검사할 경계 바깥에서 검사하는 셈이다.
+//
+// **커밋 경계 규칙.** `asActor` 콜백 하나가 앱 트랜잭션 하나다. 그 안에서 op_* 가
+// 만든 행은 콜백이 끝나 COMMIT 될 때까지 **다른 커넥션에서 보이지 않는다.**
+// 소유자 픽스처가 그 행을 고쳐야 하면 `asActor` 를 두 번 부른다 (§6-1 요율 스냅샷).
 import { asOwner, asStaff, asMigrator, uniq } from '../helpers/db.mjs';
 import { createStaff, issueStepUp } from './actors.mjs';
 
+// 액터만 만든다. 소유자 트랜잭션 하나로 끝나고 커밋된다.
 // as: 'app'(기본) 또는 'migrator'. §14 만 migrator 를 쓴다 —
 // ledger.op_load_opening_balance 의 EXECUTE 가 ledger_migrator 에만 있다.
-export async function withActor({ branches = ['HANN'], roles = ['cage_manager'], setup, as = 'app' } = {}, act) {
+export async function createActor({ branches = ['HANN'], roles = ['cage_manager'], setup, as = 'app' } = {}) {
   const ctx = await asOwner(async (client) => {
     const staffId = await createStaff(client, { code: uniq('T-MGR'), branches, roles });
     const extra = setup ? await setup(client, { staffId }) : {};
-    return { staffId, device: uniq('dev'), branch: branches[0], ...extra };
+    return { staffId, device: uniq('dev'), branch: branches[0], as, ...extra };
   });
 
-  const run = as === 'migrator' ? asMigrator : asStaff;
-  return run(ctx.staffId, (client) =>
-    act(client, {
-      ...ctx,
-      // 스텝업은 1회용이다. 호출마다 새로 발급한다.
-      stepUp: (scope, method = 'totp') =>
-        issueStepUp({ staffId: ctx.staffId, deviceId: ctx.device, scope, method }),
-    })
-  );
+  return {
+    ...ctx,
+    // 스텝업은 1회용이다. 호출마다 새로 발급한다.
+    stepUp: (scope, method = 'totp') =>
+      issueStepUp({ staffId: ctx.staffId, deviceId: ctx.device, scope, method }),
+  };
+}
+
+// 이미 만든 액터로 앱(또는 migrator) 트랜잭션을 **하나** 연다. 끝에서 COMMIT 한다.
+export async function asActor(ctx, act) {
+  const run = ctx.as === 'migrator' ? asMigrator : asStaff;
+  return run(ctx.staffId, (client) => act(client, ctx));
+}
+
+// 액터 생성 + 앱 트랜잭션 하나. 커밋 경계를 나눌 필요가 없는 대다수 테스트용.
+export async function withActor(opts = {}, act) {
+  return asActor(await createActor(opts), act);
 }
 ```
 
@@ -1913,11 +1982,15 @@ test('R-12-02 미회수 칩이 남으면 게임 종료가 COMMIT 에서 거부�
 //
 // 요율의 권위는 cage.games.commission_rate_bp 스냅샷이다 (DR-66 · DR-84 · DR-85).
 // 그 값을 채우는 op_* 가 아직 없어 픽스처가 직접 세운다.
+//
+// **이 테스트만 앱 트랜잭션을 둘로 나눈다.** setCommissionRate 는 소유자 커넥션이고,
+// 소유자는 아직 커밋되지 않은 cage.games 행을 보지 못한다. op_open_game 을 먼저
+// 커밋해야 UPDATE 가 1행을 친다 — createActor + asActor 2회가 그 경계다.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { uniq, closePool } from '../helpers/db.mjs';
 import { createMember } from '../fixtures/actors.mjs';
-import { withActor } from '../fixtures/scenario.mjs';
+import { createActor, asActor, withActor } from '../fixtures/scenario.mjs';
 import { openGame, setCommissionRate } from '../fixtures/games.mjs';
 import { entriesOf, entryRowsOf } from '../helpers/entries.mjs';
 
@@ -1930,41 +2003,47 @@ test('R-12-02 · AC-12-2 04 §6-1 롤링 커미션 분개 집합', async () => {
   const rateBp = 150; // 1.5%
   const expected = Math.round((rollingBase * rateBp) / 10000);
 
-  await withActor(
-    { setup: (client) => createMember(client, { code: member, branch: 'HANN' }) },
-    async (client, ctx) => {
-      await openGame(client, ctx, { gameNo, member });
-      await setCommissionRate(gameNo, rateBp);
+  const ctx = await createActor({
+    setup: (client) => createMember(client, { code: member, branch: 'HANN' }),
+  });
 
-      const token = await ctx.stepUp('game.commission');
-      const { rows } = await client.query('SELECT cage.op_settle_commission($1, $2, $3, $4, $5, $6, $7) AS result', [
-        uniq('comm'),
-        ctx.staffId,
-        token,
-        ctx.device,
-        gameNo,
-        rollingBase,
-        expected,
-      ]);
-      const result = rows[0].result;
+  // 1단계: 게임 개설을 커밋한다. 여기까지 앱 역할 트랜잭션 하나.
+  await asActor(ctx, (client) => openGame(client, ctx, { gameNo, member }));
 
-      assert.deepEqual(await entriesOf(client, result), [
-        ['commission_expense', 1, 'commission_payout'],
-        ['member_deposit', -1, 'commission_payout'],
-      ]);
+  // 2단계: 커밋된 행에 요율을 세운다 (소유자). rowCount 1 을 픽스처가 단언한다.
+  await setCommissionRate(gameNo, rateBp);
 
-      const byKind = Object.fromEntries(
-        (await entryRowsOf(client, result)).map((r) => [r.account_kind, r.amount_minor])
-      );
-      assert.equal(byKind.commission_expense, BigInt(expected));
-      assert.equal(byKind.member_deposit, BigInt(-expected));
-    }
-  );
+  // 3단계: 새 앱 역할 트랜잭션에서 정산한다. 스텝업 토큰은 여기서 새로 발급된다.
+  await asActor(ctx, async (client) => {
+    const token = await ctx.stepUp('game.commission');
+    const { rows } = await client.query('SELECT cage.op_settle_commission($1, $2, $3, $4, $5, $6, $7) AS result', [
+      uniq('comm'),
+      ctx.staffId,
+      token,
+      ctx.device,
+      gameNo,
+      rollingBase,
+      expected,
+    ]);
+    const result = rows[0].result;
+
+    assert.deepEqual(await entriesOf(client, result), [
+      ['commission_expense', 1, 'commission_payout'],
+      ['member_deposit', -1, 'commission_payout'],
+    ]);
+
+    const byKind = Object.fromEntries((await entryRowsOf(client, result)).map((r) => [r.account_kind, r.amount_minor]));
+    assert.equal(byKind.commission_expense, BigInt(expected));
+    assert.equal(byKind.member_deposit, BigInt(-expected));
+  });
 });
 
 test('R-12-02 요율 스냅샷이 없으면 커미션 정산이 거부된다', async () => {
   const member = uniq('TEST-MEM');
   const gameNo = uniq('G');
+  // 여기는 나눌 필요가 없다 — 소유자 픽스처가 중간에 끼지 않으므로 같은
+  // 트랜잭션이 자기가 만든 게임 행을 본다. 거부로 트랜잭션이 abort 되고
+  // withActor 의 COMMIT 은 롤백으로 처리된다 — 남길 행이 없으니 그래도 된다.
   await withActor(
     { setup: (client) => createMember(client, { code: member, branch: 'HANN' }) },
     async (client, ctx) => {

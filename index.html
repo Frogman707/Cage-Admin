@@ -8945,14 +8945,15 @@ function renderPoints(){
 
 /* ---- Event Rolling Commission ---- */
 function activateEvent(){
- const nowStr = phNow().toISOString().slice(0,16);
+ const start = document.getElementById('eventStartDate').value;
  const end = document.getElementById('eventEndDate').value;
- if(!end){ toast(t('toastEventPeriodMissing')); return; }
+ const nowStr = phNow().toISOString().slice(0,16);
+ if(!start || !end){ toast(t('toastEventPeriodMissing')); return; }
  if(end < nowStr){ toast(t('toastEventPeriodInvalid')); return; }
- DB.eventStart = nowStr;
+ if(end < start){ toast(t('toastEventPeriodInvalid')); return; }
+ DB.eventStart = start;
  DB.eventEnd = end;
  DB.eventRate = document.getElementById('eventRate').value.trim() || '1.00';
- document.getElementById('eventStartDate').value = nowStr;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
  DB.eventActivationLog = DB.eventActivationLog||[];
  DB.eventActivationLog.unshift({dt: phNow().toISOString().slice(0,16).replace('T',' '), start: DB.eventStart, end: DB.eventEnd, rate: DB.eventRate, staff: staffName});

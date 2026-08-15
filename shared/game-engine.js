@@ -342,6 +342,16 @@ function paintRoad(el, html){
   requestAnimationFrame(pin);
 }
 
+/* Same pin for roads that ship inside a bigger block of markup rather than being painted into
+   their own element - the table-list cards build their Big Road as part of the card's HTML.
+   Those are overflow:hidden, so a card whose shoe has more columns than the card is wide would
+   otherwise be stuck showing the oldest results with no way to swipe to the newest. */
+function pinRoadsIn(root){
+  const pin = () => (root || document).querySelectorAll('.mini-road').forEach(el=>{ el.scrollLeft = el.scrollWidth; });
+  pin();
+  requestAnimationFrame(pin);
+}
+
 
 /* ---------------- chip-stack decomposition for the felt "chips in the betting spot" visual ---------------- */
 function decomposeChipStack(amount, maxDiscs){

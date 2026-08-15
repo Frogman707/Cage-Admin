@@ -445,6 +445,7 @@ function renderAvatarLobbyGrid(sortMode){
       <div class="stat-row" style="padding-bottom:13px;"><span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>${t('todayLabel')} <b>${fmtNum(volume.today)}</b></span></div>
     </div>`;
   }).join('');
+  pinRoadsIn(grid);
   applyLobbyTileFilter();
 }
 
@@ -903,7 +904,7 @@ function renderSpeedTileRoad(tableId){
   const el = document.getElementById('road-'+tableId);
   if (el){
     const cols = buildBigRoad(SPEED.tstate[tableId].history.slice(-40), (SPEED.tstate[tableId].pairFlags||[]).slice(-40));
-    el.innerHTML = renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`;
+    paintRoad(el, renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`);
   }
   if (SPEED.detailTableId===tableId) renderSpeedDetailRoad(tableId);
 }

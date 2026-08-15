@@ -793,9 +793,8 @@ function cardHtml(card){
 }
 async function revealAvatarCards(sim){
   const pEl = document.getElementById('playerCardsAvatar'), bEl = document.getElementById('bankerCardsAvatar');
-  const seq = [[pEl,sim.player.cards[0]],[bEl,sim.banker.cards[0]],[pEl,sim.player.cards[1]],[bEl,sim.banker.cards[1]]];
-  for (const [el,card] of seq){
-    el.insertAdjacentHTML('beforeend', cardHtml(card));
+  for (const [side,i] of dealSequence(sim)){
+    (side==='player'?pEl:bEl).insertAdjacentHTML('beforeend', cardHtml(sim[side].cards[i]));
     await new Promise(r=>setTimeout(r, 260));
   }
   document.getElementById('playerScoreAvatar').textContent = sim.player.score;
@@ -1072,9 +1071,8 @@ async function revealSpeedDetailCards(sim, instant){
   const pEl = document.getElementById('playerCardsDetail'), bEl = document.getElementById('bankerCardsDetail');
   if (!pEl || !bEl) return;
   pEl.innerHTML = ''; bEl.innerHTML = '';
-  const seq = [[pEl,sim.player.cards[0]],[bEl,sim.banker.cards[0]],[pEl,sim.player.cards[1]],[bEl,sim.banker.cards[1]]];
-  for (const [el,card] of seq){
-    el.insertAdjacentHTML('beforeend', cardHtml(card));
+  for (const [side,i] of dealSequence(sim)){
+    (side==='player'?pEl:bEl).insertAdjacentHTML('beforeend', cardHtml(sim[side].cards[i]));
     if (!instant) await new Promise(r=>setTimeout(r, 260));
   }
   document.getElementById('playerScoreDetail').textContent = sim.player.score;

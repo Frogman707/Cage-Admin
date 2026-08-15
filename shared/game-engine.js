@@ -313,6 +313,21 @@ function renderDerivedRoad(marks, style){
   return renderRoadColumns(cols, m=>`<div class="dr-cell ${m}${style?' '+style:''}"></div>`, DERIVED_ROAD_ROWS);
 }
 
+/* Every road grows to the right, so the column the player actually cares about - the one the
+   round that just finished landed in - is the one that falls off the right edge as soon as the
+   shoe outgrows the panel. Repaint through here so each road parks at its right edge and the
+   latest result is on screen without the player having to swipe the board across. */
+function paintRoad(el, html){
+  if (!el) return;
+  el.innerHTML = html;
+  const pin = () => { el.scrollLeft = el.scrollWidth; };
+  pin();
+  // Two things can invalidate that first pin: another repaint later in the same tick can resize
+  // the road (the tally counters sitting left of the Bead Plate widen as the shoe grows), and a
+  // road painted while its screen is still hidden measures zero. Re-pin once the frame settles.
+  requestAnimationFrame(pin);
+}
+
 
 /* ---------------- chip-stack decomposition for the felt "chips in the betting spot" visual ---------------- */
 function decomposeChipStack(amount, maxDiscs){

@@ -245,13 +245,52 @@ async function chooseSpeed(){
 }
 
 /* ---------------- lobby casino tabs + game-type filter + search (shared by avatar/speed) ---------------- */
+/* Each house picks its table by its own mark, the way the reference lobby lists them: the logo
+   over the name rather than the name alone.
+   The marks are drawn here as SVG rather than shipped as image files so they stay crisp at any
+   size, tint with the tab's own state and cost no request. They are set in the houses' own
+   colours, lightened where a print mark would go muddy on the app's dark panel. To swap one for
+   an operator-supplied file later, replace that entry with
+   `<img src="assets/logo-<house>.svg" alt="">` - nothing else reads these. */
+const CASINO_MARKS = {
+  // the four-point sparkle the reference puts over its "all games" tab
+  ALL: `<svg viewBox="0 0 64 34" aria-hidden="true" fill="currentColor">
+      <path d="M32 4l2.6 7.4L42 14l-7.4 2.6L32 24l-2.6-7.4L22 14l7.4-2.6z"/>
+      <path d="M45 17l1.3 3.7L50 22l-3.7 1.3L45 27l-1.3-3.7L40 22l3.7-1.3z" opacity=".75"/>
+    </svg>`,
+  // HANN: the monogram's vertical bars - two full height with the inner pair stepped to read
+  // as the H's crossbar - over the wordmark
+  HANN: `<svg viewBox="0 0 64 34" aria-hidden="true" fill="#AEB6C4">
+      <rect x="17" y="1" width="4" height="20" rx="1"/>
+      <rect x="25" y="1" width="4" height="12" rx="1"/>
+      <rect x="33" y="9" width="4" height="12" rx="1"/>
+      <rect x="41" y="1" width="4" height="20" rx="1"/>
+      <text x="32" y="32" text-anchor="middle" font-size="10" font-weight="700" letter-spacing="1.6">HANN</text>
+    </svg>`,
+  // NuStar: the fan of dots arching over the wordmark
+  NUSTAR: `<svg viewBox="0 0 64 34" aria-hidden="true" fill="#D4536B">
+      <circle cx="16.0" cy="14.2" r="1.15"/><circle cx="17.5" cy="11.1" r="1.15"/><circle cx="19.6" cy="8.3" r="1.15"/><circle cx="22.2" cy="6.1" r="1.15"/><circle cx="25.3" cy="4.4" r="1.15"/><circle cx="28.6" cy="3.4" r="1.15"/><circle cx="32.0" cy="3.0" r="1.15"/><circle cx="35.4" cy="3.4" r="1.15"/><circle cx="38.7" cy="4.4" r="1.15"/><circle cx="41.8" cy="6.1" r="1.15"/><circle cx="44.4" cy="8.3" r="1.15"/><circle cx="46.5" cy="11.1" r="1.15"/><circle cx="48.0" cy="14.2" r="1.15"/>
+      <circle cx="20.7" cy="14.7" r="1"/><circle cx="22.6" cy="11.8" r="1"/><circle cx="25.3" cy="9.5" r="1"/><circle cx="28.5" cy="8" r="1"/><circle cx="32.0" cy="7.5" r="1"/><circle cx="35.5" cy="8" r="1"/><circle cx="38.7" cy="9.5" r="1"/><circle cx="41.4" cy="11.8" r="1"/><circle cx="43.3" cy="14.7" r="1"/>
+      <circle cx="25.2" cy="15.8" r=".85"/><circle cx="28.1" cy="13" r=".85"/><circle cx="32.0" cy="12" r=".85"/><circle cx="35.9" cy="13" r=".85"/><circle cx="38.8" cy="15.8" r=".85"/>
+      <text x="32" y="30" text-anchor="middle" font-size="10" font-weight="700" letter-spacing="1.1">NUSTAR</text>
+    </svg>`,
+  // Solaire: the sun on its orange tile, wordmark reversed out of it
+  SOLAIRE: `<svg viewBox="0 0 64 34" aria-hidden="true">
+      <rect x="14" width="36" height="34" rx="2" fill="#E1651A"/>
+      <g fill="#fff">
+        <circle cx="32" cy="11" r="3.2"/>
+        <path d="M32 3.4l1.1 3.2h-2.2zM32 18.6l-1.1-3.2h2.2zM24.4 11l3.2-1.1v2.2zM39.6 11l-3.2 1.1V9.9zM26.6 5.6l3 1.6-1.5 1.5zM37.4 16.4l-3-1.6 1.5-1.5zM26.6 16.4l1.5-3 1.5 1.5zM37.4 5.6l-1.5 3-1.5-1.5z"/>
+        <text x="32" y="28" text-anchor="middle" font-size="8.6" font-weight="700" letter-spacing=".9">SOLAIRE</text>
+      </g>
+    </svg>`,
+};
 const LOBBY_CASINOS = ['HANN','NUSTAR','SOLAIRE'];
+const CASINO_LABELS = {ALL:'allCasinos', HANN:'casinoHann', NUSTAR:'casinoNustar', SOLAIRE:'casinoSolaire'};
 let LOBBY_CASINO_FILTER = 'ALL';
 let LOBBY_SEARCH = '';
 function casinoTabsHtml(){
   return `<div class="casino-tabs">
-    <button class="casino-tab ${LOBBY_CASINO_FILTER==='ALL'?'active':''}" data-c="ALL" onclick="setLobbyCasinoFilter('ALL')">✦ ${t('allCasinos')}</button>
-    ${LOBBY_CASINOS.map(c=>`<button class="casino-tab ${LOBBY_CASINO_FILTER===c?'active':''}" data-c="${c}" onclick="setLobbyCasinoFilter('${c}')">${c}</button>`).join('')}
+    ${['ALL', ...LOBBY_CASINOS].map(c=>`<button class="casino-tab ${LOBBY_CASINO_FILTER===c?'active':''}" data-c="${c}" onclick="setLobbyCasinoFilter('${c}')"><span class="cl-mark">${CASINO_MARKS[c]}</span><span class="cl-name">${t(CASINO_LABELS[c])}</span></button>`).join('')}
   </div>`;
 }
 const GAME_TYPE_TABS = [

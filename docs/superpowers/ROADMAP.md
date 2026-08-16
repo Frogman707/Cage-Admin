@@ -53,7 +53,7 @@
 | # | slug | 스펙 범위 | 선행 | 마일스톤 | 상태 |
 |---|---|---|---|---|---|
 | **a01** | [`a01-ci-golden-harness`](plans/2026-08-15-a01-ci-golden-harness.md) | [`12`](../spec/12-ci-golden-tests.md) 전부 | — | M0 | ✅ 계획 작성 완료 |
-| **a02** | `a02-branch-reference` | [`01`](../spec/01-ledger-foundation.md) §2 · §7 | a01 | M0 | ⬜ |
+| **a02** | [`a02-branch-reference`](plans/2026-08-16-a02-branch-reference.md) | [`01`](../spec/01-ledger-foundation.md) §2 · §7 | a01 | M0 | ✅ 계획 작성 완료 |
 | **a03** | `a03-ledger-invariants` | [`01`](../spec/01-ledger-foundation.md) §3~§6 | a02 | M1 | 🔒 B1 |
 | **a04** | `a04-identity-rls` | [`02`](../spec/02-identity-access.md) 전부 | a02 | M1 | ⬜ |
 | **a05** | `a05-idempotency-db` | [`03`](../spec/03-api-idempotency.md) §2~§4 · §7 | a04 | M1 | ⬜ |

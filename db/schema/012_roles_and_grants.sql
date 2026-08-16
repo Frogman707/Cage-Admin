@@ -491,6 +491,13 @@ TO ledger_app, ledger_read;
 -- SECURITY DEFINER 라 이 함수를 소유자 권한으로 부른다.
 REVOKE EXECUTE ON FUNCTION ledger.bootstrap_house_accounts(TEXT) FROM PUBLIC;
 
+-- 지점 추가는 이관 역할의 일이다. 자금 레인(ledger_app)이 지점을 만들 수 있으면
+-- 자기 거래의 상대 계정을 스스로 지어낼 수 있게 된다.
+REVOKE EXECUTE ON FUNCTION
+  ledger.provision_branch(TEXT, TEXT, DATE, BIGINT, BOOLEAN, TEXT, TIME) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION
+  ledger.provision_branch(TEXT, TEXT, DATE, BIGINT, BOOLEAN, TEXT, TIME) TO ledger_migrator;
+
 CREATE POLICY app_scope ON ledger.parties FOR SELECT TO ledger_app
   USING (ledger.party_visible(id));
 CREATE POLICY read_all ON ledger.parties FOR SELECT TO ledger_read USING (TRUE);

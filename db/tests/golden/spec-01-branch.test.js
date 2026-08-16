@@ -5,7 +5,16 @@
 // 같은 트랜잭션에서 만들어졌는지를 다른 커넥션에서 확인해야 하기 때문이다.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { query, withRollback, expectSqlState, uniq, closePool } from '../helpers/db.mjs';
+import {
+  query,
+  withRollback,
+  asOwner,
+  asMigrator,
+  asRole,
+  expectSqlState,
+  uniq,
+  closePool,
+} from '../helpers/db.mjs';
 
 after(closePool);
 
@@ -184,4 +193,184 @@ test('AC-60-3 하우스 계정 정책이 house_account_policy 한 곳에만 있�
           OR a.currency <> 'PHP')`
   );
   assert.equal(drift.n, 0, '시드 하우스 계정이 house_account_policy 와 어긋난다');
+});
+
+// 커밋해서 만든다. 004 의 chain_heads · 003 의 하우스 계정이 정말 같은
+// 트랜잭션에서 만들어졌는지 다른 커넥션으로 확인해야 하기 때문이다.
+// 롤백으로 확인하면 "한 트랜잭션 안이라 보인다" 와 구분되지 않는다.
+test('R-01-05 · AC-60-3 provision_branch 가 한 트랜잭션에서 5종을 만든다', async () => {
+  const code = branchCode('CEBU');
+
+  await asOwner((client) =>
+    client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
+      code,
+      'Cebu Test',
+      '2026-03-01',
+      50000000,
+    ])
+  );
+
+  // 스펙 01 §2-3 의 검증 쿼리를 그대로 쓴다 (참조테이블 판).
+  const [row] = await query(
+    `SELECT b.code,
+            EXISTS (SELECT 1 FROM ledger.branch_config c WHERE c.branch = b.code) AS has_config,
+            EXISTS (SELECT 1 FROM ledger.chain_heads   h WHERE h.branch = b.code) AS has_chain_head,
+            EXISTS (SELECT 1 FROM ledger.parties       p WHERE p.home_branch = b.code
+                      AND p.party_type = 'house')                                 AS has_house_party,
+            (SELECT count(*) FROM ledger.accounts a
+               JOIN ledger.parties p2 ON p2.id = a.party_id
+              WHERE p2.home_branch = b.code AND p2.party_type = 'house')::int     AS house_accounts
+       FROM ledger.branches b WHERE b.code = $1`,
+    [code]
+  );
+
+  assert.equal(row.has_config, true, 'branch_config 가 없다');
+  assert.equal(row.has_chain_head, true, 'chain_heads 가 없다');
+  assert.equal(row.has_house_party, true, '하우스 주체가 없다');
+  assert.equal(row.house_accounts, HOUSE_KINDS.length, '하우스 계정 수가 시드 지점과 다르다');
+});
+
+test('R-01-05 chain_heads 시드 해시가 창세 규약을 따른다', async () => {
+  const code = branchCode('DAVAO');
+  await asOwner((client) =>
+    client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
+      code,
+      'Davao Test',
+      '2026-03-01',
+      50000000,
+    ])
+  );
+
+  // 004:56 의 시드와 같은 식이어야 한다. 다르면 그 지점의 첫 거래에서
+  // 해시 체인이 끊어진 것처럼 보인다 — 스키마 적용 시점이 아니라 운영 중이다.
+  const [row] = await query(
+    `SELECT h.last_hash = sha256(('cage-admin-genesis:' || h.branch)::bytea) AS ok,
+            h.last_tx_id
+       FROM ledger.chain_heads h WHERE h.branch = $1`,
+    [code]
+  );
+  assert.equal(row.ok, true, 'chain_heads.last_hash 가 창세 규약과 다르다');
+  assert.equal(row.last_tx_id, null);
+});
+
+test('R-01-05 임계값 인자가 필수다 (DR-39)', async () => {
+  // 4인자 시그니처가 없으면 임계 없는 지점을 만들 수 있게 된다.
+  // 스펙 §2-2 의 3인자 표기를 그대로 구현하면 이 테스트가 실패한다 —
+  // 그것이 의도다 (계획 결정 2).
+  const rows = await query(
+    `SELECT count(*)::int AS n
+       FROM pg_proc p
+       JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'ledger' AND p.proname = 'provision_branch'
+        AND p.pronargs - p.pronargdefaults >= 4`
+  );
+  assert.equal(rows[0].n, 1, 'provision_branch 의 필수 인자가 4개가 아니다');
+});
+
+// expectSqlState(state, fn) 은 fn 을 **인자 없이** 부른다 (a01 db.mjs:375).
+// client 가 필요하면 withRollback 으로 감싼다. 롤백이라 실패해도 남는 게 없다.
+test('R-01-05 이미 있는 지점 코드는 거부된다', async () => {
+  await expectSqlState('23505', () =>
+    withRollback((client) =>
+      client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
+        'HANN',
+        'Duplicate',
+        '2026-03-01',
+        50000000,
+      ])
+    )
+  );
+});
+
+test('R-01-05 형식에 맞지 않는 코드는 거부된다', async () => {
+  // 소문자 시작이 branches_code_format 에 걸린다.
+  await expectSqlState('23514', () =>
+    withRollback((client) =>
+      client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
+        'cebu',
+        'lowercase',
+        '2026-03-01',
+        50000000,
+      ])
+    )
+  );
+});
+
+test('R-01-05 임계값 0 이하는 거부된다 (DR-39 센티널 규약)', async () => {
+  // 임계를 끄려면 BIGINT 최댓값을 넣는다. 0 으로 끄면 "끄기로 했다" 가
+  // 데이터에 남지 않는다.
+  await expectSqlState('23514', () =>
+    withRollback((client) =>
+      client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
+        branchCode('ZERO'),
+        'Zero threshold',
+        '2026-03-01',
+        0,
+      ])
+    )
+  );
+});
+
+// ---- 역할 경계. 소유자로만 돌면 이 셋은 전부 초록으로 통과한다 ----------------
+//
+// 012:275-291 이 ledger_migrator 에게 준 것은 archive INSERT · ledger·identity
+// USAGE · 함수 2종 EXECUTE · ledger.accounts·ledger.parties SELECT 뿐이다.
+// provision_branch 가 SECURITY DEFINER 가 아니면 INSERT 가 호출자 권한으로 돌아
+// 42501 로 죽는다 — 운영에서 처음 지점을 만들 때 알게 된다 (계획 결정 5).
+test('R-01-05 ledger_migrator 가 provision_branch 를 실제로 실행할 수 있다', async () => {
+  const code = branchCode('BAGUIO');
+
+  // asMigrator(staffId, fn) — provision_branch 는 app.staff_id 를 읽지 않으므로
+  // undefined 를 준다. 커밋한다: 다른 커넥션에서 결과를 확인해야 한다.
+  await asMigrator(undefined, (client) =>
+    client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
+      code,
+      'Baguio Test',
+      '2026-03-01',
+      50000000,
+    ])
+  );
+
+  // Task 4 의 검사 뷰는 아직 없다. §2-3 원본 쿼리로 본다.
+  const [row] = await query(
+    `SELECT EXISTS (SELECT 1 FROM ledger.branch_config c WHERE c.branch = b.code) AS has_config,
+            EXISTS (SELECT 1 FROM ledger.chain_heads   h WHERE h.branch = b.code) AS has_chain_head,
+            (SELECT count(*) FROM ledger.accounts a
+               JOIN ledger.parties p2 ON p2.id = a.party_id
+              WHERE p2.home_branch = b.code AND p2.party_type = 'house')::int     AS house_accounts
+       FROM ledger.branches b WHERE b.code = $1`,
+    [code]
+  );
+  assert.equal(row.has_config, true, '이관 역할이 만든 지점에 branch_config 가 없다');
+  assert.equal(row.has_chain_head, true, '이관 역할이 만든 지점에 chain_heads 가 없다');
+  assert.equal(row.house_accounts, HOUSE_KINDS.length, '하우스 계정 수가 시드 지점과 다르다');
+});
+
+test('R-01-05 ledger_migrator 는 branches 에 직접 INSERT 할 수 없다', async () => {
+  // 함수를 통하지 않는 우회로가 열려 있으면 provision_branch 가 유일한 경로라는
+  // 전제가 깨진다 — 그리고 그 우회로로 만든 지점은 전부 반쪽이다.
+  await expectSqlState('42501', () =>
+    asMigrator(undefined, (client) =>
+      client.query(
+        `INSERT INTO ledger.branches (code, name, opened_on)
+         VALUES ($1, $1, DATE '2026-01-01')`,
+        [branchCode('DENY')]
+      )
+    )
+  );
+});
+
+test('R-01-05 ledger_app 은 provision_branch 를 부를 수 없다', async () => {
+  // 자금 레인이 지점을 만들 수 있으면 자기 거래의 상대 하우스 계정을 스스로
+  // 지어낼 수 있다. 012 의 계층 분리가 무너지는 지점이다.
+  await expectSqlState('42501', () =>
+    asRole('ledger_app', (client) =>
+      client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
+        branchCode('APPDENY'),
+        'App denied',
+        '2026-03-01',
+        50000000,
+      ])
+    )
+  );
 });

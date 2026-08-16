@@ -111,6 +111,35 @@ export async function asIdentity(fn) {
   return runIn(identityPool, undefined, fn, 'ROLLBACK');
 }
 
+// NOLOGIN 그룹 역할의 권한으로 강등해서 돈다. 로그인 역할을 새로 만들지 않는다.
+//
+// 소유자 커넥션은 superuser 지만 SET ROLE 뒤에는 그 역할로 권한 검사를 받는다
+// (ledger_read 는 rolsuper 도 rolbypassrls 도 아니다). security_invoker 뷰가
+// 기반 테이블 GRANT 를 갖췄는지, RLS 정책이 그 역할에 붙어 있는지를 본다.
+//
+// 왜 필요한가: 013 은 검사 뷰를 ledger_read 에 GRANT 하는데, 지금까지 그
+// 역할로 조회해 본 테스트가 하나도 없다. 소유자로만 돌면 기반 테이블 GRANT
+// 누락이 전부 초록으로 통과한다.
+//
+// 롤백한다 — 권한 경계 확인이 목적이라 남길 행이 없다.
+export async function asRole(role, fn) {
+  // SET ROLE 은 파라미터를 받지 않아 문자열을 붙여야 한다. 012 가 만드는 역할
+  // 이름만 통과시킨다 — 붙이기 습관이 남으면 다음 사람이 여기 변수를 넣는다.
+  if (!/^[a-z_][a-z0-9_]*$/.test(role)) {
+    throw new Error(`unsafe role name: ${role}`);
+  }
+  const client = await ownerPool.connect();
+  try {
+    await client.query('BEGIN');
+    // SET LOCAL 이라 트랜잭션이 끝나면 사라진다. 풀에 남지 않는다.
+    await client.query(`SET LOCAL ROLE "${role}"`);
+    return await fn(client);
+  } finally {
+    await client.query('ROLLBACK').catch(() => {});
+    client.release();
+  }
+}
+
 // BEGIN 하고, staffId 가 있으면 app.staff_id 를 세운다(SET LOCAL — 트랜잭션이 끝나면
 // 사라지고 풀에 남지 않는다). runIn 과 expectCommitFailure 둘 다 이 진입점 하나만 쓴다 —
 // 세션 설정이 두 곳에서 갈라지면 안 된다. staffId 가 null 이면 문자열 'null' 이

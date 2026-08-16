@@ -623,4 +623,94 @@ LEFT JOIN ledger.transactions rt ON rt.id = t.reverses_tx_id
 GROUP BY t.id, t.external_id, t.kind, t.branch, t.business_date,
          t.recorded_at, t.memo, t.auth_method, s.code, t.device_id, rt.external_id;
 
+-- =============================================================================
+-- 지점 프로비저닝 — 흩어진 부수 효과를 한 트랜잭션으로 묶는다 (DR-60 · AC-60-3)
+-- =============================================================================
+-- 지점 하나를 추가하려면 원래 네 곳을 손대야 했다 — 001 의 branches ·
+-- 001 의 branch_config · 003 의 하우스 주체·계정 · 004 의 chain_heads.
+-- chain_heads 를 빠뜨리면 **그 지점의 첫 거래에서 터진다.** 스키마 적용 시점이
+-- 아니라 운영 중이다. 그래서 하나의 함수로 묶는다.
+--
+-- 여기(004 말미)에 두는 이유: chain_heads 가 이 파일 47행에서 생긴다.
+-- 001 이나 003 에 두면 적용 시점에 그 테이블이 없다. 004 말미는 필요한 네 테이블이
+-- 전부 존재하는 첫 지점이다.
+--
+-- 시드 3행이 이 함수를 쓰지 않는 이유: 함수가 정의되는 시점이 시드가 필요한
+-- 시점(001·003·004 각 파일 안)보다 뒤다. 순환이다. 대신 이 블록 끝에서
+-- 시드 3행이 같은 사후조건을 만족하는지 단언한다 — 두 경로가 갈라지면
+-- db/scripts/apply.sh 가 그 자리에서 멈춘다.
+--
+-- ⚠️ 인자가 스펙 01 §2-2 표기(3개)보다 많다. approval_threshold_minor 가
+-- branch_config 에서 NOT NULL 이고 기본값이 없기 때문이다 — 그것이 DR-39 의
+-- 교훈이다. 예전에는 NULL 허용 + 시드 미지정이어서 신규 설치가 "임계 없음" 으로
+-- 출발했고, 오류도 로그도 없이 4-eyes 통제 전체가 비활성이었다.
+-- 함수가 임계값을 임의로 정하면 그 결함이 되돌아온다.
+--
+-- SECURITY DEFINER 인 이유: 이 함수를 부를 역할은 ledger_migrator 하나인데,
+-- 012:275-291 이 그 역할에 준 것은 ledger.accounts · ledger.parties **SELECT**
+-- 까지다. branches · branch_config · chain_heads · parties · accounts 어디에도
+-- INSERT 가 없다. 기본값(SECURITY INVOKER)으로 두면 INSERT 가 호출자 권한으로
+-- 돌아 42501 로 죽는다 — 그것도 스키마 적용 시점이 아니라 **운영에서 처음
+-- 지점을 만들 때** 알게 된다. 008~011 의 op_* 가 전부 같은 이유로 정의자 함수다.
+-- search_path 는 고정하고 pg_temp 를 마지막에 둔다 (012:11-14 의 PostgreSQL 권고).
+CREATE FUNCTION ledger.provision_branch(
+  p_code                     TEXT,
+  p_name                     TEXT,
+  p_opened_on                DATE,
+  p_approval_threshold_minor BIGINT,
+  p_is_online                BOOLEAN DEFAULT false,
+  p_timezone                 TEXT    DEFAULT 'Asia/Manila',
+  p_cutoff_time              TIME    DEFAULT '06:00'
+) RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ledger, pg_temp
+AS $$
+BEGIN
+  -- 1. 지점 행. code 형식 · name 길이 · status 값은 branches 의 CHECK 가 본다.
+  INSERT INTO ledger.branches (code, name, is_online, opened_on)
+  VALUES (p_code, p_name, p_is_online, p_opened_on);
+
+  -- 2. 영업일 · 승인 임계 설정. approval_threshold_minor > 0 은
+  --    branch_config 의 CHECK 가 본다 (DR-39 센티널 규약).
+  INSERT INTO ledger.branch_config (branch, timezone, cutoff_time, approval_threshold_minor)
+  VALUES (p_code, p_timezone, p_cutoff_time, p_approval_threshold_minor);
+
+  -- 3. 해시 체인 헤드. 004:56 의 시드와 **같은 식**이어야 한다.
+  --    다르면 그 지점의 첫 거래에서 체인이 끊어진 것처럼 보인다.
+  INSERT INTO ledger.chain_heads (branch, last_hash)
+  VALUES (p_code, sha256(('cage-admin-genesis:' || p_code)::bytea));
+
+  -- 4·5. 하우스 주체 + 하우스 계정. 정책은 003 의 함수 한 곳에만 있다.
+  PERFORM ledger.bootstrap_house_accounts(p_code);
+
+  -- 직원 배정은 여기 없다. 지점을 만드는 것과 사람을 붙이는 것은 다른 일이고,
+  -- 갓 만든 지점에 직원이 없는 것은 결함이 아니다 (013 의 검사 뷰가
+  -- has_staff 를 정보 열로만 낸다).
+  RETURN p_code;
+END;
+$$;
+
+COMMENT ON FUNCTION ledger.provision_branch IS
+  '지점 추가의 유일한 경로. branches · branch_config · chain_heads · 하우스 주체 · 하우스 계정을 한 트랜잭션에서 만든다. branches 에 직접 INSERT 하면 반쪽 지점이 남는다 (AC-60-3).';
+
+-- 부트스트랩 경로(001·003·004 의 시드)와 provision_branch() 가 갈라지지 않았는지
+-- 적용 시점에 단언한다. 갈라진 사실을 신규 지점을 만들어 볼 때까지 미루지 않는다.
+DO $$
+DECLARE
+  v_bad TEXT;
+BEGIN
+  SELECT string_agg(b.code, ', ' ORDER BY b.code) INTO v_bad
+    FROM ledger.branches b
+   WHERE NOT (EXISTS (SELECT 1 FROM ledger.branch_config c WHERE c.branch = b.code)
+          AND EXISTS (SELECT 1 FROM ledger.chain_heads   h WHERE h.branch = b.code)
+          AND EXISTS (SELECT 1 FROM ledger.parties       p WHERE p.home_branch = b.code
+                        AND p.party_type = 'house'));
+
+  IF v_bad IS NOT NULL THEN
+    RAISE EXCEPTION '반쪽 지점이 시드에 있다: % — 001·003·004 의 시드와 provision_branch() 가 갈라졌다', v_bad;
+  END IF;
+END;
+$$;
+
 COMMIT;

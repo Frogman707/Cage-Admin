@@ -710,12 +710,9 @@
   .sd-tally .bead-road .br-col{gap:2px;}
   .sd-tally .bead-road .bd-cell{width:18px;height:18px;font-size:10px;}
   .sd-tally .bead-road .br-pair{width:5px;height:5px;}
-  /* On a phone the chip tray used to be position:fixed at the bottom of the viewport, which
-     parked it permanently on top of the scoreboard below - the Cockroach band spent its life
-     behind the chips. Sticky inside the betting board instead: it stays pinned to the bottom
-     edge of the board, i.e. directly above the game results, and never covers them. sticky
-     needs a non-clipping ancestor, so the board's overflow has to give up its clip - the tray
-     carries the bottom corners itself in exchange. */
-  .sd-bets{overflow:visible;}
-  .sd-chip-tray{position:sticky;bottom:0;z-index:25;border-radius:0 0 12px 12px;box-shadow:0 -8px 22px -12px rgba(0,0,0,.65);}
+  /* The chip tray is simply the last row of the betting board - straight under Player and
+     Banker - rather than being pinned anywhere. It was fixed to the viewport once, which parked
+     it on top of the scoreboard, then sticky to the board's bottom edge; neither is needed now
+     that the results sit above the board rather than below it. Nothing sticky means the board
+     keeps its own clip, and the tray needs no corners of its own. */
 }

@@ -62,6 +62,7 @@ PGPASSWORD=devonly npm run test:db        # 골든 테스트
 
 - **`SET CONSTRAINTS ALL IMMEDIATE` 금지.** 지연 제약 트리거 I1·I2가 삽입 순서 의존이 되어
   다중 분개 거래가 첫 분개에서 실패한다 (`R-01-50`).
+  근거 문단은 [`docs/architecture/ddl/README.md`](../docs/architecture/ddl/README.md#set-constraints-all-immediate-금지) 에 있다 (`R-01-50`). 반대편 짝은 `db/tests/invariants/deferred.test.js` (`R-01-52` · `AC-59-3`).
 - **적용 순서가 계약이다.** 파일 간 FK·함수 의존이 번호 순서를 전제한다.
   예외 2건은 [`docs/architecture/ddl/README.md`](../docs/architecture/ddl/README.md) "주의" 절에 있다.
 - **`op_*` 시그니처를 바꾸면 `012_roles_and_grants.sql` 의 `GRANT EXECUTE` 인자 목록을 같은 커밋에서 바꾼다.**

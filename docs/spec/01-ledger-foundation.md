@@ -41,9 +41,9 @@ CREATE TABLE ledger.branches (
 |---|---|
 | `R-01-01` | `ledger.branch_code` ENUM이 스키마에 존재하지 않는다 |
 | `R-01-02` | `branch` 컬럼을 가진 모든 테이블이 `branches(code)` FK를 갖는다. FK 없는 `branch` 컬럼이 0개다 |
-| `R-01-03` | `identity.current_branches()`가 `TEXT[]`를 반환하고 RLS 정책이 그 형으로 비교한다 |
+| `R-01-03` | **`ledger.current_branches()`**가 `TEXT[]`를 반환하고 RLS 정책이 그 형으로 비교한다. 스키마는 `identity`가 아니라 `ledger`다 — `012`의 RLS 정책 전부가 `ledger.current_branches()`를 부른다 |
 | `R-01-04` | 지점 존재 여부를 묻는 모든 검증 쿼리가 `enum_range`가 아니라 `ledger.branches`를 읽는다 |
-| `R-01-05` | **`ledger.provision_branch(p_code, p_name, p_opened_on)`가 한 트랜잭션에서 5종을 만든다** — `branches` 행 · `branch_config` 행 · `chain_heads` 행 · 하우스 주체 · 하우스 계정 곱집합(`currencies × house account_kind`) |
+| `R-01-05` | **`ledger.provision_branch(p_code, p_name, p_opened_on, p_approval_threshold_minor, [p_is_online, p_timezone, p_cutoff_time])`가 한 트랜잭션에서 5종을 만든다** — `branches` 행 · `branch_config` 행 · `chain_heads` 행 · 하우스 주체 · 하우스 계정. **임계값이 필수 인자인 이유는 `DR-39`다** — `branch_config.approval_threshold_minor`가 `NOT NULL`이고 기본값이 없다. 함수가 임의로 정하면 "임계 없음"으로 출발하는 결함이 되돌아온다. 직원 배정은 포함하지 않는다 |
 | `R-01-06` | `provision_branch` 없이 `branches`에 직접 INSERT하면 부수 4종 누락이 검사에 잡힌다 |
 
 `AC-60-1`(절차 문서화) · `AC-60-2`(누락 검사) · `AC-60-3`(함수로 묶기)를 이 절이 닫는다.
@@ -59,7 +59,10 @@ SELECT b.code AS branch,
                  AND p.party_type = 'house')                                    AS has_house_party,
        EXISTS (SELECT 1 FROM identity.staff_branches s WHERE s.branch = b.code)  AS has_staff
   FROM ledger.branches b WHERE b.status = 'active';
--- 기대: 전 열 true
+-- 기대: has_staff 를 뺀 전 열 true. 이 쿼리는 013 의
+-- ledger.v_check_branch_provisioning 으로 상시화돼 있다 (계획 a02).
+-- has_staff 는 정보 열이다 — provision_branch() 의 5종에 직원 배정이 없고,
+-- 갓 만든 지점에 직원이 없는 것은 결함이 아니다.
 ```
 
 ---

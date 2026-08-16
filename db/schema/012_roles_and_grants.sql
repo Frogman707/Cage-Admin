@@ -199,6 +199,12 @@ GRANT  SELECT (party_id, member_no, vip, agent_code, rolling_rate,
                default_currency, opened_branch, opened_at)
   ON ledger.member_profiles TO ledger_read;
 
+-- 013 의 v_check_branch_provisioning 이 security_invoker 라 이 테이블을
+-- 호출자 권한으로 읽는다. 뷰가 쓰는 것은 branch 한 컬럼뿐이므로 컬럼 단위로만
+-- 연다 — "어느 지점에 직원이 있는가" 는 나가고 "누가 어느 지점인가" 는 안 나간다.
+-- 테이블 통째로 열면 리포팅 자격증명 하나로 직원 배치도를 뜰 수 있게 된다.
+GRANT SELECT (branch) ON identity.staff_branches TO ledger_read;
+
 -- =============================================================================
 -- identity_app — step-up 토큰 발급 전용 (design-review.md DR-03)
 -- =============================================================================

@@ -416,3 +416,166 @@ test('R-01-05 ledger_app 은 provision_branch 를 부를 수 없다', async () =
     )
   );
 });
+
+test('R-01-06 · AC-60-2 시드 지점 3곳이 검사 뷰에서 ok=true 다', async () => {
+  const rows = await query(
+    `SELECT branch, ok FROM ledger.v_check_branch_provisioning
+      WHERE branch IN ('HANN','NUSTAR','ONLINE') ORDER BY branch`
+  );
+  assert.deepEqual(
+    rows.map((r) => r.branch),
+    ['HANN', 'NUSTAR', 'ONLINE']
+  );
+  assert.deepEqual(
+    rows.map((r) => r.ok),
+    [true, true, true]
+  );
+});
+
+test('R-01-06 · AC-60-2 branches 직접 INSERT 로 만든 반쪽 지점이 잡힌다', async () => {
+  // 롤백한다 — 반쪽 지점을 커밋해 두면 이후 실행의 검사 뷰가 계속 빨개진다.
+  await withRollback(async (client) => {
+    const code = branchCode('HALF');
+    await client.query(
+      `INSERT INTO ledger.branches (code, name, opened_on)
+       VALUES ($1, $1, DATE '2026-01-01')`,
+      [code]
+    );
+
+    const { rows } = await client.query(
+      `SELECT ok, has_config, has_chain_head, has_house_party, house_account_count
+         FROM ledger.v_check_branch_provisioning WHERE branch = $1`,
+      [code]
+    );
+    assert.equal(rows.length, 1, '새 지점이 검사 뷰에 안 나온다');
+    assert.equal(rows[0].ok, false, 'provision_branch 를 건너뛴 지점이 ok=true 로 나온다');
+    assert.equal(rows[0].has_config, false);
+    assert.equal(rows[0].has_chain_head, false);
+    assert.equal(rows[0].has_house_party, false);
+    assert.equal(rows[0].house_account_count, 0);
+  });
+});
+
+test('R-01-06 has_staff 는 정보 열이지 ok 판정에 들어가지 않는다', async () => {
+  // 갓 만든 지점에 직원이 없는 것은 결함이 아니다. provision_branch 는
+  // 직원을 배정하지 않는다 (R-01-05 의 5종에 없다).
+  const code = branchCode('ILOILO');
+  await asOwner((client) =>
+    client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
+      code,
+      'Iloilo Test',
+      '2026-03-01',
+      50000000,
+    ])
+  );
+  provisionedCodes.push(code); // 커밋 성공 직후 등록 — 이후 단언이 실패해도 정리 대상에서 빠지지 않는다.
+
+  const [row] = await query(
+    'SELECT ok, has_staff FROM ledger.v_check_branch_provisioning WHERE branch = $1',
+    [code]
+  );
+  assert.equal(row.has_staff, false, '테스트 전제가 깨졌다 — 새 지점에 직원이 붙어 있다');
+  assert.equal(row.ok, true, 'has_staff 가 ok 판정에 섞여 들어갔다');
+});
+
+test('R-01-06 검사 뷰가 security_invoker 다 (ADR-014)', async () => {
+  const rows = await query(
+    `SELECT count(*)::int AS n FROM ledger.v_check_view_security
+      WHERE view_name = 'v_check_branch_provisioning'`
+  );
+  assert.equal(rows[0].n, 0, 'security_invoker 가 빠진 뷰다 — RLS 를 우회한다');
+});
+
+// ---- 개수가 아니라 집합을 본다는 것을 고정한다 ------------------------------
+//
+// house_account_count > 0 으로 판정하면 아래 두 상태가 **둘 다 ok=true** 다.
+// 그리고 둘 다 상대 계정을 못 찾는 첫 분개에서 운영 중에 터진다.
+test('R-01-06 하우스 계정이 한 종류만 있는 지점은 ok=false 다', async () => {
+  await withRollback(async (client) => {
+    const code = branchCode('PARTIAL');
+    await client.query(
+      `INSERT INTO ledger.branches (code, name, opened_on)
+       VALUES ($1, $1, DATE '2026-01-01')`,
+      [code]
+    );
+    // provision_branch 를 일부러 거치지 않는다 — 부분 실패나 나중의 삭제로
+    // 계정이 하나만 남은 상태를 흉내 낸다.
+    const { rows: party } = await client.query(
+      `INSERT INTO ledger.parties (code, party_type, display_name, home_branch)
+       VALUES ('MAIN-' || $1, 'house', $1 || ' MAIN ACCOUNT', $1) RETURNING id`,
+      [code]
+    );
+    await client.query(
+      `INSERT INTO ledger.accounts (party_id, kind, currency, normal_balance, allow_negative)
+       SELECT $1, k.kind, 'PHP', k.normal_balance, k.allow_negative
+         FROM ledger.house_account_policy k WHERE k.kind = 'house_cash'`,
+      [party[0].id]
+    );
+
+    const { rows } = await client.query(
+      `SELECT ok, house_account_count, missing_house_accounts, has_house_party
+         FROM ledger.v_check_branch_provisioning WHERE branch = $1`,
+      [code]
+    );
+    assert.equal(rows[0].has_house_party, true, '테스트 전제가 깨졌다 — 하우스 주체가 없다');
+    assert.equal(rows[0].house_account_count, 1, '테스트 전제가 깨졌다');
+    assert.equal(rows[0].missing_house_accounts, HOUSE_KINDS.length - 1);
+    assert.equal(rows[0].ok, false, '계정 하나만 남은 지점이 ok=true 로 나온다');
+  });
+});
+
+test('R-01-06 하우스 계정 성격이 정책과 다르면 ok=false 다', async () => {
+  await withRollback(async (client) => {
+    const code = branchCode('DRIFT');
+    // 여기서는 provision_branch 로 정상 지점을 만든 뒤 한 계정만 어긋뜨린다.
+    await client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
+      code,
+      'Drift Test',
+      '2026-03-01',
+      50000000,
+    ]);
+    const before = await client.query(
+      'SELECT ok FROM ledger.v_check_branch_provisioning WHERE branch = $1',
+      [code]
+    );
+    assert.equal(before.rows[0].ok, true, '테스트 전제가 깨졌다 — 갓 만든 지점이 ok=false 다');
+
+    // 종류도 개수도 그대로다. 성격 하나만 정책과 어긋난다.
+    //
+    // 방향이 중요하다. 003:123 의 accounts_kind_consistent 는 BEFORE UPDATE 로도
+    // 돌면서 (가) normal_balance 가 종류와 안 맞으면 거부하고 (나) allow_negative
+    // = true 를 suspense · house_gaming · promo_expense · opening_equity 외에는
+    // 거부한다. 그래서 **true → false 만이 트리거를 통과하는 드리프트**다.
+    // 나머지 두 방향은 DB 가 이미 막고 있으니 뷰가 메울 구멍은 이것 하나다.
+    await client.query(
+      `UPDATE ledger.accounts a SET allow_negative = false
+         FROM ledger.parties p
+        WHERE p.id = a.party_id AND p.home_branch = $1 AND a.kind = 'suspense'`,
+      [code]
+    );
+
+    const { rows } = await client.query(
+      `SELECT ok, house_account_count, missing_house_accounts
+         FROM ledger.v_check_branch_provisioning WHERE branch = $1`,
+      [code]
+    );
+    assert.equal(rows[0].house_account_count, HOUSE_KINDS.length, '개수는 그대로여야 한다');
+    assert.equal(rows[0].missing_house_accounts, 1);
+    assert.equal(rows[0].ok, false, 'allow_negative 가 정책과 달라도 ok=true 로 나온다 — 개수만 세고 있다');
+  });
+});
+
+test('R-01-06 ledger_read 가 검사 뷰를 실제로 조회할 수 있다', async () => {
+  // 소유자로만 돌면 이 테스트가 잡는 것은 하나도 안 잡힌다 — 소유자는
+  // GRANT 와 RLS 를 우회한다. 이 뷰는 security_invoker 라 identity.staff_branches
+  // 를 호출자 권한으로 읽는데, 012 는 ledger_read 에 그 SELECT 를 주지 않았다.
+  const rows = await asRole('ledger_read', async (client) => {
+    const r = await client.query(
+      `SELECT branch, ok, has_staff FROM ledger.v_check_branch_provisioning
+        WHERE branch = 'HANN'`
+    );
+    return r.rows;
+  });
+  assert.equal(rows.length, 1, 'ledger_read 가 검사 뷰에서 아무 행도 못 본다');
+  assert.equal(rows[0].ok, true);
+});

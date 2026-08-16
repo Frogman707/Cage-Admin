@@ -505,6 +505,67 @@ LEFT JOIN ledger.transactions t ON t.id = e.transaction_id
 GROUP BY g.id, g.game_no, g.branch, g.status, g.buyin_minor;
 
 -- =============================================================================
+-- 설치 완결성 검사 — 반쪽 지점 (design-review DR-60 · AC-60-2)
+-- =============================================================================
+-- 지점 추가가 branches INSERT 한 줄로 끝난 것처럼 보이지만, branch_config ·
+-- chain_heads · 하우스 주체 · 하우스 계정이 함께 있어야 한다. chain_heads 를
+-- 빠뜨리면 **그 지점의 첫 거래에서** 터진다 — 스키마 적용 시점이 아니라 운영 중이다.
+--
+-- 위 R1~R9 와 달리 v_integrity_status 에 넣지 않는다. 이것은 원장 정합성이 아니라
+-- 설치 완결성이고, 거래를 차단할 일이 아니라 배포를 막을 일이다
+-- (v_check_view_security · v_check_public_execute 와 같은 등급).
+-- R 번호도 쓰지 않는다 — R10·R11 이 스펙 01 §6 에 예약돼 있다
+-- (10-acceptance-criteria.md §11 대장).
+--
+-- has_staff 는 **정보 열이다.** ok 판정에 넣지 않는다 — 직원 배정은
+-- provision_branch() 의 일이 아니고, 갓 만든 지점에 직원이 없는 것은 결함이 아니다.
+--
+-- 하우스 계정은 **개수가 아니라 집합으로** 본다. count(*) > 0 으로 두면 11 종 중
+-- 10 종이 사라진 지점도 ok=true 다 — 그런 지점은 스키마 적용 시점이 아니라
+-- 상대 계정을 못 찾는 첫 분개에서 터진다. 그래서 003 의 house_account_policy
+-- 와 대조하고, 종류뿐 아니라 성격(normal_balance · allow_negative)과 통화까지 본다.
+CREATE VIEW ledger.v_check_branch_provisioning
+  WITH (security_invoker = true) AS
+SELECT
+  t.*,
+  (t.has_config
+   AND t.has_chain_head
+   AND t.has_house_party
+   AND t.missing_house_accounts = 0) AS ok
+  FROM (
+    SELECT
+      b.code   AS branch,
+      b.status AS status,
+      EXISTS (SELECT 1 FROM ledger.branch_config c WHERE c.branch = b.code) AS has_config,
+      EXISTS (SELECT 1 FROM ledger.chain_heads   h WHERE h.branch = b.code) AS has_chain_head,
+      EXISTS (SELECT 1 FROM ledger.parties       p WHERE p.home_branch = b.code
+                AND p.party_type = 'house')                                 AS has_house_party,
+      -- 정보 열. 진단용이며 ok 판정에는 아래 missing_house_accounts 를 쓴다.
+      (SELECT count(*) FROM ledger.accounts a
+         JOIN ledger.parties p2 ON p2.id = a.party_id
+        WHERE p2.home_branch = b.code AND p2.party_type = 'house')::int     AS house_account_count,
+      -- 정책에 있는데 실물이 없거나 성격이 다른 종류의 수. 0 이어야 한다.
+      -- ⚠️ 통화가 'PHP' 로 고정돼 있다 — a03 이 하우스 계정을 통화 곱집합으로
+      -- 넓힐 때 (R-01-11) 이 조건도 함께 넓힌다. 003 의 house_account_policy 와
+      -- 여기, 두 곳이 짝이다.
+      (SELECT count(*) FROM ledger.house_account_policy k
+        WHERE NOT EXISTS (
+          SELECT 1 FROM ledger.accounts a
+            JOIN ledger.parties hp ON hp.id = a.party_id
+           WHERE hp.home_branch = b.code
+             AND hp.party_type    = 'house'
+             AND a.kind           = k.kind
+             AND a.currency       = 'PHP'
+             AND a.normal_balance = k.normal_balance
+             AND a.allow_negative = k.allow_negative))::int                 AS missing_house_accounts,
+      EXISTS (SELECT 1 FROM identity.staff_branches s WHERE s.branch = b.code) AS has_staff
+      FROM ledger.branches b
+  ) t;
+
+COMMENT ON VIEW ledger.v_check_branch_provisioning IS
+  'AC-60-2. ok=false 는 provision_branch() 를 건너뛴 반쪽 지점이거나 하우스 계정이 house_account_policy 와 어긋난 지점이다. missing_house_accounts 가 어느 쪽인지 가른다. has_staff 는 정보 열이며 ok 판정에 들어가지 않는다.';
+
+-- =============================================================================
 -- 설정 드리프트 검사 — security_invoker 누락 (design-review-2.md DR-24)
 -- =============================================================================
 -- 08-adr.md ADR-014 와 06-security.md §257 이 "모든 뷰에 security_invoker = true"
@@ -538,6 +599,7 @@ GRANT SELECT ON
   ledger.v_check_chain_anchor, ledger.v_check_merkle_anchor,
   ledger.v_integrity_status,
   ledger.v_check_view_security,
+  ledger.v_check_branch_provisioning,
   cage.v_check_rolling_projection
 TO ledger_read;
 

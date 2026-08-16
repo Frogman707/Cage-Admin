@@ -269,9 +269,19 @@
 .br-cell.overflow{border:none;color:var(--ink-faint);font-size:9px;display:flex;align-items:center;justify-content:center;}
 .br-cell.tie-only{background:var(--road-green);border:none;width:10px;height:10px;align-self:center;}
 .br-tie{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:flex-end;pointer-events:none;}
-.br-tie::before{content:'';position:absolute;left:10%;top:50%;width:80%;height:2px;background:var(--road-green);transform:rotate(-30deg);}
+/* The tie is a 45-degree stroke straight through the ring, running past it at both ends rather
+   than stopping inside it - measured off the board at 66px across a 52px ring, so 116% of the
+   cell, and 8.3px thick against that ring, so a touch over an eighth of it. */
+.br-tie::before{content:'';position:absolute;left:-8%;top:50%;width:116%;height:2.5px;background:var(--road-green);transform:rotate(-45deg);}
 .br-tie span{position:relative;font-size:7.5px;font-weight:800;color:var(--road-green);background:var(--void);border-radius:2px;padding:0 1px;line-height:1.3;}
 .br-pair{position:absolute;width:4px;height:4px;border-radius:50%;}
+/* On the board the pair dot sits on the ring itself and notches the stroke where it lands - the
+   ring reads as a C with the dot in its opening. The halo is the paper colour, so it cuts the
+   gap; it is 15px against a 52px ring there, a little over a quarter of it. */
+.sd-road .br-pair{width:4.5px;height:4.5px;box-shadow:0 0 0 1.5px #fafafa;}
+/* centred on the ring's stroke at 45 degrees rather than tucked into the cell's corner */
+.sd-road .br-pair.player{top:5%;left:5%;right:auto;bottom:auto;}
+.sd-road .br-pair.banker{top:67%;left:67%;right:auto;bottom:auto;}
 .br-pair.player{top:0;left:0;background:var(--road-blue);}
 .br-pair.banker{bottom:0;right:0;background:var(--road-red);}
 .lobby-card .mini-road .br-pair{width:2.5px;height:2.5px;}
@@ -532,10 +542,9 @@
 .sd-road .br-cell{width:16px;height:16px;border-width:2px;}
 .sd-road .br-cell.tie-only{width:10px;height:10px;}
 .sd-road .bd-cell.overflow,.sd-road .br-cell.overflow,.sd-road .dr-cell.overflow{color:#8a8a8a;}
-/* .br-tie's count badge defaults to a dark pill (matching the dark lobby-card/sidebar
-   backgrounds it was designed for) - on this panel's white/graph-paper background that
-   reads as a stray dark smudge above the ring, so give it a light pill here instead. */
-.sd-road .br-tie span{background:#fff;box-shadow:0 0 0 1px #fff;}
+/* The board draws a tie as the slash alone - the reference has no count on it, and the pill
+   the count used to sit in covered most of the ring it was drawn over. */
+.sd-road .br-tie span{display:none;}
 .sd-road .derived-road-grid{overflow:visible;width:max-content;}
 /* half the Big Road mark, on half its pitch: two derived marks span one ruled square.
    The column gap has to be re-stated at this depth - `.sd-road .br-col` matches the derived
@@ -675,6 +684,8 @@
   .sd-road .br-grid{gap:2px;}
   .sd-road .br-col{gap:2px;}
   .sd-road .br-tie::before{height:1.5px;}
+  /* the pair dot and its notch scale with the phone's smaller ring */
+  .sd-road .br-pair{width:3px;height:3px;box-shadow:0 0 0 1px #fafafa;}
   .sd-road .br-tie span{display:none;}
   .sd-road .derived-road-grid{gap:1px;}
   .sd-road .derived-road-grid .dr-cell{width:5px;height:5px;border-width:1px;}

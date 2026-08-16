@@ -8,6 +8,7 @@
 | `helpers/`    | 세 역할 풀 · 커밋/롤백 래퍼 · SQLSTATE 단언 · `ledger.entries` 조회                        | —                     |
 | `fixtures/`   | 직원 · 스텝업 토큰 · 4-eyes 승인 · 회원 · 게임 · `withActor`                               | `R-12-23`             |
 | `posting/`    | [`04-posting-rules.md`](../../docs/architecture/04-posting-rules.md) 절별 분개 계약 테스트 | `R-12-02`             |
+| `golden/`     | 스펙 번호별 골든 테스트 — `spec-01-branch` 등                                              | `12` §3               |
 | `invariants/` | 앱 역할 경계 · 지연 제약이 COMMIT 에서 발화하는 것 · `SET CONSTRAINTS` 금지 증명           | `R-01-52` · `R-12-03` |
 | `drift/`      | `v_check_view_security` · `v_check_public_execute` 각 0행                                  | `R-12-05`             |
 
@@ -22,9 +23,18 @@
 - **분개는 `ledger.entries` 를 다시 읽어 단언한다.** `op_*` 반환 JSON 은 함수의 자기 보고서다 (`R-12-02`).
 - **연산 함수는 세 스키마에 흩어져 있다** — `ledger` 12 · `cage` 8 · `identity` 3. 게임 · 실사는 `cage.op_*` 다. `ledger` 만 보면 절반을 놓친다.
 - **파일 병렬 실행을 끈다** (`--test-concurrency=1`). 커밋하는 테스트가 지점 공유 계정을 동시에 건드리면 결과가 실행마다 달라진다.
-- 픽스처는 시드 지점 3종(`HANN` · `NUSTAR` · `ONLINE`)을 쓴다. `ledger.provision_branch()` 가 생기면 그 위로 옮긴다 (`R-12-20`, a02).
+- **새 지점은 `ledger.provision_branch()` 로만 만든다** (`R-12-20`). `db/tests/fixtures/branches.mjs` 의 `provisionBranch()` 가 유일한 경로다. `ledger.branches` 에 직접 INSERT 하면 `branch_config` · `chain_heads` · 하우스 주체 · 하우스 계정이 빠진 **반쪽 지점**이 남고, 그 지점을 쓰는 테스트는 첫 거래에서 터진다. 일부러 반쪽으로 만드는 것은 `AC-60-2` 케이스뿐이다. 대부분의 테스트는 시드 3종(`HANN` · `NUSTAR` · `ONLINE`)을 그대로 쓴다 — 테스트마다 지점을 만들면 하우스 계정이 실행마다 11개씩 쌓인다.
 - 픽스처에 개인정보·실계좌 값을 쓰지 않는다 (`R-12-23`).
 - **잡이 조용히 건너뛰지 않는다.** 경로 필터·조건부 실행으로 스킵되면 머지 차단 신호가 된다 (`R-12-06`).
+
+## 채워진 곳
+
+| 계획 | 채운 것 |
+|---|---|
+| `a01-ci-golden-harness` | `helpers/` · `fixtures/` · `posting/` · `invariants/` · `drift/security` · CI 잡 |
+| `a02-branch-reference` | `golden/spec-01-branch` · `drift/branch-model` · `fixtures/branches` |
+
+대장은 [`docs/superpowers/ROADMAP.md`](../../docs/superpowers/ROADMAP.md).
 
 ## 실행
 

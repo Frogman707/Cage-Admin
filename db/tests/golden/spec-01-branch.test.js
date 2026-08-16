@@ -8,13 +8,12 @@ import assert from 'node:assert/strict';
 import {
   query,
   withRollback,
-  asOwner,
   asMigrator,
   asRole,
   expectSqlState,
-  uniq,
   closePool,
 } from '../helpers/db.mjs';
+import { provisionBranch, branchCode } from '../fixtures/branches.mjs';
 
 // provision_branch 테스트가 커밋한 지점 코드를 여기 모은다. 파일 끝에서 정확히
 // 이 코드들만 지운다 — 시드 3행(HANN·NUSTAR·ONLINE)은 절대 건드리지 않는다.
@@ -149,11 +148,6 @@ const HOUSE_KINDS = [
   'tips_house',
 ];
 
-// branches_code_format: ^[A-Z][A-Z0-9_-]{1,15}$ — 대문자 시작, 총 2~16자.
-function branchCode(prefix) {
-  return `${prefix}${uniq('')}`.toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16);
-}
-
 test('AC-60-3 시드 지점 3곳이 같은 하우스 계정 집합을 갖는다', async () => {
   const rows = await query(
     `SELECT p.home_branch, array_agg(a.kind::text ORDER BY a.kind::text) AS kinds
@@ -238,16 +232,7 @@ test('AC-60-3 하우스 계정 정책이 house_account_policy 한 곳에만 있�
 // 트랜잭션에서 만들어졌는지 다른 커넥션으로 확인해야 하기 때문이다.
 // 롤백으로 확인하면 "한 트랜잭션 안이라 보인다" 와 구분되지 않는다.
 test('R-01-05 · AC-60-3 provision_branch 가 한 트랜잭션에서 5종을 만든다', async () => {
-  const code = branchCode('CEBU');
-
-  await asOwner((client) =>
-    client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
-      code,
-      'Cebu Test',
-      '2026-03-01',
-      50000000,
-    ])
-  );
+  const code = await provisionBranch({ prefix: 'CEBU', name: 'Cebu Test', openedOn: '2026-03-01' });
   provisionedCodes.push(code); // 커밋 성공 직후 등록 — 이후 단언이 실패해도 정리 대상에서 빠지지 않는다.
 
   // 스펙 01 §2-3 의 검증 쿼리를 그대로 쓴다 (참조테이블 판).
@@ -271,15 +256,7 @@ test('R-01-05 · AC-60-3 provision_branch 가 한 트랜잭션에서 5종을 만
 });
 
 test('R-01-05 chain_heads 시드 해시가 창세 규약을 따른다', async () => {
-  const code = branchCode('DAVAO');
-  await asOwner((client) =>
-    client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
-      code,
-      'Davao Test',
-      '2026-03-01',
-      50000000,
-    ])
-  );
+  const code = await provisionBranch({ prefix: 'DAVAO', name: 'Davao Test', openedOn: '2026-03-01' });
   provisionedCodes.push(code); // 커밋 성공 직후 등록 — 이후 단언이 실패해도 정리 대상에서 빠지지 않는다.
 
   // 004:56 의 시드와 같은 식이어야 한다. 다르면 그 지점의 첫 거래에서
@@ -459,15 +436,7 @@ test('R-01-06 · AC-60-2 branches 직접 INSERT 로 만든 반쪽 지점이 잡�
 test('R-01-06 has_staff 는 정보 열이지 ok 판정에 들어가지 않는다', async () => {
   // 갓 만든 지점에 직원이 없는 것은 결함이 아니다. provision_branch 는
   // 직원을 배정하지 않는다 (R-01-05 의 5종에 없다).
-  const code = branchCode('ILOILO');
-  await asOwner((client) =>
-    client.query('SELECT ledger.provision_branch($1, $2, $3, $4)', [
-      code,
-      'Iloilo Test',
-      '2026-03-01',
-      50000000,
-    ])
-  );
+  const code = await provisionBranch({ prefix: 'ILOILO', name: 'Iloilo Test', openedOn: '2026-03-01' });
   provisionedCodes.push(code); // 커밋 성공 직후 등록 — 이후 단언이 실패해도 정리 대상에서 빠지지 않는다.
 
   const [row] = await query(

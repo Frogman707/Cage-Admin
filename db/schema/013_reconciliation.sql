@@ -546,8 +546,13 @@ SELECT
         WHERE p2.home_branch = b.code AND p2.party_type = 'house')::int     AS house_account_count,
       -- 정책에 있는데 실물이 없거나 성격이 다른 종류의 수. 0 이어야 한다.
       -- ⚠️ 통화가 'PHP' 로 고정돼 있다 — a03 이 하우스 계정을 통화 곱집합으로
-      -- 넓힐 때 (R-01-11) 이 조건도 함께 넓힌다. 003 의 house_account_policy 와
-      -- 여기, 두 곳이 짝이다.
+      -- 넓힐 때 (R-01-11) 이 조건도 함께 넓힌다. 짝은 003 의
+      -- ledger.bootstrap_house_accounts() 안 INSERT ... SELECT 다 (만드는 쪽).
+      -- house_account_policy 가 아니다 — 그 테이블에는 통화 컬럼이 없어서
+      -- 넓힐 것이 없다.
+      -- 만드는 쪽만 넓히면 조용히 어긋나고(accounts 의 UNIQUE (party_id, kind,
+      -- currency) 때문에 PHP 행이 남아 이 조건이 계속 만족된다), 여기만 넓히면
+      -- 모든 지점이 즉시 빨개진다. 두 곳을 같은 커밋에서 함께 고친다.
       (SELECT count(*) FROM ledger.house_account_policy k
         WHERE NOT EXISTS (
           SELECT 1 FROM ledger.accounts a

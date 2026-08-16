@@ -106,8 +106,9 @@ test('AC-49-1 · R-01-53 005 의 R4 주석이 013 을 가리킨다', async () =>
   // DR-49: 주석이 R4 위치를 010 이라고 썼던 결함이다. R4 는
   // cage.v_check_rolling_projection 이고 013 에 있다.
   const body = await readFile(path.join(SCHEMA_DIR, '005_games_rolling.sql'), 'utf8');
+  // find() 는 R4 를 언급하는 **첫** 줄을 잡는다 — DR-49 의 결함이 있던 그 줄이다.
   const line = body.split('\n').find((l) => l.includes('R4'));
-  assert.ok(line, '005 에 R4 위치를 알리는 주석이 없다');
+  assert.ok(line, '005 에 R4 를 언급하는 줄이 아예 없다');
   assert.ok(line.includes('013'), `005 의 R4 주석이 013 을 가리키지 않는다: ${line.trim()}`);
   assert.ok(!line.includes('010'), `005 의 R4 주석이 아직 010 을 가리킨다: ${line.trim()}`);
 });

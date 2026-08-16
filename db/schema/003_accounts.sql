@@ -290,8 +290,17 @@ CREATE TRIGGER partner_profiles_party_kind
 -- ⚠️ U2 와 곱해진다. 아래 통화가 'PHP' 로 고정돼 있는데, U2 결정에 따라
 -- 하우스 계정은 branches × currencies × house account_kind 곱집합이어야 한다
 -- (docs/spec/01-ledger-foundation.md R-01-11 · AC-06-4). **그 확장은 스펙 01 §3
--- 이고 계획 a03 소관이다.** 넓힐 자리는 여기 한 곳이다 — 아래 INSERT ... SELECT 에
--- ledger.currencies 를 크로스조인하면 시드 지점과 신규 지점이 함께 따라온다.
+-- 이고 계획 a03 소관이다.**
+--
+-- 넓힐 자리는 **짝을 이루는 두 곳**이다. 한 쪽만 고치면 안 된다.
+--   (가) 만드는 쪽 — 아래 bootstrap_house_accounts() 의 INSERT ... SELECT 에
+--        ledger.currencies 를 크로스조인한다. 시드 지점과 신규 지점이 함께 따라온다.
+--   (나) 보는 쪽 — 013 의 v_check_branch_provisioning 안 missing_house_accounts
+--        하위쿼리에 있는 `a.currency = 'PHP'` 조건.
+-- (가)만 고치면 **조용히 어긋난다**: accounts 의 UNIQUE (party_id, kind, currency)
+-- 때문에 크로스조인은 순증이라 PHP 행이 그대로 남고, (나)의 조건도 계속 만족돼
+-- 모든 지점이 초록으로 나온다 — 새 통화 계정이 정책과 어긋나 있어도 모른다.
+-- (나)만 고치면 **모든 지점이 즉시 빨개진다** — 없는 통화 계정을 찾기 때문이다.
 -- 현재 상태에서 PHP 외 통화 거래는 상대 하우스 계정이 없어 실패한다.
 
 -- 하우스 계정 정책. ENUM 을 참조 테이블로 옮긴 U4 와 같은 방향이다.

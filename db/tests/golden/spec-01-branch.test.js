@@ -31,8 +31,16 @@ const provisionedCodes = [];
 // calling end" 로 죽는다.
 //
 // 이 정리가 없으면 이 파일을 db:reset 없이 두 번 돌릴 때마다 CEBU·DAVAO·BAGUIO
-// 계열 지점이 누적되고, 시드 3행만을 기대하는 :114-134(U4 시드 3행) ·
-// :157-171(AC-60-3 시드 지점 3곳) 의 전체 테이블 단언이 두 번째 실행부터 깨진다.
+// 계열 지점이 누적되고, 시드 3행만을 기대하는 두 단언 —
+// 'U4 시드 3행이 HANN · NUSTAR · ONLINE 이고 opened_on 이 채워져 있다' 와
+// 'AC-60-3 시드 지점 3곳이 같은 하우스 계정 집합을 갖는다' — 이 두 번째 실행부터 깨진다.
+//
+// ⚠️ 이 정리가 덮는 범위는 **이 파일이 프로비저닝한 지점뿐이다.** 다른 파일이 시드
+// 3행에 커밋해 둔 것은 지우지 못하고, 지워서도 안 된다 — 그 파일의 픽스처다.
+// 실제로 db/tests/posting/section-03-transfer.test.js 가
+// seedHouseAccount('HANN', 'house_cash', 'KRW') 를 커밋한다. 그래서 아래 하우스 계정
+// 단언들은 통화를 'PHP' 로 좁혀 a02 가 소유한 것만 본다. 좁히지 않으면 이 파일의
+// 통과 여부가 전체 실행에서 golden/ 이 posting/ 보다 먼저 정렬된다는 사실에 매달린다.
 after(async () => {
   if (provisionedCodes.length === 0) return;
   await query(
@@ -149,11 +157,15 @@ const HOUSE_KINDS = [
 ];
 
 test('AC-60-3 시드 지점 3곳이 같은 하우스 계정 집합을 갖는다', async () => {
+  // a02 가 소유한 통화는 'PHP' 하나다. 다른 파일이 시드 지점에 커밋해 둔 비-PHP
+  // 계정(posting/section-03-transfer.test.js 의 HANN/house_cash/KRW)까지 세면
+  // 이 단언의 통과 여부가 파일 정렬 순서에 매달린다 — 검사하려는 성질이 아니다.
   const rows = await query(
     `SELECT p.home_branch, array_agg(a.kind::text ORDER BY a.kind::text) AS kinds
        FROM ledger.parties p
        JOIN ledger.accounts a ON a.party_id = p.id
       WHERE p.party_type = 'house'
+        AND a.currency = 'PHP'
       GROUP BY p.home_branch
       ORDER BY p.home_branch`
   );
@@ -213,17 +225,20 @@ test('AC-60-3 하우스 계정 정책이 house_account_policy 한 곳에만 있�
     'house_account_policy 의 종류 집합이 기대와 다르다'
   );
 
-  // 시드 지점의 실제 계정이 정책과 한 행도 어긋나지 않는다.
-  // currency 가 'PHP' 로 고정된 것은 의도다 — 곱집합 확장은 a03 (R-01-11).
+  // 시드 지점의 PHP 하우스 계정이 정책과 한 행도 어긋나지 않는다.
+  //
+  // 'PHP' 는 **범위를 좁히는 조건이지 단언이 아니다.** "비-PHP 하우스 계정이 없다"
+  // 로 쓰면 다른 파일이 시드 지점에 커밋한 KRW 픽스처에 걸려, 이 단언의 통과 여부가
+  // 파일 정렬 순서에 매달린다. a02 가 소유한 통화는 PHP 하나이므로 PHP 행만 본다 —
+  // 곱집합 확장(a03 · R-01-11) 뒤에도 이 성질은 그대로 참이다.
   const [drift] = await query(
     `SELECT count(*)::int AS n
        FROM ledger.parties p
-       JOIN ledger.accounts a ON a.party_id = p.id
+       JOIN ledger.accounts a ON a.party_id = p.id AND a.currency = 'PHP'
        JOIN ledger.house_account_policy k ON k.kind = a.kind
       WHERE p.party_type = 'house'
         AND (a.normal_balance <> k.normal_balance
-          OR a.allow_negative <> k.allow_negative
-          OR a.currency <> 'PHP')`
+          OR a.allow_negative <> k.allow_negative)`
   );
   assert.equal(drift.n, 0, '시드 하우스 계정이 house_account_policy 와 어긋난다');
 });
@@ -324,6 +339,26 @@ test('R-01-05 임계값 0 이하는 거부된다 (DR-39 센티널 규약)', asyn
         'Zero threshold',
         '2026-03-01',
         0,
+      ])
+    )
+  );
+});
+
+test('R-01-05 존재하지 않는 타임존은 프로비저닝 시점에 거부된다', async () => {
+  // 글자 하나가 어긋난 'Asia/Manilla'. 검증이 없으면 이 지점은 만들어지고,
+  // 013 의 검사 뷰가 ok=true 로 보고하고, business_date_of() 가 도는
+  // **그 지점의 첫 거래에서** 죽는다 — provision_branch 가 없애려던 지연 그대로다.
+  //
+  // 22023 = invalid_parameter_value (RAISE ... USING ERRCODE 로 확인).
+  // 위치 인자 4개 뒤에 이름 지정으로 p_timezone 만 넘긴다 — p_is_online 은 기본값.
+  await expectSqlState('22023', () =>
+    withRollback((client) =>
+      client.query('SELECT ledger.provision_branch($1, $2, $3, $4, p_timezone => $5)', [
+        branchCode('BADTZ'),
+        'Bad timezone',
+        '2026-03-01',
+        50000000,
+        'Asia/Manilla',
       ])
     )
   );

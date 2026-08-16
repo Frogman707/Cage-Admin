@@ -667,6 +667,18 @@ SECURITY DEFINER
 SET search_path = ledger, pg_temp
 AS $$
 BEGIN
+  -- 0. 타임존 검증. branch_config 의 CHECK 는 임계값 하나뿐이고 timezone 은
+  --    아무도 보지 않는다. 그런데 001 의 business_date_of() 가
+  --    `p_ts AT TIME ZONE v_tz` 로 그 값을 쓴다 — 'Asia/Manilla' 처럼 글자
+  --    하나가 어긋난 값은 여기서 막지 않으면 013 의 검사 뷰에 ok=true 로 나오고
+  --    **그 지점의 첫 거래에서** `time zone "..." not recognized` 로 죽는다.
+  --    그것이 이 함수가 없애려고 쓰인 바로 그 지연이다 (위 chain_heads 설명과
+  --    같은 부류). ledger_migrator 도 닿는 경로이므로 함수 안에서 본다.
+  PERFORM 1 FROM pg_timezone_names WHERE name = p_timezone;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'unknown timezone: %', p_timezone USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
   -- 1. 지점 행. code 형식 · name 길이 · status 값은 branches 의 CHECK 가 본다.
   INSERT INTO ledger.branches (code, name, is_online, opened_on)
   VALUES (p_code, p_name, p_is_online, p_opened_on);

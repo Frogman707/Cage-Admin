@@ -157,34 +157,6 @@ async function writeRoundDoc(db, {tableId, tableType, roundNo, shoeNo, sim, star
   return id;
 }
 
-/* ---------------- per-table live still ----------------
-   A table doc can name its own photo in `photo` - a filename in shared/assets, or any URL - and
-   that is what a real per-table camera feed still would be wired to. Without one, the table id
-   picks a bundled still, so two tables never land on the same look by accident and a table added
-   tomorrow gets its own without anybody filling in a field. */
-const TABLE_STILLS = ['table-live-1.jpg','table-live-2.jpg','table-live-3.jpg','table-live-4.jpg','table-live-5.jpg','table-live-6.jpg'];
-const TABLE_STILL_DIR = '../shared/assets/';
-function tableStillUrl(table){
-  const named = table && table.photo;
-  if (named) return /^(https?:)?\/\//.test(named) ? named : TABLE_STILL_DIR + named;
-  return TABLE_STILL_DIR + TABLE_STILLS[hashTableId(String((table && table.id) || '')) % TABLE_STILLS.length];
-}
-/* FNV-1a with murmur3's finaliser. Table ids differ only in their last character or two
-   (HN-A01, HN-A02, NU-A01...), and a plain rolling hash leaves that difference in the low bits
-   the modulo reads - the six seeded tables came out sharing two stills between them. The
-   avalanche step spreads it, and gives all six a still of their own. */
-function hashTableId(key){
-  let h = 0x811c9dc5;
-  for (let i=0;i<key.length;i++){ h ^= key.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
-  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b) >>> 0;
-  h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35) >>> 0;
-  return (h ^ (h >>> 16)) >>> 0;
-}
-/* as an inline style, for the elements that paint the still through --still */
-function tableStillStyle(table){
-  return `--still:url('${tableStillUrl(table)}')`;
-}
-
 /* ---------------- Big Road roadmap builder ----------------
    buildBigRoad groups the shoe into runs (a run = consecutive wins by the same side, which is
    what one Big Road column represents), and layoutRoadGrid places those runs on the board the

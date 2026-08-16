@@ -356,12 +356,44 @@ function paintRoad(el, html){
   // a road on the board scrolls with its band (the band carries the ruling, so the two travel
   // together); elsewhere the painted element is the scroller itself
   const scroller = (el.closest && el.closest('.sd-road-band')) || el;
-  const pin = () => { el.scrollLeft = el.scrollWidth; scroller.scrollLeft = scroller.scrollWidth; };
+  const pin = () => { snapRoadToColumns(el, scroller); el.scrollLeft = el.scrollWidth; scroller.scrollLeft = scroller.scrollWidth; };
   pin();
   // Two things can invalidate that first pin: another repaint later in the same tick can resize
   // the road (the tally counters sitting left of the Bead Plate widen as the shoe grows), and a
   // road painted while its screen is still hidden measures zero. Re-pin once the frame settles.
   requestAnimationFrame(pin);
+}
+/* Parking a road at scrollWidth puts its newest column against the right edge, but the distance
+   scrolled is then whatever the shoe happens to measure - almost never a whole number of columns,
+   so the column at the left edge was being sliced down the middle. Pad the road out on the right
+   until that distance divides evenly, and both edges land on a column: the newest is still whole
+   against the right, and the oldest one on screen starts where a column starts.
+   The pad goes on the right because the left edge is where the ruling is anchored - padding that
+   side would carry the marks off their squares. */
+function snapRoadToColumns(grid, scroller){
+  const old = grid.lastElementChild;
+  if (old && old.classList && old.classList.contains('br-gap')) grid.removeChild(old);
+  const cols = grid.children;
+  if (cols.length < 2) return;
+  scroller.scrollLeft = scroller.scrollWidth;
+  if (scroller.scrollWidth <= scroller.clientWidth) return;
+  const pitch = cols[1].getBoundingClientRect().left - cols[0].getBoundingClientRect().left;
+  if (pitch <= 0) return;
+  const cs = getComputedStyle(scroller);
+  const viewLeft = scroller.getBoundingClientRect().left
+                 + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+  // where the left edge falls on the lattice the columns are laid out on
+  const off = ((viewLeft - cols[0].getBoundingClientRect().left) % pitch + pitch) % pitch;
+  const pad = (pitch - off) % pitch;
+  if (pad < 0.5 || pad > pitch - 0.5) return;
+  // the pad is a flex item, so the row's own column gap lands in front of it as well - pull that
+  // back or the road grows by pad + gap and lands just as crooked as it started
+  const rowGap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+  const gap = document.createElement('i');
+  gap.className = 'br-gap';
+  gap.style.cssText = 'flex:0 0 auto;width:' + pad.toFixed(2) + 'px;margin-left:' + (-rowGap) + 'px;';
+  grid.appendChild(gap);
+  scroller.scrollLeft = scroller.scrollWidth;
 }
 
 /* Same pin for roads that ship inside a bigger block of markup rather than being painted into
@@ -369,7 +401,10 @@ function paintRoad(el, html){
    Those are overflow:hidden, so a card whose shoe has more columns than the card is wide would
    otherwise be stuck showing the oldest results with no way to swipe to the newest. */
 function pinRoadsIn(root){
-  const pin = () => (root || document).querySelectorAll('.mini-road').forEach(el=>{ el.scrollLeft = el.scrollWidth; });
+  const pin = () => (root || document).querySelectorAll('.mini-road').forEach(el=>{
+    snapRoadToColumns(el, el);
+    el.scrollLeft = el.scrollWidth;
+  });
   pin();
   requestAnimationFrame(pin);
 }

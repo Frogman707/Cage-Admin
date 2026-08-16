@@ -544,6 +544,16 @@
    The bands still read as one continuous sheet: their offsets (0/126/198/270) are all whole
    multiples of the 18px square, so every band's rules fall exactly where a single panel-wide
    grid would have put them. */
+/* The board draws no scrollbars. On a browser that gives them their own space (rather than
+   overlaying them) an 8px bar came out of every band's height, which squeezed the six rows off
+   their ruling and set a vertical bar going on top of that. The roads still slide - they are
+   pinned to the newest column, and can be dragged or wheeled sideways - they just carry no
+   chrome, which is how a real board reads. Vertical scrolling is off outright: a band is exactly
+   as deep as its six rows, so there is never anything below to scroll to. */
+.sd-road-band,.bead-road,.mini-road,.derived-road-grid,.br-grid,.sd-board-row{scrollbar-width:none;-ms-overflow-style:none;}
+.sd-road-band::-webkit-scrollbar,.bead-road::-webkit-scrollbar,.mini-road::-webkit-scrollbar,
+.derived-road-grid::-webkit-scrollbar,.br-grid::-webkit-scrollbar,.sd-board-row::-webkit-scrollbar{display:none;width:0;height:0;}
+.sd-road-band,.bead-road,.mini-road,.derived-road-grid{overflow-y:hidden;}
 .sd-road-band,.sd-tally .bead-road{
   background-image:linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
                     linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);

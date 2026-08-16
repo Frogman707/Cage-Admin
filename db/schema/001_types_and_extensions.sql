@@ -46,20 +46,39 @@ COMMENT ON SCHEMA archive  IS '레거시 Firestore 스냅샷. 조회 전용이�
 CREATE TABLE ledger.branches (
   code        TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
+
+  -- 스펙 01 §2-1 에 없지만 남긴다. ONLINE 지점이라는 사실을 대체할 컬럼이
+  -- 스펙에 없어서, 지우면 그 사실이 스키마에서 사라진다.
   is_online   BOOLEAN NOT NULL DEFAULT false,
-  active      BOOLEAN NOT NULL DEFAULT true,
+
+  -- active BOOLEAN 을 대체한다 (스펙 01 §2-1). 같은 사실을 두 컬럼이 말하면
+  -- 어긋났을 때 어느 쪽이 맞는지 스키마가 답하지 못한다.
+  -- §2-3 · §3-2 의 검증 쿼리가 status = 'active' 로 거른다.
+  status      TEXT NOT NULL DEFAULT 'active',
+
+  -- U1=데모라 실제 개점일이 없다. 시드 3행의 값은 자리표시값이며
+  -- NOT NULL 을 풀지 않는다 — 풀면 "모른다" 가 데이터에 남지 않는다.
+  opened_on   DATE NOT NULL,
+
   created_at  TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-  CONSTRAINT branches_code_format CHECK (code ~ '^[A-Z][A-Z0-9_]{1,15}$')
+
+  -- 하이픈을 허용한다 (스펙 01 §2-1). 지점 코드에 구분자를 쓰는 사례가 있다.
+  CONSTRAINT branches_code_format CHECK (code ~ '^[A-Z][A-Z0-9_-]{1,15}$'),
+  CONSTRAINT branches_name_length CHECK (length(name) BETWEEN 1 AND 64),
+  CONSTRAINT branches_status_values CHECK (status IN ('active','suspended','closed'))
 );
 
 COMMENT ON TABLE ledger.branches IS
   '지점 참조 테이블. 지점 추가는 provision_branch() 경유이며 직접 INSERT 는 반쪽 지점을 만든다.';
 
 -- 현행 index.html:4563 / :6430 의 하드코딩 3개 지점을 그대로 옮긴 것.
-INSERT INTO ledger.branches (code, name, is_online) VALUES
-  ('HANN',   'Hann',   false),
-  ('NUSTAR', 'NUSTAR', false),
-  ('ONLINE', 'Online', true);
+-- opened_on 은 자리표시값이다 — U1=데모 결정으로 이관할 실제 개점일이 없다
+-- (docs/spec/00-decisions.md §2). 실지점 운영이 정해지면 여기와
+-- 07-migration.md 의 컷오버 체크리스트를 함께 고친다.
+INSERT INTO ledger.branches (code, name, is_online, opened_on) VALUES
+  ('HANN',   'Hann',   false, DATE '2026-01-01'),
+  ('NUSTAR', 'NUSTAR', false, DATE '2026-01-01'),
+  ('ONLINE', 'Online', true,  DATE '2026-01-01');
 
 -- -----------------------------------------------------------------------------
 -- 계정 체계

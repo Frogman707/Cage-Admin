@@ -107,9 +107,27 @@
 .lobby-card .stat-row b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
 .lobby-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
 .lobby-toolbar select{background:var(--panel-raised);color:var(--ink);border:1px solid var(--line);padding:7px 10px;border-radius:var(--radius);font-size:12.5px;}
-.casino-tabs{display:flex;align-items:center;gap:22px;border-bottom:1px solid var(--line);margin-bottom:16px;}
-.casino-tab{background:none;border:none;color:var(--ink-faint);padding:9px 2px;font-size:13px;font-weight:700;letter-spacing:.2px;border-bottom:2px solid transparent;margin-bottom:-1px;}
+/* Each house is picked by its own mark with its name under it, centred on the rule, as the
+   reference lobby lists them. The one that is not selected reads back: its mark goes to grey
+   and half strength, so the house in play is the only one in colour. */
+.casino-tabs{display:flex;align-items:flex-end;justify-content:center;gap:34px;border-bottom:1px solid var(--line);margin-bottom:16px;}
+.casino-tab{
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+  background:none;border:none;color:var(--ink-faint);padding:10px 8px 9px;
+  font-size:12.5px;font-weight:700;letter-spacing:.2px;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+}
+.casino-tab .cl-mark{display:flex;align-items:center;justify-content:center;height:30px;}
+.casino-tab .cl-mark svg{height:100%;width:auto;display:block;}
+.casino-tab:not(.active) .cl-mark{filter:grayscale(1);opacity:.42;}
+.casino-tab:hover .cl-mark{opacity:.75;}
 .casino-tab.active{color:var(--brass);border-bottom-color:var(--brass);}
+.casino-tab.active .cl-mark{filter:none;opacity:1;}
+@media (max-width:640px){
+  .casino-tabs{gap:16px;}
+  .casino-tab{font-size:11.5px;padding:8px 4px 7px;gap:5px;}
+  .casino-tab .cl-mark{height:24px;}
+}
 .game-type-tabs{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
 .game-type-tab{background:var(--panel-raised);border:1px solid var(--line);color:var(--ink-dim);padding:8px 16px;border-radius:20px;font-size:12.5px;font-weight:700;}
 .game-type-tab.active{border-color:var(--danger);color:var(--danger);}

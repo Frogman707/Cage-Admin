@@ -353,6 +353,7 @@ function renderDerivedRoad(marks, style){
 function paintRoad(el, html){
   if (!el) return;
   el.innerHTML = html;
+  watchRoadRelayout();
   // a road on the board scrolls with its band (the band carries the ruling, so the two travel
   // together); elsewhere the painted element is the scroller itself
   const scroller = (el.closest && el.closest('.sd-road-band')) || el;
@@ -394,6 +395,29 @@ function snapRoadToColumns(grid, scroller){
   gap.style.cssText = 'flex:0 0 auto;width:' + pad.toFixed(2) + 'px;margin-left:' + (-rowGap) + 'px;';
   grid.appendChild(gap);
   scroller.scrollLeft = scroller.scrollWidth;
+}
+
+/* The pad a road carries is measured against the width its band had when it was painted, so a
+   rotation or any other resize leaves it stale and the left edge starts slicing again. Roads are
+   only repainted when a round finishes, which on a slow table is a while to sit looking at a cut
+   column, so re-measure them all when the window changes instead of waiting. */
+const ROAD_SCROLLERS = '.sd-road .br-grid, .sd-road .derived-road-grid, .bead-road, .mini-road';
+let roadRelayoutWatched = false;
+function resnapRoads(root){
+  (root || document).querySelectorAll(ROAD_SCROLLERS).forEach(grid=>{
+    const scroller = grid.closest('.sd-road-band') || grid;
+    snapRoadToColumns(grid, scroller);
+    grid.scrollLeft = grid.scrollWidth;
+    scroller.scrollLeft = scroller.scrollWidth;
+  });
+}
+function watchRoadRelayout(){
+  if (roadRelayoutWatched || typeof window === 'undefined') return;
+  roadRelayoutWatched = true;
+  let pending = null;
+  const again = () => { clearTimeout(pending); pending = setTimeout(()=>resnapRoads(), 80); };
+  window.addEventListener('resize', again);
+  window.addEventListener('orientationchange', again);
 }
 
 /* Same pin for roads that ship inside a bigger block of markup rather than being painted into

@@ -357,7 +357,9 @@ function paintRoad(el, html){
   // a road on the board scrolls with its band (the band carries the ruling, so the two travel
   // together); elsewhere the painted element is the scroller itself
   const scroller = (el.closest && el.closest('.sd-road-band')) || el;
-  const pin = () => { snapRoadToColumns(el, scroller); el.scrollLeft = el.scrollWidth; scroller.scrollLeft = scroller.scrollWidth; };
+  // snapRoadToColumns parks the road itself - pinning again after it would undo the pixel or
+  // two it backs off by to land the left edge on a whole column
+  const pin = () => snapRoadToColumns(el, scroller);
   pin();
   // Two things can invalidate that first pin: another repaint later in the same tick can resize
   // the road (the tally counters sitting left of the Bead Plate widen as the shoe grows), and a
@@ -390,17 +392,18 @@ function snapRoadToColumns(grid, scroller){
   // scrollLeft counts from the content's start edge, and a scroller clips at its padding box, so
   // the scroller's own left padding sits between the two
   const padLeft = parseFloat(getComputedStyle(scroller).paddingLeft) || 0;
-  const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+  // The far end is read back off the browser rather than worked out from scrollWidth minus
+  // clientWidth: both of those are whole numbers, and a band a third of a panel wide is not, so
+  // the sum was over a pixel out and the road paid for it on one edge or the other.
+  scroller.scrollLeft = scroller.scrollWidth;
+  const maxScroll = scroller.scrollLeft;
   // a road that fits is already where it starts, which is a column start
-  if (maxScroll <= 0){ scroller.scrollLeft = 0; return; }
+  if (maxScroll <= 0) return;
   // Pad the road out on the right until the distance scrolled leaves the left edge on a column
   // start. The pad goes on the right because the left edge is where the ruling is anchored -
   // padding that side would carry the marks off their squares.
   const want = maxScroll - padLeft;
-  // the column the left edge should come to rest on. scrollWidth and offsetLeft are both whole
-  // numbers, so allow a pixel of slack either way - reading a start as a hair past `want` and
-  // padding out to the one after it would leave a whole empty column against the right edge.
-  const target = starts.find(s => s - want >= -1.5);
+  const target = starts.find(s => s - want >= -0.5);
   if (target !== undefined && target - want >= 0.5){
     // the pad is a flex item, so the row's own column gap lands in front of it as well - pull that
     // back or the road grows by pad + gap and lands just as crooked as it started
@@ -420,11 +423,9 @@ function snapRoadToColumns(grid, scroller){
     const d = Math.abs(edge - starts[i]);
     if (d < dist){ dist = d; near = starts[i]; }
   }
-  // half a gutter of slack backwards: scrollLeft itself only lands on whole device pixels, so
-  // aiming exactly at the column start can still leave a hair of it past the edge. Backwards is
-  // free - the gutter between columns is empty paper - while forwards is a sliced mark.
-  const bias = Math.min(0.5, ((parseFloat(getComputedStyle(grid).columnGap) || 1) / 2));
-  if (edge - near >= 0.05) scroller.scrollLeft = near + padLeft - bias;
+  // a sub-pixel residue is left alone: backing off for it would cost the newest column on the
+  // right edge the same hair it saves on the left
+  if (edge - near >= 0.5) scroller.scrollLeft = near + padLeft;
 }
 
 /* The pad a road carries is measured against the width its band had when it was painted, so a
@@ -435,10 +436,7 @@ const ROAD_SCROLLERS = '.sd-road .br-grid, .sd-road .derived-road-grid, .bead-ro
 let roadRelayoutWatched = false;
 function resnapRoads(root){
   (root || document).querySelectorAll(ROAD_SCROLLERS).forEach(grid=>{
-    const scroller = grid.closest('.sd-road-band') || grid;
-    snapRoadToColumns(grid, scroller);
-    grid.scrollLeft = grid.scrollWidth;
-    scroller.scrollLeft = scroller.scrollWidth;
+    snapRoadToColumns(grid, grid.closest('.sd-road-band') || grid);
   });
 }
 function watchRoadRelayout(){
@@ -455,10 +453,7 @@ function watchRoadRelayout(){
    Those are overflow:hidden, so a card whose shoe has more columns than the card is wide would
    otherwise be stuck showing the oldest results with no way to swipe to the newest. */
 function pinRoadsIn(root){
-  const pin = () => (root || document).querySelectorAll('.mini-road').forEach(el=>{
-    snapRoadToColumns(el, el);
-    el.scrollLeft = el.scrollWidth;
-  });
+  const pin = () => (root || document).querySelectorAll('.mini-road').forEach(el=>snapRoadToColumns(el, el));
   pin();
   requestAnimationFrame(pin);
 }

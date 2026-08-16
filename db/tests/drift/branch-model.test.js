@@ -114,7 +114,10 @@ test('AC-49-1 · R-01-53 005 의 R4 주석이 013 을 가리킨다', async () =>
 
 test('R-01-53 스키마 주석의 R번호 ↔ 파일 참조가 실제와 일치한다', async () => {
   // "R<n>" 과 세 자리 파일 번호가 같은 주석 줄에 있으면, 그 R 번호의 뷰가
-  // 정말 그 파일에 정의돼 있는지 본다.
+  // 정말 그 파일에 정의돼 있는지 본다. 파일 번호는 "013" 처럼 단독으로도,
+  // "013_reconciliation.sql" 처럼 파일명 형태로도 나타난다 — `_` 는 JS 정규식의
+  // 단어 문자라 뒤에 \b 가 서지 않으므로, 앞뒤 경계는 \w 여부로 직접 본다
+  // (숫자가 더 이어지면 013 이 아니라 다른 수다: 0132 는 걸리지 않는다).
   const VIEW_OF = {
     R1: 'v_check_double_entry',
     R2: 'v_check_balance_projection',
@@ -134,7 +137,7 @@ test('R-01-53 스키마 주석의 R번호 ↔ 파일 참조가 실제와 일치�
     for (const [i, line] of body.split('\n').entries()) {
       if (!line.trimStart().startsWith('--')) continue;
       const rs = [...line.matchAll(/\bR(\d{1,2})\b/g)].map((m) => `R${m[1]}`);
-      const targets = [...line.matchAll(/\b(0\d{2})\b/g)].map((m) => m[1]);
+      const targets = [...line.matchAll(/(?<!\w)(0\d{2})(?!\d)/g)].map((m) => m[1]);
       if (rs.length === 0 || targets.length === 0) continue;
 
       for (const r of rs) {

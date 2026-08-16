@@ -63,7 +63,9 @@
 /* ---- lobby ---- */
 .lobby-wrap{padding:22px 24px 60px;max-width:1400px;margin:0 auto;}
 .lobby-title{font-weight:800;font-size:21px;color:var(--brass);margin:0 0 16px;letter-spacing:.2px;}
-.lobby-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px;}
+/* four to a row, as the reference lists them - measured there at 277px cards with 13px
+   gutters, so the columns are set rather than auto-filled to whatever the width allows. */
+.lobby-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;}
 .lobby-card{
   background:linear-gradient(165deg,var(--panel-hi) 0%,var(--panel) 55%);
   border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;
@@ -71,8 +73,10 @@
   box-shadow:0 8px 20px -14px rgba(0,0,0,.6);
 }
 .lobby-card:hover{border-color:var(--brass-dim);transform:translateY(-4px);box-shadow:0 22px 40px -18px rgba(0,0,0,.7), 0 0 0 1px rgba(217,178,106,.15);}
+/* the reference's thumbnails are a wide strip across the felt, not a 16:10 frame - its cards
+   measure 277x93, so the still is cropped to a 3:1 band. */
 .lobby-card .thumb{
-  aspect-ratio:16/10;position:relative;overflow:hidden;
+  aspect-ratio:3/1;position:relative;overflow:hidden;
   background:url('assets/table-live.jpg') center/cover no-repeat;
 }
 @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.3;}}

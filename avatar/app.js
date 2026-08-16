@@ -434,7 +434,7 @@ function renderAvatarLobbyGrid(sortMode){
     const isHot = streak.len >= 3;
     return `
     <div class="lobby-card" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="handleAvatarCardClick('${tb.id}')" title="${t('openTable')}">
-      <div class="thumb"></div>
+      <div class="thumb" style="${tableStillStyle(tb)}"></div>
       <div class="card-status-row">
         ${avatarCardStatusHtml(tb.id)}
         ${isHot ? `<span class="card-hot">🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}</span>` : ''}
@@ -515,7 +515,7 @@ function avatarPreviewShellHtml(state){
         <div class="sd-stage-icons">
           <button onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
         </div>
-        <div class="table-felt"></div>
+        <div class="table-felt" style="${tableStillStyle(tb)}"></div>
       </div>
       ${avatarScoreboardHtml('avatar')}
       <div class="sd-bets avatar-side">
@@ -657,7 +657,7 @@ function avatarTableShellHtml(){
           <button onclick="openTipModal()" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
           <button onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
         </div>
-        <div class="table-felt">
+        <div class="table-felt" style="${tableStillStyle(AVATAR.table)}">
           <div class="cards-area">
             <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCardsAvatar"></div><div class="score" id="playerScoreAvatar"></div></div>
             <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCardsAvatar"></div><div class="score" id="bankerScoreAvatar"></div></div>
@@ -887,7 +887,7 @@ async function loadSpeedTables(){
 function speedTileHtml(tb){
   return `
   <div class="lobby-card speed-tile" id="tile-${tb.id}" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}">
-    <div class="thumb"></div>
+    <div class="thumb" style="${tableStillStyle(tb)}"></div>
     <div class="card-status-row">
       <span class="card-status live">⏱ <b id="timer-${tb.id}">15</b></span>
       <span class="card-hot" id="score-${tb.id}"></span>
@@ -1012,7 +1012,7 @@ function speedDetailShellHtml(tableId){
           <button onclick="toast(t('tipComingSoon'))" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
           <button onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
         </div>
-        <div class="table-felt">
+        <div class="table-felt" style="${tableStillStyle(tb)}">
           <div class="cards-area">
             <div class="hand player"><div class="side-label">PLAYER</div><div class="cards" id="playerCardsDetail"></div><div class="score" id="playerScoreDetail"></div></div>
             <div class="hand banker"><div class="side-label">BANKER</div><div class="cards" id="bankerCardsDetail"></div><div class="score" id="bankerScoreDetail"></div></div>

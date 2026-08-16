@@ -168,6 +168,10 @@
    each side, and it needs its own keyframes - the deal animation ends at transform:none, which
    would drop the rotation on the last frame. */
 .playing-card.third{transform:rotate(90deg);margin:0 10px;animation-name:dealCardSideways;}
+/* The player's hand sits on the left of the felt, so its third card is laid on the outside -
+   to the left of the pair, mirroring the banker's, which stays on the right. It is dealt last,
+   so the order moves it without touching the deal sequence. */
+.hand.player .playing-card.third{order:-1;}
 @keyframes dealCardSideways{
   from{transform:translateY(-30px) translateX(10px) rotate(82deg) rotateY(90deg) scale(.7);opacity:0;}
   to{transform:rotate(90deg);opacity:1;}

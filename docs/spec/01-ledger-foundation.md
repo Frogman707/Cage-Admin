@@ -35,6 +35,8 @@ CREATE TABLE ledger.branches (
 
 전 테이블의 `branch` 컬럼이 `TEXT REFERENCES ledger.branches(code)`가 된다.
 
+**실물은 위 5개에 `is_online BOOLEAN NOT NULL DEFAULT false`를 더한 6개 컬럼이다** (`db/schema/001_core.sql`). 의도된 차이다 — `ONLINE`이 온라인 지점이라는 사실을 대체할 컬럼이 이 절에 없고, `code = 'ONLINE'` 문자열 비교로 대신하면 지점 코드가 곧 지점 종류가 된다 (계획 [`a02`](../superpowers/plans/2026-08-16-a02-branch-reference.md) 결정 1). **이 절에 맞춘다며 지우지 않는다.** 지우려면 온라인 여부를 표현할 다른 컬럼을 이 절에 먼저 넣는다.
+
 ### 2-2. 요구사항
 
 | ID | 요구사항 |

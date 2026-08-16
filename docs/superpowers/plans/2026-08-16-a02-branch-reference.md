@@ -1926,7 +1926,16 @@ ROADMAP §9-3: 각 계획의 종료 게이트 = 해당 스펙의 **골든 테스
 | `R-01-52` | a01 소관 — `grep R-01-52 db/tests/invariants/deferred.test.js` | 테스트가 존재한다 |
 | 기존 하니스가 안 깨졌다 | `PGPASSWORD=devonly npm run test:db` | `# fail 0` |
 
-**a02가 닫지 않는 것 (a03으로 넘어간다):** `R-01-10`~`R-01-16`(통화 5종 · 하우스 계정 곱집합) · `R-01-20`~`R-01-25`(분개 규칙 표) · `R-01-30`~`R-01-40`(불변식) · §6(대사 R1·R2·R7·R10·R11). 특히 **하우스 계정이 아직 `PHP`만이다.** a03이 넓힐 자리는 **짝을 이루는 두 곳**이다 (계획 결정 3): `003`의 `bootstrap_house_accounts()` 안 `INSERT ... SELECT`에 `ledger.currencies`를 크로스조인하고, `013`의 `v_check_branch_provisioning`에서 `a.currency = 'PHP'` 조건을 같이 넓힌다. 앞만 고치면 신규 지점이 초록으로 나오지 않고, 뒤만 고치면 모든 지점이 빨개진다.
+**a02가 닫지 않는 것 (a03으로 넘어간다):** `R-01-10`~`R-01-16`(통화 5종 · 하우스 계정 곱집합) · `R-01-20`~`R-01-25`(분개 규칙 표) · `R-01-30`~`R-01-40`(불변식) · §6(대사 R1·R2·R7·R10·R11). 특히 **하우스 계정이 아직 `PHP`만이다.** a03이 넓힐 자리는 **짝을 이루는 두 곳**이다 (계획 결정 3):
+
+- **(가) 만드는 쪽** — `003`의 `bootstrap_house_accounts()` 안 `INSERT ... SELECT`에 `ledger.currencies`를 크로스조인한다.
+- **(나) 보는 쪽** — `013`의 `v_check_branch_provisioning`에서 `a.currency = 'PHP'` 조건을 같이 넓힌다.
+
+**두 방향은 대칭이 아니다.** (나)만 고치면 **모든 지점이 즉시 빨개진다** — 아직 없는 통화의 계정을 찾기 때문이다. 시끄럽고, 그래서 안전한 쪽이다. (가)만 고치면 **배포 게이트가 조용히 통과한다**: `ledger.accounts`가 `UNIQUE (party_id, kind, currency)`이므로 크로스조인은 순증이고, 각 종류의 `PHP` 행이 그대로 남아 (나)의 조건을 계속 만족시킨다. 실측으로 확인했다 — 만드는 쪽만 넓히면 시드 3지점이 계정을 55개씩 갖고도 `v_check_branch_provisioning`이 `ok = true` · `missing_house_accounts = 0`을 내고, `db/tests/drift/security.test.js`의 스위트 전역 가드도 초록이다.
+
+**그때 빨개지는 것은 검사 뷰가 아니라 `db/tests/golden/spec-01-branch.test.js`의 개수·집합 단언 4건이다** — `house_accounts` / `house_account_count`를 `HOUSE_KINDS.length`와 비교하는 것들로, 통화를 가리지 않고 세기 때문에 `55 ≠ 11`로 걸린다. 그런데 그 실패는 "지점이 반쪽이다"가 아니라 "테스트 기대치가 낡았다"로 읽힌다. a03이 기대치만 갱신하고 지나가면 (나)를 빠뜨린 사실은 어디에도 남지 않는다. **그러므로 (가)와 (나)는 같은 커밋에서 함께 고친다.**
+
+같은 파일의 `array_agg` 집합 단언과 `house_account_policy` 대조 단언은 통화를 `PHP`로 **좁혀** 두었다 — a01이 `db/tests/posting/section-03-transfer.test.js`에서 `HANN`에 `KRW` 하우스 계정을 커밋하기 때문이고, 좁히지 않으면 그 두 단언의 통과 여부가 glob 정렬 순서에 매달린다. 그 대가로 **비-PHP 하우스 계정의 존재 자체를 잡는 단언은 이제 하나도 없다.** 곱집합 확장의 정합성은 a03이 새로 쓰는 검사가 져야 한다.
 
 ---
 

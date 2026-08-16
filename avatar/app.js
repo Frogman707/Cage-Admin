@@ -784,14 +784,16 @@ async function beginAvatarDealingPhase(){
   AVATAR._sim = simulateRound();
   await revealAvatarCards(AVATAR._sim);
 }
-function cardHtml(card){
+function cardHtml(card, index){
   const red = card.suit==='♥' || card.suit==='♦';
-  return `<div class="playing-card ${red?'red':'black'}" data-rank="${card.rank}${card.suit}">${card.suit}</div>`;
+  // the third card of a hand goes down sideways, as it is dealt
+  const third = index===2 ? ' third' : '';
+  return `<div class="playing-card ${red?'red':'black'}${third}" data-rank="${card.rank}${card.suit}">${card.suit}</div>`;
 }
 async function revealAvatarCards(sim){
   const pEl = document.getElementById('playerCardsAvatar'), bEl = document.getElementById('bankerCardsAvatar');
   for (const [side,i] of dealSequence(sim)){
-    (side==='player'?pEl:bEl).insertAdjacentHTML('beforeend', cardHtml(sim[side].cards[i]));
+    (side==='player'?pEl:bEl).insertAdjacentHTML('beforeend', cardHtml(sim[side].cards[i], i));
     await new Promise(r=>setTimeout(r, 260));
   }
   document.getElementById('playerScoreAvatar').textContent = sim.player.score;
@@ -1057,7 +1059,7 @@ async function revealSpeedDetailCards(sim, instant){
   if (!pEl || !bEl) return;
   pEl.innerHTML = ''; bEl.innerHTML = '';
   for (const [side,i] of dealSequence(sim)){
-    (side==='player'?pEl:bEl).insertAdjacentHTML('beforeend', cardHtml(sim[side].cards[i]));
+    (side==='player'?pEl:bEl).insertAdjacentHTML('beforeend', cardHtml(sim[side].cards[i], i));
     if (!instant) await new Promise(r=>setTimeout(r, 260));
   }
   document.getElementById('playerScoreDetail').textContent = sim.player.score;

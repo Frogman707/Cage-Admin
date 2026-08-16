@@ -16,7 +16,7 @@
 | 수치 데이터 타입 | [03 §6](03-ledger-model.md) · [08 ADR-003](08-adr.md) | https://www.postgresql.org/docs/current/datatype-numeric.html |
 | Row Level Security | [06 §4-3](06-security.md) · [`ddl/012`](../../db/schema/012_roles_and_grants.sql) | https://www.postgresql.org/docs/current/ddl-rowsecurity.html |
 | 논리 디코딩 | [02 §4-1](02-target-architecture.md) · [08 ADR-007](08-adr.md) | https://www.postgresql.org/docs/current/logicaldecoding.html |
-| `SET CONSTRAINTS` | [`ddl/README`](ddl/README.md) | https://www.postgresql.org/docs/current/sql-set-constraints.html |
+| `SET CONSTRAINTS` — **금지 규약** | [`ddl/README` § SET CONSTRAINTS ALL IMMEDIATE 금지](ddl/README.md#set-constraints-all-immediate-금지) · 골든 테스트 [`invariants/deferred`](../../db/tests/invariants/deferred.test.js) | https://www.postgresql.org/docs/current/sql-set-constraints.html |
 | PostgreSQL 18 릴리스 | [02 §5-1](02-target-architecture.md) | https://www.postgresql.org/about/news/postgresql-18-released-3142/ |
 | PostgreSQL 18 릴리스 노트 | [02 §5-1](02-target-architecture.md) | https://www.postgresql.org/docs/18/release-18.html |
 | 위키 — Don't Do This | [03 §6](03-ledger-model.md) · [03 §8-1](03-ledger-model.md) | https://wiki.postgresql.org/wiki/Don%27t_Do_This |

@@ -45,6 +45,29 @@ PGPASSWORD=devonly npm run db:apply     # db/scripts/apply.sh — 001 → 013
 
 ## 주의
 
+### `SET CONSTRAINTS ALL IMMEDIATE` 금지
+
+**이 스키마에서 `SET CONSTRAINTS ALL IMMEDIATE` 를 실행하지 않는다.** 애플리케이션 ·
+마이그레이션 · 운영 스크립트 · 테스트 어디서도 마찬가지다.
+
+지연 제약 트리거 4개가 `DEFERRABLE INITIALLY DEFERRED` 다 —
+[`004`](../../../db/schema/004_ledger.sql) 에 셋, [`005`](../../../db/schema/005_games_rolling.sql)
+에 하나. 이들이 COMMIT 시점에 발화하는 것이 설계다. `IMMEDIATE` 로 바꾸면 각 트리거가
+**분개 한 줄이 들어갈 때마다** 돈다.
+
+그러면 **다중 분개 거래가 삽입 순서에 의존하게 된다.** 차대 균형(I1)은 거래의 마지막
+분개가 들어가야 성립하므로 첫 분개에서 반드시 깨진다. 잔액 하한(I2)도 같다 — 차감이
+먼저 들어가면 상계될 입금이 아직 없다. 봉인 트리거는 해시가 채워지기 전의 거래를
+미봉인으로 판정한다. **정상 거래가 실패하고, 실패 이유는 데이터가 아니라 순서다.**
+
+`R-01-50` · `AC-59-1`. 반대편 짝은 `R-01-52` — 골든 테스트
+[`db/tests/invariants/deferred.test.js`](../../../db/tests/invariants/deferred.test.js) 가
+`SET CONSTRAINTS ALL IMMEDIATE` 후 다중 분개 거래가 **의도대로 실패하는 것**을 고정한다
+(`AC-59-3`). 금지가 취향이 아니라 관찰된 동작임을 그 테스트가 증명한다.
+
+같은 규약이 [`db/README.md`](../../../db/README.md) 에도 있다 — 실행 자산 쪽에서
+읽는 사람을 위한 것이고, 근거 문단은 여기다.
+
 - **적용 순서가 계약이다.** 파일 간 FK · 함수 의존이 번호 순서를 전제한다.
   예외 둘:
   - `011` 의 `op_settle_period()` 가 `013` 의 `ledger.integrity_ok()` 를

@@ -607,15 +607,18 @@ UNIQUE이므로 **이후 모든 빈 키 요청이 실패**한다 — 사소한 �
 **검증**
 
 ```sql
--- 지점 프로비저닝 누락 탐지: ENUM 값마다 네 가지가 다 있는가
-SELECT b AS branch,
-       EXISTS (SELECT 1 FROM ledger.branch_config    WHERE branch = b) AS has_config,
-       EXISTS (SELECT 1 FROM ledger.chain_heads      WHERE branch = b) AS has_chain_head,
-       EXISTS (SELECT 1 FROM ledger.parties          WHERE home_branch = b
-                 AND party_type = 'house')                             AS has_house_party,
-       EXISTS (SELECT 1 FROM identity.staff_branches WHERE branch = b) AS has_staff
-  FROM unnest(enum_range(NULL::ledger.branch_code)) AS b;
--- 기대: 전 열 true
+-- 지점 프로비저닝 누락 탐지. U4 전환 후에는 ENUM 이 없으므로 ledger.branches 를 읽는다
+-- (docs/spec/00-decisions.md §5 · R-01-04). 이 쿼리는 013 의
+-- ledger.v_check_branch_provisioning 뷰로 상시화돼 있다 — 아래는 그 정의의 뼈대다.
+SELECT b.code AS branch,
+       EXISTS (SELECT 1 FROM ledger.branch_config    c WHERE c.branch = b.code) AS has_config,
+       EXISTS (SELECT 1 FROM ledger.chain_heads      h WHERE h.branch = b.code) AS has_chain_head,
+       EXISTS (SELECT 1 FROM ledger.parties          p WHERE p.home_branch = b.code
+                 AND p.party_type = 'house')                                    AS has_house_party,
+       EXISTS (SELECT 1 FROM identity.staff_branches s WHERE s.branch = b.code)  AS has_staff
+  FROM ledger.branches b WHERE b.status = 'active';
+-- 기대: has_staff 를 뺀 전 열 true. has_staff 는 정보 열이다 —
+-- provision_branch() 는 직원을 배정하지 않고, 갓 만든 지점에 직원이 없는 것은 결함이 아니다.
 ```
 
 ---

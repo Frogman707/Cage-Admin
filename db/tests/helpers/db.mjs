@@ -129,14 +129,32 @@ export async function asRole(role, fn) {
     throw new Error(`unsafe role name: ${role}`);
   }
   const client = await ownerPool.connect();
+  let rollbackErr;
   try {
     await client.query('BEGIN');
     // SET LOCAL 이라 트랜잭션이 끝나면 사라진다. 풀에 남지 않는다.
     await client.query(`SET LOCAL ROLE "${role}"`);
+    // SET ROLE 은 멤버가 아닌 역할을 지정해도 42501 로 죽는다 — 그 42501 은
+    // "강등된 뒤 거부됐다" 와 구분되지 않는다. 오늘은 소유자 커넥션이 superuser라
+    // SET ROLE 자체가 실패하지 않지만, 그 전제가 깨져도 곧바로 티가 나게 한다.
+    const { rows } = await client.query('SELECT current_user');
+    if (rows[0].current_user !== role) {
+      // SQLSTATE 로 던지지 않는다 — expectSqlState 가 이걸 진짜 권한 거부로
+      // 오인하면 강등 실패가 조용히 초록으로 통과한다.
+      throw new Error(
+        `asRole('${role}') failed to switch role: current_user is '${rows[0].current_user}'`
+      );
+    }
     return await fn(client);
   } finally {
-    await client.query('ROLLBACK').catch(() => {});
-    client.release();
+    await client.query('ROLLBACK').catch((err) => {
+      rollbackErr = err;
+    });
+    // ROLLBACK 이 실패하면 커넥션이 SET LOCAL ROLE 이 걸린 트랜잭션 안에 남는다.
+    // 그대로 release() 하면 다음 대여자가 그 상태를 물려받는다 — 에러를 실어
+    // release 해 풀이 이 커넥션을 버리게 한다(위 주석이 약속하는 "풀에 남지
+    // 않는다"를 실제로 지킨다).
+    client.release(rollbackErr);
   }
 }
 

@@ -16,6 +16,45 @@ import {
   closePool,
 } from '../helpers/db.mjs';
 
+// provision_branch 테스트가 커밋한 지점 코드를 여기 모은다. 파일 끝에서 정확히
+// 이 코드들만 지운다 — 시드 3행(HANN·NUSTAR·ONLINE)은 절대 건드리지 않는다.
+// 각 커밋 테스트가 성공 직후 push 한다. 실패로 push 전에 죽으면 그 코드는
+// 애초에 커밋되지 않았으므로(트랜잭션이 성공해야 push 에 닿는다) 지울 것도 없다.
+const provisionedCodes = [];
+
+// FK 역순으로 지운다: account_balances → accounts → parties → chain_heads →
+// branch_config → branches. account_balances 는 003 의 accounts_create_balance
+// 트리거가 계정마다 자동으로 만들고 accounts 를 참조하므로(ON DELETE 없음)
+// accounts 보다 먼저 지워야 한다.
+//
+// closePool() 보다 먼저 등록한다 — node:test 의 after() 는 등록 순서로 실행된다.
+// 나중에 등록하면 풀이 먼저 닫힌 뒤 이 정리가 돌아 "Cannot use a pool after
+// calling end" 로 죽는다.
+//
+// 이 정리가 없으면 이 파일을 db:reset 없이 두 번 돌릴 때마다 CEBU·DAVAO·BAGUIO
+// 계열 지점이 누적되고, 시드 3행만을 기대하는 :114-134(U4 시드 3행) ·
+// :157-171(AC-60-3 시드 지점 3곳) 의 전체 테이블 단언이 두 번째 실행부터 깨진다.
+after(async () => {
+  if (provisionedCodes.length === 0) return;
+  await query(
+    `DELETE FROM ledger.account_balances
+      WHERE account_id IN (
+        SELECT a.id FROM ledger.accounts a
+        JOIN ledger.parties p ON p.id = a.party_id
+       WHERE p.home_branch = ANY($1))`,
+    [provisionedCodes]
+  );
+  await query(
+    `DELETE FROM ledger.accounts
+      WHERE party_id IN (SELECT id FROM ledger.parties WHERE home_branch = ANY($1))`,
+    [provisionedCodes]
+  );
+  await query('DELETE FROM ledger.parties WHERE home_branch = ANY($1)', [provisionedCodes]);
+  await query('DELETE FROM ledger.chain_heads WHERE branch = ANY($1)', [provisionedCodes]);
+  await query('DELETE FROM ledger.branch_config WHERE branch = ANY($1)', [provisionedCodes]);
+  await query('DELETE FROM ledger.branches WHERE code = ANY($1)', [provisionedCodes]);
+});
+
 after(closePool);
 
 // 컬럼 이름 -> 데이터 타입. 스펙 01 §2-1 이 정한 모양이다.
@@ -209,6 +248,7 @@ test('R-01-05 · AC-60-3 provision_branch 가 한 트랜잭션에서 5종을 만
       50000000,
     ])
   );
+  provisionedCodes.push(code); // 커밋 성공 직후 등록 — 이후 단언이 실패해도 정리 대상에서 빠지지 않는다.
 
   // 스펙 01 §2-3 의 검증 쿼리를 그대로 쓴다 (참조테이블 판).
   const [row] = await query(
@@ -240,6 +280,7 @@ test('R-01-05 chain_heads 시드 해시가 창세 규약을 따른다', async ()
       50000000,
     ])
   );
+  provisionedCodes.push(code); // 커밋 성공 직후 등록 — 이후 단언이 실패해도 정리 대상에서 빠지지 않는다.
 
   // 004:56 의 시드와 같은 식이어야 한다. 다르면 그 지점의 첫 거래에서
   // 해시 체인이 끊어진 것처럼 보인다 — 스키마 적용 시점이 아니라 운영 중이다.
@@ -330,6 +371,7 @@ test('R-01-05 ledger_migrator 가 provision_branch 를 실제로 실행할 수 �
       50000000,
     ])
   );
+  provisionedCodes.push(code); // 커밋 성공 직후 등록 — 이후 단언이 실패해도 정리 대상에서 빠지지 않는다.
 
   // Task 4 의 검사 뷰는 아직 없다. §2-3 원본 쿼리로 본다.
   const [row] = await query(

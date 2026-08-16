@@ -71,11 +71,9 @@
   box-shadow:0 8px 20px -14px rgba(0,0,0,.6);
 }
 .lobby-card:hover{border-color:var(--brass-dim);transform:translateY(-4px);box-shadow:0 22px 40px -18px rgba(0,0,0,.7), 0 0 0 1px rgba(217,178,106,.15);}
-/* --still is set inline per table (see tableStillUrl) so every table shows its own live
-   still; the bundled one is the fallback for anything rendered without a table behind it. */
 .lobby-card .thumb{
   aspect-ratio:16/10;position:relative;overflow:hidden;
-  background:var(--still, url('assets/table-live.jpg')) center/cover no-repeat;
+  background:url('assets/table-live.jpg') center/cover no-repeat;
 }
 @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.3;}}
 .card-favorite{margin-left:auto;width:24px;height:24px;border-radius:50%;background:none;border:none;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -129,7 +127,7 @@
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   background:
     linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.26)),
-    var(--still, url('assets/table-live.jpg')) center/cover no-repeat;
+    url('assets/table-live.jpg') center/cover no-repeat;
 }
 .sd-stage-top{position:absolute;top:14px;left:56px;right:64px;display:flex;align-items:center;gap:10px;z-index:2;flex-wrap:wrap;}
 .sd-type-badge{background:rgba(4,20,30,.7);backdrop-filter:blur(4px);border:1px solid #3fd0e8;color:#3fd0e8;border-radius:14px;padding:5px 16px;font-weight:800;font-size:11.5px;letter-spacing:1px;flex-shrink:0;}

@@ -486,6 +486,9 @@
 .sd-tally .bead-road .br-col{gap:4px;}
 .sd-tally .bead-road .bd-cell{width:32px;height:32px;font-size:17px;}
 .sd-tally .bead-road .br-pair{width:8px;height:8px;}
+/* the two panels are wrapped so the phone can scroll them as one strip; everywhere else the
+   wrapper is transparent and they stay grid items of the detail grid, as they always were */
+.sd-board-row{display:contents;}
 .sd-road{grid-area:road;--rc:18px;padding:10px 14px;display:flex;gap:10px;overflow:hidden;}
 /* The ruling is painted on the element that scrolls - each band, and the Bead Plate - with
    background-attachment:local, so it travels with the marks. Painted on the panel around them
@@ -586,14 +589,25 @@
   .sd-tally,.sd-tally-body,.sd-road{display:contents;}
   .sd-tally-head{display:none;}
   .speed-detail-grid{
-    grid-template-columns:1fr auto;grid-template-rows:none;
-    grid-template-areas:
-      "stage stage"
-      "stats stats"
-      "roads bead"
-      "bets  bets";
+    grid-template-columns:1fr;grid-template-rows:none;
+    grid-template-areas:"stage" "board" "bets";
     gap:8px;
   }
+  /* The board is two pages wide and scrolls sideways: the first is the screen's own width and
+     carries the strip and the roads, the second is the Bead Plate at its full width. Swiping the
+     board left brings the whole Plate into view instead of the two-column sliver that fitted
+     beside the roads. Snapping means it comes to rest on one page or the other. */
+  .sd-board-row{
+    grid-area:board;display:grid;gap:8px 8px;
+    /* page one stops short of the edge so the Plate's first column peeks past it - the cue that
+       there is a second page to swipe to, which is how the reference leaves it */
+    grid-template-columns:calc(100% - 46px) auto;
+    grid-template-areas:
+      "stats stats"
+      "roads bead";
+    overflow-x:auto;scroll-snap-type:x proximity;overscroll-behavior-x:contain;
+  }
+  .sd-board-row > *,.sd-tally-list,.sd-road-legend-rail,.sd-road-main,.sd-tally .bead-road{scroll-snap-align:start;}
   .sd-stage{grid-area:stage;}
   /* the table line reads across in one go, as the reference has it, instead of wrapping onto a
      second line over the felt; and the icon column stops short of the countdown ring it used to
@@ -612,13 +626,15 @@
      opposite ends, rather than the key claiming a column of its own. It had been claiming one,
      and since the Bead Plate sits under it that column went 172px wide and squeezed the roads
      into 188px of a 374px screen. */
-  .sd-tally-list{grid-area:stats;justify-self:start;flex-direction:row;align-items:center;gap:12px;padding:0;margin:0;border:none;align-self:center;}
+  /* the strip stays put while the board slides under it, so the counts and the key are still
+     there to read once the Bead Plate has been swiped into view */
+  .sd-tally-list{grid-area:stats;justify-self:start;position:sticky;left:0;flex-direction:row;align-items:center;gap:12px;padding:0;margin:0;border:none;align-self:center;}
   .sd-tally-list .tl-row{height:auto;gap:5px;font-size:14px;}
   .sd-tally-list .tl-row.pair{display:none;}
   .sd-tally-list .tl-badge{width:20px;height:20px;font-size:11px;}
 
   /* the key reads across instead of down, as two pills on the right of the strip */
-  .sd-road-legend-rail{grid-area:stats;justify-self:end;flex-direction:row;align-items:center;width:auto;gap:7px;border:none;align-self:center;}
+  .sd-road-legend-rail{grid-area:stats;justify-self:end;position:sticky;right:0;flex-direction:row;align-items:center;width:auto;gap:7px;border:none;align-self:center;}
   .sd-road-legend-rail .rail-badge{flex-direction:row;gap:6px;padding:4px 9px;border-radius:14px;font-size:12px;}
   .sd-road-legend-rail .rail-badge .ring,.sd-road-legend-rail .rail-badge .slash{width:10px;height:10px;}
   .sd-road-legend-rail .rail-badge .dot{width:8px;height:8px;}
@@ -626,8 +642,10 @@
   /* the roads keep one card, the Bead Plate gets its own alongside */
   .sd-road-main,.sd-tally .bead-road{background-color:#fafafa;border:1px solid #e4e4e4;border-radius:10px;}
   .sd-road-main{grid-area:roads;padding:5px 7px;min-width:0;}
-  /* background-position follows the padding, so a rule still lands on the first bead's edge */
-  .sd-tally .bead-road{grid-area:bead;width:38px;flex:0 0 auto;padding:5px 4px;background-position:4px 5px;}
+  /* the Plate takes its natural width on its own page - all twelve columns of the window, not
+     the sliver that used to fit beside the roads.
+     background-position follows the padding, so a rule still lands on the first bead's edge. */
+  .sd-tally .bead-road{grid-area:bead;width:max-content;flex:0 0 auto;padding:5px 4px;background-position:4px 5px;overflow:visible;}
 
   /* Big Road across the top, the three derived roads side by side beneath it - which is what
      keeps the reference's board a couple of finger-widths tall instead of four stacked boards. */

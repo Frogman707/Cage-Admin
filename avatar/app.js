@@ -534,8 +534,11 @@ function avatarPreviewShellHtml(state){
 // (스몰로드), Cockroach Road (카카로치) - with the P/B legend rail running the full height of
 // the right edge. `idSuffix` picks the element ids (only one
 // of 'avatar'/'detail' is ever mounted in its view at a time).
+// .sd-board-row is display:contents everywhere except the phone, where it becomes the
+// horizontal scroller that carries the board's two pages - roads, then the full Bead Plate.
 function avatarScoreboardHtml(idSuffix){
   return `
+    <div class="sd-board-row">
       <div class="sd-tally sd-graph-bg">
         <div class="sd-tally-head"><span>${t('dealsLabel')}</span><b id="tallycount-${idSuffix}">#1</b></div>
         <div class="sd-tally-body">
@@ -554,7 +557,8 @@ function avatarScoreboardHtml(idSuffix){
           <div class="rail-badge player">P<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>
           <div class="rail-badge banker">B<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>
         </div>
-      </div>`;
+      </div>
+    </div>`;
 }
 function renderAvatarRoad(){
   const el = document.getElementById('road-avatar'); if (!el) return;

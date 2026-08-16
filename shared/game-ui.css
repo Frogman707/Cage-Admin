@@ -114,19 +114,24 @@
 .casino-tab{
   display:flex;flex-direction:column;align-items:center;gap:7px;
   background:none;border:none;color:var(--ink-faint);padding:10px 8px 9px;
-  font-size:12.5px;font-weight:700;letter-spacing:.2px;
+  font-size:12.5px;font-weight:700;letter-spacing:.2px;min-width:84px;
   border-bottom:2px solid transparent;margin-bottom:-1px;
 }
-.casino-tab .cl-mark{display:flex;align-items:center;justify-content:center;height:30px;}
-.casino-tab .cl-mark svg{height:100%;width:auto;display:block;}
+/* the houses' marks are not the same shape - HANN's monogram is twice as tall as it is wide,
+   Solaire's wordmark nearly twice as wide as tall - so each is given the same height to sit on
+   and takes the width it needs, and the tabs are floored to a common width so the names below
+   them still line up as a row. */
+.casino-tab .cl-mark{display:flex;align-items:flex-end;justify-content:center;height:34px;}
+.casino-tab .cl-mark img{height:100%;width:auto;max-width:78px;object-fit:contain;display:block;}
 .casino-tab:not(.active) .cl-mark{filter:grayscale(1);opacity:.42;}
 .casino-tab:hover .cl-mark{opacity:.75;}
 .casino-tab.active{color:var(--brass);border-bottom-color:var(--brass);}
 .casino-tab.active .cl-mark{filter:none;opacity:1;}
 @media (max-width:640px){
   .casino-tabs{gap:16px;}
-  .casino-tab{font-size:11.5px;padding:8px 4px 7px;gap:5px;}
-  .casino-tab .cl-mark{height:24px;}
+  .casino-tab{font-size:11.5px;padding:8px 4px 7px;gap:5px;min-width:64px;}
+  .casino-tab .cl-mark{height:26px;}
+  .casino-tab .cl-mark img{max-width:60px;}
 }
 .game-type-tabs{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
 .game-type-tab{background:var(--panel-raised);border:1px solid var(--line);color:var(--ink-dim);padding:8px 16px;border-radius:20px;font-size:12.5px;font-weight:700;}

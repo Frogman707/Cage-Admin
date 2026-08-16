@@ -247,46 +247,18 @@ async function chooseSpeed(){
 /* ---------------- lobby casino tabs + game-type filter + search (shared by avatar/speed) ---------------- */
 /* Each house picks its table by its own mark, the way the reference lobby lists them: the logo
    over the name rather than the name alone.
-   The marks are drawn here as SVG rather than shipped as image files so they stay crisp at any
-   size, tint with the tab's own state and cost no request. They are set in the houses' own
-   colours, lightened where a print mark would go muddy on the app's dark panel. To swap one for
-   an operator-supplied file later, replace that entry with
-   `<img src="assets/logo-<house>.svg" alt="">` - nothing else reads these. */
-const CASINO_MARKS = {
-  // the four-point sparkle the reference puts over its "all games" tab
-  ALL: `<svg viewBox="0 0 64 34" aria-hidden="true" fill="currentColor">
-      <path d="M32 4l2.6 7.4L42 14l-7.4 2.6L32 24l-2.6-7.4L22 14l7.4-2.6z"/>
-      <path d="M45 17l1.3 3.7L50 22l-3.7 1.3L45 27l-1.3-3.7L40 22l3.7-1.3z" opacity=".75"/>
-    </svg>`,
-  // HANN: the monogram's four square-cut bars - the outer pair full height, the inner pair
-  // stepped against each other so the overlap reads as the H's crossbar - over the wordmark
-  HANN: `<svg viewBox="0 0 64 34" aria-hidden="true" fill="#AEB6C4">
-      <rect x="18.2" y="0.5" width="3.4" height="21"/>
-      <rect x="25.8" y="0.5" width="3.4" height="13"/>
-      <rect x="33.4" y="8.5" width="3.4" height="13"/>
-      <rect x="41" y="0.5" width="3.4" height="21"/>
-      <text x="32" y="31.5" text-anchor="middle" font-size="9.5" font-weight="500" letter-spacing="2.4" textLength="30" lengthAdjust="spacingAndGlyphs">HANN</text>
-    </svg>`,
-  // NuStar: the dome of dots - four arcs thinning outwards - over the wordmark and its
-  // letter-spaced REWARDS line
-  NUSTAR: `<svg viewBox="0 0 64 34" aria-hidden="true" fill="#D4536B">
-      <circle cx="25.5" cy="18.4" r="1.25"/><circle cx="26.7" cy="16.4" r="1.25"/><circle cx="29" cy="14.9" r="1.25"/><circle cx="32" cy="14.4" r="1.25"/><circle cx="35" cy="14.9" r="1.25"/><circle cx="37.3" cy="16.4" r="1.25"/><circle cx="38.5" cy="18.4" r="1.25"/>
-      <circle cx="21.6" cy="17.9" r="1.1"/><circle cx="22.8" cy="15.4" r="1.1"/><circle cx="25.1" cy="13.4" r="1.1"/><circle cx="28.3" cy="12.1" r="1.1"/><circle cx="32" cy="11.6" r="1.1"/><circle cx="35.7" cy="12.1" r="1.1"/><circle cx="38.9" cy="13.4" r="1.1"/><circle cx="41.2" cy="15.4" r="1.1"/><circle cx="42.4" cy="17.9" r="1.1"/>
-      <circle cx="17.7" cy="17.2" r=".95"/><circle cx="19" cy="14.5" r=".95"/><circle cx="21.2" cy="12.2" r=".95"/><circle cx="24.3" cy="10.3" r=".95"/><circle cx="28" cy="9.2" r=".95"/><circle cx="32" cy="8.8" r=".95"/><circle cx="36" cy="9.2" r=".95"/><circle cx="39.7" cy="10.3" r=".95"/><circle cx="42.8" cy="12.2" r=".95"/><circle cx="45" cy="14.5" r=".95"/><circle cx="46.3" cy="17.2" r=".95"/>
-      <circle cx="14" cy="16.4" r=".8"/><circle cx="15.3" cy="13.6" r=".8"/><circle cx="17.4" cy="11.1" r=".8"/><circle cx="20.4" cy="9" r=".8"/><circle cx="23.9" cy="7.4" r=".8"/><circle cx="27.8" cy="6.4" r=".8"/><circle cx="32" cy="6.1" r=".8"/><circle cx="36.2" cy="6.4" r=".8"/><circle cx="40.1" cy="7.4" r=".8"/><circle cx="43.6" cy="9" r=".8"/><circle cx="46.6" cy="11.1" r=".8"/><circle cx="48.7" cy="13.6" r=".8"/><circle cx="50" cy="16.4" r=".8"/>
-      <text x="32" y="28.4" text-anchor="middle" font-size="9.8" font-weight="500" textLength="34" lengthAdjust="spacingAndGlyphs">NUSTAR</text>
-      <text x="32" y="33.4" text-anchor="middle" font-size="4.2" font-weight="500" textLength="24" lengthAdjust="spacingAndGlyphs">REWARDS</text>
-    </svg>`,
-  // Solaire: the sunburst over the wordmark, drawn in the house orange itself now that the
-  // tile it used to be reversed out of is gone
-  SOLAIRE: `<svg viewBox="0 0 64 34" aria-hidden="true" fill="#E1651A">
-      <circle cx="32" cy="12.6" r="2.5"/>
-      <g stroke="#E1651A" stroke-width="1.1" stroke-linecap="round" fill="none">
-        <path d="M32 7.4V4.2M27.8 8.6l-1.7-2.7M24.9 11.6l-2.9-1.4M23.9 15.6h-3.3M40.2 8.6l1.7-2.7M43.1 11.6l2.9-1.4M44.1 15.6h3.3"/>
-      </g>
-      <text x="32" y="26.4" text-anchor="middle" font-size="10.4" font-weight="500" textLength="40" lengthAdjust="spacingAndGlyphs">SOLAIRE</text>
-      <text x="32" y="32.2" text-anchor="middle" font-size="3.8" font-weight="500" textLength="40" lengthAdjust="spacingAndGlyphs">RESORT ENTERTAINMENT CITY</text>
-    </svg>`,
+   The marks are the operator's own logo files, traced to vector so they stay crisp at any size
+   and carry no background of their own - HANN's monogram is three plain bars and is written out
+   exactly as it measures; NuStar's and Solaire's are traced from the artwork. They are set in
+   the houses' colours, lifted where a print mark would go muddy on the app's dark panel (HANN's
+   slate, NuStar's maroon), and the "all games" sparkle is ours since no house owns it.
+   To replace one with a newer file, drop it over shared/assets/logo-<house>.svg - nothing reads
+   these but the tab. */
+const CASINO_MARK_SRC = {
+  ALL: '../shared/assets/logo-all.svg',
+  HANN: '../shared/assets/logo-hann.svg',
+  NUSTAR: '../shared/assets/logo-nustar.svg',
+  SOLAIRE: '../shared/assets/logo-solaire.svg',
 };
 const LOBBY_CASINOS = ['HANN','NUSTAR','SOLAIRE'];
 const CASINO_LABELS = {ALL:'allCasinos', HANN:'casinoHann', NUSTAR:'casinoNustar', SOLAIRE:'casinoSolaire'};
@@ -294,7 +266,7 @@ let LOBBY_CASINO_FILTER = 'ALL';
 let LOBBY_SEARCH = '';
 function casinoTabsHtml(){
   return `<div class="casino-tabs">
-    ${['ALL', ...LOBBY_CASINOS].map(c=>`<button class="casino-tab ${LOBBY_CASINO_FILTER===c?'active':''}" data-c="${c}" onclick="setLobbyCasinoFilter('${c}')"><span class="cl-mark">${CASINO_MARKS[c]}</span><span class="cl-name">${t(CASINO_LABELS[c])}</span></button>`).join('')}
+    ${['ALL', ...LOBBY_CASINOS].map(c=>`<button class="casino-tab ${LOBBY_CASINO_FILTER===c?'active':''}" data-c="${c}" onclick="setLobbyCasinoFilter('${c}')"><span class="cl-mark"><img src="${CASINO_MARK_SRC[c]}" alt=""></span><span class="cl-name">${t(CASINO_LABELS[c])}</span></button>`).join('')}
   </div>`;
 }
 const GAME_TYPE_TABS = [

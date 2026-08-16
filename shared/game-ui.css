@@ -577,9 +577,12 @@
    band below), so the marks in every band keep landing on the ruling instead of drifting. */
 .sd-road-band{padding-bottom:0;min-height:0;overflow-x:auto;}
 .sd-road-band + .sd-road-band{border-top:1px solid #e4e4e4;padding-top:12px;}
-/* the two later thirds are ruled off from the third on their left, and their own ruling starts
-   at their own content origin - as the reference restarts it in each of its three blocks */
-.sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;padding-left:8px;background-position:8px 12px;}
+/* The two later thirds are ruled off from the third on their left, and their own ruling starts
+   at their own content origin - as the reference restarts it in each of its three blocks.
+   The breathing room around the rule is a margin rather than padding: a scroller clips at its
+   padding box, so a road that has been scrolled runs its marks through its own left padding and
+   the oldest one on screen comes out sliced against the rule. Outside the box it cannot. */
+.sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;margin-left:8px;background-position:0 12px;}
 /* the band is the scroller now (it has to be, to carry the ruling), so the grid inside it just
    takes its natural width. Its bottom padding completes the sixth ruled square: 6 rings of 20
    and 5 gutters of 4 is 140, and 4 more makes the 144 that six 24px squares occupy. */
@@ -731,7 +734,7 @@
   /* the Big-Road-over-three-thirds arrangement is the board's own and is set with the rest of
      the road panel; the phone only tightens the rules that separate the four bands */
   .sd-road-band+.sd-road-band{border-top:1px solid #e4e4e4;padding-top:5px;background-position:0 5px;}
-  .sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;padding-left:4px;background-position:4px 5px;}
+  .sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;margin-left:4px;background-position:0 5px;}
 
   /* marks scaled to the phone: the reference runs about a 12px square on the roads and a 16px
      one on the beads, keeping the same mark-fills-its-square proportions as the desktop board */

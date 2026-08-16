@@ -376,25 +376,55 @@ function snapRoadToColumns(grid, scroller){
   if (old && old.classList && old.classList.contains('br-gap')) grid.removeChild(old);
   const cols = grid.children;
   if (cols.length < 2) return;
+  // Everything here is counted in the element's own pixels - offsetLeft, scrollLeft, scrollWidth
+  // and a width written into CSS all are. getBoundingClientRect is not: browser zoom scales it,
+  // so a pitch measured that way and then spent as a CSS width came out zoom times wrong and the
+  // left edge sliced the oldest column - two thirds of a ring at 150%, and worse zoomed out.
+  // The columns are read one by one rather than multiplied out from a pitch, because at a zoom
+  // that does not divide evenly the columns do not all land on the same fraction of a pixel and
+  // a single pitch drifts a mark's width across a shoe's worth of them.
+  const first = cols[0].offsetLeft;
+  const starts = [];
+  for (let i = 0; i < cols.length; i++) starts.push(cols[i].offsetLeft - first);
+  if (starts[1] <= 0) return;
+  // scrollLeft counts from the content's start edge, and a scroller clips at its padding box, so
+  // the scroller's own left padding sits between the two
+  const padLeft = parseFloat(getComputedStyle(scroller).paddingLeft) || 0;
+  const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+  // a road that fits is already where it starts, which is a column start
+  if (maxScroll <= 0){ scroller.scrollLeft = 0; return; }
+  // Pad the road out on the right until the distance scrolled leaves the left edge on a column
+  // start. The pad goes on the right because the left edge is where the ruling is anchored -
+  // padding that side would carry the marks off their squares.
+  const want = maxScroll - padLeft;
+  // the column the left edge should come to rest on. scrollWidth and offsetLeft are both whole
+  // numbers, so allow a pixel of slack either way - reading a start as a hair past `want` and
+  // padding out to the one after it would leave a whole empty column against the right edge.
+  const target = starts.find(s => s - want >= -1.5);
+  if (target !== undefined && target - want >= 0.5){
+    // the pad is a flex item, so the row's own column gap lands in front of it as well - pull that
+    // back or the road grows by pad + gap and lands just as crooked as it started
+    const rowGap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+    const gap = document.createElement('i');
+    gap.className = 'br-gap';
+    gap.style.cssText = 'flex:0 0 auto;width:' + (target - want).toFixed(2) + 'px;margin-left:' + (-rowGap) + 'px;';
+    grid.appendChild(gap);
+  }
   scroller.scrollLeft = scroller.scrollWidth;
-  if (scroller.scrollWidth <= scroller.clientWidth) return;
-  const pitch = cols[1].getBoundingClientRect().left - cols[0].getBoundingClientRect().left;
-  if (pitch <= 0) return;
-  const cs = getComputedStyle(scroller);
-  const viewLeft = scroller.getBoundingClientRect().left
-                 + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
-  // where the left edge falls on the lattice the columns are laid out on
-  const off = ((viewLeft - cols[0].getBoundingClientRect().left) % pitch + pitch) % pitch;
-  const pad = (pitch - off) % pitch;
-  if (pad < 0.5 || pad > pitch - 0.5) return;
-  // the pad is a flex item, so the row's own column gap lands in front of it as well - pull that
-  // back or the road grows by pad + gap and lands just as crooked as it started
-  const rowGap = parseFloat(getComputedStyle(grid).columnGap) || 0;
-  const gap = document.createElement('i');
-  gap.className = 'br-gap';
-  gap.style.cssText = 'flex:0 0 auto;width:' + pad.toFixed(2) + 'px;margin-left:' + (-rowGap) + 'px;';
-  grid.appendChild(gap);
-  scroller.scrollLeft = scroller.scrollWidth;
+  // Whatever rounding the browser has left over goes to the right-hand edge rather than the left:
+  // the road backs off to the nearest column start, so it comes to rest on a whole column whether
+  // or not the pad landed exactly. Only ever backwards - it is already as far right as it goes.
+  const edge = scroller.scrollLeft - padLeft;
+  let near = 0, dist = Infinity;
+  for (let i = 0; i < starts.length; i++){
+    const d = Math.abs(edge - starts[i]);
+    if (d < dist){ dist = d; near = starts[i]; }
+  }
+  // half a gutter of slack backwards: scrollLeft itself only lands on whole device pixels, so
+  // aiming exactly at the column start can still leave a hair of it past the edge. Backwards is
+  // free - the gutter between columns is empty paper - while forwards is a sliced mark.
+  const bias = Math.min(0.5, ((parseFloat(getComputedStyle(grid).columnGap) || 1) / 2));
+  if (edge - near >= 0.05) scroller.scrollLeft = near + padLeft - bias;
 }
 
 /* The pad a road carries is measured against the width its band had when it was painted, so a

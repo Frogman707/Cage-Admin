@@ -502,10 +502,12 @@
                     linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
   background-size:var(--rc) var(--rc);
   background-attachment:local;
-  background-position:0 0;
+  /* anchored to the right edge, the same edge the marks are aligned to, so a road that does
+     not fill its band still lands every mark on a rule */
+  background-position:right 0 top 0;
 }
 /* a rule on the content origin, which is below this band's separator padding */
-.sd-road-band + .sd-road-band{background-position:0 8px;}
+.sd-road-band + .sd-road-band{background-position:right 0 top 8px;}
 /* Three stacked bands, ruled off from each other: Big Road, then Big Eye Boy, then a band
    split down the middle for Small Road | Cockroach Road. */
 .sd-road-main{display:flex;flex-direction:column;flex:1;min-width:0;}
@@ -519,6 +521,13 @@
 /* the band is the scroller now (it has to be, to carry the ruling), so the grid inside it just
    takes its natural width */
 .sd-road .br-grid{display:flex;gap:2px;flex-shrink:0;padding-bottom:2px;width:max-content;}
+/* Every road ends on the panel's right edge, so the hand that just finished is in the same
+   place on all four boards. A road only reaches that edge by overflowing - the Big Road did,
+   but the three derived roads are shorter and stopped 109 to 172px short of it, leaving the
+   newest marks stranded mid-panel. The auto margin fills that gap from the left, and resolves
+   to nothing once a road is long enough to overflow, so scrolling is untouched. */
+.sd-road .br-grid,.sd-road .derived-road-grid{margin-left:auto;}
+.bead-road .br-col:first-child{margin-left:auto;}
 .sd-road .br-col{gap:2px;}
 .sd-road .br-cell{width:16px;height:16px;border-width:2px;}
 .sd-road .br-cell.tie-only{width:10px;height:10px;}
@@ -645,7 +654,7 @@
   /* the Plate takes its natural width on its own page - all twelve columns of the window, not
      the sliver that used to fit beside the roads.
      background-position follows the padding, so a rule still lands on the first bead's edge. */
-  .sd-tally .bead-road{grid-area:bead;width:max-content;flex:0 0 auto;padding:5px 4px;background-position:4px 5px;overflow:visible;}
+  .sd-tally .bead-road{grid-area:bead;width:max-content;flex:0 0 auto;padding:5px 4px;background-position:right 4px top 5px;overflow:visible;}
 
   /* Big Road across the top, the three derived roads side by side beneath it - which is what
      keeps the reference's board a couple of finger-widths tall instead of four stacked boards. */
@@ -655,8 +664,8 @@
   .sd-road-band:nth-child(2){grid-area:eye;}
   .sd-road-band:nth-child(3){grid-area:small;}
   .sd-road-band:nth-child(4){grid-area:cock;}
-  .sd-road-band+.sd-road-band{border-top:1px solid #e4e4e4;padding-top:5px;background-position:0 5px;}
-  .sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;padding-left:4px;background-position:4px 5px;}
+  .sd-road-band+.sd-road-band{border-top:1px solid #e4e4e4;padding-top:5px;background-position:right 0 top 5px;}
+  .sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;padding-left:4px;background-position:right 0 top 5px;}
 
   /* marks scaled to the phone: the reference runs about a 12px square on the roads and a 16px
      one on the beads, keeping the same mark-fills-its-square proportions as the desktop board */
@@ -678,7 +687,7 @@
   .sd-tally{--rc:20px;}
   /* 4px above and 2px below puts the sixth rule exactly on the card's inner edge, so no sliver
      of a seventh row is drawn against the border */
-  .sd-tally .bead-road{gap:2px;padding:4px 4px 2px;background-position:4px 4px;}
+  .sd-tally .bead-road{gap:2px;padding:4px 4px 2px;background-position:right 4px top 4px;}
   .sd-tally .bead-road .br-col{gap:2px;}
   .sd-tally .bead-road .bd-cell{width:18px;height:18px;font-size:10px;}
   .sd-tally .bead-road .br-pair{width:5px;height:5px;}

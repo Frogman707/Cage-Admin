@@ -5,7 +5,7 @@
 // 같은 트랜잭션에서 만들어졌는지를 다른 커넥션에서 확인해야 하기 때문이다.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { query, closePool } from '../helpers/db.mjs';
+import { query, withRollback, expectSqlState, uniq, closePool } from '../helpers/db.mjs';
 
 after(closePool);
 
@@ -83,4 +83,105 @@ test('U4 시드 3행이 HANN · NUSTAR · ONLINE 이고 opened_on 이 채워져 
     rows.every((r) => r.opened_on instanceof Date),
     'opened_on 이 비어 있다'
   );
+});
+
+// 하우스 계정 정책이 이 배열 하나에만 있어야 한다. 003 의 부트스트랩 DO 블록과
+// 004 의 provision_branch() 가 같은 함수를 지나가는지 확인한다.
+const HOUSE_KINDS = [
+  'commission_expense',
+  'house_cash',
+  'house_gaming',
+  'marker_receivable',
+  'overage_income',
+  'point_liability',
+  'promo_expense',
+  'shortage_expense',
+  'suspense',
+  'tips_dealer',
+  'tips_house',
+];
+
+// branches_code_format: ^[A-Z][A-Z0-9_-]{1,15}$ — 대문자 시작, 총 2~16자.
+function branchCode(prefix) {
+  return `${prefix}${uniq('')}`.toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16);
+}
+
+test('AC-60-3 시드 지점 3곳이 같은 하우스 계정 집합을 갖는다', async () => {
+  const rows = await query(
+    `SELECT p.home_branch, array_agg(a.kind::text ORDER BY a.kind::text) AS kinds
+       FROM ledger.parties p
+       JOIN ledger.accounts a ON a.party_id = p.id
+      WHERE p.party_type = 'house'
+      GROUP BY p.home_branch
+      ORDER BY p.home_branch`
+  );
+  assert.deepEqual(
+    rows.map((r) => r.home_branch),
+    ['HANN', 'NUSTAR', 'ONLINE']
+  );
+  for (const r of rows) {
+    assert.deepEqual(r.kinds, HOUSE_KINDS, `${r.home_branch} 의 하우스 계정 집합이 다르다`);
+  }
+});
+
+test('AC-60-3 ledger.bootstrap_house_accounts 가 하우스 주체와 계정을 함께 만든다', async () => {
+  // 롤백한다: 읽기 전용 확인이고 지연 제약이 걸린 분개를 만들지 않는다.
+  // provision_branch 를 거치지 않는 경로를 일부러 본다 — 픽스처를 쓰지 않는 이유다.
+  await withRollback(async (client) => {
+    const branch = branchCode('TB');
+    await client.query(
+      `INSERT INTO ledger.branches (code, name, opened_on)
+       VALUES ($1, $1, DATE '2026-01-01')`,
+      [branch]
+    );
+    const { rows } = await client.query('SELECT ledger.bootstrap_house_accounts($1) AS party_id', [
+      branch,
+    ]);
+    assert.ok(Number(rows[0].party_id) > 0);
+
+    const { rows: kinds } = await client.query(
+      `SELECT array_agg(a.kind::text ORDER BY a.kind::text) AS kinds
+         FROM ledger.accounts a WHERE a.party_id = $1`,
+      [rows[0].party_id]
+    );
+    assert.deepEqual(kinds[0].kinds, HOUSE_KINDS);
+  });
+});
+
+test('AC-60-3 같은 지점에 두 번 부르면 거부된다', async () => {
+  // parties.code 의 UNIQUE 가 잡는다. 조용히 두 번째 하우스 주체가 생기면
+  // house_account_id() 가 어느 쪽을 고를지 알 수 없게 된다.
+  //
+  // expectSqlState(state, fn) 은 fn 을 **인자 없이** 부른다 (a01 db.mjs:375).
+  // client 를 쓰려면 withRollback / asOwner 로 감싸야 한다.
+  await expectSqlState('23505', () =>
+    withRollback((client) => client.query('SELECT ledger.bootstrap_house_accounts($1)', ['HANN']))
+  );
+});
+
+test('AC-60-3 하우스 계정 정책이 house_account_policy 한 곳에만 있다', async () => {
+  // 정책 테이블이 있어야 013 의 검사 뷰가 "몇 개인가" 가 아니라
+  // "어느 종류가 어떤 성격으로 있어야 하는가" 를 볼 수 있다 (계획 결정 3·5).
+  const kinds = await query(
+    'SELECT kind::text AS kind FROM ledger.house_account_policy ORDER BY kind'
+  );
+  assert.deepEqual(
+    kinds.map((r) => r.kind),
+    HOUSE_KINDS,
+    'house_account_policy 의 종류 집합이 기대와 다르다'
+  );
+
+  // 시드 지점의 실제 계정이 정책과 한 행도 어긋나지 않는다.
+  // currency 가 'PHP' 로 고정된 것은 의도다 — 곱집합 확장은 a03 (R-01-11).
+  const [drift] = await query(
+    `SELECT count(*)::int AS n
+       FROM ledger.parties p
+       JOIN ledger.accounts a ON a.party_id = p.id
+       JOIN ledger.house_account_policy k ON k.kind = a.kind
+      WHERE p.party_type = 'house'
+        AND (a.normal_balance <> k.normal_balance
+          OR a.allow_negative <> k.allow_negative
+          OR a.currency <> 'PHP')`
+  );
+  assert.equal(drift.n, 0, '시드 하우스 계정이 house_account_policy 와 어긋난다');
 });

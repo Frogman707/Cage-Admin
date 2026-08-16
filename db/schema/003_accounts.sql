@@ -275,49 +275,92 @@ CREATE TRIGGER partner_profiles_party_kind
   FOR EACH ROW EXECUTE FUNCTION ledger.assert_partner_party();
 
 -- -----------------------------------------------------------------------------
--- 지점 하우스 계정 부트스트랩
+-- 지점 하우스 계정 — 생성 정책을 한 곳에 모은다
 -- -----------------------------------------------------------------------------
 -- U4 전환(2026-08-15): 지점 목록을 하드코딩하지 않고 ledger.branches 에서 읽는다.
--- ⚠️ 이 블록은 **부트스트랩 전용**이며 지점 추가 경로가 아니다. 지점 추가는
--- ledger.provision_branch() 가 한 트랜잭션에서 처리한다 — 여기서 INSERT 만 하면
--- branch_config · chain_heads 가 빠진 반쪽 지점이 남는다 (AC-60-3).
+--
+-- ⚠️ 이 함수는 **지점 추가 경로가 아니다.** 지점 추가는 004 의
+-- ledger.provision_branch() 가 branch_config · chain_heads 까지 한 트랜잭션에서
+-- 처리한다 (AC-60-3). 이 함수는 그 안에서 하우스 측 한 조각만 담당한다.
+--
+-- 함수로 뽑은 이유(a02 결정 3): 아래 부트스트랩 DO 블록과 provision_branch() 가
+-- 같은 계정 집합을 만들어야 하는데, 두 벌로 쓰면 갈라진다. 갈라진 사실은
+-- 신규 지점을 실제로 만들어 보기 전까지 드러나지 않는다.
 --
 -- ⚠️ U2 와 곱해진다. 아래 통화가 'PHP' 로 고정돼 있는데, U2 결정에 따라
 -- 하우스 계정은 branches × currencies × house account_kind 곱집합이어야 한다
--- (docs/spec/01-ledger-foundation.md R-01-11 · AC-06-4). **그 확장은 M0 작업이며
--- 이 블록은 아직 PHP 만 만든다** — 다른 통화 거래는 상대 하우스 계정이 없어
--- 실패한다. 현재 상태를 숨기지 않기 위해 여기 적는다.
+-- (docs/spec/01-ledger-foundation.md R-01-11 · AC-06-4). **그 확장은 스펙 01 §3
+-- 이고 계획 a03 소관이다.** 넓힐 자리는 여기 한 곳이다 — 아래 INSERT ... SELECT 에
+-- ledger.currencies 를 크로스조인하면 시드 지점과 신규 지점이 함께 따라온다.
+-- 현재 상태에서 PHP 외 통화 거래는 상대 하우스 계정이 없어 실패한다.
+
+-- 하우스 계정 정책. ENUM 을 참조 테이블로 옮긴 U4 와 같은 방향이다.
+-- 함수가 아니라 테이블인 이유(a02 결정 3):
+--   (1) 013 의 v_check_branch_provisioning 이 security_invoker 라 호출자 권한으로
+--       읽는다. 테이블이면 012 의 GRANT SELECT ON ALL TABLES IN SCHEMA ledger
+--       가 이미 덮는다 (003 이 012 보다 먼저 적용된다). 함수였다면 013 말미의
+--       일괄 REVOKE ... FROM PUBLIC 뒤에 GRANT EXECUTE 를 따로 챙겨야 한다.
+--   (2) normal_balance · allow_negative 를 CASE WHEN kind IN (...) 로 두 벌
+--       쓰던 것이 사라진다. 종류를 하나 늘릴 때 고칠 곳이 한 행이다.
+CREATE TABLE ledger.house_account_policy (
+  kind           ledger.account_kind   PRIMARY KEY,
+  normal_balance ledger.normal_balance NOT NULL,
+  allow_negative BOOLEAN               NOT NULL,
+  note           TEXT
+);
+
+COMMENT ON TABLE ledger.house_account_policy IS
+  '지점 하우스 계정의 정본. bootstrap_house_accounts() 가 이것을 읽어 만들고 013 의 v_check_branch_provisioning 이 이것과 대조한다. 행을 더하면 신규 지점은 자동으로 따라오지만 **기존 지점은 따라오지 않는다** — 같은 커밋에서 기존 지점 보정 INSERT 를 함께 넣는다.';
+
+INSERT INTO ledger.house_account_policy (kind, normal_balance, allow_negative, note) VALUES
+  ('house_cash',         'debit',  false, '지점 현금'),
+  ('marker_receivable',  'debit',  false, '마커 채권'),
+  ('tips_dealer',        'credit', false, '딜러 팁'),
+  ('tips_house',         'credit', false, '하우스 팁'),
+  ('promo_expense',      'debit',  true,  '프로모션 비용'),
+  ('commission_expense', 'debit',  false, '롤링 커미션 비용'),
+  ('suspense',           'debit',  true,  '미결 — 실사 차액이 여기 머문다'),
+  ('house_gaming',       'credit', true,  '게임 손익'),
+  -- 실사 차액 종착지 (design-review.md DR-01). 지점별로 있어야 한다.
+  ('shortage_expense',   'debit',  false, '실사 부족 확정'),
+  ('overage_income',     'credit', false, '실사 초과 확정'),
+  -- 케이지 포인트 발행의 하우스 측 상대 계정 (B2 분리 결정 · spec/05 R-05-02).
+  -- 지점별로 있어야 손님 포인트 발행이 상대 계정을 찾는다.
+  ('point_liability',    'debit',  false, '포인트 발행 상대 계정');
+
+CREATE FUNCTION ledger.bootstrap_house_accounts(p_branch TEXT)
+RETURNS BIGINT
+LANGUAGE plpgsql
+SET search_path = ledger, pg_temp
+AS $$
+DECLARE
+  v_party BIGINT;
+BEGIN
+  INSERT INTO ledger.parties (code, party_type, display_name, home_branch)
+  VALUES ('MAIN-' || p_branch, 'house', p_branch || ' MAIN ACCOUNT', p_branch)
+  RETURNING id INTO v_party;
+
+  INSERT INTO ledger.accounts (party_id, kind, currency, normal_balance, allow_negative)
+  SELECT v_party, k.kind, 'PHP', k.normal_balance, k.allow_negative
+    FROM ledger.house_account_policy k;
+
+  RETURN v_party;
+END;
+$$;
+
+COMMENT ON FUNCTION ledger.bootstrap_house_accounts IS
+  '지점의 하우스 주체(MAIN-<branch>)와 ledger.house_account_policy 전 종류의 계정을 만든다. 지점 추가는 이것만으로 끝나지 않는다 — ledger.provision_branch() 를 쓴다. **EXECUTE 를 어떤 역할에도 주지 않는다** — 이것만 부를 수 있으면 branch_config · chain_heads 없는 반쪽 지점을 만들 수 있다.';
+
+-- 시드 지점 부트스트랩. 004 의 provision_branch() 는 아직 존재하지 않으므로
+-- (chain_heads 가 004 에서 생긴다) 여기서는 하우스 조각만 만들고,
+-- 004 말미가 시드 3행의 프로비저닝 완결성을 다시 단언한다.
 DO $$
 DECLARE
-  v_branch  TEXT;
-  v_party   BIGINT;
-  v_kind    ledger.account_kind;
-  v_normal  ledger.normal_balance;
-  v_negok   BOOLEAN;
+  v_branch TEXT;
+  v_party  BIGINT;
 BEGIN
   FOR v_branch IN SELECT code FROM ledger.branches ORDER BY code LOOP
-    INSERT INTO ledger.parties (code, party_type, display_name, home_branch)
-    VALUES ('MAIN-' || v_branch, 'house', v_branch || ' MAIN ACCOUNT', v_branch)
-    RETURNING id INTO v_party;
-
-    FOREACH v_kind IN ARRAY ARRAY[
-      'house_cash','marker_receivable','tips_dealer','tips_house',
-      'promo_expense','commission_expense','suspense','house_gaming',
-      -- 실사 차액 종착지 (design-review.md DR-01). 지점별로 있어야 한다.
-      'shortage_expense','overage_income',
-      -- 케이지 포인트 발행의 하우스 측 상대 계정 (B2 분리 결정 · spec/05 R-05-02).
-      -- 지점별로 있어야 손님 포인트 발행이 상대 계정을 찾는다.
-      'point_liability'
-    ]::ledger.account_kind[] LOOP
-      v_normal := CASE WHEN v_kind IN ('house_cash','marker_receivable','promo_expense',
-                                       'commission_expense','suspense','shortage_expense',
-                                       'point_liability')
-                       THEN 'debit' ELSE 'credit' END::ledger.normal_balance;
-      v_negok  := v_kind IN ('suspense','house_gaming','promo_expense');
-
-      INSERT INTO ledger.accounts (party_id, kind, currency, normal_balance, allow_negative)
-      VALUES (v_party, v_kind, 'PHP', v_normal, v_negok);
-    END LOOP;
+    PERFORM ledger.bootstrap_house_accounts(v_branch);
   END LOOP;
 
   -- 마이그레이션 개시 균형 계정

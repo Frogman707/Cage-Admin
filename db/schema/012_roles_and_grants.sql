@@ -481,6 +481,16 @@ GRANT EXECUTE ON FUNCTION
   ledger.party_visible(BIGINT)
 TO ledger_app, ledger_read;
 
+-- 지점 프로비저닝은 앱 역할의 일이 아니다. 하우스 계정을 만들 수 있는 자가
+-- 자금 경로에 있으면 상대 계정을 스스로 지어내 분개를 통과시킬 수 있다.
+--
+-- ledger_migrator 에게도 주지 않는다. 이것만 부를 수 있으면 branch_config ·
+-- chain_heads 가 빠진 **반쪽 지점을 만드는 경로가 하나 생긴다** — 013 의
+-- v_check_branch_provisioning 이 잡으려는 바로 그 상태다 (R-01-06).
+-- 이관 역할이 부를 것은 004 의 provision_branch() 하나뿐이고, 그것이
+-- SECURITY DEFINER 라 이 함수를 소유자 권한으로 부른다.
+REVOKE EXECUTE ON FUNCTION ledger.bootstrap_house_accounts(TEXT) FROM PUBLIC;
+
 CREATE POLICY app_scope ON ledger.parties FOR SELECT TO ledger_app
   USING (ledger.party_visible(id));
 CREATE POLICY read_all ON ledger.parties FOR SELECT TO ledger_read USING (TRUE);

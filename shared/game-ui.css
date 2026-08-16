@@ -670,11 +670,18 @@
   .sd-road .derived-road-grid{gap:1px;}
   .sd-road .derived-road-grid .dr-cell{width:5px;height:5px;border-width:1px;}
   .sd-road .derived-road-grid .br-col{gap:1px;}
-  .sd-tally{--rc:16px;}
-  .sd-tally .bead-road{gap:1px;}
-  .sd-tally .bead-road .br-col{gap:1px;}
-  .sd-tally .bead-road .bd-cell{width:15px;height:15px;font-size:8.5px;}
-  .sd-tally .bead-road .br-pair{width:4px;height:4px;}
+  /* The Plate's six rows are sized to fill its card exactly rather than sitting in the top of
+     it: the roads card next to it comes out 126px tall (6 Big Road rows on a 12px pitch, the
+     separator, then 6 derived half-rows on a 6px one), so 3px of padding either side of a
+     border leaves 118px, and 6 beads of 18px on a 20px pitch is 118px on the nose. Before this
+     six 15px beads filled 95 of 114 and left a row and a bit of empty ruling below them. */
+  .sd-tally{--rc:20px;}
+  /* 4px above and 2px below puts the sixth rule exactly on the card's inner edge, so no sliver
+     of a seventh row is drawn against the border */
+  .sd-tally .bead-road{gap:2px;padding:4px 4px 2px;background-position:4px 4px;}
+  .sd-tally .bead-road .br-col{gap:2px;}
+  .sd-tally .bead-road .bd-cell{width:18px;height:18px;font-size:10px;}
+  .sd-tally .bead-road .br-pair{width:5px;height:5px;}
   /* On a phone the chip tray used to be position:fixed at the bottom of the viewport, which
      parked it permanently on top of the scoreboard below - the Cockroach band spent its life
      behind the chips. Sticky inside the betting board instead: it stays pinned to the bottom

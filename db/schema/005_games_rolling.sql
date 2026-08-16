@@ -48,7 +48,7 @@ CREATE TABLE cage.games (
   buyin_minor         BIGINT NOT NULL DEFAULT 0 CHECK (buyin_minor >= 0),
   working_chip_minor  BIGINT NOT NULL DEFAULT 0 CHECK (working_chip_minor >= 0),
 
-  -- 프로젝션. rolling_events 합과 상시 대조한다 (010 R4)
+  -- 프로젝션. rolling_events 합과 상시 대조한다 (013 R4)
   rolling_total_minor BIGINT NOT NULL DEFAULT 0
     CONSTRAINT games_rolling_nonneg CHECK (rolling_total_minor >= 0),
 
@@ -158,6 +158,9 @@ CREATE TRIGGER rolling_events_immutable
   FOR EACH ROW EXECUTE FUNCTION ledger.deny_mutation();
 
 -- 게임 롤링 총액 프로젝션 갱신
+-- R4 (cage.v_check_rolling_projection) 는 013_reconciliation.sql 에 있다.
+-- 뷰는 대사 파일에 모으고 트리거는 도메인 파일에 둔다 — 이 주석이 예전에
+-- 잘못된 파일을 가리키고 있었다 (design-review-3.md DR-49 · AC-49-1).
 CREATE FUNCTION cage.apply_rolling_projection() RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = cage, pg_temp

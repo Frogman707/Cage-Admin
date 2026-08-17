@@ -247,10 +247,17 @@
 .bet-spot.selected{border-color:var(--brass);box-shadow:0 0 0 3px rgba(217,178,106,.18), 0 8px 20px -8px rgba(217,178,106,.4);}
 .bet-spot.locked{opacity:.5;cursor:not-allowed;}
 .bet-spot .label{font-weight:800;font-size:16px;letter-spacing:.6px;}
-.bet-spot.player .label{color:#7FBFEA;}
-.bet-spot.banker .label{color:#E89286;}
-.bet-spot.tie .label{color:var(--jade);}
-.bet-spot.pair .label{color:var(--brass);font-size:11.5px;}
+/* Each spot is named in its own side's colour - player blue, banker red, tie green, and each
+   pair the colour of the hand it belongs to rather than the one gold both used to share.
+   They are stronger than the washed tints they replace, and as deep as the felt they sit on
+   will carry: the two big labels take the darker shade, the pair labels a step lighter because
+   they are set at 11.5px against the others' 20 and need the contrast a small size costs. */
+.bet-spot.player .label{color:#3E9BE8;}
+.bet-spot.banker .label{color:#F2564A;}
+.bet-spot.tie .label{color:#2FD39B;}
+.bet-spot.pair .label{font-size:11.5px;}
+.bet-spot.pair.player .label{color:#4FA8F0;}
+.bet-spot.pair.banker .label{color:#FF6B5C;}
 .bet-spot .odds{font-size:10.5px;color:var(--ink-faint);margin-top:3px;font-family:var(--mono);}
 .bet-spot .my-bet{margin-top:9px;font-family:var(--mono);font-weight:700;color:var(--brass);font-size:13.5px;min-height:18px;}
 .chip-stack{display:flex;justify-content:center;align-items:flex-end;height:0;margin-top:6px;transition:height .15s ease;}

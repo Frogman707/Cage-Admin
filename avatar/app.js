@@ -134,7 +134,9 @@ async function refreshBalance(){
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
   document.getElementById('hdrPoints').textContent = fmtNum(STATE.points);
 }
-function chipLabel(v){ if (v>=1000000) return (v/1000000)+'M'; if (v>=10000) return (v/10000)+'만'; return (v/1000)+'천'; }
+/* The chip artwork carries its own value on its face, so the tray needs no label of its own.
+   This is still here for anywhere a chip's worth is written as text. */
+function chipLabel(v){ if (v>=1000000) return (v/1000000)+'M'; if (v>=10000) return (v/10000)+'만'; if (v>=1000) return (v/1000)+'천'; return String(v); }
 function selectChip(v){
   STATE.selectedChip = v;
   document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('selected', Number(c.dataset.chip)===v));
@@ -1065,7 +1067,7 @@ function speedDetailShellHtml(tableId){
         </div>
         <div class="sd-chip-tray">
           <button class="btn btn-sm" onclick="clearSpeedDetailBets('${tableId}')" data-i18n="cancelBet">취소</button>
-          ${CHIP_VALUES.map(v=>`<div class="chip c${v} ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})"><span class="cv">${chipLabel(v)}</span></div>`).join('')}
+          ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
           <span class="spacer"></span>
           <button class="btn btn-sm btn-gold" onclick="confirmSpeedBetDetail()" data-i18n="betComplete">베팅완료</button>
           <button class="btn btn-sm" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n="repeatBet">반복</button>

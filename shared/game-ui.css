@@ -163,9 +163,6 @@
 .sd-stage .phase-banner{top:52px;}
 .cards-area{display:flex;gap:44px;align-items:center;perspective:600px;}
 .hand{display:flex;flex-direction:column;align-items:center;gap:10px;}
-.hand .side-label{font-size:11px;letter-spacing:3px;font-weight:800;color:var(--ink-dim);}
-.hand.player .side-label{color:#7FBFEA;text-shadow:0 0 10px rgba(127,191,234,.35);}
-.hand.banker .side-label{color:#E89286;text-shadow:0 0 10px rgba(232,146,134,.35);}
 .hand .cards{display:flex;gap:5px;min-height:76px;}
 /* The card is a face from shared/assets/cards, set on the element rather than drawn in CSS, so
    it keeps the deck's own artwork - rank, pip and rounded corners all come from the file. Its

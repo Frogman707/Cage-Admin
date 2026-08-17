@@ -920,6 +920,10 @@ async function loadSpeedTables(){
       history: rounds.map(r=>r.result),
       pairFlags: rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair})),
       shoe: openShoe(tb.shoeNo || 1),
+      // seeded from the last round on record so a table already in play shows its score straight away
+      lastResult: rounds.length
+        ? {p: rounds[rounds.length-1].playerScore, b: rounds[rounds.length-1].bankerScore, side: rounds[rounds.length-1].result}
+        : null,
     };
     renderSpeedTileRoad(tb.id);
     renderSpeedTileStats(tb.id);
@@ -971,8 +975,11 @@ function speedMultiPanelHtml(){
       </div>
       <div class="sm-sub">
         <span class="sm-phase" id="smphase-${id}"></span>
+        <span class="sm-last" id="smlast-${id}"></span>
         <span class="sm-timer">⏱ <b id="smtimer-${id}">–</b></span>
       </div>
+      <div class="sm-road mini-road" id="smroad-${id}"></div>
+      <div class="sm-counts" id="smcounts-${id}"></div>
       <div class="tb-row pairs">${SPEED_TILE_SPOTS.slice(0,3).map(spot(id)).join('')}</div>
       <div class="tb-row hands">${SPEED_TILE_SPOTS.slice(3).map(spot(id)).join('')}</div>
     </div>`;
@@ -997,13 +1004,15 @@ function toggleSpeedMultiPanel(open){
       renderSpeedTileBets(id);
       setSpeedTileBetsLocked(id, SPEED.tstate[id].phase !== 'betting');
       paintSpeedMultiRow(id);
+      renderSpeedMultiResult(id);
     });
     renderSpeedStakedTotal();
   }
   el.classList.toggle('open', show);
   document.getElementById('speedMultiBtn')?.classList.toggle('active', show);
 }
-/* the row's own phase line and countdown, so a table can be judged without opening it */
+/* the row's own phase line, countdown and last score, so a table can be judged without opening
+   it - cheap enough to run on every tick */
 function paintSpeedMultiRow(tableId){
   const s = SPEED.tstate[tableId];
   if (!s) return;
@@ -1014,6 +1023,28 @@ function paintSpeedMultiRow(tableId){
   }
   const tm = document.getElementById(`smtimer-${tableId}`);
   if (tm) tm.textContent = Math.max(0, s.secondsLeft);
+  const last = document.getElementById(`smlast-${tableId}`);
+  if (last){
+    const r = s.lastResult;
+    last.textContent = r ? `P${r.p} : B${r.b}` : '';
+    last.className = 'sm-last' + (r ? ' ' + r.side : '');
+  }
+}
+/* the row's roadmap and running count - the same Big Road the list draws under each still, at
+   the same size. Only redrawn when a round lands, not on every tick. */
+function renderSpeedMultiResult(tableId){
+  const s = SPEED.tstate[tableId];
+  if (!s) return;
+  const road = document.getElementById(`smroad-${tableId}`);
+  if (road){
+    const cols = buildBigRoad(s.history.slice(-40), (s.pairFlags||[]).slice(-40));
+    paintRoad(road, renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`);
+  }
+  const counts = document.getElementById(`smcounts-${tableId}`);
+  if (counts){
+    const w = tableWinCounts(s.history);
+    counts.innerHTML = `P <b>${w.player}</b> · B <b>${w.banker}</b> · T <b>${w.tie}</b>`;
+  }
 }
 function renderSpeedStakedTotal(){
   let staked = 0;
@@ -1048,6 +1079,7 @@ function renderSpeedTileRoad(tableId){
     const cols = buildBigRoad(SPEED.tstate[tableId].history.slice(-40), (SPEED.tstate[tableId].pairFlags||[]).slice(-40));
     paintRoad(el, renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`);
   }
+  renderSpeedMultiResult(tableId);   // the multi-bet panel keeps the same record
   if (SPEED.detailTableId===tableId) renderSpeedDetailRoad(tableId);
 }
 function renderSpeedDetailRoad(tableId){
@@ -1351,6 +1383,9 @@ async function beginSpeedResult(tableId){
   setSpeedTilePhaseText(tableId, sim.result==='player' ? 'PLAYER WIN' : sim.result==='banker' ? 'BANKER WIN' : 'TIE');
   const scoreEl = document.getElementById('score-'+tableId);
   if (scoreEl) scoreEl.textContent = `P${sim.player.score} : B${sim.banker.score}`;
+  // kept on the state, not just painted, so the multi-bet panel still shows it when reopened
+  s.lastResult = {p: sim.player.score, b: sim.banker.score, side: sim.result};
+  paintSpeedMultiRow(tableId);
 
   let totalPayout = 0;
   for (const [betType, amount] of Object.entries(s.bets)){

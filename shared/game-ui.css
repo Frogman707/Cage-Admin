@@ -712,7 +712,13 @@
    neighbour. That is 6 squares of board over 3 - the 2:1 the reference reads at - instead of
    four boards stacked down a narrow column, which is what made the results row twice as tall
    as it needed to be. */
-.sd-road-main{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-areas:"big big big" "eye small cock";flex:1;min-width:0;}
+/* Rows sized to their marks, not stretched to fill the card. Stretching split the card's spare
+   height between the two rows, which put 7.5px of empty band under the Big Road's last row and
+   left a 9.5px channel between it and the derived roads - the gap that was still showing after
+   the padding between them was taken out. Sized to content they butt onto the hairline, and the
+   spare height falls to the bottom of the card where it reads as the card's own padding. */
+.sd-road-main{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-areas:"big big big" "eye small cock";
+  grid-template-rows:max-content max-content;align-content:start;flex:1;min-width:0;}
 .sd-road-band:nth-child(1){grid-area:big;}
 .sd-road-band:nth-child(2){grid-area:eye;}
 .sd-road-band:nth-child(3){grid-area:small;}
@@ -777,9 +783,12 @@
 .btn.btn-gold.pending{animation:betPending 1.35s ease-in-out infinite;}
 .sm-row.pending{border-color:var(--brass);}
 .bets-pending .sd-bets .bet-spot.selected{outline:1px dashed var(--brass);outline-offset:-4px;}
+/* The rail reaches into the card's own right padding so its badges centre on the whole strip
+   of white to the right of the roads. Kept to its own 34px they sat 7px from the rule with 20px
+   of card padding beyond them, which read as pushed to the left rather than centred. */
 .sd-road-legend-rail{
   display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;
-  flex-shrink:0;width:34px;border-left:1px solid #e4e4e4;
+  flex-shrink:0;width:48px;margin-right:-14px;border-left:1px solid #e4e4e4;
 }
 .sd-road-legend-rail .rail-badge{
   display:flex;flex-direction:column;align-items:center;gap:5px;font-size:10px;font-weight:800;

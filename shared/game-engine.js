@@ -160,13 +160,43 @@ async function playerSignup(db, data){
   PLAYER = member;
   return {ok:true, member};
 }
-async function getPlayerBalance(db, memberId){
-  const snap = await db.collection('memberLedger').where('memberId','==',memberId).get();
+/* ---------------- the cage's ledger is a cage account's balance ----------------
+   An account opened at a cage keeps its money in the cage's own `ledger` collection: the same
+   rows the cage floor reads, where its balance is the sum of what has come in less what has gone
+   out. So a player's stake and winnings are written there as they happen, and the cage sees the
+   balance move on the same rows it already watches - one book, both sides, live - rather than the
+   two keeping separate accounts that quietly drift apart.
+
+   Members who were never opened at a cage - a demo account, an online signup - have no cage
+   ledger to draw on, so they keep their own memberLedger balance, which is the only book they
+   have. memberLedger is written either way: it is the partner admin's record of play. */
+function isCageAccount(member){ return !!member && member.source === 'cage'; }
+async function writeCageLedger(db, {accountId, casino, type, amount, memo}){
+  const value = Math.abs(Number(amount) || 0);
+  if (!value) return;
+  const id = 'ldg_' + Date.now() + '_' + Math.random().toString(36).slice(2,9);
+  await db.collection('ledger').doc(id).set({
+    id, accountId, casino: casino || 'HANN',
+    dt: new Date().toISOString().slice(0,16).replace('T',' '),
+    type, inn: type === 'IN' ? value : 0, out: type === 'OUT' ? value : 0,
+    staff: 'avatar', memo: memo || '',
+  });
+}
+async function getPlayerBalance(db, memberId, member){
+  const cage = isCageAccount(member || PLAYER);
+  const [ledgerSnap, memberSnap] = await Promise.all([
+    cage ? db.collection('ledger').where('accountId','==',memberId).get() : Promise.resolve(null),
+    db.collection('memberLedger').where('memberId','==',memberId).get(),
+  ]);
   let balance = 0, points = 0;
-  snap.forEach(d=>{
+  memberSnap.forEach(d=>{
     const r = d.data();
     if (r.category==='point_earn' || r.category==='point_convert') points += Number(r.amount)||0;
-    else balance += Number(r.amount)||0;
+    else if (!cage) balance += Number(r.amount)||0;
+  });
+  if (cage && ledgerSnap) ledgerSnap.forEach(d=>{
+    const r = d.data();
+    balance += (Number(r.inn)||0) - (Number(r.out)||0);
   });
   return {balance, points};
 }
@@ -177,6 +207,11 @@ async function placeBet(db, {memberId, casino, tableId, roundId, betType, amount
     memberId, casino, amount: -Math.abs(amount), category:'bet', betType,
     relatedTableId: tableId, relatedRoundId: roundId, staff: staff||'system',
     createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
+  });
+  // the stake leaves the cage account as it is placed
+  if (isCageAccount(PLAYER)) await writeCageLedger(db, {
+    accountId: memberId, casino, type:'OUT', amount,
+    memo: `${tableId} ${betType}`,
   });
 }
 async function settleBet(db, {memberId, casino, tableId, roundId, betType, amount, resultInfo}){
@@ -192,6 +227,11 @@ async function settleBet(db, {memberId, casino, tableId, roundId, betType, amoun
       memberId, casino, amount: payout, category:'payout',
       relatedTableId: tableId, relatedRoundId: roundId, staff:'system',
       createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
+    });
+    // and the return comes back into it
+    if (isCageAccount(PLAYER)) await writeCageLedger(db, {
+      accountId: memberId, casino, type:'IN', amount: payout,
+      memo: `${tableId} ${betType}`,
     });
   }
   return payout;

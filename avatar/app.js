@@ -261,10 +261,10 @@ async function chooseSpeed(){
    shipped; the headers now make images revalidate, and bumping this number pulls a replacement
    through immediately rather than waiting the hour out. Bump it whenever a file here changes. */
 const CASINO_MARK_SRC = {
-  ALL: '../shared/assets/logo-all.svg?v=2',
-  HANN: '../shared/assets/logo-hann.svg?v=2',
-  NUSTAR: '../shared/assets/logo-nustar.svg?v=2',
-  SOLAIRE: '../shared/assets/logo-solaire.svg?v=2',
+  ALL: '../shared/assets/logo-all.svg?v=3',
+  HANN: '../shared/assets/logo-hann.svg?v=3',
+  NUSTAR: '../shared/assets/logo-nustar.svg?v=3',
+  SOLAIRE: '../shared/assets/logo-solaire.svg?v=3',
 };
 const LOBBY_CASINOS = ['HANN','NUSTAR','SOLAIRE'];
 const CASINO_LABELS = {ALL:'allCasinos', HANN:'casinoHann', NUSTAR:'casinoNustar', SOLAIRE:'casinoSolaire'};

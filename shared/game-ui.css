@@ -247,10 +247,17 @@
 .bet-spot.selected{border-color:var(--brass);box-shadow:0 0 0 3px rgba(217,178,106,.18), 0 8px 20px -8px rgba(217,178,106,.4);}
 .bet-spot.locked{opacity:.5;cursor:not-allowed;}
 .bet-spot .label{font-weight:800;font-size:16px;letter-spacing:.6px;}
-.bet-spot.player .label{color:#7FBFEA;}
-.bet-spot.banker .label{color:#E89286;}
-.bet-spot.tie .label{color:var(--jade);}
-.bet-spot.pair .label{color:var(--brass);font-size:11.5px;}
+/* Each spot is named in its own side's colour - player blue, banker red, tie green, and each
+   pair the colour of the hand it belongs to rather than the one gold both used to share.
+   They are stronger than the washed tints they replace, and as deep as the felt they sit on
+   will carry: the two big labels take the darker shade, the pair labels a step lighter because
+   they are set at 11.5px against the others' 20 and need the contrast a small size costs. */
+.bet-spot.player .label{color:#3E9BE8;}
+.bet-spot.banker .label{color:#F2564A;}
+.bet-spot.tie .label{color:#2FD39B;}
+.bet-spot.pair .label{font-size:11.5px;}
+.bet-spot.pair.player .label{color:#4FA8F0;}
+.bet-spot.pair.banker .label{color:#FF6B5C;}
 .bet-spot .odds{font-size:10.5px;color:var(--ink-faint);margin-top:3px;font-family:var(--mono);}
 .bet-spot .my-bet{margin-top:9px;font-family:var(--mono);font-weight:700;color:var(--brass);font-size:13.5px;min-height:18px;}
 .chip-stack{display:flex;justify-content:center;align-items:flex-end;height:0;margin-top:6px;transition:height .15s ease;}
@@ -648,33 +655,13 @@
   padding:16px 8px;position:relative;
 }
 .sd-bets .bet-spot::before{display:none;}
+.sd-bets .bet-spot:hover{transform:none;background:rgba(255,255,255,.03);}
 .sd-bets .pair-row .bet-spot:last-child,.sd-bets .bet-rail .bet-spot:last-child{border-right:none;}
 .sd-bets .bet-rail .bet-spot{border-bottom:none;padding:14px 8px;}
 .sd-bets .bet-rail .bet-spot .label{font-size:20px;}
-/* Each spot is painted in its own side's colour, deep enough to read as felt rather than as a
-   tint: player and player pair blue, banker and banker pair red, tie green. They are darker
-   shades of the same three inks the scoreboard marks results in, so a spot and its marks on the
-   board are recognisably the same side. The label reverses out of them in that side's palest
-   tint rather than the mid tone it used against the plain felt, which no longer has the
-   contrast to carry it. */
-.sd-bets .bet-spot.player{background:linear-gradient(165deg,#1A4E7E 0%,#0B2947 100%);}
-.sd-bets .bet-spot.banker{background:linear-gradient(165deg,#8E2A20 0%,#4A130E 100%);}
-.sd-bets .bet-spot.tie{background:linear-gradient(165deg,#11694F 0%,#063427 100%);}
-/* the pair row sits above the main two and is half their height, so it takes the same hue a
-   shade back - the hand bets stay the ones the eye lands on */
-.sd-bets .pair-row .bet-spot.player{background:linear-gradient(165deg,#143C61 0%,#091F36 100%);}
-.sd-bets .pair-row .bet-spot.banker{background:linear-gradient(165deg,#6E2119 0%,#3A0F0B 100%);}
-.sd-bets .pair-row .bet-spot.tie{background:linear-gradient(165deg,#0E523E 0%,#05271E 100%);}
-.sd-bets .bet-spot.player .label{color:#CFE6FA;}
-.sd-bets .bet-spot.banker .label{color:#FBD8D1;}
-.sd-bets .bet-spot.tie .label{color:#CDEFE1;}
-.sd-bets .pair-row .bet-spot .label{color:rgba(255,255,255,.88);}
-/* lifting the whole spot rather than laying a wash over it, so the side's colour is not
-   washed out by its own hover */
-.sd-bets .bet-spot:hover{transform:none;filter:brightness(1.22);}
-.sd-bets .bet-spot.selected{box-shadow:inset 0 0 0 2px var(--brass);filter:brightness(1.15);}
-.sd-bets .bet-spot .meta-row{display:flex;gap:10px;font-size:9.5px;color:rgba(255,255,255,.62);font-family:var(--mono);}
-.sd-bets .bet-spot .odds{font-size:9.5px;color:rgba(255,255,255,.55);}
+.sd-bets .bet-spot.selected{background:rgba(217,178,106,.1);box-shadow:inset 0 0 0 2px var(--brass);}
+.sd-bets .bet-spot .meta-row{display:flex;gap:10px;font-size:9.5px;color:rgba(255,255,255,.5);font-family:var(--mono);}
+.sd-bets .bet-spot .odds{font-size:9.5px;opacity:.7;}
 /* Avatar's session/preview screens reuse the same grid area but have no chip betting
    rail - stack the status + chat cards instead, each with their own .card framing. */
 .sd-bets.avatar-side{background:none;border:none;overflow:visible;gap:12px;}

@@ -153,21 +153,35 @@
   min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--brass);color:#1b1206;
   font-family:var(--mono);font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
 }
-/* The panel drops under the bet board rather than over the felt - the table being watched stays
-   watchable while its neighbours are staked. */
-.speed-multi{display:none;}
-.speed-multi.open{
-  display:block;margin-top:10px;border:1px solid var(--brass-dim);border-radius:12px;
-  background:linear-gradient(165deg,var(--panel-hi),var(--panel));overflow:hidden;
+/* The sheet floats over the screen from the bottom edge rather than sitting in the layout, so
+   opening it moves nothing else on the page - it is fixed, so no ancestor's overflow clips it
+   and no reflow reaches the felt or the board. It slides rather than appears, and goes
+   visibility:hidden when closed so nothing in it is tabbable or clickable. */
+.speed-multi{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  /* as tall as the tables need, capped - a fixed height left a half-empty sheet when only a
+     couple of rows were in it, and the list scrolls once there are more than fit */
+  max-height:min(76vh,820px);display:flex;flex-direction:column;
+  background:linear-gradient(180deg,var(--panel-hi),var(--panel));
+  border-top:1px solid var(--brass);box-shadow:0 -18px 46px -16px rgba(0,0,0,.85);
+  transform:translateY(100%);visibility:hidden;
+  transition:transform .22s ease, visibility .22s;
 }
-.sm-top{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);}
-.sm-top > b{font-size:12.5px;color:var(--brass);letter-spacing:.3px;}
-.sm-total{margin-left:auto;display:flex;align-items:baseline;gap:6px;font-size:11px;color:var(--ink-faint);}
-.sm-total b{font-family:var(--mono);font-size:14px;font-weight:800;color:var(--brass);}
-.sm-close{width:26px;height:26px;font-size:12px;}
-.sm-list{max-height:326px;overflow-y:auto;padding:10px 12px;display:grid;gap:10px;
-  grid-template-columns:repeat(auto-fill,minmax(210px,1fr));}
-.sm-row{border:1px solid var(--line);border-radius:10px;padding:8px;background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:5px;}
+.speed-multi.open{transform:none;visibility:visible;}
+.sm-top{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap;flex-shrink:0;}
+.sm-top > b{font-size:13.5px;color:var(--brass);letter-spacing:.3px;}
+/* the sheet covers the table's tray, so it brings its own chips */
+.sm-chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.sm-chips .chip{width:42px;height:42px;}
+.sm-total{margin-left:auto;display:flex;align-items:baseline;gap:6px;font-size:11.5px;color:var(--ink-faint);}
+.sm-total b{font-family:var(--mono);font-size:16px;font-weight:800;color:var(--brass);}
+.sm-close{width:28px;height:28px;font-size:13px;}
+.sm-list{flex:1;min-height:0;overflow-y:auto;padding:14px 18px 18px;display:grid;gap:12px;
+  align-content:start;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));}
+/* min-width:0 on the row and the road both: without it the road's own content sets the row's
+   min-content width, the grid track is blown out past the viewport, and the whole list scrolls
+   sideways instead of the one road that is too long. */
+.sm-row{border:1px solid var(--line);border-radius:10px;padding:8px;background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:5px;min-width:0;}
 /* The name gets a line to itself with only the enter button beside it, and the phase and clock
    sit underneath: at panel widths a row can actually be, all four on one line left the name a
    sliver and ellipsised every table to "Speed Table ...". */
@@ -187,24 +201,30 @@
 /* The Big Road on the scoreboard's own paper, same marks and same size as the one the list
    draws under each still - a table's record reads identically wherever it is shown. */
 .sm-road{
-  /* four rows of 8px marks with 1px between them is 35, plus the padding and the border - a
-     shorter box clips the bottom row off every column */
-  display:flex;gap:1px;padding:5px 6px;height:48px;box-sizing:border-box;align-items:flex-start;
-  overflow:hidden;background:#fafafa;border:1px solid var(--line);border-radius:6px;
+  /* six rows of 10px marks with 1px between them is 65, plus the padding and the border - a
+     shorter box clips the bottom row off every column. Six is the Big Road's own depth, so a
+     column runs its dragon tail here exactly as it does on the table's board. It scrolls, so
+     the whole shoe is reachable however long it runs; paintRoad pins it to the newest column. */
+  display:flex;gap:1px;padding:5px 6px;height:79px;box-sizing:border-box;align-items:flex-start;min-width:0;
+  overflow-x:auto;overflow-y:hidden;background:#fafafa;border:1px solid var(--line);border-radius:6px;
 }
 .sm-road .br-col{gap:1px;}
-.sm-road .br-cell{width:8px;height:8px;border-width:1.5px;}
-.sm-road .br-cell.tie-only{width:6px;height:6px;}
-.sm-road .br-tie::before{height:1px;}
+.sm-road .br-cell{width:10px;height:10px;border-width:1.6px;}
+.sm-road .br-cell.tie-only{width:7px;height:7px;}
+.sm-road .br-tie::before{height:1.5px;}
 .sm-road .br-tie span{display:none;}
-.sm-road .br-pair{width:2.5px;height:2.5px;}
+.sm-road .br-pair{width:3px;height:3px;}
 .sm-counts{font-size:10px;color:var(--ink-faint);letter-spacing:.2px;}
 .sm-counts b{font-family:var(--mono);color:var(--ink-dim);font-weight:700;}
 .sm-open{flex-shrink:0;background:none;border:1px solid var(--line);color:var(--ink-faint);border-radius:7px;
   padding:2px 7px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .sm-open:hover{border-color:var(--brass-dim);color:var(--brass);}
 @media (max-width:640px){
-  .sm-list{grid-template-columns:1fr;max-height:280px;}
+  /* one table to a row on a phone; the sheet's own height still governs, so no max-height here */
+  .speed-multi{max-height:min(82vh,760px);}
+  .sm-top{padding:9px 12px;gap:8px;}
+  .sm-chips .chip{width:36px;height:36px;}
+  .sm-list{grid-template-columns:1fr;padding:12px;}
   .tb-spot .tb-label{font-size:9px;}
   .tb-row.hands .tb-spot .tb-label{font-size:11px;}
 }

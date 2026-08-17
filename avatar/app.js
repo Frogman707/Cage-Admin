@@ -630,6 +630,7 @@ async function enterAvatarSession(tableId){
   AVATAR.history = rounds.map(r=>r.result);
   AVATAR.pairFlags = rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair}));
   AVATAR.roundNo = (Math.max(0, ...rounds.map(r=>r.roundNo||0)) || 0) + 1;
+  AVATAR.shoe = openShoe(AVATAR.table.shoeNo || 1);
   await refreshTipTotals();
 
   view.innerHTML = avatarTableShellHtml();
@@ -804,7 +805,7 @@ async function beginAvatarDealingPhase(){
     document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
     toast(t('avatarPlacedBet', {side: betLabel(AVATAR.request.betSide), amount: fmtNum(AVATAR.request.betAmount)}));
   }
-  AVATAR._sim = simulateRound();
+  AVATAR._sim = simulateRound(AVATAR.shoe);
   await revealAvatarCards(AVATAR._sim);
 }
 /* The deck is a set of card faces rather than a drawn one: shared/assets/cards/<suit><rank>.png,
@@ -846,10 +847,17 @@ async function beginAvatarResultPhase(){
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
   refreshPointsQuiet();
 
-  await writeRoundDoc(db, {tableId:AVATAR.table.id, tableType:'avatar', roundNo:AVATAR.roundNo, shoeNo:AVATAR.table.shoeNo||1, sim, startedAt:new Date(Date.now()-(AVATAR_BETTING_SECONDS+AVATAR_DEALING_SECONDS)*1000).toISOString()});
+  await writeRoundDoc(db, {tableId:AVATAR.table.id, tableType:'avatar', roundNo:AVATAR.roundNo, shoeNo:AVATAR.shoe.no, sim, startedAt:new Date(Date.now()-(AVATAR_BETTING_SECONDS+AVATAR_DEALING_SECONDS)*1000).toISOString()});
   AVATAR.history.push(sim.result);
   AVATAR.pairFlags.push({playerPair:!!sim.playerPair, bankerPair:!!sim.bankerPair});
   AVATAR.roundNo++;
+  // the road belongs to the shoe: a cut card ends both together
+  const nextShoe = advanceShoe(AVATAR.shoe);
+  if (nextShoe.no !== AVATAR.shoe.no){
+    AVATAR.shoe = nextShoe; AVATAR.table.shoeNo = nextShoe.no;
+    AVATAR.history = []; AVATAR.pairFlags = [];
+    toast(t('shoeChanged', {no: nextShoe.no}));
+  }
   renderAvatarRoad();
   renderAvatarTally();
   renderMyBetHistory();
@@ -912,6 +920,7 @@ async function loadSpeedTables(){
       bets:{player:0, banker:0, tie:0, playerPair:0, bankerPair:0}, currentRoundId: uuidv4(),
       history: rounds.map(r=>r.result),
       pairFlags: rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair})),
+      shoe: openShoe(tb.shoeNo || 1),
     };
     renderSpeedTileRoad(tb.id);
     renderSpeedTileBets(tb.id);
@@ -1067,6 +1076,9 @@ function placeSpeedBet(tableId, type){
   if (!s || s.phase !== 'betting'){ toast(t('notBettingTime'), true); return; }
   let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
   if (STATE.balance - locked < STATE.selectedChip){ toast(t('insufficientBalance'), true); return; }
+  // the table's limits apply to each betting position, not to the round as a whole
+  const max = tableBetMax(tableId);
+  if (s.bets[type] + STATE.selectedChip > max){ toast(t('aboveTableMax', {max: fmtNum(max)}), true); return; }
   s.bets[type] += STATE.selectedChip;
   if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${type}`)?.classList.add('selected');
   renderSpeedTileBets(tableId);
@@ -1182,6 +1194,10 @@ function repeatLastSpeedBetDetail(tableId){
   let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
   const need = Object.values(s.lastBets).reduce((a,b)=>a+b,0);
   if (STATE.balance - locked < need){ toast(t('insufficientBalance'), true); return; }
+  const max = tableBetMax(tableId);
+  if (Object.entries(s.lastBets).some(([k,v]) => v > 0 && (s.bets[k]||0) + v > max)){
+    toast(t('aboveTableMax', {max: fmtNum(max)}), true); return;
+  }
   Object.entries(s.lastBets).forEach(([k,v])=>{ if (v>0){ s.bets[k] = (s.bets[k]||0) + v; document.getElementById(`spot-detail-${k}`)?.classList.add('selected'); } });
   renderSpeedTileBets(tableId);
   projectSpeedBalance();
@@ -1238,13 +1254,45 @@ async function beginSpeedDealing(tableId){
   }
   setSpeedTileBetsLocked(tableId, true);
   setSpeedTilePhaseText(tableId, t('phaseDealing'));
+  returnUnderMinSpeedBets(tableId);   // a short bet never reaches the felt
   for (const [betType, amount] of Object.entries(s.bets)){
     if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, staff:'system'});
   }
   const totalBet = Object.values(s.bets).reduce((a,b)=>a+b,0);
   if (totalBet > 0){ STATE.balance -= totalBet; }
-  s._sim = simulateRound();
+  s._sim = simulateRound(s.shoe);
   if (SPEED.detailTableId===tableId) await revealSpeedDetailCards(s._sim);
+}
+/* Table limits. A baccarat table posts a minimum and a maximum and both apply per betting
+   position, so a chip that would take one spot over the max is refused outright, and a spot
+   left standing under the minimum when betting closes is pushed back rather than played. */
+function tableBetMax(tableId){ return Number(SPEED.tables[tableId]?.betMax) || Infinity; }
+function tableBetMin(tableId){ return Number(SPEED.tables[tableId]?.betMin) || 0; }
+function returnUnderMinSpeedBets(tableId){
+  const s = SPEED.tstate[tableId], min = tableBetMin(tableId);
+  let returned = 0;
+  for (const [k, v] of Object.entries(s.bets)){
+    if (v > 0 && v < min){ returned += v; s.bets[k] = 0; }
+  }
+  if (returned > 0){
+    renderSpeedTileBets(tableId);
+    renderSpeedStakedTotal();
+    toast(t('betReturnedBelowMin', {amount: fmtNum(returned)}), true);
+  }
+  return returned;
+}
+
+/* A roadmap is the record of one shoe, so when the cut card ends the shoe the road starts
+   over on the fresh one rather than running on across the change. */
+function advanceSpeedShoe(tableId){
+  const s = SPEED.tstate[tableId];
+  const next = advanceShoe(s.shoe);
+  if (next.no === s.shoe.no) return false;
+  s.shoe = next;
+  s.history = []; s.pairFlags = [];
+  if (SPEED.tables[tableId]) SPEED.tables[tableId].shoeNo = next.no;
+  if (SPEED.detailTableId === tableId) toast(`[${SPEED.tables[tableId].name}] ${t('shoeChanged', {no: next.no})}`);
+  return true;
 }
 async function beginSpeedResult(tableId){
   const s = SPEED.tstate[tableId];
@@ -1267,10 +1315,11 @@ async function beginSpeedResult(tableId){
   if (totalPayout > 0){ STATE.balance += totalPayout; toast(`[${tb.name}] ${t('wonAmount', {amount: fmtNum(totalPayout)})}`); }
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
 
-  await writeRoundDoc(db, {tableId, tableType:'speed', roundNo:s.roundNo, shoeNo:tb.shoeNo||1, sim, startedAt:new Date(Date.now()-(SPEED_BETTING_SECONDS+SPEED_DEALING_SECONDS)*1000).toISOString()});
+  await writeRoundDoc(db, {tableId, tableType:'speed', roundNo:s.roundNo, shoeNo:s.shoe.no, sim, startedAt:new Date(Date.now()-(SPEED_BETTING_SECONDS+SPEED_DEALING_SECONDS)*1000).toISOString()});
   s.history.push(sim.result);
   s.pairFlags.push({playerPair:!!sim.playerPair, bankerPair:!!sim.bankerPair});
   s.roundNo++;
+  advanceSpeedShoe(tableId);
   renderSpeedTileRoad(tableId);
   renderSpeedTileStats(tableId);
 }

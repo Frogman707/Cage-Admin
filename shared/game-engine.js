@@ -30,11 +30,58 @@ function randCard(){
   const suit = CARD_SUITS[Math.floor(Math.random()*CARD_SUITS.length)];
   return {rank, suit};
 }
-function simulateRound(){
+
+/* ---------------- the shoe ----------------
+   Baccarat is dealt from an 8-deck shoe without replacement, not from an endless supply
+   of random cards, and the difference is not cosmetic: a pair lands on 31 of the 415 cards
+   left beside its match (7.47%), where drawing at random would make it 1 in 13 (7.69%).
+   That gap is the whole house edge on the 11:1 pair bet - 10.36% dealt properly against
+   7.7% dealt at random. The shoe also gives the roadmaps something real to be a record of.  */
+const SHOE_DECKS = 8;
+const CUT_CARD_FROM_BOTTOM = 16;   // the stop card sits 16 cards from the end
+const MAX_CARDS_PER_ROUND = 6;     // three to a side is the most any tableau can call for
+
+function openShoe(no){
+  const cards = [];
+  for (let d = 0; d < SHOE_DECKS; d++)
+    for (const suit of CARD_SUITS)
+      for (const rank of CARD_RANKS) cards.push({rank, suit});
+  for (let i = cards.length - 1; i > 0; i--){            // Fisher-Yates
+    const j = Math.floor(Math.random() * (i + 1));
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  const shoe = {no: no || 1, cards, pos: 0, cutCardAt: cards.length - CUT_CARD_FROM_BOTTOM, finalHandDealt: false};
+  // The burn: the dealer turns the top card and burns as many as it is worth, a ten or a
+  // face counting ten rather than the zero it is worth in play.
+  const turned = cards[shoe.pos++];
+  shoe.burnCard = turned;
+  shoe.burned = ['10','J','Q','K'].includes(turned.rank) ? 10 : cardValue(turned.rank);
+  shoe.pos += shoe.burned;
+  return shoe;
+}
+function shoeRemaining(shoe){ return shoe.cards.length - shoe.pos; }
+function drawFrom(shoe){ return shoe.cards[shoe.pos++]; }
+
+/* Once the cut card shows the dealer finishes the hand it appeared in, deals one more, and
+   then the shoe is changed. Call this after each round: it hands back either the same shoe
+   or a fresh one, so a caller can compare .no to see whether the shoe just turned over. */
+function advanceShoe(shoe){
+  if (!shoe) return openShoe(1);
+  if (shoe.pos >= shoe.cutCardAt){
+    if (shoe.finalHandDealt) return openShoe(shoe.no + 1);
+    shoe.finalHandDealt = true;
+  }
+  if (shoeRemaining(shoe) < MAX_CARDS_PER_ROUND) return openShoe(shoe.no + 1);
+  return shoe;
+}
+
+function simulateRound(shoe){
   // Punto banco tableau: both hands get two cards, then the fixed drawing rules decide any
   // third card. Nobody chooses - the sequence is entirely determined by the totals.
-  const player = {cards:[randCard(), randCard()]};
-  const banker = {cards:[randCard(), randCard()]};
+  // dealt from the shoe when there is one; randCard is the shoeless fallback used by tests
+  const draw = shoe ? () => drawFrom(shoe) : randCard;
+  const player = {cards:[draw(), draw()]};
+  const banker = {cards:[draw(), draw()]};
   // pair side bets are settled on the first two cards, before any draw
   const playerPair = player.cards[0].rank === player.cards[1].rank;
   const bankerPair = banker.cards[0].rank === banker.cards[1].rank;
@@ -43,7 +90,7 @@ function simulateRound(){
   // a natural 8 or 9 on either side stands both hands
   if (pt < 8 && bt < 8){
     let p3 = null;
-    if (pt <= 5){ p3 = randCard(); player.cards.push(p3); pt = handTotal(player.cards); }
+    if (pt <= 5){ p3 = draw(); player.cards.push(p3); pt = handTotal(player.cards); }
     const v = p3 ? cardValue(p3.rank) : null;
     // with no player draw the banker follows the player's own rule; otherwise the tableau
     // keys off the banker total and the value of the player's third card
@@ -55,7 +102,7 @@ function simulateRound(){
       bt === 5    ? v >= 4 && v <= 7 :
       bt === 6    ? v === 6 || v === 7 :
                     false; // 7 stands
-    if (bankerDraws){ banker.cards.push(randCard()); bt = handTotal(banker.cards); }
+    if (bankerDraws){ banker.cards.push(draw()); bt = handTotal(banker.cards); }
   }
   player.score = pt; banker.score = bt;
   const result = pt > bt ? 'player' : bt > pt ? 'banker' : 'tie';

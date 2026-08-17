@@ -469,11 +469,9 @@
    Layout mirrors the reference: video + bead road stacked on the left,
    one large edge-to-edge betting board filling the right column, and a
    bottom bar carrying the casino mark / round info / chip tray. ---- */
-/* The table screen is a single screen: it fills the space the header leaves and never scrolls
-   the page. The view that holds it is the flex child that stretches; everything inside is
-   budgeted against that height (see .speed-detail-grid). */
-.shell-app > div:has(> .speed-detail-wrap){flex:1 1 auto;min-height:0;}
-.speed-detail-wrap{padding:16px 18px;max-width:1400px;margin:0 auto;height:100%;box-sizing:border-box;overflow:auto;}
+/* 18 at the foot rather than 24: the screen comes to 898px at a 1440x900, which is the
+   commonest desktop there is, and four pixels of padding are not worth a scrollbar on it */
+.speed-detail-wrap{padding:16px 18px 18px;max-width:1400px;margin:0 auto;box-sizing:border-box;}
 .speed-detail-head{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
 .speed-detail-head .name{font-weight:800;font-size:16px;color:var(--brass);}
 .speed-detail-head .meta{font-size:11.5px;color:var(--ink-faint);font-family:var(--mono);}
@@ -486,20 +484,23 @@
      carries the still's aspect ratio its width follows from that height - so the whole table
      screen lands inside one viewport instead of running off the bottom of it. */
   --sd-board:252px;
-  display:grid;gap:12px;height:100%;
-  grid-template-columns:auto minmax(0,1fr);
-  /* the floor matches the stage's own: on a screen too short for the layout the row keeps its
-     size and the screen scrolls, rather than the video shrinking to a postage stamp */
-  grid-template-rows:minmax(240px,1fr) var(--sd-board);
+  display:grid;gap:12px;
+  /* The video is sized by the width it is given, not by the height the screen has left: it had
+     been the other way round, and on a laptop's 768 or 800 the still came out a fifth smaller
+     than its own size. The results row is 252px now rather than the 355 it was, so the screen
+     still comes out in one piece from about 900px of height; below that it scrolls, which is
+     what it did before, rather than the still paying for it. */
+  grid-template-columns:1.35fr 1fr;
+  grid-template-rows:auto var(--sd-board);
   grid-template-areas:
     "stage bets"
     "board board";
 }
 /* The stage carries the live still's own 672x470 proportions, so the photo fills it corner to
-   corner at full size instead of being cropped top and bottom to fit a wider box. Its height is
-   what the screen has left over, and its width follows from that - which is what sizes the
-   video column. The ceiling stops it swallowing the betting board on a tall screen. */
-.sd-stage{grid-area:stage;position:relative;border-radius:16px;aspect-ratio:672/470;height:100%;min-height:240px;max-height:560px;align-self:center;display:flex;align-items:center;justify-content:center;overflow:hidden;
+   corner at full size instead of being cropped top and bottom to fit a wider box. Its width is
+   the column's and its height follows from that, which is what keeps the still the same size on
+   every screen rather than trading it away for the screen's height. */
+.sd-stage{grid-area:stage;position:relative;border-radius:16px;aspect-ratio:672/470;min-height:300px;display:flex;align-items:center;justify-content:center;overflow:hidden;
   border:1px solid var(--line);
   background:radial-gradient(ellipse 140% 100% at 50% -20%, rgba(217,178,106,.10) 0%, transparent 45%),
              radial-gradient(ellipse at 50% 22%, #123c2f 0%, #07130e 78%);
@@ -655,33 +656,13 @@
   padding:16px 8px;position:relative;
 }
 .sd-bets .bet-spot::before{display:none;}
+.sd-bets .bet-spot:hover{transform:none;background:rgba(255,255,255,.03);}
 .sd-bets .pair-row .bet-spot:last-child,.sd-bets .bet-rail .bet-spot:last-child{border-right:none;}
 .sd-bets .bet-rail .bet-spot{border-bottom:none;padding:14px 8px;}
 .sd-bets .bet-rail .bet-spot .label{font-size:20px;}
-/* Each spot is painted in its own side's colour, deep enough to read as felt rather than as a
-   tint: player and player pair blue, banker and banker pair red, tie green. They are darker
-   shades of the same three inks the scoreboard marks results in, so a spot and its marks on the
-   board are recognisably the same side. The label reverses out of them in that side's palest
-   tint rather than the mid tone it used against the plain felt, which no longer has the
-   contrast to carry it. */
-.sd-bets .bet-spot.player{background:linear-gradient(165deg,#1A4E7E 0%,#0B2947 100%);}
-.sd-bets .bet-spot.banker{background:linear-gradient(165deg,#8E2A20 0%,#4A130E 100%);}
-.sd-bets .bet-spot.tie{background:linear-gradient(165deg,#11694F 0%,#063427 100%);}
-/* the pair row sits above the main two and is half their height, so it takes the same hue a
-   shade back - the hand bets stay the ones the eye lands on */
-.sd-bets .pair-row .bet-spot.player{background:linear-gradient(165deg,#143C61 0%,#091F36 100%);}
-.sd-bets .pair-row .bet-spot.banker{background:linear-gradient(165deg,#6E2119 0%,#3A0F0B 100%);}
-.sd-bets .pair-row .bet-spot.tie{background:linear-gradient(165deg,#0E523E 0%,#05271E 100%);}
-.sd-bets .bet-spot.player .label{color:#CFE6FA;}
-.sd-bets .bet-spot.banker .label{color:#FBD8D1;}
-.sd-bets .bet-spot.tie .label{color:#CDEFE1;}
-.sd-bets .pair-row .bet-spot .label{color:rgba(255,255,255,.88);}
-/* lifting the whole spot rather than laying a wash over it, so the side's colour is not
-   washed out by its own hover */
-.sd-bets .bet-spot:hover{transform:none;filter:brightness(1.22);}
-.sd-bets .bet-spot.selected{box-shadow:inset 0 0 0 2px var(--brass);filter:brightness(1.15);}
-.sd-bets .bet-spot .meta-row{display:flex;gap:10px;font-size:9.5px;color:rgba(255,255,255,.62);font-family:var(--mono);}
-.sd-bets .bet-spot .odds{font-size:9.5px;color:rgba(255,255,255,.55);}
+.sd-bets .bet-spot.selected{background:rgba(217,178,106,.1);box-shadow:inset 0 0 0 2px var(--brass);}
+.sd-bets .bet-spot .meta-row{display:flex;gap:10px;font-size:9.5px;color:rgba(255,255,255,.5);font-family:var(--mono);}
+.sd-bets .bet-spot .odds{font-size:9.5px;opacity:.7;}
 /* Avatar's session/preview screens reuse the same grid area but have no chip betting
    rail - stack the status + chat cards instead, each with their own .card framing. */
 .sd-bets.avatar-side{background:none;border:none;overflow:visible;gap:12px;}
@@ -696,10 +677,7 @@
 .sd-chip-tray .chip{width:44px;height:44px;}
 .sd-chip-tray .spacer{display:none;}
 @media (max-width:860px){
-  /* the phone stacks video, board and betting board down a page that scrolls, so it gives back
-     the desktop screen's fill-the-viewport-exactly budget */
-  .shell-app > div:has(> .speed-detail-wrap){flex:0 0 auto;min-height:auto;}
-  .speed-detail-wrap{padding:8px 8px 24px;height:auto;overflow:visible;}
+  .speed-detail-wrap{padding:8px 8px 24px;}
   .sd-stage{min-height:220px;height:auto;border-radius:12px;}
   /* ---- phone board, laid out as the reference app draws it ----
      Video, then a slim strip carrying the P/B/T counts and the two legend pills, then the

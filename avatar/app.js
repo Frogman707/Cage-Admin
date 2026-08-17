@@ -984,9 +984,14 @@ function speedMultiPanelHtml(){
       <div class="tb-row hands">${SPEED_TILE_SPOTS.slice(3).map(spot(id)).join('')}</div>
     </div>`;
   }).join('');
+  // the sheet covers the table's own tray, so it carries the chip picker itself - the same
+  // STATE.selectedChip either way, so a chip chosen here is the one the open table stakes too
   return `
     <div class="sm-top">
       <b>${t('multiBet')}</b>
+      <div class="sm-chips">
+        ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
+      </div>
       <span class="sm-total">${t('totalLabel')} <b id="speedStakedTotal">0</b></span>
       <button class="btn btn-sm" onclick="clearAllSpeedBets()">${t('cancelBet')}</button>
       <button class="icon-btn sm-close" onclick="toggleSpeedMultiPanel(false)" title="${t('backToList')}">✕</button>
@@ -1030,15 +1035,17 @@ function paintSpeedMultiRow(tableId){
     last.className = 'sm-last' + (r ? ' ' + r.side : '');
   }
 }
-/* the row's roadmap and running count - the same Big Road the list draws under each still, at
-   the same size. Only redrawn when a round lands, not on every tick. */
+/* The row's roadmap and running count. The whole shoe goes in, not a tail of it, drawn six
+   rows deep the way the table's own board draws it - so no column is cut short and every
+   result played is on the paper, reachable by scrolling back from the newest column.
+   Only redrawn when a round lands, not on every tick. */
 function renderSpeedMultiResult(tableId){
   const s = SPEED.tstate[tableId];
   if (!s) return;
   const road = document.getElementById(`smroad-${tableId}`);
   if (road){
-    const cols = buildBigRoad(s.history.slice(-40), (s.pairFlags||[]).slice(-40));
-    paintRoad(road, renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`);
+    const cols = buildBigRoad(s.history, s.pairFlags || []);
+    paintRoad(road, renderBigRoad(cols, 6) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`);
   }
   const counts = document.getElementById(`smcounts-${tableId}`);
   if (counts){
@@ -1236,9 +1243,11 @@ function speedDetailShellHtml(tableId){
             <span data-i18n="multiBet">멀티 베팅</span><b class="sm-count" id="speedMultiCount"></b>
           </button>
         </div>
-        <div class="speed-multi" id="speedMultiPanel"></div>
       </div>
     </div>
+    <!-- the multi-bet sheet lives outside the grid: it floats over the screen rather than
+         sitting in the layout, so opening it moves nothing else on the page -->
+    <div class="speed-multi" id="speedMultiPanel"></div>
   </div>`;
 }
 function clearSpeedDetailCards(){

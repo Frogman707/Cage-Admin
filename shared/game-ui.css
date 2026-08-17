@@ -77,7 +77,7 @@
    measure 277x93, so the still is cropped to a 3:1 band. */
 .lobby-card .thumb{
   aspect-ratio:3/1;position:relative;overflow:hidden;
-  background:url('assets/table-live.jpg') center/cover no-repeat;
+  background:url('assets/table-live.jpg?v=2') center/cover no-repeat;
 }
 @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.3;}}
 .card-favorite{margin-left:auto;width:24px;height:24px;border-radius:50%;background:none;border:none;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -154,7 +154,7 @@
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   background:
     linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.26)),
-    url('assets/table-live.jpg') center/cover no-repeat;
+    url('assets/table-live.jpg?v=2') center/cover no-repeat;
 }
 .sd-stage-top{position:absolute;top:14px;left:56px;right:64px;display:flex;align-items:center;gap:10px;z-index:2;flex-wrap:wrap;}
 .sd-type-badge{background:rgba(4,20,30,.7);backdrop-filter:blur(4px);border:1px solid #3fd0e8;color:#3fd0e8;border-radius:14px;padding:5px 16px;font-weight:800;font-size:11.5px;letter-spacing:1px;flex-shrink:0;}
@@ -167,21 +167,18 @@
 .hand.player .side-label{color:#7FBFEA;text-shadow:0 0 10px rgba(127,191,234,.35);}
 .hand.banker .side-label{color:#E89286;text-shadow:0 0 10px rgba(232,146,134,.35);}
 .hand .cards{display:flex;gap:5px;min-height:76px;}
+/* The card is a face from shared/assets/cards, set on the element rather than drawn in CSS, so
+   it keeps the deck's own artwork - rank, pip and rounded corners all come from the file. Its
+   height is what sizes it; the width follows the artwork's own 110x140. The shadow is a
+   drop-shadow rather than a box-shadow so it follows the rounded corners instead of squaring
+   them off. */
 .playing-card{
-  width:44px;height:64px;background:linear-gradient(155deg,#fff,#f2f2ef);border-radius:6px;position:relative;
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;
-  box-shadow:0 6px 14px -4px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.6) inset;
-  border:1px solid rgba(0,0,0,.06);
+  height:64px;aspect-ratio:110/140;position:relative;
+  background:center/contain no-repeat;
+  filter:drop-shadow(0 5px 9px rgba(0,0,0,.5));
   animation:dealCard .38s cubic-bezier(.2,.7,.3,1.1);
   transform-style:preserve-3d;
 }
-.playing-card::before,.playing-card::after{
-  content:attr(data-rank);position:absolute;font-size:9.5px;font-weight:800;line-height:1;
-}
-.playing-card::before{top:4px;left:5px;}
-.playing-card::after{bottom:4px;right:5px;transform:rotate(180deg);}
-.playing-card.red{color:#c0392b;}
-.playing-card.black{color:#181818;}
 @keyframes dealCard{
   from{transform:translateY(-30px) translateX(10px) rotate(-8deg) rotateY(90deg) scale(.7);opacity:0;}
   to{transform:none;opacity:1;}
@@ -190,7 +187,7 @@
    it leaves its layout box upright, so the margin gives back the (64-44)/2 it now overhangs at
    each side, and it needs its own keyframes - the deal animation ends at transform:none, which
    would drop the rotation on the last frame. */
-.playing-card.third{transform:rotate(90deg);margin:0 10px;animation-name:dealCardSideways;}
+.playing-card.third{transform:rotate(90deg);margin:0 7px;animation-name:dealCardSideways;}
 /* The player's hand sits on the left of the felt, so its third card is laid on the outside -
    to the left of the pair, mirroring the banker's, which stays on the right. It is dealt last,
    so the order moves it without touching the deal sequence. */
@@ -399,8 +396,8 @@
   .card-hot{font-size:9px;}
 
   .cards-area{gap:22px;}
-  .playing-card{width:36px;height:52px;font-size:14px;}
-  .playing-card.third{margin:0 8px;}
+  .playing-card{height:52px;}
+  .playing-card.third{margin:0 6px;}
   .hand .score{min-width:28px;height:28px;font-size:15px;}
   .bet-rail{gap:8px;}
   .bet-rail.with-pairs{grid-template-columns:1fr 1.15fr 1fr;}

@@ -66,6 +66,9 @@
 /* four to a row, as the reference lists them - measured there at 277px cards with 13px
    gutters, so the columns are set rather than auto-filled to whatever the width allows. */
 .lobby-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;}
+/* four to a row needs the room for four: below this the cards come out too narrow for a table
+   name and its badges on one line, so the row drops to three rather than truncating everything */
+@media (max-width:1180px){ .lobby-grid{grid-template-columns:repeat(3,1fr);} }
 .lobby-card{
   background:linear-gradient(165deg,var(--panel-hi) 0%,var(--panel) 55%);
   border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;
@@ -85,26 +88,36 @@
 .card-favorite.active{color:var(--danger);}
 .card-favorite.active svg{fill:var(--danger);}
 .card-favorite svg{width:14px;height:14px;}
-/* Everything that used to be printed over the still now lives on its own row beneath it,
-   so the thumbnail is nothing but the photo. */
-.card-status-row{display:flex;align-items:center;gap:8px;padding:11px 15px 0;}
-.card-status{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:12px;white-space:nowrap;}
+/* The card is read top to bottom the way the reference lists a table: the still, the board
+   under it, then two lines of type - the name with whatever badges the table carries on the
+   first, its limits and its counts on the second. It had been five stacked rows, which left the
+   still with 38% of the card; the still has half of it now, which is the proportion the
+   reference gives it, and the card comes out a third shorter for the same information. */
+.card-status{font-size:11px;font-weight:700;padding:3px 9px;border-radius:11px;white-space:nowrap;flex-shrink:0;}
 .card-status.spectate{background:rgba(255,255,255,.07);color:var(--ink-dim);}
 .card-status.reenter{background:rgba(47,169,140,.16);color:var(--jade);}
 .card-status.pending{background:rgba(255,255,255,.06);color:var(--ink-faint);}
 .card-status.full{background:rgba(217,105,90,.14);color:var(--danger);}
-.card-hot{font-size:10.5px;font-weight:700;color:var(--brass);white-space:nowrap;}
-.lobby-card .info{padding:9px 15px 4px;}
-.lobby-card .info .name{font-weight:700;font-size:14.5px;color:var(--ink);}
-.lobby-card .info .limits{font-size:11px;color:var(--ink-faint);margin-top:4px;font-family:var(--mono);}
-.lobby-card .mini-road{display:flex;gap:1px;padding:10px 15px 4px;overflow-x:hidden;}
+.card-hot{font-size:10px;font-weight:700;color:var(--brass);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* The board under the still is the scoreboard's own paper, as it is everywhere else in the app
+   and as the reference draws it - not the card's dark panel with marks floating on it. */
+.lobby-card .mini-road{
+  display:flex;gap:1px;padding:6px 8px;overflow-x:hidden;height:49px;box-sizing:border-box;align-items:flex-start;
+  background:#fafafa;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+}
 .lobby-card .mini-road .br-col{gap:1px;}
 .lobby-card .mini-road .br-cell{width:8px;height:8px;border-width:1.5px;}
 .lobby-card .mini-road .br-cell.tie-only{width:6px;height:6px;}
 .lobby-card .mini-road .br-tie::before{height:1px;}
 .lobby-card .mini-road .br-tie span{display:none;}
-.lobby-card .stat-row{display:flex;justify-content:space-between;padding:4px 15px 13px;font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);border-top:1px solid rgba(255,255,255,.04);margin-top:6px;padding-top:8px;}
-.lobby-card .stat-row b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
+.lobby-card .card-foot{padding:9px 13px 11px;}
+.lobby-card .card-line{display:flex;align-items:center;gap:7px;min-width:0;}
+.lobby-card .card-line + .card-line{margin-top:5px;}
+.lobby-card .name{font-weight:700;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.lobby-card .card-line.meta{font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);}
+.lobby-card .limits{white-space:nowrap;}
+.lobby-card .counts{margin-left:auto;white-space:nowrap;}
+.lobby-card .counts b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
 .lobby-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
 .lobby-toolbar select{background:var(--panel-raised);color:var(--ink);border:1px solid var(--line);padding:7px 10px;border-radius:var(--radius);font-size:12.5px;}
 /* Each house is picked by its own mark with its name under it, centred on the rule, as the
@@ -364,14 +377,17 @@
   .lobby-title{font-size:17px;margin-bottom:10px;}
   .lobby-toolbar{position:sticky;top:0;z-index:15;background:var(--void);padding:8px 0;margin:0 0 10px;}
   .lobby-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
-  .lobby-card .info{padding:9px 10px 2px;}
-  .lobby-card .info .name{font-size:12.5px;}
-  .lobby-card .info .limits{font-size:9.5px;}
-  .lobby-card .mini-road{padding:7px 10px 2px;}
+  .lobby-card .mini-road{padding:5px 7px;height:39px;}
   .lobby-card .mini-road .br-cell{width:6px;height:6px;}
-  .lobby-card .stat-row{font-size:9px;padding:3px 10px 9px;}
-  .card-status-row{padding:8px 10px 0;gap:6px;}
-  .card-status{font-size:10px;padding:3px 8px;}
+  .lobby-card .card-foot{padding:7px 10px 9px;}
+  .lobby-card .card-line{gap:5px;}
+  .lobby-card .name{font-size:12.5px;}
+  .lobby-card .card-line.meta{font-size:9px;}
+  /* two cards to a phone's width is 166px of card - the limits and the countdown are what a
+     player picks a table on, so the streak badge and the P/B/T tally stand down rather than
+     everything being squeezed to an ellipsis */
+  .lobby-card .card-hot,.lobby-card .counts{display:none;}
+  .card-status{font-size:10px;padding:2px 7px;}
   .card-hot{font-size:9px;}
 
   .cards-area{gap:22px;}

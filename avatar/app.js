@@ -456,14 +456,16 @@ function renderAvatarLobbyGrid(sortMode){
     return `
     <div class="lobby-card" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="handleAvatarCardClick('${tb.id}')" title="${t('openTable')}">
       <div class="thumb"></div>
-      <div class="card-status-row">
-        ${avatarCardStatusHtml(tb.id)}
-        ${isHot ? `<span class="card-hot">🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}</span>` : ''}
-        <button class="card-favorite" onclick="event.stopPropagation();toggleCardFavorite(this)" title="${t('favorites')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
-      </div>
-      <div class="info"><div class="name">${escapeHtml(tb.name)}</div><div class="limits">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div></div>
       <div class="mini-road br-grid">${renderBigRoad(cols, 4) || `<span class="hint" style="font-size:10px;">${t('noRecord')}</span>`}</div>
-      <div class="stat-row" style="padding-bottom:13px;"><span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>${t('todayLabel')} <b>${fmtNum(volume.today)}</b></span></div>
+      <div class="card-foot">
+        <div class="card-line">
+          <span class="name">${escapeHtml(tb.name)}</span>
+          ${avatarCardStatusHtml(tb.id)}
+          ${isHot ? `<span class="card-hot">🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}</span>` : ''}
+          <button class="card-favorite" onclick="event.stopPropagation();toggleCardFavorite(this)" title="${t('favorites')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
+        </div>
+        <div class="card-line meta"><span class="limits">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</span><span class="counts">P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span></div>
+      </div>
     </div>`;
   }).join('');
   pinRoadsIn(grid);
@@ -922,15 +924,17 @@ function speedTileHtml(tb){
   return `
   <div class="lobby-card speed-tile" id="tile-${tb.id}" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}">
     <div class="thumb"></div>
-    <div class="card-status-row">
-      <span class="card-status live">⏱ <b id="timer-${tb.id}">15</b></span>
-      <span class="card-hot" id="score-${tb.id}"></span>
-      <span class="card-hot" id="hotbadge-${tb.id}"></span>
-      <button class="card-favorite" onclick="event.stopPropagation();toggleCardFavorite(this)" title="${t('favorites')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
-    </div>
-    <div class="info"><div class="name">${escapeHtml(tb.name)}</div><div class="limits">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div></div>
     <div class="mini-road br-grid" id="road-${tb.id}"></div>
-    <div class="stat-row" style="padding-bottom:13px;" id="stats-${tb.id}"></div>
+    <div class="card-foot">
+      <div class="card-line">
+        <span class="name">${escapeHtml(tb.name)}</span>
+        <span class="card-status live">⏱ <b id="timer-${tb.id}">15</b></span>
+        <span class="card-hot" id="score-${tb.id}"></span>
+        <span class="card-hot" id="hotbadge-${tb.id}"></span>
+        <button class="card-favorite" onclick="event.stopPropagation();toggleCardFavorite(this)" title="${t('favorites')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
+      </div>
+      <div class="card-line meta"><span class="limits">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</span><span class="counts" id="stats-${tb.id}"></span></div>
+    </div>
   </div>`;
 }
 
@@ -975,9 +979,8 @@ function renderSpeedTileStats(tableId){
   const results = SPEED.tstate[tableId].history;
   const wins = tableWinCounts(results);
   const streak = trailingStreak(results);
-  const volume = tableBetVolume(SPEED.allBets.filter(b=>b.relatedTableId===tableId));
   const statsEl = document.getElementById('stats-'+tableId);
-  if (statsEl) statsEl.innerHTML = `<span>P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span><span>${t('todayLabel')} <b>${fmtNum(volume.today)}</b></span>`;
+  if (statsEl) statsEl.innerHTML = `P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b>`;
   const badgeEl = document.getElementById('hotbadge-'+tableId);
   if (badgeEl) badgeEl.textContent = streak.len >= 3 ? `🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}` : '';
 }

@@ -1060,9 +1060,9 @@ function speedDetailShellHtml(tableId){
       ${avatarScoreboardHtml('detail')}
       <div class="sd-bets">
         <div class="pair-row">
-          <div class="bet-spot pair" id="spot-detail-playerPair" onclick="placeSpeedBet('${tableId}','playerPair')"><div class="label" data-i18n="playerPair">플레이어 페어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-playerPair"></div></div>
+          <div class="bet-spot pair player" id="spot-detail-playerPair" onclick="placeSpeedBet('${tableId}','playerPair')"><div class="label" data-i18n="playerPair">플레이어 페어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-playerPair"></div></div>
           <div class="bet-spot tie" id="spot-detail-tie" onclick="placeSpeedBet('${tableId}','tie')"><div class="label" data-i18n="tie">타이</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">8:1</div><div class="my-bet" id="mybet-detail-tie"></div></div>
-          <div class="bet-spot pair" id="spot-detail-bankerPair" onclick="placeSpeedBet('${tableId}','bankerPair')"><div class="label" data-i18n="bankerPair">뱅커 페어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-bankerPair"></div></div>
+          <div class="bet-spot pair banker" id="spot-detail-bankerPair" onclick="placeSpeedBet('${tableId}','bankerPair')"><div class="label" data-i18n="bankerPair">뱅커 페어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-bankerPair"></div></div>
         </div>
         <div class="bet-rail two-up" style="margin-top:0;">
           <div class="bet-spot player" id="spot-detail-player" onclick="placeSpeedBet('${tableId}','player')"><div class="label" data-i18n="player">플레이어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">1:1</div><div class="my-bet" id="mybet-detail-player"></div></div>

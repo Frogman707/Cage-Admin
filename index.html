@@ -1537,7 +1537,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="modal-close" onclick="closeModal('modal-avatar-request')">×</button>
   <h3 data-i18n="avatarReqTitle"></h3>
   <div class="table-wrap" style="margin-top:10px;"><table>
-    <thead><tr><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="tableLabel"></th><th data-i18n="buyinTotal"></th><th data-i18n="avatarIdLabel"></th><th></th></tr></thead>
+    <thead><tr><th data-i18n="colCasino"></th><th data-i18n="colDate"></th><th data-i18n="colAccount"></th><th data-i18n="tableLabel"></th><th data-i18n="buyinTotal"></th><th data-i18n="avatarIdLabel"></th><th></th></tr></thead>
     <tbody id="avatarReqListBody"></tbody>
   </table></div>
 </div></div>
@@ -4156,6 +4156,14 @@ var qrcode = function() {
 <script>
 /* Philippines Standard Time (UTC+8, no DST) — used for every timestamp the app records. */
 function phNow(){ return new Date(Date.now() + 8*3600000); }
+// Formats a real UTC ISO timestamp (e.g. Firestore's requestedAt, written by a client with no
+// PH offset baked in) into this app's "YYYY-MM-DD HH:MM" PH-local display convention.
+function fmtPhFromIso(iso){
+ if(!iso) return '—';
+ const d = new Date(iso);
+ if(isNaN(d)) return '—';
+ return new Date(d.getTime() + 8*3600000).toISOString().slice(0,16).replace('T',' ');
+}
 
 /* ============================================================
    FIRESTORE — cloud sync (staff collection, phase 1)
@@ -4544,6 +4552,28 @@ function subscribeRollingEventsCloud(){
   scheduleFirestoreResubscribe('rollingEvents', subscribeRollingEventsCloud);
  });
 }
+/* ---- Avatar requests — real-time, submitted by customers on /avatar into Firestore directly
+   (no local seeding: this admin app only ever reads/resolves what customers actually submitted) ---- */
+let fbAvatarReqUnsub = null;
+let fbAvatarRequestsCache = [];
+function subscribeAvatarRequestsCloud(){
+ if(!fbDb) return;
+ if(fbAvatarReqUnsub) fbAvatarReqUnsub();
+ fbAvatarReqUnsub = fbDb.collection('avatarRequests').orderBy('requestedAt','desc').onSnapshot(snap=>{
+  fbAvatarRequestsCache = [];
+  snap.forEach(doc=>{ fbAvatarRequestsCache.push({id:doc.id, ...doc.data()}); });
+  renderAvatarReqBtn();
+  const modal = document.getElementById('modal-avatar-request');
+  if(modal && modal.classList.contains('open')) renderAvatarReqList();
+  resetFirestoreResubscribeBackoff('avatarRequests');
+ }, err=>{
+  console.error('subscribeAvatarRequestsCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('avatarRequests', subscribeAvatarRequestsCloud);
+ });
+}
+function pendingAvatarRequestsForBranch(){
+ return fbAvatarRequestsCache.filter(r=>r.status==='대기' && r.casino===currentBranch());
+}
 function buildGameFromCache(gameId, meta){
  const events = fbRollingEventsByGame[gameId]||[];
  let running = 0;
@@ -4695,6 +4725,9 @@ function switchBranch(branch){
  renderBreakdowns();
  renderCutoffs();
  renderBalancingSummary();
+ renderAvatarReqBtn();
+ const avatarReqModal = document.getElementById('modal-avatar-request');
+ if(avatarReqModal && avatarReqModal.classList.contains('open')) renderAvatarReqList();
  const topBalEl = document.getElementById('lastBalTime');
  if(topBalEl) topBalEl.textContent = bd().lastBalancingDt || '—';
  const lastCutoffEl = document.getElementById('lastCutoff');
@@ -5836,30 +5869,32 @@ function formatNumInput(el){
 function t(key){ return (I18N[LANG] && I18N[LANG][key]) || I18N.ko[key] || key; }
 
 function checkAvatarRequest(){
- const reqs = DB.avatarRequests||[];
+ const reqs = pendingAvatarRequestsForBranch();
  if(!reqs.length){ toast(t('toastNoAvatarReq')); return; }
  renderAvatarReqList();
  openModal('modal-avatar-request');
 }
 function renderAvatarReqList(){
- const reqs = DB.avatarRequests||[];
+ const reqs = pendingAvatarRequestsForBranch();
  const body = document.getElementById('avatarReqListBody');
- body.innerHTML = !reqs.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
-  reqs.map((req,i)=>`<tr><td class="num">${esc(req.dt)||'—'}</td><td>${esc(req.account)||'—'}</td><td>${esc(req.table)||'—'}</td><td class="num">${req.buyin?fmt(req.buyin):'—'}</td><td>${esc(req.avatarId)||'—'}</td>
-   <td><button class="btn btn-sm btn-danger" onclick="cancelAvatarRequest(${i})">${t('cancelBtn')}</button></td></tr>`).join('');
+ body.innerHTML = !reqs.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
+  reqs.map(req=>`<tr><td>${esc(req.casino)||'—'}</td><td class="num">${fmtPhFromIso(req.requestedAt)}</td><td>${esc(req.memberId)||'—'}</td><td>${esc(req.tableId)||'—'}</td><td class="num">${req.buyin?fmt(req.buyin):'—'}</td><td>${esc(req.avatarStaffId)||'—'}</td>
+   <td><button class="btn btn-sm btn-danger" onclick="cancelAvatarRequest('${esc(req.id)}')">${t('cancelBtn')}</button></td></tr>`).join('');
 }
-function cancelAvatarRequest(idx){
- const reqs = DB.avatarRequests||[];
- if(!reqs[idx]) return;
- reqs.splice(idx,1);
- saveDB(); renderAvatarReqList(); renderAvatarReqBtn();
+async function cancelAvatarRequest(id){
+ if(!fbDb) return;
+ try{
+  await fbDb.collection('avatarRequests').doc(id).set({status:'종료', endedAt:new Date().toISOString()}, {merge:true});
+ }catch(e){ console.error('cancelAvatarRequest failed:', e); return; }
+ // The onSnapshot listener re-renders the list/badge once Firestore confirms the write; no local
+ // splice here since fbAvatarRequestsCache is only ever a mirror of that snapshot.
  toast(t('toastAvatarReqCancelled'));
 }
 function renderAvatarReqBtn(){
  const btn = document.getElementById('avatarReqBtn');
  const badge = document.getElementById('avatarReqBadge');
  if(!btn) return;
- const reqs = DB.avatarRequests||[];
+ const reqs = pendingAvatarRequestsForBranch();
  const pending = reqs.length > 0;
  btn.classList.toggle('pending', pending);
  btn.classList.toggle('off', !pending);
@@ -9368,6 +9403,7 @@ function startInactivityTimer(){
   subscribeShiftEventsCloud();
   await withTimeout(seedCageConfigToCloudIfEmpty(), 6000);
   subscribeCageConfigCloud();
+  subscribeAvatarRequestsCloud();
  }
 })();
 </script>

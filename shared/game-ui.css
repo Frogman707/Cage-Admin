@@ -179,6 +179,27 @@
 .sm-phase.dealing{color:var(--brass);}
 .sm-timer{margin-left:auto;flex-shrink:0;font-size:10.5px;color:var(--ink-faint);white-space:nowrap;}
 .sm-timer b{font-family:var(--mono);color:var(--ink-dim);}
+/* The round just finished, in the winner's colour, beside the phase. */
+.sm-last{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--ink-faint);white-space:nowrap;}
+.sm-last.player{color:#4FA8F0;}
+.sm-last.banker{color:#FF6B5C;}
+.sm-last.tie{color:#2FD39B;}
+/* The Big Road on the scoreboard's own paper, same marks and same size as the one the list
+   draws under each still - a table's record reads identically wherever it is shown. */
+.sm-road{
+  /* four rows of 8px marks with 1px between them is 35, plus the padding and the border - a
+     shorter box clips the bottom row off every column */
+  display:flex;gap:1px;padding:5px 6px;height:48px;box-sizing:border-box;align-items:flex-start;
+  overflow:hidden;background:#fafafa;border:1px solid var(--line);border-radius:6px;
+}
+.sm-road .br-col{gap:1px;}
+.sm-road .br-cell{width:8px;height:8px;border-width:1.5px;}
+.sm-road .br-cell.tie-only{width:6px;height:6px;}
+.sm-road .br-tie::before{height:1px;}
+.sm-road .br-tie span{display:none;}
+.sm-road .br-pair{width:2.5px;height:2.5px;}
+.sm-counts{font-size:10px;color:var(--ink-faint);letter-spacing:.2px;}
+.sm-counts b{font-family:var(--mono);color:var(--ink-dim);font-weight:700;}
 .sm-open{flex-shrink:0;background:none;border:1px solid var(--line);color:var(--ink-faint);border-radius:7px;
   padding:2px 7px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .sm-open:hover{border-color:var(--brass-dim);color:var(--brass);}

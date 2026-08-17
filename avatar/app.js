@@ -888,6 +888,7 @@ async function loadSpeedTables(){
   const grid = document.getElementById('speedGrid');
   const toolbar = document.getElementById('speedToolbar');
   if (toolbar) toolbar.innerHTML = casinoTabsHtml() + gameTypeTabsHtml('speed') + `<div class="lobby-toolbar">${lobbySearchHtml()}</div>`;
+  renderSpeedLobbyTray();
   grid.innerHTML = `<div class="table-loading" style="grid-column:1/-1;height:200px;"><div class="spin-lg"></div><div>${t('connectingTable')}</div></div>`;
   const [tableSnap, roundsSnap, betSnap] = await Promise.all([
     db.collection('tables').where('type','==','speed').get(),
@@ -935,6 +936,57 @@ function speedTileHtml(tb){
       </div>
       <div class="card-line meta"><span class="limits">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</span><span class="counts" id="stats-${tb.id}"></span></div>
     </div>
+    ${speedTileBetsHtml(tb.id)}
+  </div>`;
+}
+/* Speed is several tables at once, so the bets are on the tile: every table runs its own round
+   whether or not its screen is open, and a spot here stakes the chip that is selected in the
+   tray at the foot of the list. Clicks stop here rather than opening the table - entering it is
+   the card's own job, everywhere but on these five. */
+const SPEED_TILE_SPOTS = [
+  ['playerPair','playerPairShort','pair player'], ['tie','tie','tie'], ['bankerPair','bankerPairShort','pair banker'],
+  ['player','player','player'], ['banker','banker','banker'],
+];
+/* The list's own chip tray. Speed's bets are spread over several tables, so the chip is picked
+   once here and every tile stakes it; the total staked across all of them is kept alongside so
+   the player can see what is committed without adding the tiles up. */
+function renderSpeedLobbyTray(){
+  const el = document.getElementById('speedLobbyTray');
+  if (!el) return;
+  el.innerHTML = `
+    ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
+    <span class="tray-total"><span>${t('totalLabel')}</span><b id="speedStakedTotal">0</b></span>
+    <button class="btn btn-sm" onclick="clearAllSpeedBets()">${t('cancelBet')}</button>`;
+  renderSpeedStakedTotal();
+}
+function renderSpeedStakedTotal(){
+  const el = document.getElementById('speedStakedTotal');
+  if (!el) return;
+  let staked = 0;
+  Object.values(SPEED.tstate || {}).forEach(s=> staked += Object.values(s.bets).reduce((a,b)=>a+b,0));
+  el.textContent = fmtNum(staked);
+}
+/* clears whatever is staked on every table that is still taking bets - a round already dealing
+   is committed and is left alone */
+function clearAllSpeedBets(){
+  Object.entries(SPEED.tstate || {}).forEach(([tableId,s])=>{
+    if (s.phase !== 'betting') return;
+    s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
+    ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+      if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${k}`)?.classList.remove('selected');
+    });
+    renderSpeedTileBets(tableId);
+  });
+  projectSpeedBalance();
+}
+function speedTileBetsHtml(tableId){
+  const spot = ([key,label,cls]) =>
+    `<button type="button" class="tb-spot ${cls}" id="tilespot-${tableId}-${key}" onclick="event.stopPropagation();placeSpeedBet('${tableId}','${key}')">
+       <span class="tb-label">${t(label)}</span><b class="tb-amt" id="tilebet-${tableId}-${key}"></b>
+     </button>`;
+  return `<div class="tile-bets" onclick="event.stopPropagation()">
+    <div class="tb-row pairs">${SPEED_TILE_SPOTS.slice(0,3).map(spot).join('')}</div>
+    <div class="tb-row hands">${SPEED_TILE_SPOTS.slice(3).map(spot).join('')}</div>
   </div>`;
 }
 
@@ -984,13 +1036,30 @@ function renderSpeedTileStats(tableId){
   const badgeEl = document.getElementById('hotbadge-'+tableId);
   if (badgeEl) badgeEl.textContent = streak.len >= 3 ? `🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}` : '';
 }
-// Betting lives only inside the table now, so this paints the detail screen's spots alone.
+/* Paints what is staked on a table - on its tile in the list always, and on the detail screen
+   as well when that table is the one open. The two stay in step because they read the same
+   per-table state. */
 function renderSpeedTileBets(tableId){
-  if (SPEED.detailTableId!==tableId) return;
   const s = SPEED.tstate[tableId];
+  if (!s) return;
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
-    const el = document.getElementById(`mybet-detail-${k}`);
-    if (el) el.textContent = s.bets[k] ? fmtNum(s.bets[k]) : '';
+    const amt = s.bets[k] ? fmtNum(s.bets[k]) : '';
+    const tile = document.getElementById(`tilebet-${tableId}-${k}`);
+    if (tile) tile.textContent = amt;
+    const spot = document.getElementById(`tilespot-${tableId}-${k}`);
+    if (spot) spot.classList.toggle('staked', !!s.bets[k]);
+    if (SPEED.detailTableId===tableId){
+      const el = document.getElementById(`mybet-detail-${k}`);
+      if (el) el.textContent = amt;
+    }
+  });
+}
+/* the tile's spots take and release the same lock the open table's do, so a round that has gone
+   to the cards cannot be bet into from the list either */
+function setSpeedTileBetsLocked(tableId, locked){
+  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+    const el = document.getElementById(`tilespot-${tableId}-${k}`);
+    if (el){ el.classList.toggle('locked', locked); el.disabled = locked; }
   });
 }
 function placeSpeedBet(tableId, type){
@@ -1001,6 +1070,7 @@ function placeSpeedBet(tableId, type){
   s.bets[type] += STATE.selectedChip;
   if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${type}`)?.classList.add('selected');
   renderSpeedTileBets(tableId);
+  renderSpeedStakedTotal();
   projectSpeedBalance();
 }
 
@@ -1153,7 +1223,9 @@ function beginSpeedBetting(tableId){
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
     if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${k}`)?.classList.remove('selected','locked');
   });
+  setSpeedTileBetsLocked(tableId, false);
   renderSpeedTileBets(tableId);
+  renderSpeedStakedTotal();
   setSpeedTilePhaseText(tableId, t('phaseBetting'));
   const scoreEl = document.getElementById('score-'+tableId); if (scoreEl) scoreEl.textContent = '';
   if (SPEED.detailTableId===tableId) clearSpeedDetailCards();
@@ -1164,6 +1236,7 @@ async function beginSpeedDealing(tableId){
   if (SPEED.detailTableId===tableId){
     ['player','tie','banker','playerPair','bankerPair'].forEach(k=> document.getElementById(`spot-detail-${k}`)?.classList.add('locked'));
   }
+  setSpeedTileBetsLocked(tableId, true);
   setSpeedTilePhaseText(tableId, t('phaseDealing'));
   for (const [betType, amount] of Object.entries(s.bets)){
     if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, staff:'system'});

@@ -118,6 +118,49 @@
 .lobby-card .limits{white-space:nowrap;}
 .lobby-card .counts{margin-left:auto;white-space:nowrap;}
 .lobby-card .counts b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
+/* ---- Speed's tiles take bets ----
+   Speed is several tables at once, so each tile carries its own five spots and stakes the chip
+   picked in the tray at the foot of the list. They mirror the table screen's board - pairs and
+   tie across the top, the two hands beneath - in the same colours, so a spot means the same
+   thing in the list as it does inside. */
+.tile-bets{display:flex;flex-direction:column;gap:4px;padding:0 8px 9px;}
+.tb-row{display:grid;gap:4px;}
+.tb-row.pairs{grid-template-columns:1fr 1fr 1fr;}
+.tb-row.hands{grid-template-columns:1fr 1fr;}
+.tb-spot{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);border-radius:8px;
+  padding:5px 3px;font-weight:700;line-height:1.15;cursor:pointer;min-width:0;
+  transition:border-color .12s ease, background .12s ease;
+}
+.tb-spot:hover:not(.locked){background:rgba(255,255,255,.09);border-color:var(--brass-dim);}
+.tb-spot .tb-label{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.tb-row.hands .tb-spot{padding:7px 3px;}
+.tb-row.hands .tb-spot .tb-label{font-size:12.5px;}
+.tb-spot .tb-amt{font-family:var(--mono);font-size:10px;color:var(--brass);min-height:12px;font-weight:700;}
+.tb-spot.player .tb-label{color:#4FA8F0;}
+.tb-spot.banker .tb-label{color:#FF6B5C;}
+.tb-spot.tie .tb-label{color:#2FD39B;}
+/* a spot carrying a stake keeps the brass edge the table screen gives its selected spot */
+.tb-spot.staked{border-color:var(--brass);background:rgba(217,178,106,.12);}
+.tb-spot.locked{opacity:.4;cursor:not-allowed;}
+
+/* the list's chip tray, pinned to the foot of the screen while the Speed list is up */
+.speed-lobby-tray{
+  position:sticky;bottom:0;z-index:16;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 24px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));
+  border-top:1px solid var(--brass-dim);box-shadow:0 -10px 26px -14px rgba(0,0,0,.8);
+}
+.speed-lobby-tray .chip{width:44px;height:44px;}
+.speed-lobby-tray .tray-total{margin-left:auto;display:flex;align-items:baseline;gap:7px;font-size:11px;color:var(--ink-faint);}
+.speed-lobby-tray .tray-total b{font-family:var(--mono);font-size:15px;font-weight:800;color:var(--brass);}
+@media (max-width:640px){
+  .speed-lobby-tray{padding:8px 12px;gap:7px;}
+  .speed-lobby-tray .chip{width:36px;height:36px;}
+  .tile-bets{padding:0 6px 7px;}
+  .tb-spot .tb-label{font-size:9px;}
+  .tb-row.hands .tb-spot .tb-label{font-size:11px;}
+}
 .lobby-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
 .lobby-toolbar select{background:var(--panel-raised);color:var(--ink);border:1px solid var(--line);padding:7px 10px;border-radius:var(--radius);font-size:12.5px;}
 /* Each house is picked by its own mark with its name under it, centred on the rule, as the

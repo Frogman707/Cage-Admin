@@ -655,10 +655,19 @@
 .sd-tally-list .tl-row.pair .br-pair{width:6px;height:6px;}
 .sd-tally-list .tl-row.pair.player b{color:var(--road-blue);}
 .sd-tally-list .tl-row.pair.banker b{color:var(--road-red);}
-/* bead pitch == one graph square: 30px bead + 4px gutter = the 34px ruling */
-.sd-tally .bead-road{flex:1;gap:4px;}
-.sd-tally .bead-road .br-col{gap:4px;}
-.sd-tally .bead-road .bd-cell{width:30px;height:30px;font-size:16px;}
+/* bead pitch == one graph square: a 30px bead with 2px either side is the 34px ruling, so the
+   bead sits in the middle of its square rather than against one corner of it. Six of those
+   need 204, where the old gap-based run needed 200 (no gutter after the last bead) - so the
+   panel gives back the 4 it was short, 2 off the padding and 2 off the head. Without it the
+   flex column simply squeezed the beads to fit and they came off the ruling by 7px at the
+   bottom of the plate. The trailing pad goes too: the last bead's own margin is that gutter. */
+.sd-tally{padding-top:9px;padding-bottom:9px;}
+.sd-tally-head{height:28px;}
+/* columns start at the content origin, where the ruling starts. Left to centre themselves in
+   whatever slack the panel has they sat half a pixel low and the beads came off their squares. */
+.sd-tally .bead-road{flex:1;gap:0;padding-bottom:0;align-items:flex-start;}
+.sd-tally .bead-road .br-col{gap:0;}
+.sd-tally .bead-road .bd-cell{width:30px;height:30px;font-size:16px;margin:2px;}
 .sd-tally .bead-road .br-pair{width:8px;height:8px;}
 /* The results row is one strip carrying both cards: the Bead Plate side takes the width its
    twelve columns need and the roads take the rest, rather than the two splitting the screen the
@@ -696,8 +705,8 @@
   background-attachment:local;
   background-position:0 0;
 }
-/* a rule on the content origin, which is below this band's separator padding */
-.sd-road-band + .sd-road-band{background-position:0 12px;}
+/* every band rules from its own content origin, and there is no padding above one now */
+.sd-road-band + .sd-road-band{background-position:0 0;}
 /* The board's own arrangement: the Big Road across the whole top at full cell size, and the
    three derived roads side by side in equal thirds beneath it, each ruled off from its
    neighbour. That is 6 squares of board over 3 - the 2:1 the reference reads at - instead of
@@ -711,23 +720,29 @@
 /* Each band's separator + padding sums to a whole ruled square (12 + the hairline + 11 of the
    band below), so the marks in every band keep landing on the ruling instead of drifting. */
 .sd-road-band{padding-bottom:0;min-height:0;overflow-x:auto;}
-.sd-road-band + .sd-road-band{border-top:1px solid #e4e4e4;padding-top:12px;}
+/* the derived roads butt straight onto the Big Road - the separator is a hairline rule and
+   nothing more, where it used to carry 12px of padding under it and 8px between the thirds */
+.sd-road-band + .sd-road-band{border-top:1px solid #e4e4e4;padding-top:0;}
 /* The two later thirds are ruled off from the third on their left, and their own ruling starts
    at their own content origin - as the reference restarts it in each of its three blocks.
    The breathing room around the rule is a margin rather than padding: a scroller clips at its
    padding box, so a road that has been scrolled runs its marks through its own left padding and
    the oldest one on screen comes out sliced against the rule. Outside the box it cannot. */
-.sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;margin-left:8px;background-position:0 12px;}
+.sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;margin-left:0;background-position:0 0;}
 /* the band is the scroller now (it has to be, to carry the ruling), so the grid inside it just
    takes its natural width. Its bottom padding completes the sixth ruled square: 6 rings of 20
    and 5 gutters of 4 is 140, and 4 more makes the 144 that six 24px squares occupy. */
-.sd-road .br-grid{display:flex;gap:4px;flex-shrink:0;padding-bottom:4px;width:max-content;}
+/* The gutter is split either side of the mark as a margin rather than laid after it as a gap:
+   with a gap the whole 4px fell on one side, so every mark sat hard against the top-left of its
+   ruled square instead of in the middle of it. 20 of mark plus 2 and 2 is the 24px square, and
+   six of those still measure exactly six squares, so no trailing pad is needed either. */
+.sd-road .br-grid{display:flex;gap:0;flex-shrink:0;width:max-content;}
 /* A road fills from the left, as a board is written. It only ends on the panel's right edge by
    running past it - and when it does, it is scrolled there so the hand that just finished is
    the one on screen (see paintRoad). A road that fits needs no scrolling and stays left. */
-.sd-road .br-col{gap:4px;}
+.sd-road .br-col{gap:0;}
 /* 20 of the 24px square, the 0.84 the reference draws its rings at */
-.sd-road .br-cell{width:20px;height:20px;border-width:2px;}
+.sd-road .br-cell{width:20px;height:20px;border-width:2px;margin:2px;}
 .sd-road .br-cell.tie-only{width:12px;height:12px;}
 .sd-road .bd-cell.overflow,.sd-road .br-cell.overflow,.sd-road .dr-cell.overflow{color:#8a8a8a;}
 /* The board draws a tie as the slash alone - the reference has no count on it, and the pill
@@ -735,30 +750,46 @@
 .sd-road .br-tie span{display:none;}
 /* the stroke keeps its eighth-of-a-ring weight now the ring is 20px rather than 16 */
 .sd-road .br-tie::before{height:3px;}
-/* six half-rows fill three ruled squares: 6 marks of 10 and 5 gutters of 2 is 70, and 2 more
-   makes the 72 that three 24px squares occupy */
-.sd-road .derived-road-grid{overflow:visible;width:max-content;gap:2px;padding-bottom:2px;}
+/* six half-rows fill three ruled squares: a 10px mark centred on a 12px half-square is 72
+   over six rows, which is the three 24px squares they share with the Big Road above */
+.sd-road .derived-road-grid{overflow:visible;width:max-content;gap:0;}
 /* half the Big Road mark, on half its pitch: two derived marks span one ruled square.
    The column gap has to be re-stated at this depth - `.sd-road .br-col` matches the derived
    columns too, at equal specificity but later in the file, so it otherwise wins with 4px. */
-.sd-road .derived-road-grid .dr-cell{width:10px;height:10px;}
-.sd-road .derived-road-grid .br-col{gap:2px;}
+.sd-road .derived-road-grid .dr-cell{width:10px;height:10px;margin:1px;}
+.sd-road .derived-road-grid .br-col{gap:0;}
 /* legend rail: a small key explaining the three marks used on the board (hollow
    ring = Big Road/Big Eye Boy/Small Road, solid dot = Bead Plate, diagonal = tie),
    grouped into a P (blue) pill and a B (red) pill stacked on the right edge. */
-.sd-road-legend-rail{display:flex;flex-direction:column;justify-content:space-around;align-items:center;flex-shrink:0;width:34px;border-left:1px solid #e4e4e4;}
-.sd-road-legend-rail .rail-badge{
-  display:flex;flex-direction:column;align-items:center;gap:5px;font-size:10px;font-weight:800;
-  border:1.5px solid currentColor;border-radius:14px;padding:8px 4px;
+/* The prediction rail: one grid, so the three marks on the B row sit exactly over the three on
+   the P row and the two side letters share a column. The old rail stacked two free-standing
+   badges, which lined up with nothing. Each column is one road - ring for Big Eye Boy, dot for
+   Small Road, tick for Cockroach - and the mark's colour is what that road would draw if the
+   next hand went the way its row says. */
+.sd-road-ask{
+  flex-shrink:0;align-self:center;border-left:1px solid #e4e4e4;padding-left:12px;margin-left:2px;
+  display:grid;grid-template-columns:14px repeat(3,16px);gap:9px 7px;
+  justify-items:center;align-items:center;
 }
-.sd-road-legend-rail .rail-badge .ring{width:11px;height:11px;border-radius:50%;border:2px solid currentColor;box-sizing:border-box;}
-.sd-road-legend-rail .rail-badge .dot{width:9px;height:9px;border-radius:50%;background:currentColor;}
-/* the third mark stands for Cockroach Road, whose mark is a bare 45-degree tick - no ring
-   around it, so the key draws exactly the mark it is explaining */
-.sd-road-legend-rail .rail-badge .slash{width:11px;height:11px;box-sizing:border-box;position:relative;}
-.sd-road-legend-rail .rail-badge .slash::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-45deg);}
-.sd-road-legend-rail .rail-badge.player{color:var(--road-blue);}
-.sd-road-legend-rail .rail-badge.banker{color:var(--road-red);}
+.sd-road-ask .ask-title{
+  grid-column:1/-1;justify-self:center;font-size:8.5px;font-weight:800;letter-spacing:.6px;
+  color:#8a8a8a;text-transform:uppercase;
+}
+.sd-road-ask .ask-side{font-size:11px;font-weight:800;font-family:var(--mono);}
+.sd-road-ask .ask-side.banker{color:var(--road-red);}
+.sd-road-ask .ask-side.player{color:var(--road-blue);}
+/* the marks draw the road they stand for, at the rail's own size */
+.sd-road-ask .ask-mark{display:block;box-sizing:border-box;width:13px;height:13px;}
+.sd-road-ask .ask-mark.ring{border-radius:50%;border:2.5px solid currentColor;}
+.sd-road-ask .ask-mark.dot{border-radius:50%;background:currentColor;width:12px;height:12px;}
+.sd-road-ask .ask-mark.slash{position:relative;}
+.sd-road-ask .ask-mark.slash::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2.5px;background:currentColor;transform:rotate(-45deg);}
+.sd-road-ask .ask-mark.red{color:var(--road-red);}
+.sd-road-ask .ask-mark.blue{color:var(--road-blue);}
+/* a road that has not started yet - Big Eye needs the third hand, Cockroach the fifth - has no
+   colour to give, so its mark reads as an empty slot rather than a wrong answer */
+.sd-road-ask .ask-mark.none{color:#d8d8d8;opacity:.85;}
+.sd-road-ask .ask-mark.none.dot{background:#e8e8e8;}
 .sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 .sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
 .sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}
@@ -821,7 +852,7 @@
       "roads bead";
     overflow-x:auto;scroll-snap-type:x proximity;overscroll-behavior-x:contain;
   }
-  .sd-board-row > *,.sd-tally-list,.sd-road-legend-rail,.sd-road-main,.sd-tally .bead-road{scroll-snap-align:start;}
+  .sd-board-row > *,.sd-tally-list,.sd-road-ask,.sd-road-main,.sd-tally .bead-road{scroll-snap-align:start;}
   .sd-stage{grid-area:stage;}
   /* the table line reads across in one go, as the reference has it, instead of wrapping onto a
      second line over the felt; and the icon column stops short of the countdown ring it used to
@@ -847,11 +878,16 @@
   .sd-tally-list .tl-row.pair{display:none;}
   .sd-tally-list .tl-badge{width:20px;height:20px;font-size:11px;}
 
-  /* the key reads across instead of down, as two pills on the right of the strip */
-  .sd-road-legend-rail{grid-area:stats;justify-self:end;position:sticky;right:0;flex-direction:row;align-items:center;width:auto;gap:7px;border:none;align-self:center;}
-  .sd-road-legend-rail .rail-badge{flex-direction:row;gap:6px;padding:4px 9px;border-radius:14px;font-size:12px;}
-  .sd-road-legend-rail .rail-badge .ring,.sd-road-legend-rail .rail-badge .slash{width:10px;height:10px;}
-  .sd-road-legend-rail .rail-badge .dot{width:8px;height:8px;}
+  /* the prediction rides at the right of the stats strip on a phone, keeping its two rows and
+     three columns so the B and P answers still line up with each other */
+  .sd-road-ask{grid-area:stats;justify-self:end;position:sticky;right:0;align-self:center;
+    border-left:none;padding-left:0;margin-left:0;grid-template-columns:12px repeat(3,13px);gap:5px 6px;}
+  .sd-road-ask .ask-title{font-size:8px;letter-spacing:.4px;}
+  .sd-road-ask .ask-side{font-size:10px;}
+  .sd-road-ask .ask-mark{width:11px;height:11px;}
+  .sd-road-ask .ask-mark.ring{border-width:2px;}
+  .sd-road-ask .ask-mark.dot{width:10px;height:10px;}
+  .sd-road-ask .ask-mark.slash::before{height:2px;}
 
   /* the roads keep one card, the Bead Plate gets its own alongside */
   .sd-road-main,.sd-tally .bead-road{background-color:#fafafa;border:1px solid #e4e4e4;border-radius:10px;}
@@ -863,24 +899,25 @@
 
   /* the Big-Road-over-three-thirds arrangement is the board's own and is set with the rest of
      the road panel; the phone only tightens the rules that separate the four bands */
-  .sd-road-band+.sd-road-band{border-top:1px solid #e4e4e4;padding-top:5px;background-position:0 5px;}
-  .sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;margin-left:4px;background-position:0 5px;}
+  .sd-road-band+.sd-road-band{border-top:1px solid #e4e4e4;padding-top:0;background-position:0 0;}
+  .sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;margin-left:0;background-position:0 0;}
 
   /* marks scaled to the phone: the reference runs about a 12px square on the roads and a 16px
      one on the beads, keeping the same mark-fills-its-square proportions as the desktop board */
   .sd-road{--rc:12px;}
-  .sd-road .br-cell{width:10px;height:10px;border-width:1.5px;}
+  .sd-road .br-cell{width:10px;height:10px;border-width:1.5px;margin:1px;}
   .sd-road .br-cell.tie-only{width:7px;height:7px;}
-  /* the trailing pad is the inter-cell gutter, so six rows still measure exactly six squares */
-  .sd-road .br-grid{gap:2px;padding-bottom:2px;}
-  .sd-road .br-col{gap:2px;}
+  /* the gutter is split either side of the mark, so it sits in the middle of its square;
+     10 plus 1 and 1 is the 12px phone square, and six of those are still six squares */
+  .sd-road .br-grid{gap:0;}
+  .sd-road .br-col{gap:0;}
   .sd-road .br-tie::before{height:1.5px;}
   /* the pair dot and its notch scale with the phone's smaller ring */
   .sd-road .br-pair{width:3px;height:3px;box-shadow:0 0 0 1px #fafafa;}
   .sd-road .br-tie span{display:none;}
-  .sd-road .derived-road-grid{gap:1px;padding-bottom:1px;}
-  .sd-road .derived-road-grid .dr-cell{width:5px;height:5px;border-width:1px;}
-  .sd-road .derived-road-grid .br-col{gap:1px;}
+  .sd-road .derived-road-grid{gap:0;}
+  .sd-road .derived-road-grid .dr-cell{width:5px;height:5px;border-width:1px;margin:.5px;}
+  .sd-road .derived-road-grid .br-col{gap:0;}
   /* The Plate's six rows are sized to fill its card exactly rather than sitting in the top of
      it: the roads card next to it comes out 126px tall (6 Big Road rows on a 12px pitch, the
      separator, then 6 derived half-rows on a 6px one), so 3px of padding either side of a
@@ -889,9 +926,12 @@
   .sd-tally{--rc:20px;}
   /* 4px above and 2px below puts the sixth rule exactly on the card's inner edge, so no sliver
      of a seventh row is drawn against the border */
-  .sd-tally .bead-road{gap:2px;padding:4px 4px 2px;background-position:4px 4px;}
-  .sd-tally .bead-road .br-col{gap:2px;}
-  .sd-tally .bead-road .bd-cell{width:18px;height:18px;font-size:10px;}
+  /* sized to its six beads rather than stretched to the card: 3px of padding, then 6 rows of
+     20, ends the ruling exactly on the last row. Stretched, the card's spare 3px drew a sliver
+     of a seventh row against the bottom border. */
+  .sd-tally .bead-road{flex:none;gap:0;padding:3px 3px 0;background-position:3px 3px;}
+  .sd-tally .bead-road .br-col{gap:0;}
+  .sd-tally .bead-road .bd-cell{width:18px;height:18px;font-size:10px;margin:1px;}
   .sd-tally .bead-road .br-pair{width:5px;height:5px;}
   /* The chip tray is simply the last row of the betting board - straight under Player and
      Banker - rather than being pinned anywhere. It was fixed to the viewport once, which parked

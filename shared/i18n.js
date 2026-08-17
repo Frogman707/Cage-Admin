@@ -184,6 +184,8 @@ const I18N_DICT = {
   streakLabel:{ko:'연속',zh:'连',en:'streak',ja:'連続',vi:'liên tiếp'},
   multiBet:{ko:'멀티 베팅',zh:'多桌投注',en:'Multi-bet',ja:'マルチベット',vi:'Cược nhiều bàn'},
   enterShort:{ko:'입장',zh:'进入',en:'Enter',ja:'入場',vi:'Vào'},
+  // the board's next-hand prediction rail, kept to one short word - the rail is a few marks wide
+  nextRoadAsk:{ko:'다음',zh:'下局',en:'NEXT',ja:'次局',vi:'Kế'},
 };
 
 function t(key, vars){

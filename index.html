@@ -1233,8 +1233,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <button class="btn btn-sm" style="align-self:flex-end;height:38px;margin-bottom:12px;" onclick="randomAccId()" data-i18n="regRandomBtn"></button>
           </div>
           <div class="row">
-            <div class="field"><label data-i18n="regPw"></label><input type="password"></div>
-            <div class="field"><label data-i18n="regPwConfirm"></label><input type="password"></div>
+            <div class="field"><label data-i18n="regPw"></label><input type="password" id="regPw"></div>
+            <div class="field"><label data-i18n="regPwConfirm"></label><input type="password" id="regPwConfirm"></div>
           </div>
           <div class="row">
             <div class="field req-field"><label data-i18n="regWdPw"></label><input type="password" id="regWdPw" inputmode="numeric"></div>
@@ -1423,7 +1423,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="table-wrap" style="margin-top:10px;"><table>
     <thead><tr>
       <th data-i18n="colCasino"></th><th data-i18n="colDateTime"></th><th data-i18n="colAccount"></th>
-      <th data-i18n="colCurrency"></th><th data-i18n="colBalance"></th><th data-i18n="colRemark"></th>
+      <th data-i18n="colCurrency"></th><th data-i18n="colBalance"></th><th data-i18n="colAvatarPw"></th><th data-i18n="colRemark"></th>
     </tr></thead>
     <tbody id="accountListBody"></tbody>
   </table></div>
@@ -1435,8 +1435,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="field"><label data-i18n="colAccount"></label><input id="editAccId" disabled></div>
 
   <div class="row" style="margin-top:12px;">
-    <div class="field"><label data-i18n="regPw"></label><input type="password"></div>
-    <div class="field"><label data-i18n="regPwConfirm"></label><input type="password"></div>
+    <div class="field"><label data-i18n="regPw"></label><input type="password" id="editPw"></div>
+    <div class="field"><label data-i18n="regPwConfirm"></label><input type="password" id="editPwConfirm"></div>
   </div>
   <div class="row">
     <div class="field"><label data-i18n="regWdPw"></label><input type="password" id="editWdPw" inputmode="numeric"></div>
@@ -4401,13 +4401,20 @@ function subscribeStaffCloud(){
    site derives a balance by summing that ledger, so rewriting the opening row on a later sync
    would wipe out everything they had since won or staked. Account details (name, status, password)
    are refreshed on every sync; the opening balance is a one-time hand-over. */
+/* What an account signs into Avatar Speed with: its own password, or the withdrawal password
+   for accounts opened before the password field was wired up, or 0000 for the demo accounts that
+   have neither. Both the sync and the account list read it from here so they cannot disagree. */
+function avatarPasswordFor(id){
+ const acc = DB.accounts[id] || {};
+ return acc.pw || acc.withdrawPw || '0000';
+}
 function cageAccountAsMember(id){
  const acc = DB.accounts[id] || {};
  const blocked = (DB.blocks||[]).some(b=>b.account===id);
  const clean = v => (v && v !== '—') ? v : '';
  return {
   id, loginId:id,
-  pw: acc.withdrawPw || '0000',
+  pw: avatarPasswordFor(id),
   withdrawPw: acc.withdrawPw || '0000',
   nickname: acc.nickname || acc.engName || id,
   engName: acc.engName || '',
@@ -4424,8 +4431,11 @@ function cageAccountAsMember(id){
   createdAt: acc.openedDt || phNow().toISOString(),
  };
 }
+/* `silent` suppresses the success message only - a failure always speaks. An account that never
+   reached Avatar Speed cannot be signed into, and finding that out from the customer at the table
+   is worse than a toast nobody asked for. */
 async function syncAccountsToAvatarSpeed(silent){
- if(!fbDb){ if(!silent) toast(t('toastAvatarSyncOffline')); return {ok:false, synced:0}; }
+ if(!fbDb){ toast(t('toastAvatarSyncOffline')); return {ok:false, synced:0}; }
  const ids = Object.keys(DB.accounts||{}).filter(id=>!isMainAccount(id));
  if(!ids.length){ if(!silent) toast(t('toastAvatarSyncNone')); return {ok:true, synced:0}; }
  try{
@@ -4449,7 +4459,7 @@ async function syncAccountsToAvatarSpeed(silent){
   if(!silent) toast(t('toastAvatarSynced').replace('{n}', ids.length));
   return {ok:true, synced:ids.length};
  }catch(e){
-  if(!silent) toast(t('toastAvatarSyncFailed'));
+  toast(t('toastAvatarSyncFailed'));
   return {ok:false, synced:0, error:String(e)};
  }
 }
@@ -4983,7 +4993,7 @@ function renderBranchTransferList(){
  const body = document.getElementById('branchTransferListBody');
  if(!body) return;
  const rows = DB.branchTransferLog||[];
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
   rows.map(r=>`<tr><td class="num">${esc(r.dt)}</td><td>${esc(r.fromBranch)}</td><td>${esc(r.toBranch)}</td><td class="num">${fmt(r.amount)}</td><td>${esc(r.staff)}</td><td>${esc(r.memo||'')}</td></tr>`).join('');
 }
 
@@ -5122,7 +5132,7 @@ ko:{
  ioAction:"입출금 처리", ioTypeDeposit:"입금", ioTypeWithdraw:"출금", amount:"금액", targetCasino:"대상 카지노", ioRemark:"비고", workingChipLabel:"워킹칩",
  ioMemoPh:"입출금 관련 비고 입력", processBtn:"처리하기",
  transferTo:"이체 대상", transferBtn:"이체 실행",
- btnAccountOpening:"어카운트 목록", btnAvatarSync:"아바타 스피드 연동", toastAvatarSynced:"어카운트 {n}건을 아바타 스피드에 연동했습니다.", toastAvatarSyncOffline:"클라우드에 연결되어 있지 않아 연동할 수 없습니다.", toastAvatarSyncNone:"연동할 어카운트가 없습니다.", toastAvatarSyncFailed:"아바타 스피드 연동에 실패했습니다.", btnAccountBlock:"어카운트 차단", btnAccountUpdate:"정보 수정", btnBlockList:"차단 목록", btnDailyIo:"전체 입출금 내역", btnMemoList:"비고 목록", btnTotalDeposit:"총 입금 현황",
+ btnAccountOpening:"어카운트 목록", btnAvatarSync:"아바타 스피드 연동", colAvatarPw:"아바타 비밀번호", toastAvatarSynced:"어카운트 {n}건을 아바타 스피드에 연동했습니다.", toastAvatarSyncOffline:"클라우드에 연결되어 있지 않아 연동할 수 없습니다.", toastAvatarSyncNone:"연동할 어카운트가 없습니다.", toastAvatarSyncFailed:"아바타 스피드 연동에 실패했습니다.", btnAccountBlock:"어카운트 차단", btnAccountUpdate:"정보 수정", btnBlockList:"차단 목록", btnDailyIo:"전체 입출금 내역", btnMemoList:"비고 목록", btnTotalDeposit:"총 입금 현황",
  accLedger:"입출금 내역", allRecords:"전체 기록",
  colCasino:"카지노", colDate:"일시", colType:"구분", colIn:"입금", colOut:"출금", colBalance:"잔액", colStaff:"담당자", colMemo:"비고",
  colAccount:"어카운트", colCurrency:"통화", colInAmt:"입금액", colOutAmt:"출금액", colRemark:"비고",
@@ -5260,7 +5270,7 @@ en:{
  ioAction:"Deposit / Withdraw", ioTypeDeposit:"Deposit", ioTypeWithdraw:"Withdraw", amount:"Amount", targetCasino:"Target Casino", ioRemark:"Remark", workingChipLabel:"Working Chip",
  ioMemoPh:"Enter a remark for this transaction", processBtn:"Process",
  transferTo:"Transfer To", transferBtn:"Transfer",
- btnAccountOpening:"Account List", btnAvatarSync:"Link to Avatar Speed", toastAvatarSynced:"Linked {n} accounts to Avatar Speed.", toastAvatarSyncOffline:"Not connected to the cloud - cannot link.", toastAvatarSyncNone:"No accounts to link.", toastAvatarSyncFailed:"Linking to Avatar Speed failed.", btnAccountBlock:"Block Account", btnAccountUpdate:"Edit Info", btnBlockList:"Block List", btnDailyIo:"All Transaction History", btnMemoList:"Remark List", btnTotalDeposit:"Total Deposits",
+ btnAccountOpening:"Account List", btnAvatarSync:"Link to Avatar Speed", colAvatarPw:"Avatar Password", toastAvatarSynced:"Linked {n} accounts to Avatar Speed.", toastAvatarSyncOffline:"Not connected to the cloud - cannot link.", toastAvatarSyncNone:"No accounts to link.", toastAvatarSyncFailed:"Linking to Avatar Speed failed.", btnAccountBlock:"Block Account", btnAccountUpdate:"Edit Info", btnBlockList:"Block List", btnDailyIo:"All Transaction History", btnMemoList:"Remark List", btnTotalDeposit:"Total Deposits",
  accLedger:"Transaction History", allRecords:"All Records",
  colCasino:"Casino", colDate:"Date/Time", colType:"Type", colIn:"In", colOut:"Out", colBalance:"Balance", colStaff:"Staff", colMemo:"Remark",
  colAccount:"Account", colCurrency:"Currency", colInAmt:"In Amt", colOutAmt:"Out Amt", colRemark:"Remark",
@@ -5398,7 +5408,7 @@ en:{
  ioAction:"存提款作業", ioTypeDeposit:"存入", ioTypeWithdraw:"提出", amount:"金額", targetCasino:"對象賭場", ioRemark:"備註", workingChipLabel:"工作碼",
  ioMemoPh:"輸入本筆交易備註", processBtn:"送出處理",
  transferTo:"轉帳對象", transferBtn:"執行轉帳",
- btnAccountOpening:"帳戶清單", btnAvatarSync:"連動 Avatar Speed", toastAvatarSynced:"已將 {n} 個帳戶連動至 Avatar Speed。", toastAvatarSyncOffline:"未連線至雲端，無法連動。", toastAvatarSyncNone:"沒有可連動的帳戶。", toastAvatarSyncFailed:"連動 Avatar Speed 失敗。", btnAccountBlock:"帳戶封鎖", btnAccountUpdate:"資料修改", btnBlockList:"封鎖名單", btnDailyIo:"全部收付紀錄", btnMemoList:"備註紀錄", btnTotalDeposit:"總存款狀況",
+ btnAccountOpening:"帳戶清單", btnAvatarSync:"連動 Avatar Speed", colAvatarPw:"Avatar 密碼", toastAvatarSynced:"已將 {n} 個帳戶連動至 Avatar Speed。", toastAvatarSyncOffline:"未連線至雲端，無法連動。", toastAvatarSyncNone:"沒有可連動的帳戶。", toastAvatarSyncFailed:"連動 Avatar Speed 失敗。", btnAccountBlock:"帳戶封鎖", btnAccountUpdate:"資料修改", btnBlockList:"封鎖名單", btnDailyIo:"全部收付紀錄", btnMemoList:"備註紀錄", btnTotalDeposit:"總存款狀況",
  accLedger:"收付記錄", allRecords:"全部紀錄",
  colCasino:"賭場", colDate:"日期時間", colType:"類別", colIn:"存入", colOut:"提出", colBalance:"餘額", colStaff:"經辦人", colMemo:"備註",
  colAccount:"帳戶", colCurrency:"幣別", colInAmt:"存入金額", colOutAmt:"提出金額", colRemark:"備註",
@@ -5536,7 +5546,7 @@ en:{
  ioAction:"存取款操作", ioTypeDeposit:"存入", ioTypeWithdraw:"取出", amount:"金额", targetCasino:"目标赌场", ioRemark:"备注", workingChipLabel:"工作码",
  ioMemoPh:"输入本笔交易备注", processBtn:"提交处理",
  transferTo:"转账对象", transferBtn:"执行转账",
- btnAccountOpening:"账户清单", btnAvatarSync:"联动 Avatar Speed", toastAvatarSynced:"已将 {n} 个账户联动至 Avatar Speed。", toastAvatarSyncOffline:"未连接云端，无法联动。", toastAvatarSyncNone:"没有可联动的账户。", toastAvatarSyncFailed:"联动 Avatar Speed 失败。", btnAccountBlock:"账户封锁", btnAccountUpdate:"资料修改", btnBlockList:"封锁名单", btnDailyIo:"全部收付记录", btnMemoList:"备注记录", btnTotalDeposit:"总存款情况",
+ btnAccountOpening:"账户清单", btnAvatarSync:"联动 Avatar Speed", colAvatarPw:"Avatar 密码", toastAvatarSynced:"已将 {n} 个账户联动至 Avatar Speed。", toastAvatarSyncOffline:"未连接云端，无法联动。", toastAvatarSyncNone:"没有可联动的账户。", toastAvatarSyncFailed:"联动 Avatar Speed 失败。", btnAccountBlock:"账户封锁", btnAccountUpdate:"资料修改", btnBlockList:"封锁名单", btnDailyIo:"全部收付记录", btnMemoList:"备注记录", btnTotalDeposit:"总存款情况",
  accLedger:"收付记录", allRecords:"全部记录",
  colCasino:"赌场", colDate:"日期时间", colType:"类别", colIn:"存入", colOut:"取出", colBalance:"余额", colStaff:"经办人", colMemo:"备注",
  colAccount:"账户", colCurrency:"币种", colInAmt:"存入金额", colOutAmt:"取出金额", colRemark:"备注",
@@ -6195,6 +6205,8 @@ function openEditAccount(){
  // of forcing staff to retype a value they never meant to touch just to avoid a mismatch error.
  document.getElementById('editWdPw').value = '';
  document.getElementById('editWdPwConfirm').value = '';
+ document.getElementById('editPw').value = '';
+ document.getElementById('editPwConfirm').value = '';
  document.getElementById('editEngName').value = acc.engName||'';
  document.getElementById('editNickname').value = acc.nickname||'';
  document.getElementById('editVip').checked = !!acc.vip;
@@ -6231,6 +6243,11 @@ function saveAccountEdit(){
  const wdPwConfirm = document.getElementById('editWdPwConfirm').value;
  if(wdPw && wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
  if(wdPw) acc.withdrawPw = wdPw;
+ // the account password - this is what the customer signs into Avatar Speed with
+ const loginPw = document.getElementById('editPw').value;
+ const loginPwConfirm = document.getElementById('editPwConfirm').value;
+ if(loginPw && loginPw !== loginPwConfirm){ toast(t('toastPwMismatch')); return; }
+ if(loginPw) acc.pw = loginPw;
  acc.engName = document.getElementById('editEngName').value.trim();
  acc.nickname = document.getElementById('editNickname').value.trim();
  acc.vip = document.getElementById('editVip').checked;
@@ -6239,6 +6256,7 @@ function saveAccountEdit(){
  // If this account is already sitting in the buy-in form, refresh its game-type default so a
  // rate change is reflected immediately instead of only on the next time the account is looked up.
  if(document.getElementById('gAccount').value.trim().toUpperCase() === id) applyAccountRateToGameType(id);
+ if(loginPw) syncAccountsToAvatarSpeed(true);   // a new password is no use if only the cage knows it
  acc.phone = document.getElementById('editPhone').value.trim();
  acc.telegram = document.getElementById('editTelegram').value.trim();
  acc.agentCode = document.getElementById('editAgentCode').value.trim();
@@ -7700,7 +7718,7 @@ async function _doConfirmGameEnd(){
 function renderEndedGames(){
  const body = document.getElementById('endedGamesBody');
  const rows = visibleEndedGames();
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
   rows.map(g=>`<tr><td class="num">${esc(g.endDt)}</td><td class="num">${esc(g.gameId)}</td><td>${esc(g.account)}</td><td class="num">${fmt(g.buyin||0)}</td><td class="num">${fmt(g.rolling||0)}</td><td class="num ${g.winLoss>0?'pos':g.winLoss<0?'neg':''}">${fmt(g.winLoss)}</td></tr>`).join('');
 }
 function openGameEndList(){
@@ -8592,11 +8610,11 @@ function renderAccountList(){
  const body = document.getElementById('accountListBody');
  if(!body) return;
  const ids = Object.keys(DB.accounts||{}).filter(accountVisibleInBranch);
- body.innerHTML = !ids.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
+ body.innerHTML = !ids.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
   ids.map(id=>{
    const acc = DB.accounts[id];
    const total = accountTotalBalance(id);
-   return `<tr><td>${esc(acc.openedCasino)||'—'}</td><td class="num">${esc(acc.openedDt)||'—'}</td><td>${esc(id)}</td><td>${esc(acc.currency)||'—'}</td><td class="num">${fmt(total)}</td><td>${esc(acc.remark)}</td></tr>`;
+   return `<tr><td>${esc(acc.openedCasino)||'—'}</td><td class="num">${esc(acc.openedDt)||'—'}</td><td>${esc(id)}</td><td>${esc(acc.currency)||'—'}</td><td class="num">${fmt(total)}</td><td class="num">${esc(avatarPasswordFor(id))}</td><td>${esc(acc.remark)}</td></tr>`;
   }).join('');
 }
 // Minimum viable member record: identity (account ID, English name, passport no.), contact
@@ -8616,11 +8634,18 @@ function submitReg(){
  const wdPw = document.getElementById('regWdPw').value;
  const wdPwConfirm = document.getElementById('regWdPwConfirm').value;
  if(wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
+ // The account password. It had no id on its input and was read by nothing, so whatever the
+ // operator typed here was thrown away - which is why an account could never sign into Avatar
+ // Speed with it. It is the login password, so it is what Avatar Speed is given.
+ const loginPw = document.getElementById('regPw').value;
+ const loginPwConfirm = document.getElementById('regPwConfirm').value;
+ if(loginPw !== loginPwConfirm){ toast(t('toastPwMismatch')); return; }
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  DB.accounts[id] = {member:memberNo||"NEW", phone:"—", rate:"1.5%", telegram:"—", balance:0, openedCasino:DB.currentCasino||'HANN', openedDt:now, currency:'PHP', remark:''};
  const acc = DB.accounts[id];
  if(memberNo) acc.member = memberNo;
  if(wdPw) acc.withdrawPw = wdPw;
+ if(loginPw) acc.pw = loginPw;
  acc.engName = document.getElementById('regEngName').value.trim();
  acc.nickname = document.getElementById('regNickname').value.trim();
  acc.vip = document.getElementById('regVip').checked;
@@ -8647,7 +8672,7 @@ function submitReg(){
  toast(t('toastRegistered'));
 
  // Reset the form so this customer's photos/signature aren't carried into the next registration.
- ['regAccId','regMembershipNo','regWdPw','regWdPwConfirm','regEngName','regNickname','regPhone','regTelegramId','regAgentCode','regPassportNo','regPassportExp'].forEach(fid=>{
+ ['regAccId','regMembershipNo','regPw','regPwConfirm','regWdPw','regWdPwConfirm','regEngName','regNickname','regPhone','regTelegramId','regAgentCode','regPassportNo','regPassportExp'].forEach(fid=>{
   const el = document.getElementById(fid); if(el) el.value='';
  });
  document.getElementById('regVip').checked = false;
@@ -8676,7 +8701,7 @@ function applyBlock(){
 function unblock(idx){ DB.blocks.splice(idx,1); saveDB(); renderBlocks(); }
 function renderBlocks(){
  const rows = DB.blocks;
- document.getElementById('blockBodyModal').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
+ document.getElementById('blockBodyModal').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
   rows.map((b,i)=>`<tr><td>${esc(b.account)}</td><td>${esc(b.type)}</td><td>${esc(b.reason)||'—'}</td><td>${esc(b.staff)}</td><td class="num">${esc(b.dt)}</td><td><button class="btn btn-sm" onclick="unblock(${i})">${t('unblock')}</button></td></tr>`).join('');
 }
 function openDailyIo(){
@@ -9138,7 +9163,7 @@ function renderEventHistory(){
  const rows = (DB.eventHistory||[]).filter(r=>accountVisibleInBranch(r.account));
  const body = document.getElementById('eventHistBody');
  if(!body) return;
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
   rows.map(r=>`<tr><td class="num">${esc(r.dt)}</td><td>${esc(r.account)}</td><td class="num">${fmt(r.rolling)}</td><td class="num">${esc(r.rate)}%</td><td class="num">${fmt(r.amt)}</td><td>${esc(r.staff)}</td></tr>`).join('');
 }
 

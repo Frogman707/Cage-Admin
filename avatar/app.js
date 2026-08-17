@@ -803,11 +803,18 @@ async function beginAvatarDealingPhase(){
   AVATAR._sim = simulateRound();
   await revealAvatarCards(AVATAR._sim);
 }
+/* The deck is a set of card faces rather than a drawn one: shared/assets/cards/<suit><rank>.png,
+   suit as its initial and rank lowercased, so the seven of spades is s7 and the ace of hearts ha.
+   card_back.png rides along with them for a face-down card. */
+const CARD_SUIT_FILE = {'\u2660':'s', '\u2665':'h', '\u2666':'d', '\u2663':'c'};
+function cardFaceUrl(card){
+  return `../shared/assets/cards/${CARD_SUIT_FILE[card.suit]}${String(card.rank).toLowerCase()}.png`;
+}
 function cardHtml(card, index){
   const red = card.suit==='♥' || card.suit==='♦';
   // the third card of a hand goes down sideways, as it is dealt
   const third = index===2 ? ' third' : '';
-  return `<div class="playing-card ${red?'red':'black'}${third}" data-rank="${card.rank}${card.suit}">${card.suit}</div>`;
+  return `<div class="playing-card ${red?'red':'black'}${third}" data-rank="${card.rank}${card.suit}" style="background-image:url('${cardFaceUrl(card)}')"></div>`;
 }
 async function revealAvatarCards(sim){
   const pEl = document.getElementById('playerCardsAvatar'), bEl = document.getElementById('bankerCardsAvatar');

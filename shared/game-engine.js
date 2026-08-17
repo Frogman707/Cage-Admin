@@ -8,7 +8,11 @@
    documents (see docs/FIRESTORE_DATA_MODEL.md).
    ============================================================ */
 
-const CHIP_VALUES = [5000, 10000, 50000, 100000, 500000, 1000000];
+// The chips the operator's own artwork is printed with - shared/assets/chips/chip-<name>.png
+// carries its value on its face, so the tray's denominations are the deck's, not ours.
+const CHIP_VALUES = [100, 500, 1000, 10000, 100000, 1000000];
+const CHIP_FILE = {100:'100', 500:'500', 1000:'1000', 10000:'10k', 100000:'100k', 1000000:'1m'};
+function chipFaceUrl(v){ return `../shared/assets/chips/chip-${CHIP_FILE[v]}.png`; }
 const CARD_RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 const CARD_SUITS = ['♠','♥','♦','♣'];
 const PAYOUT = { player: 2.0, banker: 1.95, tie: 9.0, playerPair: 12.0, bankerPair: 12.0 };
@@ -473,5 +477,5 @@ function decomposeChipStack(amount, maxDiscs){
 }
 function chipStackHtml(amount){
   if (!amount) return '';
-  return decomposeChipStack(amount).map(v=>`<div class="cs-chip c${v}"></div>`).join('');
+  return decomposeChipStack(amount).map(v=>`<div class="cs-chip" style="background-image:url('${chipFaceUrl(v)}')"></div>`).join('');
 }

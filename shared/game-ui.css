@@ -77,7 +77,7 @@
    measure 277x93, so the still is cropped to a 3:1 band. */
 .lobby-card .thumb{
   aspect-ratio:3/1;position:relative;overflow:hidden;
-  background:url('assets/table-live.jpg?v=2') center/cover no-repeat;
+  background:url('assets/table-live.jpg?v=3') center/cover no-repeat;
 }
 @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.3;}}
 .card-favorite{margin-left:auto;width:24px;height:24px;border-radius:50%;background:none;border:none;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -154,7 +154,7 @@
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   background:
     linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.26)),
-    url('assets/table-live.jpg?v=2') center/cover no-repeat;
+    url('assets/table-live.jpg?v=3') center/cover no-repeat;
 }
 .sd-stage-top{position:absolute;top:14px;left:56px;right:64px;display:flex;align-items:center;gap:10px;z-index:2;flex-wrap:wrap;}
 .sd-type-badge{background:rgba(4,20,30,.7);backdrop-filter:blur(4px);border:1px solid #3fd0e8;color:#3fd0e8;border-radius:14px;padding:5px 16px;font-weight:800;font-size:11.5px;letter-spacing:1px;flex-shrink:0;}
@@ -245,49 +245,31 @@
 .bet-spot .my-bet{margin-top:9px;font-family:var(--mono);font-weight:700;color:var(--brass);font-size:13.5px;min-height:18px;}
 .chip-stack{display:flex;justify-content:center;align-items:flex-end;height:0;margin-top:6px;transition:height .15s ease;}
 .chip-stack:not(:empty){height:16px;}
-.chip-stack .cs-chip{width:18px;height:18px;border-radius:50%;margin-left:-8px;box-shadow:0 2px 4px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.25), inset 0 1px 1px rgba(255,255,255,.3);}
+/* the chips in a betting spot are the same artwork at bead size, overlapped into a stack */
+.chip-stack .cs-chip{width:18px;height:18px;margin-left:-8px;background:center/contain no-repeat;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55));}
 .chip-stack .cs-chip:first-child{margin-left:0;}
-.cs-chip.c5000{background:radial-gradient(circle at 35% 30%, #6b6b6b, #2c2c2c 70%);}
-.cs-chip.c10000{background:radial-gradient(circle at 35% 30%, #e2665c, #a8291f 70%);}
-.cs-chip.c50000{background:radial-gradient(circle at 35% 30%, #4fc6a4, #16594a 70%);}
-.cs-chip.c100000{background:radial-gradient(circle at 35% 30%, #3a3a3a, #0d0d0d 70%);}
-.cs-chip.c500000{background:radial-gradient(circle at 35% 30%, #a05fd1, #522072 70%);}
-.cs-chip.c1000000{background:radial-gradient(circle at 35% 30%, #FFF3D4, #C89A4E 70%);}
 .pair-row{display:flex;gap:10px;margin-top:8px;}
 .pair-row .bet-spot{flex:1;padding:9px 6px;}
 
 .chip-tray{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));border:1px solid var(--line);border-radius:14px;}
+/* The chip is the operator's own artwork, which carries its value on its face - so no drawn
+   disc, no edge spots and no label of ours over the top of it. The shadow is a drop-shadow so it
+   follows the chip's rim rather than boxing it, and the selected chip takes the gold ring the
+   set ships with (chip-hover) rather than a border of ours. */
 .chip{
-  width:54px;height:54px;border-radius:50%;position:relative;cursor:pointer;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-  transition:transform .15s ease, box-shadow .15s ease;
-  box-shadow:0 5px 12px -3px rgba(0,0,0,.55), inset 0 1px 1px rgba(255,255,255,.15), inset 0 -2px 3px rgba(0,0,0,.35);
+  width:54px;height:54px;position:relative;cursor:pointer;flex-shrink:0;
+  background:center/contain no-repeat;
+  filter:drop-shadow(0 5px 10px rgba(0,0,0,.55));
+  transition:transform .15s ease, filter .15s ease;
 }
-.chip::before{
-  content:'';position:absolute;inset:0;border-radius:50%;
-  background:repeating-conic-gradient(currentColor 0deg 18deg, transparent 18deg 36deg);
-  opacity:.55; -webkit-mask:radial-gradient(circle, transparent 62%, #000 63%, #000 84%, transparent 85%);
-          mask:radial-gradient(circle, transparent 62%, #000 63%, #000 84%, transparent 85%);
+.chip::after{
+  content:'';position:absolute;inset:-4px;border-radius:50%;
+  background:url('assets/chips/chip-hover.png') center/contain no-repeat;
+  opacity:0;transition:opacity .15s ease;pointer-events:none;
 }
-.chip::after{content:'';position:absolute;inset:5px;border-radius:50%;border:1px solid rgba(255,255,255,.25);}
-.chip span.cv{position:relative;font-family:var(--mono);font-weight:800;font-size:11px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .chip:hover{transform:translateY(-4px);}
-.chip.selected{transform:translateY(-4px);box-shadow:0 0 0 3px var(--brass), 0 10px 20px -6px rgba(217,178,106,.55);}
-.chip.c5000{background:radial-gradient(circle at 35% 30%, #6b6b6b, #2c2c2c 70%);color:#eee;}
-.chip.c10000{background:radial-gradient(circle at 35% 30%, #e2665c, #a8291f 70%);color:#3a0e0a;}
-.chip.c50000{background:radial-gradient(circle at 35% 30%, #4fc6a4, #16594a 70%);color:#06251d;}
-.chip.c100000{background:radial-gradient(circle at 35% 30%, #3a3a3a, #0d0d0d 70%);color:#999;}
-/* 500K+ render as flat rectangular cash plaques instead of round chips, matching
-   how real tables (and the reference screenshots) present high denominations. */
-.chip.c500000,.chip.c1000000{width:66px;height:42px;border-radius:7px;}
-.chip.c500000::before,.chip.c1000000::before{display:none;}
-.chip.c500000::after,.chip.c1000000::after{border-radius:5px;}
-.chip.c500000{background:linear-gradient(160deg,#f7f6f1,#dcd7c8 55%,#b7ae96);border:2px solid #8a6d2e;color:#3a2f1a;}
-.chip.c1000000{background:linear-gradient(160deg,#f9ecc0,#dcb35f 55%,#93641f);border:2px solid #6b4a12;color:#3a2408;}
-.chip.c500000 span.cv,.chip.c1000000 span.cv{color:inherit;text-shadow:none;font-size:12px;}
-@media (max-width:860px){
-  .chip.c500000,.chip.c1000000{width:54px;height:34px;}
-}
+.chip.selected{transform:translateY(-4px);filter:drop-shadow(0 8px 14px rgba(217,178,106,.55));}
+.chip.selected::after{opacity:1;}
 .bet-controls{margin-left:auto;display:flex;gap:8px;flex-shrink:0;align-items:center;}
 .current-bet-total{font-family:var(--mono);font-weight:800;color:var(--brass);font-size:16px;}
 
@@ -405,7 +387,6 @@
   .bet-spot .label{font-size:13.5px;}
   .pair-row{gap:6px;}
   .chip{width:44px;height:44px;}
-  .chip span.cv{font-size:9.5px;}
 
   .modal-sheet{
     position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;max-width:100%;
@@ -673,8 +654,6 @@
    the chips still read at a glance but the row fits under Player and Banker without the
    confirm/repeat buttons being pushed onto a line of their own */
 .sd-chip-tray .chip{width:44px;height:44px;}
-.sd-chip-tray .chip.c500000,.sd-chip-tray .chip.c1000000{width:54px;height:34px;}
-.sd-chip-tray .chip span.cv{font-size:10px;}
 .sd-chip-tray .spacer{display:none;}
 @media (max-width:860px){
   /* the phone stacks video, board and betting board down a page that scrolls, so it gives back

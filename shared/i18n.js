@@ -184,8 +184,11 @@ const I18N_DICT = {
   streakLabel:{ko:'연속',zh:'连',en:'streak',ja:'連続',vi:'liên tiếp'},
   multiBet:{ko:'멀티 베팅',zh:'多桌投注',en:'Multi-bet',ja:'マルチベット',vi:'Cược nhiều bàn'},
   enterShort:{ko:'입장',zh:'进入',en:'Enter',ja:'入場',vi:'Vào'},
-  // the board's next-hand prediction rail, kept to one short word - the rail is a few marks wide
-  nextRoadAsk:{ko:'다음',zh:'下局',en:'NEXT',ja:'次局',vi:'Kế'},
+  allInStaked:{ko:'보유금 전액 {amount} 을 베팅했습니다',zh:'已投注全部余额 {amount}',en:'Staked your whole balance, {amount}',ja:'保有金全額 {amount} をベットしました',vi:'Đã cược toàn bộ số dư {amount}'},
+  confirmToBet:{ko:'베팅완료를 눌러야 베팅이 확정됩니다',zh:'需按下"下注完成"才会生效',en:'Press Confirm or the bet will not be placed',ja:'「ベット完了」を押すと確定します',vi:'Nhấn Xác nhận để đặt cược'},
+  betNotConfirmed:{ko:'베팅완료를 누르지 않아 {amount} 이 반환되었습니다',zh:'未按下注完成，已退还 {amount}',en:'{amount} returned — never confirmed',ja:'ベット完了を押さなかったため {amount} が返却されました',vi:'Đã hoàn {amount} — chưa xác nhận'},
+  nothingToConfirm:{ko:'베팅할 금액이 없습니다',zh:'没有可确认的投注',en:'Nothing staked to confirm',ja:'確定するベットがありません',vi:'Chưa có cược nào để xác nhận'},
+  betConfirmedCount:{ko:'{n}개 테이블 베팅이 확정되었습니다',zh:'{n} 张桌台的投注已确认',en:'Bets confirmed on {n} tables',ja:'{n}卓のベットが確定しました',vi:'Đã xác nhận cược trên {n} bàn'},
 };
 
 function t(key, vars){

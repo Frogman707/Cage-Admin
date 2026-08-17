@@ -761,35 +761,44 @@
 /* legend rail: a small key explaining the three marks used on the board (hollow
    ring = Big Road/Big Eye Boy/Small Road, solid dot = Bead Plate, diagonal = tie),
    grouped into a P (blue) pill and a B (red) pill stacked on the right edge. */
-/* The prediction rail: one grid, so the three marks on the B row sit exactly over the three on
-   the P row and the two side letters share a column. The old rail stacked two free-standing
-   badges, which lined up with nothing. Each column is one road - ring for Big Eye Boy, dot for
-   Small Road, tick for Cockroach - and the mark's colour is what that road would draw if the
-   next hand went the way its row says. */
-.sd-road-ask{
-  flex-shrink:0;align-self:center;border-left:1px solid #e4e4e4;padding-left:12px;margin-left:2px;
-  display:grid;grid-template-columns:14px repeat(3,16px);gap:9px 7px;
-  justify-items:center;align-items:center;
+/* The prediction rail keeps the board's two badges - a blue P pill over a red B pill - and
+   centres them in the rail rather than spreading them to its ends. The three marks inside each
+   are the live answer: what Big Eye Boy, Small Road and Cockroach Road would draw if the next
+   hand went that way. They take their own colour, so the pill stays the side's colour while the
+   marks in it say red or blue on their own. */
+/* Staked but not yet confirmed: the spots and the sheet's row pulse their brass edge, and the
+   confirm button glows, so it is obvious that nothing is riding until 베팅완료 is pressed. */
+/* a strip that can be dragged says so, and while it is being dragged nothing inside it is
+   selected as text - a drag across a board otherwise highlights every rank label it passes */
+.sd-road-band,.bead-road,.mini-road,.sd-board-row,.sm-road{cursor:grab;}
+.drag-scrolling{cursor:grabbing;user-select:none;}
+.drag-scrolling *{pointer-events:none;}
+@keyframes betPending{0%,100%{box-shadow:0 0 0 0 rgba(217,178,106,.55);}50%{box-shadow:0 0 0 4px rgba(217,178,106,0);}}
+.btn.btn-gold.pending{animation:betPending 1.35s ease-in-out infinite;}
+.sm-row.pending{border-color:var(--brass);}
+.bets-pending .sd-bets .bet-spot.selected{outline:1px dashed var(--brass);outline-offset:-4px;}
+.sd-road-legend-rail{
+  display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;
+  flex-shrink:0;width:34px;border-left:1px solid #e4e4e4;
 }
-.sd-road-ask .ask-title{
-  grid-column:1/-1;justify-self:center;font-size:8.5px;font-weight:800;letter-spacing:.6px;
-  color:#8a8a8a;text-transform:uppercase;
+.sd-road-legend-rail .rail-badge{
+  display:flex;flex-direction:column;align-items:center;gap:5px;font-size:10px;font-weight:800;
+  border:1.5px solid currentColor;border-radius:14px;padding:8px 4px;
 }
-.sd-road-ask .ask-side{font-size:11px;font-weight:800;font-family:var(--mono);}
-.sd-road-ask .ask-side.banker{color:var(--road-red);}
-.sd-road-ask .ask-side.player{color:var(--road-blue);}
-/* the marks draw the road they stand for, at the rail's own size */
-.sd-road-ask .ask-mark{display:block;box-sizing:border-box;width:13px;height:13px;}
-.sd-road-ask .ask-mark.ring{border-radius:50%;border:2.5px solid currentColor;}
-.sd-road-ask .ask-mark.dot{border-radius:50%;background:currentColor;width:12px;height:12px;}
-.sd-road-ask .ask-mark.slash{position:relative;}
-.sd-road-ask .ask-mark.slash::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2.5px;background:currentColor;transform:rotate(-45deg);}
-.sd-road-ask .ask-mark.red{color:var(--road-red);}
-.sd-road-ask .ask-mark.blue{color:var(--road-blue);}
-/* a road that has not started yet - Big Eye needs the third hand, Cockroach the fifth - has no
-   colour to give, so its mark reads as an empty slot rather than a wrong answer */
-.sd-road-ask .ask-mark.none{color:#d8d8d8;opacity:.85;}
-.sd-road-ask .ask-mark.none.dot{background:#e8e8e8;}
+.sd-road-legend-rail .rail-badge .ring{width:11px;height:11px;border-radius:50%;border:2px solid currentColor;box-sizing:border-box;}
+.sd-road-legend-rail .rail-badge .dot{width:9px;height:9px;border-radius:50%;background:currentColor;}
+/* Cockroach Road's mark is a bare 45-degree tick - no ring around it, so the rail draws exactly
+   the mark the road it stands for draws */
+.sd-road-legend-rail .rail-badge .slash{width:11px;height:11px;box-sizing:border-box;position:relative;}
+.sd-road-legend-rail .rail-badge .slash::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-45deg);}
+.sd-road-legend-rail .rail-badge.player{color:var(--road-blue);}
+.sd-road-legend-rail .rail-badge.banker{color:var(--road-red);}
+/* the answer: each mark overrides the pill's colour with the one its road would draw. A road
+   that has not started yet - Big Eye needs the third hand, Cockroach the fifth - stays grey
+   rather than showing a wrong answer. */
+.sd-road-legend-rail .rail-badge .red{color:var(--road-red);}
+.sd-road-legend-rail .rail-badge .blue{color:var(--road-blue);}
+.sd-road-legend-rail .rail-badge .none{color:#d8d8d8;}
 .sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 .sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
 .sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}
@@ -852,7 +861,7 @@
       "roads bead";
     overflow-x:auto;scroll-snap-type:x proximity;overscroll-behavior-x:contain;
   }
-  .sd-board-row > *,.sd-tally-list,.sd-road-ask,.sd-road-main,.sd-tally .bead-road{scroll-snap-align:start;}
+  .sd-board-row > *,.sd-tally-list,.sd-road-legend-rail,.sd-road-main,.sd-tally .bead-road{scroll-snap-align:start;}
   .sd-stage{grid-area:stage;}
   /* the table line reads across in one go, as the reference has it, instead of wrapping onto a
      second line over the felt; and the icon column stops short of the countdown ring it used to
@@ -878,16 +887,12 @@
   .sd-tally-list .tl-row.pair{display:none;}
   .sd-tally-list .tl-badge{width:20px;height:20px;font-size:11px;}
 
-  /* the prediction rides at the right of the stats strip on a phone, keeping its two rows and
-     three columns so the B and P answers still line up with each other */
-  .sd-road-ask{grid-area:stats;justify-self:end;position:sticky;right:0;align-self:center;
-    border-left:none;padding-left:0;margin-left:0;grid-template-columns:12px repeat(3,13px);gap:5px 6px;}
-  .sd-road-ask .ask-title{font-size:8px;letter-spacing:.4px;}
-  .sd-road-ask .ask-side{font-size:10px;}
-  .sd-road-ask .ask-mark{width:11px;height:11px;}
-  .sd-road-ask .ask-mark.ring{border-width:2px;}
-  .sd-road-ask .ask-mark.dot{width:10px;height:10px;}
-  .sd-road-ask .ask-mark.slash::before{height:2px;}
+  /* the two pills read across instead of down, on the right of the stats strip */
+  .sd-road-legend-rail{grid-area:stats;justify-self:end;position:sticky;right:0;flex-direction:row;
+    align-items:center;width:auto;gap:7px;border:none;align-self:center;}
+  .sd-road-legend-rail .rail-badge{flex-direction:row;gap:6px;padding:4px 9px;border-radius:14px;font-size:12px;}
+  .sd-road-legend-rail .rail-badge .ring,.sd-road-legend-rail .rail-badge .slash{width:10px;height:10px;}
+  .sd-road-legend-rail .rail-badge .dot{width:8px;height:8px;}
 
   /* the roads keep one card, the Bead Plate gets its own alongside */
   .sd-road-main,.sd-tally .bead-road{background-color:#fafafa;border:1px solid #e4e4e4;border-radius:10px;}

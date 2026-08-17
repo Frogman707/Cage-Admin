@@ -1417,6 +1417,9 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <div class="modal-bg" id="modal-open-account"><div class="modal" style="width:900px;">
   <button class="modal-close" onclick="closeModal('modal-open-account')">×</button>
   <h3 data-i18n="btnAccountOpening"></h3>
+  <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+   <button class="btn-quick" onclick="syncAccountsToAvatarSpeed()"><b data-i18n="btnAvatarSync"></b></button>
+  </div>
   <div class="table-wrap" style="margin-top:10px;"><table>
     <thead><tr>
       <th data-i18n="colCasino"></th><th data-i18n="colDateTime"></th><th data-i18n="colAccount"></th>
@@ -4387,6 +4390,70 @@ function subscribeStaffCloud(){
  });
 }
 
+/* ---- Avatar Speed link: a cage account is a player account ----
+   The player site signs a member in against the `members` collection, so an account opened here
+   cannot log into Avatar Speed until it exists as one. This pushes every guest account across -
+   the MAIN-* house floats are not players and stay out - keyed by the same account ID, so a
+   customer uses the ID and withdrawal password they already have at the cage.
+
+   Each account also gets an opening balance in `memberLedger` so the money follows them in. That
+   row is written under a fixed id per account and only when it is not already there: the player
+   site derives a balance by summing that ledger, so rewriting the opening row on a later sync
+   would wipe out everything they had since won or staked. Account details (name, status, password)
+   are refreshed on every sync; the opening balance is a one-time hand-over. */
+function cageAccountAsMember(id){
+ const acc = DB.accounts[id] || {};
+ const blocked = (DB.blocks||[]).some(b=>b.account===id);
+ const clean = v => (v && v !== '—') ? v : '';
+ return {
+  id, loginId:id,
+  pw: acc.withdrawPw || '0000',
+  withdrawPw: acc.withdrawPw || '0000',
+  nickname: acc.nickname || acc.engName || id,
+  engName: acc.engName || '',
+  phone: clean(acc.phone),
+  telegram: clean(acc.telegram) || null,
+  casino: acc.openedCasino || 'HANN',
+  agentCode: acc.agentCode || 'DIRECT',
+  parentAgent: acc.agentCode || 'DIRECT',
+  memberType: acc.vip ? 'VIP' : '정회원',
+  status: blocked ? '차단' : '정상',
+  vip: !!acc.vip,
+  betMin: 5000, betMax: 3000000,
+  source: 'cage',
+  createdAt: acc.openedDt || phNow().toISOString(),
+ };
+}
+async function syncAccountsToAvatarSpeed(silent){
+ if(!fbDb){ if(!silent) toast(t('toastAvatarSyncOffline')); return {ok:false, synced:0}; }
+ const ids = Object.keys(DB.accounts||{}).filter(id=>!isMainAccount(id));
+ if(!ids.length){ if(!silent) toast(t('toastAvatarSyncNone')); return {ok:true, synced:0}; }
+ try{
+  // which accounts have already been handed their opening balance
+  const opened = await Promise.all(ids.map(id=>
+   fbDb.collection('memberLedger').doc('cage-open-'+id).get().then(d=>d.exists).catch(()=>true)));
+  const batch = fbDb.batch();
+  ids.forEach((id,i)=>{
+   batch.set(fbDb.collection('members').doc(id), cageAccountAsMember(id), {merge:true});
+   if(!opened[i]){
+    batch.set(fbDb.collection('memberLedger').doc('cage-open-'+id), {
+     memberId:id, casino:(DB.accounts[id].openedCasino||'HANN'),
+     amount: accountTotalBalance(id), category:'deposit',
+     memo:'케이지 어카운트 연동', staff:'cage',
+     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+     clientCreatedAt: phNow().toISOString(),
+    });
+   }
+  });
+  await batch.commit();
+  if(!silent) toast(t('toastAvatarSynced').replace('{n}', ids.length));
+  return {ok:true, synced:ids.length};
+ }catch(e){
+  if(!silent) toast(t('toastAvatarSyncFailed'));
+  return {ok:false, synced:0, error:String(e)};
+ }
+}
+
 /* ---- Ledger (account deposits/withdrawals/transfers) — append-only, balance is derived ---- */
 async function seedLedgerToCloudIfEmpty(){
  if(!fbDb) return;
@@ -5055,7 +5122,7 @@ ko:{
  ioAction:"입출금 처리", ioTypeDeposit:"입금", ioTypeWithdraw:"출금", amount:"금액", targetCasino:"대상 카지노", ioRemark:"비고", workingChipLabel:"워킹칩",
  ioMemoPh:"입출금 관련 비고 입력", processBtn:"처리하기",
  transferTo:"이체 대상", transferBtn:"이체 실행",
- btnAccountOpening:"어카운트 목록", btnAccountBlock:"어카운트 차단", btnAccountUpdate:"정보 수정", btnBlockList:"차단 목록", btnDailyIo:"전체 입출금 내역", btnMemoList:"비고 목록", btnTotalDeposit:"총 입금 현황",
+ btnAccountOpening:"어카운트 목록", btnAvatarSync:"아바타 스피드 연동", toastAvatarSynced:"어카운트 {n}건을 아바타 스피드에 연동했습니다.", toastAvatarSyncOffline:"클라우드에 연결되어 있지 않아 연동할 수 없습니다.", toastAvatarSyncNone:"연동할 어카운트가 없습니다.", toastAvatarSyncFailed:"아바타 스피드 연동에 실패했습니다.", btnAccountBlock:"어카운트 차단", btnAccountUpdate:"정보 수정", btnBlockList:"차단 목록", btnDailyIo:"전체 입출금 내역", btnMemoList:"비고 목록", btnTotalDeposit:"총 입금 현황",
  accLedger:"입출금 내역", allRecords:"전체 기록",
  colCasino:"카지노", colDate:"일시", colType:"구분", colIn:"입금", colOut:"출금", colBalance:"잔액", colStaff:"담당자", colMemo:"비고",
  colAccount:"어카운트", colCurrency:"통화", colInAmt:"입금액", colOutAmt:"출금액", colRemark:"비고",
@@ -5193,7 +5260,7 @@ en:{
  ioAction:"Deposit / Withdraw", ioTypeDeposit:"Deposit", ioTypeWithdraw:"Withdraw", amount:"Amount", targetCasino:"Target Casino", ioRemark:"Remark", workingChipLabel:"Working Chip",
  ioMemoPh:"Enter a remark for this transaction", processBtn:"Process",
  transferTo:"Transfer To", transferBtn:"Transfer",
- btnAccountOpening:"Account List", btnAccountBlock:"Block Account", btnAccountUpdate:"Edit Info", btnBlockList:"Block List", btnDailyIo:"All Transaction History", btnMemoList:"Remark List", btnTotalDeposit:"Total Deposits",
+ btnAccountOpening:"Account List", btnAvatarSync:"Link to Avatar Speed", toastAvatarSynced:"Linked {n} accounts to Avatar Speed.", toastAvatarSyncOffline:"Not connected to the cloud - cannot link.", toastAvatarSyncNone:"No accounts to link.", toastAvatarSyncFailed:"Linking to Avatar Speed failed.", btnAccountBlock:"Block Account", btnAccountUpdate:"Edit Info", btnBlockList:"Block List", btnDailyIo:"All Transaction History", btnMemoList:"Remark List", btnTotalDeposit:"Total Deposits",
  accLedger:"Transaction History", allRecords:"All Records",
  colCasino:"Casino", colDate:"Date/Time", colType:"Type", colIn:"In", colOut:"Out", colBalance:"Balance", colStaff:"Staff", colMemo:"Remark",
  colAccount:"Account", colCurrency:"Currency", colInAmt:"In Amt", colOutAmt:"Out Amt", colRemark:"Remark",
@@ -5331,7 +5398,7 @@ en:{
  ioAction:"存提款作業", ioTypeDeposit:"存入", ioTypeWithdraw:"提出", amount:"金額", targetCasino:"對象賭場", ioRemark:"備註", workingChipLabel:"工作碼",
  ioMemoPh:"輸入本筆交易備註", processBtn:"送出處理",
  transferTo:"轉帳對象", transferBtn:"執行轉帳",
- btnAccountOpening:"帳戶清單", btnAccountBlock:"帳戶封鎖", btnAccountUpdate:"資料修改", btnBlockList:"封鎖名單", btnDailyIo:"全部收付紀錄", btnMemoList:"備註紀錄", btnTotalDeposit:"總存款狀況",
+ btnAccountOpening:"帳戶清單", btnAvatarSync:"連動 Avatar Speed", toastAvatarSynced:"已將 {n} 個帳戶連動至 Avatar Speed。", toastAvatarSyncOffline:"未連線至雲端，無法連動。", toastAvatarSyncNone:"沒有可連動的帳戶。", toastAvatarSyncFailed:"連動 Avatar Speed 失敗。", btnAccountBlock:"帳戶封鎖", btnAccountUpdate:"資料修改", btnBlockList:"封鎖名單", btnDailyIo:"全部收付紀錄", btnMemoList:"備註紀錄", btnTotalDeposit:"總存款狀況",
  accLedger:"收付記錄", allRecords:"全部紀錄",
  colCasino:"賭場", colDate:"日期時間", colType:"類別", colIn:"存入", colOut:"提出", colBalance:"餘額", colStaff:"經辦人", colMemo:"備註",
  colAccount:"帳戶", colCurrency:"幣別", colInAmt:"存入金額", colOutAmt:"提出金額", colRemark:"備註",
@@ -5469,7 +5536,7 @@ en:{
  ioAction:"存取款操作", ioTypeDeposit:"存入", ioTypeWithdraw:"取出", amount:"金额", targetCasino:"目标赌场", ioRemark:"备注", workingChipLabel:"工作码",
  ioMemoPh:"输入本笔交易备注", processBtn:"提交处理",
  transferTo:"转账对象", transferBtn:"执行转账",
- btnAccountOpening:"账户清单", btnAccountBlock:"账户封锁", btnAccountUpdate:"资料修改", btnBlockList:"封锁名单", btnDailyIo:"全部收付记录", btnMemoList:"备注记录", btnTotalDeposit:"总存款情况",
+ btnAccountOpening:"账户清单", btnAvatarSync:"联动 Avatar Speed", toastAvatarSynced:"已将 {n} 个账户联动至 Avatar Speed。", toastAvatarSyncOffline:"未连接云端，无法联动。", toastAvatarSyncNone:"没有可联动的账户。", toastAvatarSyncFailed:"联动 Avatar Speed 失败。", btnAccountBlock:"账户封锁", btnAccountUpdate:"资料修改", btnBlockList:"封锁名单", btnDailyIo:"全部收付记录", btnMemoList:"备注记录", btnTotalDeposit:"总存款情况",
  accLedger:"收付记录", allRecords:"全部记录",
  colCasino:"赌场", colDate:"日期时间", colType:"类别", colIn:"存入", colOut:"取出", colBalance:"余额", colStaff:"经办人", colMemo:"备注",
  colAccount:"账户", colCurrency:"币种", colInAmt:"存入金额", colOutAmt:"取出金额", colRemark:"备注",
@@ -8573,6 +8640,9 @@ function submitReg(){
  if(sPad && sPad.ctx) acc.signaturePhoto = sPad.ctx.canvas.toDataURL();
  DB.ledger[id] = DB.ledger[id] || [];
  saveDB();
+ // a new account is a player account too - hand it straight to Avatar Speed rather than waiting
+ // for someone to press the link button on the list
+ syncAccountsToAvatarSpeed(true);
  pushNotification('notifRegister', id);
  toast(t('toastRegistered'));
 

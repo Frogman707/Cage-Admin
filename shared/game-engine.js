@@ -391,6 +391,32 @@ function deriveCockroachRoad(cols){ return deriveRoad(cols, 3); }
 // ('diagonal') - the same trio the P/B legend rail spells out. Like the Big Road they are six
 // marks deep; the marks are drawn at half a Big Road cell so those six fit in three ruled
 // squares, which is how a real board stacks all four roads into one panel.
+/* ---------------- next-hand prediction (the board's "ask banker / ask player") ----------------
+   What each derived road would draw if the next hand went Banker, and if it went Player. The
+   rules are not restated here: the shoe is replayed with the hypothetical hand on the end and
+   the same three builders are asked for the mark that appears, so the panel cannot disagree
+   with the board beside it.
+   A road that has not started yet gains no mark and reports null rather than a colour - Big Eye
+   Boy cannot begin before the third hand, Small Road the fourth, Cockroach Road the fifth. A
+   hypothetical tie is not offered: a tie does not open a Big Road cell, so it moves no derived
+   road at all. */
+const ASK_ROADS = [['bigEye', deriveBigEyeBoy], ['smallRoad', deriveSmallRoad], ['cockroach', deriveCockroachRoad]];
+function predictNextRoads(history){
+  const now = buildBigRoad(history || []);
+  const have = {};
+  ASK_ROADS.forEach(([key, fn]) => { have[key] = fn(now).length; });
+  const ask = side => {
+    const runs = buildBigRoad([...(history || []), side]);
+    const out = {};
+    ASK_ROADS.forEach(([key, fn]) => {
+      const marks = fn(runs);
+      out[key] = marks.length > have[key] ? marks[marks.length - 1] : null;
+    });
+    return out;
+  };
+  return {banker: ask('banker'), player: ask('player')};
+}
+
 const DERIVED_ROAD_ROWS = 6;
 function renderDerivedRoad(marks, style){
   const cols = groupIntoRoadColumns(marks);

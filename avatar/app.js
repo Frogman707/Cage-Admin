@@ -576,12 +576,37 @@ function avatarScoreboardHtml(idSuffix){
           <div class="sd-road-band"><div class="derived-road-grid" id="smallroad-${idSuffix}"></div></div>
           <div class="sd-road-band"><div class="derived-road-grid" id="cockroach-${idSuffix}"></div></div>
         </div>
-        <div class="sd-road-legend-rail">
-          <div class="rail-badge player">P<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>
-          <div class="rail-badge banker">B<span class="ring"></span><span class="dot"></span><span class="slash"></span></div>
-        </div>
+        ${roadAskHtml(idSuffix)}
       </div>
     </div>`;
+}
+/* The board's prediction rail: what Big Eye Boy, Small Road and Cockroach Road would each draw
+   if the next hand went Banker, and if it went Player. Laid out as a grid so the three marks in
+   the B row sit exactly over the three in the P row - a stack of free-standing badges never did
+   line up. The mark shapes say which road each column is, the way the board itself does. */
+const ASK_MARKS = [['bigEye','ring'], ['smallRoad','dot'], ['cockroach','slash']];
+function roadAskHtml(idSuffix){
+  const row = side => `
+    <span class="ask-side ${side}">${side === 'banker' ? 'B' : 'P'}</span>
+    ${ASK_MARKS.map(([key, shape]) =>
+      `<i class="ask-mark ${shape} none" id="ask-${idSuffix}-${side}-${key}"></i>`).join('')}`;
+  return `<div class="sd-road-ask" id="ask-${idSuffix}">
+    <span class="ask-title">${t('nextRoadAsk')}</span>
+    ${row('banker')}
+    ${row('player')}
+  </div>`;
+}
+function renderRoadPrediction(idSuffix, history){
+  if (!document.getElementById(`ask-${idSuffix}`)) return;
+  const p = predictNextRoads(history || []);
+  for (const side of ['banker','player']){
+    for (const [key] of ASK_MARKS){
+      const el = document.getElementById(`ask-${idSuffix}-${side}-${key}`);
+      if (!el) continue;
+      el.classList.remove('red','blue','none');
+      el.classList.add(p[side][key] || 'none');
+    }
+  }
 }
 function renderAvatarRoad(){
   const el = document.getElementById('road-avatar'); if (!el) return;
@@ -593,6 +618,7 @@ function renderAvatarRoad(){
   // Bead Plate shows the recent window left-aligned, as the board does - grouping runs into
   // columns makes the full shoe far wider than the panel.
   paintRoad(document.getElementById('beadroad-avatar'), renderBeadRoad(AVATAR.history.slice(-BEAD_WINDOW), (AVATAR.pairFlags||[]).slice(-BEAD_WINDOW)) || `<span class="hint">${t('noRecord')}</span>`);
+  renderRoadPrediction('avatar', AVATAR.history);
 }
 function renderAvatarTally(){
   const listEl = document.getElementById('tallylist-avatar');
@@ -1098,6 +1124,7 @@ function renderSpeedDetailRoad(tableId){
   paintRoad(document.getElementById('smallroad-detail'), renderDerivedRoad(deriveSmallRoad(cols), 'filled') || `<span class="hint">${t('noRecord')}</span>`);
   paintRoad(document.getElementById('cockroach-detail'), renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`);
   paintRoad(document.getElementById('beadroad-detail'), renderBeadRoad(history.slice(-BEAD_WINDOW), pairFlags.slice(-BEAD_WINDOW)) || `<span class="hint">${t('noRecord')}</span>`);
+  renderRoadPrediction('detail', history);
   renderSpeedDetailTally(tableId);
 }
 function renderSpeedDetailTally(tableId){

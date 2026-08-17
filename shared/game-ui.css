@@ -118,12 +118,11 @@
 .lobby-card .limits{white-space:nowrap;}
 .lobby-card .counts{margin-left:auto;white-space:nowrap;}
 .lobby-card .counts b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
-/* ---- Speed's tiles take bets ----
-   Speed is several tables at once, so each tile carries its own five spots and stakes the chip
-   picked in the tray at the foot of the list. They mirror the table screen's board - pairs and
-   tie across the top, the two hands beneath - in the same colours, so a spot means the same
-   thing in the list as it does inside. */
-.tile-bets{display:flex;flex-direction:column;gap:4px;padding:0 8px 9px;}
+/* ---- the multi-bet panel's spots ----
+   Speed is several tables at once, so an open table can stake its neighbours from a panel that
+   gives each of them the same five spots. They mirror the table screen's board - pairs and tie
+   across the top, the two hands beneath - in the same colours, so a spot means the same thing
+   in the panel as it does on the felt. */
 .tb-row{display:grid;gap:4px;}
 .tb-row.pairs{grid-template-columns:1fr 1fr 1fr;}
 .tb-row.hands{grid-template-columns:1fr 1fr;}
@@ -145,19 +144,46 @@
 .tb-spot.staked{border-color:var(--brass);background:rgba(217,178,106,.12);}
 .tb-spot.locked{opacity:.4;cursor:not-allowed;}
 
-/* the list's chip tray, pinned to the foot of the screen while the Speed list is up */
-.speed-lobby-tray{
-  position:sticky;bottom:0;z-index:16;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  padding:10px 24px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));
-  border-top:1px solid var(--brass-dim);box-shadow:0 -10px 26px -14px rgba(0,0,0,.8);
+/* The multi-bet button sits in the open table's own chip tray, so the chip picked for this
+   table is the one the panel stakes. Its badge counts the other tables currently carrying a
+   bet, so the panel does not have to be open to know something is riding elsewhere. */
+.sd-multi-btn{display:inline-flex;align-items:center;gap:6px;}
+.sd-multi-btn.active{border-color:var(--brass);color:var(--brass);background:rgba(217,178,106,.14);}
+.sd-multi-btn .sm-count:not(:empty){
+  min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--brass);color:#1b1206;
+  font-family:var(--mono);font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
 }
-.speed-lobby-tray .chip{width:44px;height:44px;}
-.speed-lobby-tray .tray-total{margin-left:auto;display:flex;align-items:baseline;gap:7px;font-size:11px;color:var(--ink-faint);}
-.speed-lobby-tray .tray-total b{font-family:var(--mono);font-size:15px;font-weight:800;color:var(--brass);}
+/* The panel drops under the bet board rather than over the felt - the table being watched stays
+   watchable while its neighbours are staked. */
+.speed-multi{display:none;}
+.speed-multi.open{
+  display:block;margin-top:10px;border:1px solid var(--brass-dim);border-radius:12px;
+  background:linear-gradient(165deg,var(--panel-hi),var(--panel));overflow:hidden;
+}
+.sm-top{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);}
+.sm-top > b{font-size:12.5px;color:var(--brass);letter-spacing:.3px;}
+.sm-total{margin-left:auto;display:flex;align-items:baseline;gap:6px;font-size:11px;color:var(--ink-faint);}
+.sm-total b{font-family:var(--mono);font-size:14px;font-weight:800;color:var(--brass);}
+.sm-close{width:26px;height:26px;font-size:12px;}
+.sm-list{max-height:326px;overflow-y:auto;padding:10px 12px;display:grid;gap:10px;
+  grid-template-columns:repeat(auto-fill,minmax(210px,1fr));}
+.sm-row{border:1px solid var(--line);border-radius:10px;padding:8px;background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:5px;}
+/* The name gets a line to itself with only the enter button beside it, and the phase and clock
+   sit underneath: at panel widths a row can actually be, all four on one line left the name a
+   sliver and ellipsised every table to "Speed Table ...". */
+.sm-head{display:flex;align-items:center;gap:7px;font-size:11.5px;min-width:0;}
+.sm-name{flex:1;min-width:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sm-sub{display:flex;align-items:center;gap:7px;margin-top:-2px;}
+.sm-phase{font-size:10px;color:var(--ink-faint);white-space:nowrap;}
+.sm-phase.betting{color:var(--jade);}
+.sm-phase.dealing{color:var(--brass);}
+.sm-timer{margin-left:auto;flex-shrink:0;font-size:10.5px;color:var(--ink-faint);white-space:nowrap;}
+.sm-timer b{font-family:var(--mono);color:var(--ink-dim);}
+.sm-open{flex-shrink:0;background:none;border:1px solid var(--line);color:var(--ink-faint);border-radius:7px;
+  padding:2px 7px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.sm-open:hover{border-color:var(--brass-dim);color:var(--brass);}
 @media (max-width:640px){
-  .speed-lobby-tray{padding:8px 12px;gap:7px;}
-  .speed-lobby-tray .chip{width:36px;height:36px;}
-  .tile-bets{padding:0 6px 7px;}
+  .sm-list{grid-template-columns:1fr;max-height:280px;}
   .tb-spot .tb-label{font-size:9px;}
   .tb-row.hands .tb-spot .tb-label{font-size:11px;}
 }
@@ -219,14 +245,14 @@
 .sd-stage .phase-banner{top:52px;}
 .cards-area{display:flex;gap:44px;align-items:center;perspective:600px;}
 .hand{display:flex;flex-direction:column;align-items:center;gap:10px;}
-.hand .cards{display:flex;gap:5px;min-height:76px;}
+.hand .cards{display:flex;gap:6px;min-height:100px;}
 /* The card is a face from shared/assets/cards, set on the element rather than drawn in CSS, so
    it keeps the deck's own artwork - rank, pip and rounded corners all come from the file. Its
-   height is what sizes it; the width follows the artwork's own 110x140. The shadow is a
-   drop-shadow rather than a box-shadow so it follows the rounded corners instead of squaring
-   them off. */
+   height is what sizes it; the width follows the deck's own 225:314, which is a real card's
+   2.5 x 3.5in. The shadow is a drop-shadow rather than a box-shadow so it follows the rounded
+   corners instead of squaring them off. */
 .playing-card{
-  height:64px;aspect-ratio:224/325;position:relative;
+  height:88px;aspect-ratio:225/314;position:relative;
   background:center/contain no-repeat;
   filter:drop-shadow(0 5px 9px rgba(0,0,0,.5));
   animation:dealCard .38s cubic-bezier(.2,.7,.3,1.1);
@@ -237,10 +263,10 @@
   to{transform:none;opacity:1;}
 }
 /* The third card is laid across, the way the dealer turns it sideways onto the felt. Rotating
-   it leaves its layout box upright, so the margin gives back the (64-44.1)/2 it now overhangs
-   at each side - 44.1 being 64 at the deck's 224:325 - and it needs its own keyframes: the
+   it leaves its layout box upright, so the margin gives back the (88-63.1)/2 it now overhangs
+   at each side - 63.1 being 88 at the deck's 225:314 - and it needs its own keyframes: the
    deal animation ends at transform:none, which would drop the rotation on the last frame. */
-.playing-card.third{transform:rotate(90deg);margin:0 10px;animation-name:dealCardSideways;}
+.playing-card.third{transform:rotate(90deg);margin:0 12px;animation-name:dealCardSideways;}
 /* The player's hand sits on the left of the felt, so its third card is laid on the outside -
    to the left of the pair, mirroring the banker's, which stays on the right. It is dealt last,
    so the order moves it without touching the deal sequence. */
@@ -440,9 +466,12 @@
   .card-status{font-size:10px;padding:2px 7px;}
   .card-hot{font-size:9px;}
 
-  .cards-area{gap:22px;}
-  .playing-card{height:52px;}
-  .playing-card.third{margin:0 8px;}   /* (52 - 52*224/325)/2 */
+  /* Below 860 the felt is only as wide as the screen, and six cards plus two sideways thirds
+     have to sit inside it, so the hands close up and the card comes down from 88. At 390 that
+     leaves 355.7 of cards in 372 of felt - still well up on the 52 the card used to be. */
+  .cards-area{gap:12px;}
+  .playing-card{height:66px;}
+  .playing-card.third{margin:0 9px;}   /* (66 - 66*225/314)/2 */
   .hand .score{min-width:28px;height:28px;font-size:15px;}
   .bet-rail{gap:8px;}
   .bet-rail.with-pairs{grid-template-columns:1fr 1.15fr 1fr;}

@@ -182,6 +182,8 @@ const I18N_DICT = {
   betCompleteToast:{ko:'베팅이 접수되었습니다',zh:'投注已提交',en:'Bet placed',ja:'ベットを受け付けました',vi:'Đã đặt cược'},
   repeatNoPrev:{ko:'반복할 이전 베팅이 없습니다',zh:'没有可重复的上一次投注',en:'No previous bet to repeat',ja:'繰り返すベットがありません',vi:'Không có cược trước để lặp lại'},
   streakLabel:{ko:'연속',zh:'连',en:'streak',ja:'連続',vi:'liên tiếp'},
+  multiBet:{ko:'멀티 베팅',zh:'多桌投注',en:'Multi-bet',ja:'マルチベット',vi:'Cược nhiều bàn'},
+  enterShort:{ko:'입장',zh:'进入',en:'Enter',ja:'入場',vi:'Vào'},
 };
 
 function t(key, vars){

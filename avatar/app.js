@@ -896,7 +896,6 @@ async function loadSpeedTables(){
   const grid = document.getElementById('speedGrid');
   const toolbar = document.getElementById('speedToolbar');
   if (toolbar) toolbar.innerHTML = casinoTabsHtml() + gameTypeTabsHtml('speed') + `<div class="lobby-toolbar">${lobbySearchHtml()}</div>`;
-  renderSpeedLobbyTray();
   grid.innerHTML = `<div class="table-loading" style="grid-column:1/-1;height:200px;"><div class="spin-lg"></div><div>${t('connectingTable')}</div></div>`;
   const [tableSnap, roundsSnap, betSnap] = await Promise.all([
     db.collection('tables').where('type','==','speed').get(),
@@ -923,7 +922,6 @@ async function loadSpeedTables(){
       shoe: openShoe(tb.shoeNo || 1),
     };
     renderSpeedTileRoad(tb.id);
-    renderSpeedTileBets(tb.id);
     renderSpeedTileStats(tb.id);
   });
 }
@@ -945,35 +943,90 @@ function speedTileHtml(tb){
       </div>
       <div class="card-line meta"><span class="limits">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</span><span class="counts" id="stats-${tb.id}"></span></div>
     </div>
-    ${speedTileBetsHtml(tb.id)}
   </div>`;
 }
-/* Speed is several tables at once, so the bets are on the tile: every table runs its own round
-   whether or not its screen is open, and a spot here stakes the chip that is selected in the
-   tray at the foot of the list. Clicks stop here rather than opening the table - entering it is
-   the card's own job, everywhere but on these five. */
+/* Speed is several tables at once - every table runs its own round whether or not its screen is
+   open - so an open table carries a multi-bet panel listing the others, and a spot in it stakes
+   the chip selected in that table's own tray. The list itself stays a list. */
 const SPEED_TILE_SPOTS = [
   ['playerPair','playerPairShort','pair player'], ['tie','tie','tie'], ['bankerPair','bankerPairShort','pair banker'],
   ['player','player','player'], ['banker','banker','banker'],
 ];
-/* The list's own chip tray. Speed's bets are spread over several tables, so the chip is picked
-   once here and every tile stakes it; the total staked across all of them is kept alongside so
-   the player can see what is committed without adding the tiles up. */
-function renderSpeedLobbyTray(){
-  const el = document.getElementById('speedLobbyTray');
+/* The multi-bet panel: the open table's neighbours, each with the same five spots, so several
+   tables can be staked without leaving the one being watched. It stakes whatever chip is
+   selected in this table's tray, and carries the total committed across every table. */
+function speedMultiPanelHtml(){
+  const openId = SPEED.detailTableId;
+  const others = Object.keys(SPEED.tstate).filter(id => id !== openId);
+  const spot = (tableId) => ([key,label,cls]) =>
+    `<button type="button" class="tb-spot ${cls}" id="tilespot-${tableId}-${key}" onclick="placeSpeedBet('${tableId}','${key}')">
+       <span class="tb-label">${t(label)}</span><b class="tb-amt" id="tilebet-${tableId}-${key}"></b>
+     </button>`;
+  const rows = others.map(id=>{
+    const tb = SPEED.tables[id] || {name:id};
+    return `<div class="sm-row" id="smrow-${id}">
+      <div class="sm-head">
+        <span class="sm-name">${escapeHtml(tb.name || id)}</span>
+        <button class="sm-open" onclick="openSpeedTableDetail('${id}')">${t('enterShort')}</button>
+      </div>
+      <div class="sm-sub">
+        <span class="sm-phase" id="smphase-${id}"></span>
+        <span class="sm-timer">⏱ <b id="smtimer-${id}">–</b></span>
+      </div>
+      <div class="tb-row pairs">${SPEED_TILE_SPOTS.slice(0,3).map(spot(id)).join('')}</div>
+      <div class="tb-row hands">${SPEED_TILE_SPOTS.slice(3).map(spot(id)).join('')}</div>
+    </div>`;
+  }).join('');
+  return `
+    <div class="sm-top">
+      <b>${t('multiBet')}</b>
+      <span class="sm-total">${t('totalLabel')} <b id="speedStakedTotal">0</b></span>
+      <button class="btn btn-sm" onclick="clearAllSpeedBets()">${t('cancelBet')}</button>
+      <button class="icon-btn sm-close" onclick="toggleSpeedMultiPanel(false)" title="${t('backToList')}">✕</button>
+    </div>
+    <div class="sm-list">${rows || `<p class="hint">${t('noSpeedTables')}</p>`}</div>`;
+}
+function toggleSpeedMultiPanel(open){
+  const el = document.getElementById('speedMultiPanel');
   if (!el) return;
-  el.innerHTML = `
-    ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
-    <span class="tray-total"><span>${t('totalLabel')}</span><b id="speedStakedTotal">0</b></span>
-    <button class="btn btn-sm" onclick="clearAllSpeedBets()">${t('cancelBet')}</button>`;
-  renderSpeedStakedTotal();
+  const show = open === undefined ? !el.classList.contains('open') : !!open;
+  if (show){
+    el.innerHTML = speedMultiPanelHtml();
+    Object.keys(SPEED.tstate).forEach(id=>{
+      if (id === SPEED.detailTableId) return;
+      renderSpeedTileBets(id);
+      setSpeedTileBetsLocked(id, SPEED.tstate[id].phase !== 'betting');
+      paintSpeedMultiRow(id);
+    });
+    renderSpeedStakedTotal();
+  }
+  el.classList.toggle('open', show);
+  document.getElementById('speedMultiBtn')?.classList.toggle('active', show);
+}
+/* the row's own phase line and countdown, so a table can be judged without opening it */
+function paintSpeedMultiRow(tableId){
+  const s = SPEED.tstate[tableId];
+  if (!s) return;
+  const ph = document.getElementById(`smphase-${tableId}`);
+  if (ph){
+    ph.textContent = s.phase==='betting' ? t('phaseBetting') : s.phase==='dealing' ? t('phaseDealing') : '';
+    ph.className = 'sm-phase ' + s.phase;
+  }
+  const tm = document.getElementById(`smtimer-${tableId}`);
+  if (tm) tm.textContent = Math.max(0, s.secondsLeft);
 }
 function renderSpeedStakedTotal(){
-  const el = document.getElementById('speedStakedTotal');
-  if (!el) return;
   let staked = 0;
   Object.values(SPEED.tstate || {}).forEach(s=> staked += Object.values(s.bets).reduce((a,b)=>a+b,0));
-  el.textContent = fmtNum(staked);
+  const el = document.getElementById('speedStakedTotal');
+  if (el) el.textContent = fmtNum(staked);
+  // the button carries how many other tables are live with a bet, so the panel need not be open
+  const badge = document.getElementById('speedMultiCount');
+  if (badge){
+    const n = Object.entries(SPEED.tstate || {})
+      .filter(([id,s2]) => id !== SPEED.detailTableId && Object.values(s2.bets).some(v=>v>0)).length;
+    badge.textContent = n ? n : '';
+  }
 }
 /* clears whatever is staked on every table that is still taking bets - a round already dealing
    is committed and is left alone */
@@ -986,19 +1039,9 @@ function clearAllSpeedBets(){
     });
     renderSpeedTileBets(tableId);
   });
+  renderSpeedStakedTotal();
   projectSpeedBalance();
 }
-function speedTileBetsHtml(tableId){
-  const spot = ([key,label,cls]) =>
-    `<button type="button" class="tb-spot ${cls}" id="tilespot-${tableId}-${key}" onclick="event.stopPropagation();placeSpeedBet('${tableId}','${key}')">
-       <span class="tb-label">${t(label)}</span><b class="tb-amt" id="tilebet-${tableId}-${key}"></b>
-     </button>`;
-  return `<div class="tile-bets" onclick="event.stopPropagation()">
-    <div class="tb-row pairs">${SPEED_TILE_SPOTS.slice(0,3).map(spot).join('')}</div>
-    <div class="tb-row hands">${SPEED_TILE_SPOTS.slice(3).map(spot).join('')}</div>
-  </div>`;
-}
-
 function renderSpeedTileRoad(tableId){
   const el = document.getElementById('road-'+tableId);
   if (el){
@@ -1070,6 +1113,7 @@ function setSpeedTileBetsLocked(tableId, locked){
     const el = document.getElementById(`tilespot-${tableId}-${k}`);
     if (el){ el.classList.toggle('locked', locked); el.disabled = locked; }
   });
+  paintSpeedMultiRow(tableId);
 }
 function placeSpeedBet(tableId, type){
   const s = SPEED.tstate[tableId];
@@ -1156,7 +1200,11 @@ function speedDetailShellHtml(tableId){
           <span class="spacer"></span>
           <button class="btn btn-sm btn-gold" onclick="confirmSpeedBetDetail()" data-i18n="betComplete">베팅완료</button>
           <button class="btn btn-sm" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n="repeatBet">반복</button>
+          <button class="btn btn-sm sd-multi-btn" id="speedMultiBtn" onclick="toggleSpeedMultiPanel()">
+            <span data-i18n="multiBet">멀티 베팅</span><b class="sm-count" id="speedMultiCount"></b>
+          </button>
         </div>
+        <div class="speed-multi" id="speedMultiPanel"></div>
       </div>
     </div>
   </div>`;
@@ -1225,6 +1273,7 @@ async function tickAllSpeedTables(){
 function setSpeedTileTimer(tableId, v){
   const el = document.getElementById('timer-'+tableId); if (el) el.textContent = v;
   if (SPEED.detailTableId===tableId){ const d = document.getElementById('timer-detail'); if (d) d.textContent = v; }
+  paintSpeedMultiRow(tableId);   // the multi-bet panel counts its neighbours down too
 }
 // The list no longer captions the phase - only the open table does.
 function setSpeedTilePhaseText(tableId, txt){

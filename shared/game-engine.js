@@ -431,6 +431,7 @@ function paintRoad(el, html){
   if (!el) return;
   el.innerHTML = html;
   watchRoadRelayout();
+  watchDragScroll();
   // a road on the board scrolls with its band (the band carries the ruling, so the two travel
   // together); elsewhere the painted element is the scroller itself
   const scroller = (el.closest && el.closest('.sd-road-band')) || el;
@@ -523,6 +524,61 @@ function watchRoadRelayout(){
   const again = () => { clearTimeout(pending); pending = setTimeout(()=>resnapRoads(), 80); };
   window.addEventListener('resize', again);
   window.addEventListener('orientationchange', again);
+}
+
+/* ---------------- drag a board sideways with the mouse ----------------
+   These strips scroll but a mouse has no sideways wheel, so on a desktop the only way across a
+   long shoe was a shift-wheel most players will never try. Press and drag now moves them, the
+   way a finger already does on a phone. It is delegated from the document so it covers strips
+   that are painted in later, and it stays out of the way of ordinary use: a press that never
+   travels more than a few pixels is left alone, so clicking a bet spot or a card still works,
+   and nothing is dragged on a strip that has nowhere to go. */
+const DRAG_SCROLLERS = '.sd-road-band, .bead-road, .mini-road, .sd-board-row, .sm-road, .br-grid, .derived-road-grid';
+const DRAG_SLOP = 4;   // px of travel before a press counts as a drag rather than a click
+let dragScrollWatched = false;
+function watchDragScroll(){
+  if (dragScrollWatched || typeof document === 'undefined') return;
+  dragScrollWatched = true;
+  let el = null, startX = 0, startLeft = 0, moved = false;
+
+  // The nearest match is not always the one that scrolls - a road's grid matches too and is
+  // inside the band that actually carries the overflow - so keep walking up until one of them
+  // has somewhere to go.
+  const scrollerFor = node => {
+    for (let n = node; n && n.closest; n = n.parentElement){
+      const hit = n.closest(DRAG_SCROLLERS);
+      if (!hit) return null;
+      if (hit.scrollWidth > hit.clientWidth + 1) return hit;
+      n = hit;                       // this one cannot scroll; try the next match above it
+    }
+    return null;
+  };
+  document.addEventListener('pointerdown', e=>{
+    if (e.button !== 0 || e.pointerType !== 'mouse') return;
+    const hit = scrollerFor(e.target);
+    if (!hit) return;
+    el = hit; startX = e.clientX; startLeft = hit.scrollLeft; moved = false;
+  });
+  document.addEventListener('pointermove', e=>{
+    if (!el) return;
+    const dx = e.clientX - startX;
+    if (!moved && Math.abs(dx) < DRAG_SLOP) return;
+    if (!moved){ moved = true; el.classList.add('drag-scrolling'); }
+    el.scrollLeft = startLeft - dx;
+    e.preventDefault();
+  });
+  const end = () => {
+    if (!el) return;
+    el.classList.remove('drag-scrolling');
+    // a press that turned into a drag must not also fire the click underneath it
+    if (moved){ const was = el; document.addEventListener('click', ev=>{
+      if (was.contains(ev.target)){ ev.stopPropagation(); ev.preventDefault(); }
+    }, {capture:true, once:true}); }
+    el = null;
+  };
+  document.addEventListener('pointerup', end);
+  document.addEventListener('pointercancel', end);
+  window.addEventListener('blur', end);
 }
 
 /* Same pin for roads that ship inside a bigger block of markup rather than being painted into

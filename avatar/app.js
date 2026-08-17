@@ -586,14 +586,14 @@ function avatarScoreboardHtml(idSuffix){
    line up. The mark shapes say which road each column is, the way the board itself does. */
 const ASK_MARKS = [['bigEye','ring'], ['smallRoad','dot'], ['cockroach','slash']];
 function roadAskHtml(idSuffix){
-  const row = side => `
-    <span class="ask-side ${side}">${side === 'banker' ? 'B' : 'P'}</span>
-    ${ASK_MARKS.map(([key, shape]) =>
-      `<i class="ask-mark ${shape} none" id="ask-${idSuffix}-${side}-${key}"></i>`).join('')}`;
-  return `<div class="sd-road-ask" id="ask-${idSuffix}">
-    <span class="ask-title">${t('nextRoadAsk')}</span>
-    ${row('banker')}
-    ${row('player')}
+  const badge = side => `
+    <div class="rail-badge ${side}">${side === 'player' ? 'P' : 'B'}
+      ${ASK_MARKS.map(([key, shape]) =>
+        `<span class="${shape} none" id="ask-${idSuffix}-${side}-${key}"></span>`).join('')}
+    </div>`;
+  return `<div class="sd-road-legend-rail" id="ask-${idSuffix}">
+    ${badge('player')}
+    ${badge('banker')}
   </div>`;
 }
 function renderRoadPrediction(idSuffix, history){
@@ -1019,6 +1019,7 @@ function speedMultiPanelHtml(){
         ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
       </div>
       <span class="sm-total">${t('totalLabel')} <b id="speedStakedTotal">0</b></span>
+      <button class="btn btn-sm btn-gold" onclick="confirmAllSpeedBets()">${t('betComplete')}</button>
       <button class="btn btn-sm" onclick="clearAllSpeedBets()">${t('cancelBet')}</button>
       <button class="icon-btn sm-close" onclick="toggleSpeedMultiPanel(false)" title="${t('backToList')}">✕</button>
     </div>
@@ -1036,6 +1037,7 @@ function toggleSpeedMultiPanel(open){
       setSpeedTileBetsLocked(id, SPEED.tstate[id].phase !== 'betting');
       paintSpeedMultiRow(id);
       renderSpeedMultiResult(id);
+      paintSpeedConfirmState(id);
     });
     renderSpeedStakedTotal();
   }
@@ -1101,6 +1103,7 @@ function clearAllSpeedBets(){
     ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
       if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${k}`)?.classList.remove('selected');
     });
+    markSpeedBetsUnconfirmed(tableId);
     renderSpeedTileBets(tableId);
   });
   renderSpeedStakedTotal();
@@ -1185,11 +1188,20 @@ function placeSpeedBet(tableId, type){
   const s = SPEED.tstate[tableId];
   if (!s || s.phase !== 'betting'){ toast(t('notBettingTime'), true); return; }
   let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
-  if (STATE.balance - locked < STATE.selectedChip){ toast(t('insufficientBalance'), true); return; }
+  const free = STATE.balance - locked;
   // the table's limits apply to each betting position, not to the round as a whole
   const max = tableBetMax(tableId);
-  if (s.bets[type] + STATE.selectedChip > max){ toast(t('aboveTableMax', {max: fmtNum(max)}), true); return; }
-  s.bets[type] += STATE.selectedChip;
+  const headroom = Math.max(0, max - s.bets[type]);
+  // A chip worth more than is left rides the rest of the balance in rather than being refused:
+  // the click still lands, for whatever the player actually has. The table maximum still caps it.
+  const stake = Math.min(STATE.selectedChip, headroom, free);
+  if (stake <= 0){
+    toast(free <= 0 ? t('insufficientBalance') : t('aboveTableMax', {max: fmtNum(max)}), true);
+    return;
+  }
+  s.bets[type] += stake;
+  if (stake < STATE.selectedChip && stake === free) toast(t('allInStaked', {amount: fmtNum(stake)}));
+  markSpeedBetsUnconfirmed(tableId);
   if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${type}`)?.classList.add('selected');
   renderSpeedTileBets(tableId);
   renderSpeedStakedTotal();
@@ -1264,7 +1276,7 @@ function speedDetailShellHtml(tableId){
           <button class="btn btn-sm" onclick="clearSpeedDetailBets('${tableId}')" data-i18n="cancelBet">취소</button>
           ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
           <span class="spacer"></span>
-          <button class="btn btn-sm btn-gold" onclick="confirmSpeedBetDetail()" data-i18n="betComplete">베팅완료</button>
+          <button class="btn btn-sm btn-gold" id="speedConfirmBtn" onclick="confirmSpeedBetDetail('${tableId}')" data-i18n="betComplete">베팅완료</button>
           <button class="btn btn-sm" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n="repeatBet">반복</button>
           <button class="btn btn-sm sd-multi-btn" id="speedMultiBtn" onclick="toggleSpeedMultiPanel()">
             <span data-i18n="multiBet">멀티 베팅</span><b class="sm-count" id="speedMultiCount"></b>
@@ -1300,10 +1312,52 @@ function clearSpeedDetailBets(tableId){
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
     document.getElementById(`spot-detail-${k}`)?.classList.remove('selected');
   });
+  markSpeedBetsUnconfirmed(tableId);
   renderSpeedTileBets(tableId);
+  renderSpeedStakedTotal();
   projectSpeedBalance();
 }
-function confirmSpeedBetDetail(){ toast(t('betCompleteToast')); }
+/* ---------------- nothing rides until 베팅완료 ----------------
+   What is on the spots is only an intention. A table plays the amounts the player confirmed and
+   nothing else: anything staked and left unconfirmed when betting closes is pushed back, the way
+   a dealer returns chips that were never actually placed. Touching a spot after confirming
+   re-opens the bet, so the confirmation always describes exactly what is on the felt. */
+function markSpeedBetsUnconfirmed(tableId){
+  const s = SPEED.tstate[tableId];
+  if (!s) return;
+  s.confirmed = null;
+  paintSpeedConfirmState(tableId);
+}
+function speedBetsTotal(bets){ return Object.values(bets || {}).reduce((a,b)=>a+b,0); }
+function confirmSpeedBets(tableId, quiet){
+  const s = SPEED.tstate[tableId];
+  if (!s || s.phase !== 'betting') { if (!quiet) toast(t('notBettingTime'), true); return false; }
+  returnUnderMinSpeedBets(tableId);          // a short bet cannot be confirmed either
+  if (speedBetsTotal(s.bets) <= 0){ if (!quiet) toast(t('nothingToConfirm'), true); return false; }
+  s.confirmed = {...s.bets};
+  paintSpeedConfirmState(tableId);
+  if (!quiet) toast(t('betCompleteToast'));
+  return true;
+}
+function confirmSpeedBetDetail(tableId){ confirmSpeedBets(tableId); }
+/* the sheet stakes several tables at once, so its button confirms every one of them */
+function confirmAllSpeedBets(){
+  let n = 0;
+  Object.keys(SPEED.tstate || {}).forEach(id=>{ if (confirmSpeedBets(id, true)) n++; });
+  toast(n ? t('betConfirmedCount', {n}) : t('nothingToConfirm'), !n);
+}
+/* the open table's spots and the sheet's rows both show whether what is on them is riding */
+function paintSpeedConfirmState(tableId){
+  const s = SPEED.tstate[tableId];
+  if (!s) return;
+  const pending = speedBetsTotal(s.bets) > 0 && !s.confirmed;
+  if (SPEED.detailTableId === tableId){
+    document.getElementById('viewSpeedTable')?.classList.toggle('bets-pending', pending);
+    const btn = document.getElementById('speedConfirmBtn');
+    if (btn) btn.classList.toggle('pending', pending);
+  }
+  document.getElementById(`smrow-${tableId}`)?.classList.toggle('pending', pending);
+}
 function repeatLastSpeedBetDetail(tableId){
   const s = SPEED.tstate[tableId]; if (!s || s.phase!=='betting') return;
   if (!s.lastBets || !Object.values(s.lastBets).some(v=>v>0)){ toast(t('repeatNoPrev'), true); return; }
@@ -1315,7 +1369,9 @@ function repeatLastSpeedBetDetail(tableId){
     toast(t('aboveTableMax', {max: fmtNum(max)}), true); return;
   }
   Object.entries(s.lastBets).forEach(([k,v])=>{ if (v>0){ s.bets[k] = (s.bets[k]||0) + v; document.getElementById(`spot-detail-${k}`)?.classList.add('selected'); } });
+  markSpeedBetsUnconfirmed(tableId);
   renderSpeedTileBets(tableId);
+  renderSpeedStakedTotal();
   projectSpeedBalance();
 }
 function projectSpeedBalance(){
@@ -1353,6 +1409,7 @@ function beginSpeedBetting(tableId){
   const hadBets = Object.values(s.bets).some(v=>v>0);
   if (hadBets) s.lastBets = {...s.bets};
   s.phase = 'betting'; s.secondsLeft = SPEED_BETTING_SECONDS; s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0}; s.currentRoundId = uuidv4();
+  s.confirmed = null;
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
     if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${k}`)?.classList.remove('selected','locked');
   });
@@ -1372,6 +1429,18 @@ async function beginSpeedDealing(tableId){
   setSpeedTileBetsLocked(tableId, true);
   setSpeedTilePhaseText(tableId, t('phaseDealing'));
   returnUnderMinSpeedBets(tableId);   // a short bet never reaches the felt
+  // Only what was confirmed rides. Chips left on a spot without pressing 베팅완료 are pushed
+  // back untouched - they were never actually placed.
+  const unconfirmed = speedBetsTotal(s.bets) - speedBetsTotal(s.confirmed);
+  s.bets = s.confirmed ? {...s.confirmed} : {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
+  s.confirmed = null;
+  if (unconfirmed > 0){
+    renderSpeedTileBets(tableId);
+    renderSpeedStakedTotal();
+    projectSpeedBalance();
+    toast(t('betNotConfirmed', {amount: fmtNum(unconfirmed)}), true);
+  }
+  paintSpeedConfirmState(tableId);
   for (const [betType, amount] of Object.entries(s.bets)){
     if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, staff:'system'});
   }

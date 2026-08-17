@@ -8,7 +8,11 @@
    documents (see docs/FIRESTORE_DATA_MODEL.md).
    ============================================================ */
 
-const CHIP_VALUES = [5000, 10000, 50000, 100000, 500000, 1000000];
+// The chips the operator's own artwork is printed with - shared/assets/chips/chip-<name>.png
+// carries its value on its face, so the tray's denominations are the deck's, not ours.
+const CHIP_VALUES = [100, 500, 1000, 10000, 100000, 1000000];
+const CHIP_FILE = {100:'100', 500:'500', 1000:'1000', 10000:'10k', 100000:'100k', 1000000:'1m'};
+function chipFaceUrl(v){ return `../shared/assets/chips/chip-${CHIP_FILE[v]}.png`; }
 const CARD_RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 const CARD_SUITS = ['♠','♥','♦','♣'];
 const PAYOUT = { player: 2.0, banker: 1.95, tie: 9.0, playerPair: 12.0, bankerPair: 12.0 };
@@ -26,11 +30,58 @@ function randCard(){
   const suit = CARD_SUITS[Math.floor(Math.random()*CARD_SUITS.length)];
   return {rank, suit};
 }
-function simulateRound(){
+
+/* ---------------- the shoe ----------------
+   Baccarat is dealt from an 8-deck shoe without replacement, not from an endless supply
+   of random cards, and the difference is not cosmetic: a pair lands on 31 of the 415 cards
+   left beside its match (7.47%), where drawing at random would make it 1 in 13 (7.69%).
+   That gap is the whole house edge on the 11:1 pair bet - 10.36% dealt properly against
+   7.7% dealt at random. The shoe also gives the roadmaps something real to be a record of.  */
+const SHOE_DECKS = 8;
+const CUT_CARD_FROM_BOTTOM = 16;   // the stop card sits 16 cards from the end
+const MAX_CARDS_PER_ROUND = 6;     // three to a side is the most any tableau can call for
+
+function openShoe(no){
+  const cards = [];
+  for (let d = 0; d < SHOE_DECKS; d++)
+    for (const suit of CARD_SUITS)
+      for (const rank of CARD_RANKS) cards.push({rank, suit});
+  for (let i = cards.length - 1; i > 0; i--){            // Fisher-Yates
+    const j = Math.floor(Math.random() * (i + 1));
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  const shoe = {no: no || 1, cards, pos: 0, cutCardAt: cards.length - CUT_CARD_FROM_BOTTOM, finalHandDealt: false};
+  // The burn: the dealer turns the top card and burns as many as it is worth, a ten or a
+  // face counting ten rather than the zero it is worth in play.
+  const turned = cards[shoe.pos++];
+  shoe.burnCard = turned;
+  shoe.burned = ['10','J','Q','K'].includes(turned.rank) ? 10 : cardValue(turned.rank);
+  shoe.pos += shoe.burned;
+  return shoe;
+}
+function shoeRemaining(shoe){ return shoe.cards.length - shoe.pos; }
+function drawFrom(shoe){ return shoe.cards[shoe.pos++]; }
+
+/* Once the cut card shows the dealer finishes the hand it appeared in, deals one more, and
+   then the shoe is changed. Call this after each round: it hands back either the same shoe
+   or a fresh one, so a caller can compare .no to see whether the shoe just turned over. */
+function advanceShoe(shoe){
+  if (!shoe) return openShoe(1);
+  if (shoe.pos >= shoe.cutCardAt){
+    if (shoe.finalHandDealt) return openShoe(shoe.no + 1);
+    shoe.finalHandDealt = true;
+  }
+  if (shoeRemaining(shoe) < MAX_CARDS_PER_ROUND) return openShoe(shoe.no + 1);
+  return shoe;
+}
+
+function simulateRound(shoe){
   // Punto banco tableau: both hands get two cards, then the fixed drawing rules decide any
   // third card. Nobody chooses - the sequence is entirely determined by the totals.
-  const player = {cards:[randCard(), randCard()]};
-  const banker = {cards:[randCard(), randCard()]};
+  // dealt from the shoe when there is one; randCard is the shoeless fallback used by tests
+  const draw = shoe ? () => drawFrom(shoe) : randCard;
+  const player = {cards:[draw(), draw()]};
+  const banker = {cards:[draw(), draw()]};
   // pair side bets are settled on the first two cards, before any draw
   const playerPair = player.cards[0].rank === player.cards[1].rank;
   const bankerPair = banker.cards[0].rank === banker.cards[1].rank;
@@ -39,7 +90,7 @@ function simulateRound(){
   // a natural 8 or 9 on either side stands both hands
   if (pt < 8 && bt < 8){
     let p3 = null;
-    if (pt <= 5){ p3 = randCard(); player.cards.push(p3); pt = handTotal(player.cards); }
+    if (pt <= 5){ p3 = draw(); player.cards.push(p3); pt = handTotal(player.cards); }
     const v = p3 ? cardValue(p3.rank) : null;
     // with no player draw the banker follows the player's own rule; otherwise the tableau
     // keys off the banker total and the value of the player's third card
@@ -51,7 +102,7 @@ function simulateRound(){
       bt === 5    ? v >= 4 && v <= 7 :
       bt === 6    ? v === 6 || v === 7 :
                     false; // 7 stands
-    if (bankerDraws){ banker.cards.push(randCard()); bt = handTotal(banker.cards); }
+    if (bankerDraws){ banker.cards.push(draw()); bt = handTotal(banker.cards); }
   }
   player.score = pt; banker.score = bt;
   const result = pt > bt ? 'player' : bt > pt ? 'banker' : 'tie';
@@ -157,109 +208,125 @@ async function writeRoundDoc(db, {tableId, tableType, roundNo, shoeNo, sim, star
   return id;
 }
 
-/* ---------------- Big Road roadmap builder ---------------- */
+/* ---------------- Big Road roadmap builder ----------------
+   buildBigRoad groups the shoe into runs (a run = consecutive wins by the same side, which is
+   what one Big Road column represents), and layoutRoadGrid places those runs on the board the
+   way every live-casino board does it. */
 function buildBigRoad(results, pairFlags){
   // results: array of 'player'|'banker'|'tie', oldest first.
   // pairFlags (optional): parallel array of {playerPair,bankerPair} - real boards mark a
   // pair hit as a small corner dot on the result circle rather than a separate symbol.
-  const cols = [];
-  results.forEach((r,i)=>{
-    const pf = pairFlags && pairFlags[i];
-    if (r==='tie'){
-      if (cols.length) cols[cols.length-1].ties = (cols[cols.length-1].ties||0)+1;
-      else { cols.push({side:null, items:[], pairs:[], ties:1}); }
-      return;
-    }
-    if (cols.length && cols[cols.length-1].side===r){
-      cols[cols.length-1].items.push(r);
-      cols[cols.length-1].pairs.push(pf);
-    } else {
-      cols.push({side:r, items:[r], pairs:[pf], ties:0});
-    }
-  });
-  return cols;
-}
-function renderBigRoad(cols, maxRows){
-  maxRows = maxRows || 6;
-  const cells = [];
-  cols.forEach(col=>{
-    if (!col.side){ cells.push(`<div class="br-col"><div class="br-cell tie-only">${col.ties}</div></div>`); return; }
-    // A run longer than the board is deep continues in the next column ("dragon tail")
-    // rather than being cut off with a counter, which is what a real board draws.
-    for (let start=0; start<col.items.length; start+=maxRows){
-      let colHtml = '';
-      col.items.slice(start, start+maxRows).forEach((it,ri)=>{
-        const idx = start + ri;
-        const showTie = idx===0 && col.ties>0;
-        const pf = col.pairs[idx];
-        let dots = '';
-        if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
-        if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
-        // A tie is the diagonal through the ring; the count rides along only when the same
-        // spot took more than one, and must sit in its own <span> for the badge styling
-        // (and the mini-roads' hide rule) to apply to it.
-        const tie = showTie ? `<span class="br-tie">${col.ties>1?`<span>${col.ties}</span>`:''}</span>` : '';
-        colHtml += `<div class="br-cell ${it}">${tie}${dots}</div>`;
-      });
-      cells.push(`<div class="br-col">${colHtml}</div>`);
-    }
-  });
-  return cells.join('');
-}
-
-/* ---------------- Bead Road (진주로드) — follows the same column rule as Big Road on this
-   board: a result keeps stacking down the current column until the value changes, then a new
-   column starts, so a column only ever holds one of P/B/T. Runs deeper than the board wrap
-   into the next column. Each bead carries its result letter and any pair corner dot. */
-const BEAD_ROWS = 6;
-// how many recent results the Bead Plate keeps in view (grouping makes a full shoe far
-// wider than the panel)
-const BEAD_WINDOW = 40;
-const RESULT_LETTER = {player:'P', banker:'B', tie:'T'};
-function renderBeadRoad(results, pairFlags){
-  const cols = [];
+  const runs = [];
   results.forEach((r,i)=>{
     const pf = (pairFlags && pairFlags[i]) || null;
-    if (cols.length && cols[cols.length-1].value===r) cols[cols.length-1].items.push(pf);
-    else cols.push({value:r, items:[pf]});
+    const cur = runs[runs.length-1];
+    if (r==='tie'){
+      // A tie does not take a cell of its own: it is a green slash drawn across the hand that
+      // is currently showing, and a repeat tie on the same hand bumps that slash's count. Only
+      // a tie before any decision has nowhere to land, and gets its own green marker.
+      if (cur && cur.items.length) cur.items[cur.items.length-1].ties++;
+      else runs.push({side:null, items:[{side:null, pair:null, ties:1}]});
+      return;
+    }
+    if (cur && cur.side===r) cur.items.push({side:r, pair:pf, ties:0});
+    else runs.push({side:r, items:[{side:r, pair:pf, ties:0}]});
   });
-  let html = '';
-  cols.forEach(col=>{
-    for (let start=0; start<col.items.length; start+=BEAD_ROWS){
-      let colHtml = '';
-      col.items.slice(start, start+BEAD_ROWS).forEach(pf=>{
-        let dots = '';
-        if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
-        if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
-        colHtml += `<div class="bd-cell ${col.value}">${RESULT_LETTER[col.value]}${dots}</div>`;
-      });
-      html += `<div class="br-col">${colHtml}</div>`;
+  return runs;
+}
+/* Places runs on a maxRows-deep board under the standard rules, and returns the board as an
+   array of columns (each a sparse array indexed by row).
+     - a run opens at the top of the first column free at row 0, one column right of where the
+       previous run opened;
+     - it then walks down one cell per hand;
+     - when it would leave the bottom row, or when the cell below is already taken by an earlier
+       run's tail, it turns right instead and keeps going right for the rest of the run.
+   That right turn is the "dragon tail" - the reason a long streak runs along the bottom of a
+   real board rather than restarting at the top of the next column. */
+function layoutRoadGrid(runs, maxRows){
+  const grid = [];
+  const taken = (c,r) => !!(grid[c] && grid[c][r]);
+  const put = (c,r,v) => { (grid[c] = grid[c] || [])[r] = v; };
+  let head = 0;
+  runs.forEach(run=>{
+    let c = head, r = 0;
+    while (taken(c,0)) c++;
+    head = c + 1;
+    put(c, 0, run.items[0]);
+    let turned = false;
+    for (let k=1;k<run.items.length;k++){
+      if (!turned && r+1 < maxRows && !taken(c,r+1)) r++;
+      else { turned = true; c++; while (taken(c,r)) c++; }
+      put(c, r, run.items[k]);
     }
   });
+  return grid;
+}
+/* Renders a laid-out board. Every column is emitted at full depth, empty cells included, so the
+   marks keep their row positions once a dragon tail has left holes above it - and so the board
+   stays the same height whatever the shoe is doing. .br-cell's border is transparent until a
+   side class colours it, so an empty cell is already an invisible spacer. */
+function renderRoadGrid(grid, maxRows, cellHtmlFn){
+  return grid.map(col=>{
+    let html = '';
+    for (let r=0;r<maxRows;r++) html += cellHtmlFn((col && col[r]) || null);
+    return `<div class="br-col">${html}</div>`;
+  }).join('');
+}
+function renderBigRoad(runs, maxRows){
+  maxRows = maxRows || 6;
+  return renderRoadGrid(layoutRoadGrid(runs, maxRows), maxRows, it=>{
+    if (!it) return '<div class="br-cell"></div>';
+    if (!it.side) return `<div class="br-cell tie-only">${it.ties>1?it.ties:''}</div>`;
+    let dots = '';
+    if (it.pair && it.pair.playerPair) dots += '<i class="br-pair player"></i>';
+    if (it.pair && it.pair.bankerPair) dots += '<i class="br-pair banker"></i>';
+    // The count rides along only when the same spot took more than one tie, and must sit in its
+    // own <span> for the badge styling (and the mini-roads' hide rule) to apply to it.
+    const tie = it.ties ? `<span class="br-tie">${it.ties>1?`<span>${it.ties}</span>`:''}</span>` : '';
+    return `<div class="br-cell ${it.side}">${tie}${dots}</div>`;
+  });
+}
+
+/* ---------------- Bead Plate (진주로드 / 珠盤路) ----------------
+   The Bead Plate is the plain chronological log: one bead per hand, in the order the shoe dealt
+   them, filling a column top to bottom and only then moving to the next column. It does NOT
+   start a new column when the result changes - that is the Big Road's rule, not this one - so a
+   column normally holds a mix of P/B/T. Blue = player, red = banker, green = tie, each bead
+   carrying its result letter and any pair corner dot. */
+const BEAD_ROWS = 6;
+// how many recent hands the Bead Plate keeps in view - six rows by twelve columns is the
+// standard board size, so the panel holds a dozen columns and scrolls to the newest.
+const BEAD_WINDOW = 72;
+const RESULT_LETTER = {player:'P', banker:'B', tie:'T'};
+function renderBeadRoad(results, pairFlags){
+  let html = '', colHtml = '';
+  results.forEach((r,i)=>{
+    const pf = (pairFlags && pairFlags[i]) || null;
+    let dots = '';
+    if (pf && pf.playerPair) dots += '<i class="br-pair player"></i>';
+    if (pf && pf.bankerPair) dots += '<i class="br-pair banker"></i>';
+    colHtml += `<div class="bd-cell ${r}">${RESULT_LETTER[r]}${dots}</div>`;
+    if ((i+1) % BEAD_ROWS === 0){ html += `<div class="br-col">${colHtml}</div>`; colHtml = ''; }
+  });
+  if (colHtml) html += `<div class="br-col">${colHtml}</div>`;
   return html;
 }
 
-/* ---------------- shared column-grouping for the derived roads + Bead Road: groups
-   consecutive equal values into one column, exactly like Big Road groups consecutive
-   same-side results - a value change always starts a new column. ---------------- */
+/* ---------------- shared column-grouping for the derived roads: groups consecutive equal
+   values into one run, exactly like buildBigRoad groups consecutive same-side results. The
+   derived roads are then placed by the same rules as the Big Road - down a column, turning
+   right at the bottom - which is why they share layoutRoadGrid. ---------------- */
 function groupIntoRoadColumns(values){
-  const cols = [];
+  const runs = [];
   values.forEach(v=>{
-    if (cols.length && cols[cols.length-1].value===v) cols[cols.length-1].items.push(v);
-    else cols.push({value:v, items:[v]});
+    if (runs.length && runs[runs.length-1].value===v) runs[runs.length-1].items.push(v);
+    else runs.push({value:v, items:[v]});
   });
-  return cols;
+  return runs;
 }
-function renderRoadColumns(cols, cellHtmlFn, maxRows){
+function renderRoadColumns(runs, cellHtmlFn, maxRows){
   maxRows = maxRows || 6;
-  let html = '';
-  cols.forEach(col=>{
-    // same dragon-tail wrap as Big Road: overflow continues in the next column
-    for (let start=0; start<col.items.length; start+=maxRows){
-      html += `<div class="br-col">${col.items.slice(start, start+maxRows).map(cellHtmlFn).join('')}</div>`;
-    }
-  });
-  return html;
+  return renderRoadGrid(layoutRoadGrid(runs, maxRows), maxRows, m => m ? cellHtmlFn(m) : '<div class="dr-cell"></div>');
 }
 
 /* ---------------- table-list stats (vendor feedback: 오늘/총 베팅액, P/B/T 승수, 좋은 흐름) ---------------- */
@@ -294,6 +361,8 @@ function tableBetVolume(betLedgerRows){
    (matching pattern) / blue (breaking pattern). offset 1/2/3 = Big Eye Boy/
    Small Road/Cockroach Road respectively - same comparison, deeper look-back. */
 function deriveRoad(cols, offset){
+  // A leading tie carries a marker but is not a Big Road column, so it contributes no depth.
+  const depth = i => (cols[i] && cols[i].side) ? cols[i].items.length : 0;
   const out = [];
   for (let i=offset;i<cols.length;i++){
     const col = cols[i];
@@ -302,12 +371,12 @@ function deriveRoad(cols, offset){
       let mark;
       if (j===0){
         if (i<offset+1) continue;
-        mark = cols[i-offset].items.length === cols[i-offset-1].items.length ? 'red' : 'blue';
+        mark = depth(i-offset) === depth(i-offset-1) ? 'red' : 'blue';
       } else {
         // the streak continued: compare the cell one column back on this row with the one
         // above it. Both filled or both empty means the pattern repeated (red); exactly one
         // filled means it broke (blue) - which is only when that column ends at this row.
-        mark = cols[i-offset].items.length === j ? 'blue' : 'red';
+        mark = depth(i-offset) === j ? 'blue' : 'red';
       }
       out.push(mark);
     }
@@ -319,12 +388,151 @@ function deriveSmallRoad(cols){ return deriveRoad(cols, 2); }
 function deriveCockroachRoad(cols){ return deriveRoad(cols, 3); }
 // The three derived roads are distinguished by their mark, not their position: Big Eye Boy
 // draws hollow rings, Small Road solid dots ('filled'), Cockroach Road diagonal ticks
-// ('diagonal') - the same trio the P/B legend rail spells out. They stack three-to-a-panel
-// under Big Road, so they run 3 rows deep rather than Big Road's 6.
-const DERIVED_ROAD_ROWS = 3;
+// ('diagonal') - the same trio the P/B legend rail spells out. Like the Big Road they are six
+// marks deep; the marks are drawn at half a Big Road cell so those six fit in three ruled
+// squares, which is how a real board stacks all four roads into one panel.
+/* ---------------- next-hand prediction (the board's "ask banker / ask player") ----------------
+   What each derived road would draw if the next hand went Banker, and if it went Player. The
+   rules are not restated here: the shoe is replayed with the hypothetical hand on the end and
+   the same three builders are asked for the mark that appears, so the panel cannot disagree
+   with the board beside it.
+   A road that has not started yet gains no mark and reports null rather than a colour - Big Eye
+   Boy cannot begin before the third hand, Small Road the fourth, Cockroach Road the fifth. A
+   hypothetical tie is not offered: a tie does not open a Big Road cell, so it moves no derived
+   road at all. */
+const ASK_ROADS = [['bigEye', deriveBigEyeBoy], ['smallRoad', deriveSmallRoad], ['cockroach', deriveCockroachRoad]];
+function predictNextRoads(history){
+  const now = buildBigRoad(history || []);
+  const have = {};
+  ASK_ROADS.forEach(([key, fn]) => { have[key] = fn(now).length; });
+  const ask = side => {
+    const runs = buildBigRoad([...(history || []), side]);
+    const out = {};
+    ASK_ROADS.forEach(([key, fn]) => {
+      const marks = fn(runs);
+      out[key] = marks.length > have[key] ? marks[marks.length - 1] : null;
+    });
+    return out;
+  };
+  return {banker: ask('banker'), player: ask('player')};
+}
+
+const DERIVED_ROAD_ROWS = 6;
 function renderDerivedRoad(marks, style){
   const cols = groupIntoRoadColumns(marks);
   return renderRoadColumns(cols, m=>`<div class="dr-cell ${m}${style?' '+style:''}"></div>`, DERIVED_ROAD_ROWS);
+}
+
+/* Every road grows to the right, so the column the player actually cares about - the one the
+   round that just finished landed in - is the one that falls off the right edge as soon as the
+   shoe outgrows the panel. Repaint through here so each road parks at its right edge and the
+   latest result is on screen without the player having to swipe the board across. */
+function paintRoad(el, html){
+  if (!el) return;
+  el.innerHTML = html;
+  watchRoadRelayout();
+  // a road on the board scrolls with its band (the band carries the ruling, so the two travel
+  // together); elsewhere the painted element is the scroller itself
+  const scroller = (el.closest && el.closest('.sd-road-band')) || el;
+  // snapRoadToColumns parks the road itself - pinning again after it would undo the pixel or
+  // two it backs off by to land the left edge on a whole column
+  const pin = () => snapRoadToColumns(el, scroller);
+  pin();
+  // Two things can invalidate that first pin: another repaint later in the same tick can resize
+  // the road (the tally counters sitting left of the Bead Plate widen as the shoe grows), and a
+  // road painted while its screen is still hidden measures zero. Re-pin once the frame settles.
+  requestAnimationFrame(pin);
+}
+/* Parking a road at scrollWidth puts its newest column against the right edge, but the distance
+   scrolled is then whatever the shoe happens to measure - almost never a whole number of columns,
+   so the column at the left edge was being sliced down the middle. Pad the road out on the right
+   until that distance divides evenly, and both edges land on a column: the newest is still whole
+   against the right, and the oldest one on screen starts where a column starts.
+   The pad goes on the right because the left edge is where the ruling is anchored - padding that
+   side would carry the marks off their squares. */
+function snapRoadToColumns(grid, scroller){
+  const old = grid.lastElementChild;
+  if (old && old.classList && old.classList.contains('br-gap')) grid.removeChild(old);
+  const cols = grid.children;
+  if (cols.length < 2) return;
+  // Everything here is counted in the element's own pixels - offsetLeft, scrollLeft, scrollWidth
+  // and a width written into CSS all are. getBoundingClientRect is not: browser zoom scales it,
+  // so a pitch measured that way and then spent as a CSS width came out zoom times wrong and the
+  // left edge sliced the oldest column - two thirds of a ring at 150%, and worse zoomed out.
+  // The columns are read one by one rather than multiplied out from a pitch, because at a zoom
+  // that does not divide evenly the columns do not all land on the same fraction of a pixel and
+  // a single pitch drifts a mark's width across a shoe's worth of them.
+  const first = cols[0].offsetLeft;
+  const starts = [];
+  for (let i = 0; i < cols.length; i++) starts.push(cols[i].offsetLeft - first);
+  if (starts[1] <= 0) return;
+  // scrollLeft counts from the content's start edge, and a scroller clips at its padding box, so
+  // the scroller's own left padding sits between the two
+  const padLeft = parseFloat(getComputedStyle(scroller).paddingLeft) || 0;
+  // The far end is read back off the browser rather than worked out from scrollWidth minus
+  // clientWidth: both of those are whole numbers, and a band a third of a panel wide is not, so
+  // the sum was over a pixel out and the road paid for it on one edge or the other.
+  scroller.scrollLeft = scroller.scrollWidth;
+  const maxScroll = scroller.scrollLeft;
+  // a road that fits is already where it starts, which is a column start
+  if (maxScroll <= 0) return;
+  // Pad the road out on the right until the distance scrolled leaves the left edge on a column
+  // start. The pad goes on the right because the left edge is where the ruling is anchored -
+  // padding that side would carry the marks off their squares.
+  const want = maxScroll - padLeft;
+  const target = starts.find(s => s - want >= -0.5);
+  if (target !== undefined && target - want >= 0.5){
+    // the pad is a flex item, so the row's own column gap lands in front of it as well - pull that
+    // back or the road grows by pad + gap and lands just as crooked as it started
+    const rowGap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+    const gap = document.createElement('i');
+    gap.className = 'br-gap';
+    gap.style.cssText = 'flex:0 0 auto;width:' + (target - want).toFixed(2) + 'px;margin-left:' + (-rowGap) + 'px;';
+    grid.appendChild(gap);
+  }
+  scroller.scrollLeft = scroller.scrollWidth;
+  // Whatever rounding the browser has left over goes to the right-hand edge rather than the left:
+  // the road backs off to the nearest column start, so it comes to rest on a whole column whether
+  // or not the pad landed exactly. Only ever backwards - it is already as far right as it goes.
+  const edge = scroller.scrollLeft - padLeft;
+  let near = 0, dist = Infinity;
+  for (let i = 0; i < starts.length; i++){
+    const d = Math.abs(edge - starts[i]);
+    if (d < dist){ dist = d; near = starts[i]; }
+  }
+  // a sub-pixel residue is left alone: backing off for it would cost the newest column on the
+  // right edge the same hair it saves on the left
+  if (edge - near >= 0.5) scroller.scrollLeft = near + padLeft;
+}
+
+/* The pad a road carries is measured against the width its band had when it was painted, so a
+   rotation or any other resize leaves it stale and the left edge starts slicing again. Roads are
+   only repainted when a round finishes, which on a slow table is a while to sit looking at a cut
+   column, so re-measure them all when the window changes instead of waiting. */
+const ROAD_SCROLLERS = '.sd-road .br-grid, .sd-road .derived-road-grid, .bead-road, .mini-road';
+let roadRelayoutWatched = false;
+function resnapRoads(root){
+  (root || document).querySelectorAll(ROAD_SCROLLERS).forEach(grid=>{
+    snapRoadToColumns(grid, grid.closest('.sd-road-band') || grid);
+  });
+}
+function watchRoadRelayout(){
+  if (roadRelayoutWatched || typeof window === 'undefined') return;
+  roadRelayoutWatched = true;
+  let pending = null;
+  const again = () => { clearTimeout(pending); pending = setTimeout(()=>resnapRoads(), 80); };
+  window.addEventListener('resize', again);
+  window.addEventListener('orientationchange', again);
+}
+
+/* Same pin for roads that ship inside a bigger block of markup rather than being painted into
+   their own element - the table-list cards build their Big Road as part of the card's HTML.
+   Those are overflow:hidden, so a card whose shoe has more columns than the card is wide would
+   otherwise be stuck showing the oldest results with no way to swipe to the newest. */
+function pinRoadsIn(root){
+  const pin = () => (root || document).querySelectorAll('.mini-road').forEach(el=>snapRoadToColumns(el, el));
+  pin();
+  requestAnimationFrame(pin);
 }
 
 
@@ -342,5 +550,5 @@ function decomposeChipStack(amount, maxDiscs){
 }
 function chipStackHtml(amount){
   if (!amount) return '';
-  return decomposeChipStack(amount).map(v=>`<div class="cs-chip c${v}"></div>`).join('');
+  return decomposeChipStack(amount).map(v=>`<div class="cs-chip" style="background-image:url('${chipFaceUrl(v)}')"></div>`).join('');
 }

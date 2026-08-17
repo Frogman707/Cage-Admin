@@ -59,7 +59,7 @@ const I18N_DICT = {
   pickerTitle:{ko:'게임을 선택하세요',zh:'请选择游戏',en:'Choose a game',ja:'ゲームを選択してください',vi:'Chọn trò chơi'},
   pickerSub:{ko:'아바타와 스피드는 같은 계정, 같은 보유금으로 언제든 자유롭게 오갈 수 있습니다.',zh:'代打和极速使用同一账号、同一余额，可随时自由切换。',en:'Avatar and Speed share the same account and balance — switch between them anytime.',ja:'アバターとスピードは同じアカウント・同じ残高でいつでも自由に行き来できます。',vi:'Avatar và Speed dùng chung tài khoản, chung số dư — chuyển đổi bất cứ lúc nào.'},
   pickerAvatarName:{ko:'아바타 (AVATAR)',zh:'代打 (AVATAR)',en:'Avatar',ja:'アバター (AVATAR)',vi:'Avatar'},
-  pickerAvatarDesc:{ko:'전담 딜러가 대신 베팅해주는 대리 배팅 서비스',zh:'专属代打为您下注的代理投注服务',en:'A dedicated proxy places bets on your behalf',ja:'専属アバターが代わりにベットする代理ベッティングサービス',vi:'Dịch vụ đặt cược thay bởi người đại diện riêng'},
+  pickerAvatarDesc:{ko:'전담 아바타가 대신 베팅해주는 대리 배팅 서비스',zh:'专属代打为您下注的代理投注服务',en:'A dedicated avatar places bets on your behalf',ja:'専属アバターが代わりにベットする代理ベッティングサービス',vi:'Dịch vụ đặt cược thay bởi Avatar riêng'},
   pickerSpeedName:{ko:'스피드 (SPEED)',zh:'极速 (SPEED)',en:'Speed',ja:'スピード (SPEED)',vi:'Speed'},
   pickerSpeedDesc:{ko:'여러 테이블 동시 베팅 · 빠른 라운드',zh:'多桌同时投注 · 快速回合',en:'Bet on multiple tables at once · fast rounds',ja:'複数テーブル同時ベット・スピーディーなラウンド',vi:'Đặt cược nhiều bàn cùng lúc · vòng chơi nhanh'},
 
@@ -68,6 +68,9 @@ const I18N_DICT = {
   speedLobbyTitle:{ko:'스피드 테이블',zh:'极速桌台',en:'Speed Tables',ja:'スピードテーブル',vi:'Bàn Speed'},
   speedLobbySub:{ko:'테이블을 선택해 입장하세요',zh:'请选择桌台进入',en:'Pick a table to enter',ja:'テーブルを選んで入場してください',vi:'Chọn một bàn để vào'},
   allCasinos:{ko:'전체 게임',zh:'全部游戏',en:'All Games',ja:'全ゲーム',vi:'Tất cả'},
+  casinoHann:{ko:'한 카지노',zh:'HANN 赌场',en:'HANN Casino',ja:'ハンカジノ',vi:'Sòng HANN'},
+  casinoNustar:{ko:'누스타',zh:'NUSTAR',en:'NuStar',ja:'ヌスター',vi:'NuStar'},
+  casinoSolaire:{ko:'솔레어',zh:'索莱尔',en:'Solaire',ja:'ソレア',vi:'Solaire'},
   allGameTypes:{ko:'전체',zh:'全部',en:'All',ja:'すべて',vi:'Tất cả'},
   gameTypeAvatar:{ko:'아바타',zh:'代打',en:'Avatar',ja:'アバター',vi:'Avatar'},
   gameTypeSpeed:{ko:'스피드',zh:'极速',en:'Speed',ja:'スピード',vi:'Speed'},
@@ -117,6 +120,10 @@ const I18N_DICT = {
   tipAmountLabel:{ko:'팁 금액',zh:'小费金额',en:'Tip amount',ja:'チップ金額',vi:'Số tiền tip'},
   tipSent:{ko:'팁이 지급되었습니다.',zh:'小费已发送。',en:'Tip sent.',ja:'チップを渡しました。',vi:'Đã gửi tip.'},
   shoeChangeSent:{ko:'슈 체인지가 요청되었습니다.',zh:'已申请换靴。',en:'Shoe-change requested.',ja:'シューチェンジを要請しました。',vi:'Đã gửi yêu cầu đổi giày bài.'},
+  shoeChanged:{ko:'슈 체인지 — {no}번 슈가 시작됩니다',zh:'换靴 — 第 {no} 靴开始',en:'Shoe change — shoe #{no} begins',ja:'シューチェンジ — {no}番シュー開始',vi:'Đổi giày bài — giày #{no} bắt đầu'},
+  belowTableMin:{ko:'테이블 최소 베팅은 {min} 입니다',zh:'本桌最低投注为 {min}',en:'Table minimum is {min}',ja:'テーブル最低ベットは {min} です',vi:'Mức cược tối thiểu của bàn là {min}'},
+  aboveTableMax:{ko:'테이블 최대 베팅은 {max} 입니다',zh:'本桌最高投注为 {max}',en:'Table maximum is {max}',ja:'テーブル最高ベットは {max} です',vi:'Mức cược tối đa của bàn là {max}'},
+  betReturnedBelowMin:{ko:'최소 베팅 미만이라 {amount} 이 반환되었습니다',zh:'低于最低投注，已退还 {amount}',en:'{amount} returned — below the table minimum',ja:'最低ベット未満のため {amount} が返却されました',vi:'Đã hoàn {amount} — dưới mức cược tối thiểu'},
   sessionEnded:{ko:'대리베팅이 종료되었습니다.',zh:'代打已结束。',en:'Session ended.',ja:'代理ベットが終了しました。',vi:'Đã kết thúc phiên cược.'},
   avatarPlacedBet:{ko:'아바타가 {side} 에 {amount} 베팅했습니다',zh:'代打已在{side}下注{amount}',en:'Avatar bet {amount} on {side}',ja:'アバターが{side}に{amount}ベットしました',vi:'Avatar đã cược {amount} vào {side}'},
   roundInfo:{ko:'라운드',zh:'局数',en:'Round',ja:'ラウンド',vi:'Vòng'},
@@ -127,6 +134,9 @@ const I18N_DICT = {
   tie:{ko:'타이',zh:'和',en:'Tie',ja:'タイ',vi:'Hòa'},
   playerPair:{ko:'플레이어 페어',zh:'闲对',en:'Player Pair',ja:'プレイヤーペア',vi:'Player Pair'},
   bankerPair:{ko:'뱅커 페어',zh:'庄对',en:'Banker Pair',ja:'バンカーペア',vi:'Banker Pair'},
+  // short forms for the speed list's tile spots, where a full pair label will not fit
+  playerPairShort:{ko:'P 페어',zh:'闲对',en:'P PAIR',ja:'Pペア',vi:'P Pair'},
+  bankerPairShort:{ko:'B 페어',zh:'庄对',en:'B PAIR',ja:'Bペア',vi:'B Pair'},
   phaseBetting:{ko:'베팅하세요',zh:'请下注',en:'Place your bets',ja:'ベットしてください',vi:'Mời đặt cược'},
   phaseDealing:{ko:'카드를 배분합니다',zh:'正在发牌',en:'Dealing cards',ja:'カードを配っています',vi:'Đang chia bài'},
   phasePlayerWin:{ko:'플레이어 승리',zh:'闲家胜',en:'Player wins',ja:'プレイヤーの勝ち',vi:'Player thắng'},
@@ -172,6 +182,10 @@ const I18N_DICT = {
   betCompleteToast:{ko:'베팅이 접수되었습니다',zh:'投注已提交',en:'Bet placed',ja:'ベットを受け付けました',vi:'Đã đặt cược'},
   repeatNoPrev:{ko:'반복할 이전 베팅이 없습니다',zh:'没有可重复的上一次投注',en:'No previous bet to repeat',ja:'繰り返すベットがありません',vi:'Không có cược trước để lặp lại'},
   streakLabel:{ko:'연속',zh:'连',en:'streak',ja:'連続',vi:'liên tiếp'},
+  multiBet:{ko:'멀티 베팅',zh:'多桌投注',en:'Multi-bet',ja:'マルチベット',vi:'Cược nhiều bàn'},
+  enterShort:{ko:'입장',zh:'进入',en:'Enter',ja:'入場',vi:'Vào'},
+  // the board's next-hand prediction rail, kept to one short word - the rail is a few marks wide
+  nextRoadAsk:{ko:'다음',zh:'下局',en:'NEXT',ja:'次局',vi:'Kế'},
 };
 
 function t(key, vars){

@@ -63,7 +63,12 @@
 /* ---- lobby ---- */
 .lobby-wrap{padding:22px 24px 60px;max-width:1400px;margin:0 auto;}
 .lobby-title{font-weight:800;font-size:21px;color:var(--brass);margin:0 0 16px;letter-spacing:.2px;}
-.lobby-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px;}
+/* four to a row, as the reference lists them - measured there at 277px cards with 13px
+   gutters, so the columns are set rather than auto-filled to whatever the width allows. */
+.lobby-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;}
+/* four to a row needs the room for four: below this the cards come out too narrow for a table
+   name and its badges on one line, so the row drops to three rather than truncating everything */
+@media (max-width:1180px){ .lobby-grid{grid-template-columns:repeat(3,1fr);} }
 .lobby-card{
   background:linear-gradient(165deg,var(--panel-hi) 0%,var(--panel) 55%);
   border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;
@@ -71,9 +76,11 @@
   box-shadow:0 8px 20px -14px rgba(0,0,0,.6);
 }
 .lobby-card:hover{border-color:var(--brass-dim);transform:translateY(-4px);box-shadow:0 22px 40px -18px rgba(0,0,0,.7), 0 0 0 1px rgba(217,178,106,.15);}
+/* the reference's thumbnails are a wide strip across the felt, not a 16:10 frame - its cards
+   measure 277x93, so the still is cropped to a 3:1 band. */
 .lobby-card .thumb{
-  aspect-ratio:16/10;position:relative;overflow:hidden;
-  background:url('assets/table-live.jpg') center/cover no-repeat;
+  aspect-ratio:3/1;position:relative;overflow:hidden;
+  background:url('assets/table-live.jpg?v=3') center/cover no-repeat;
 }
 @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.3;}}
 .card-favorite{margin-left:auto;width:24px;height:24px;border-radius:50%;background:none;border:none;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -81,31 +88,174 @@
 .card-favorite.active{color:var(--danger);}
 .card-favorite.active svg{fill:var(--danger);}
 .card-favorite svg{width:14px;height:14px;}
-/* Everything that used to be printed over the still now lives on its own row beneath it,
-   so the thumbnail is nothing but the photo. */
-.card-status-row{display:flex;align-items:center;gap:8px;padding:11px 15px 0;}
-.card-status{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:12px;white-space:nowrap;}
+/* The card is read top to bottom the way the reference lists a table: the still, the board
+   under it, then two lines of type - the name with whatever badges the table carries on the
+   first, its limits and its counts on the second. It had been five stacked rows, which left the
+   still with 38% of the card; the still has half of it now, which is the proportion the
+   reference gives it, and the card comes out a third shorter for the same information. */
+.card-status{font-size:11px;font-weight:700;padding:3px 9px;border-radius:11px;white-space:nowrap;flex-shrink:0;}
 .card-status.spectate{background:rgba(255,255,255,.07);color:var(--ink-dim);}
 .card-status.reenter{background:rgba(47,169,140,.16);color:var(--jade);}
 .card-status.pending{background:rgba(255,255,255,.06);color:var(--ink-faint);}
 .card-status.full{background:rgba(217,105,90,.14);color:var(--danger);}
-.card-hot{font-size:10.5px;font-weight:700;color:var(--brass);white-space:nowrap;}
-.lobby-card .info{padding:9px 15px 4px;}
-.lobby-card .info .name{font-weight:700;font-size:14.5px;color:var(--ink);}
-.lobby-card .info .limits{font-size:11px;color:var(--ink-faint);margin-top:4px;font-family:var(--mono);}
-.lobby-card .mini-road{display:flex;gap:1px;padding:10px 15px 4px;overflow-x:hidden;}
+.card-hot{font-size:10px;font-weight:700;color:var(--brass);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* The board under the still is the scoreboard's own paper, as it is everywhere else in the app
+   and as the reference draws it - not the card's dark panel with marks floating on it. */
+.lobby-card .mini-road{
+  display:flex;gap:1px;padding:6px 8px;overflow-x:hidden;height:49px;box-sizing:border-box;align-items:flex-start;
+  background:#fafafa;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+}
 .lobby-card .mini-road .br-col{gap:1px;}
 .lobby-card .mini-road .br-cell{width:8px;height:8px;border-width:1.5px;}
 .lobby-card .mini-road .br-cell.tie-only{width:6px;height:6px;}
 .lobby-card .mini-road .br-tie::before{height:1px;}
 .lobby-card .mini-road .br-tie span{display:none;}
-.lobby-card .stat-row{display:flex;justify-content:space-between;padding:4px 15px 13px;font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);border-top:1px solid rgba(255,255,255,.04);margin-top:6px;padding-top:8px;}
-.lobby-card .stat-row b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
+.lobby-card .card-foot{padding:9px 13px 11px;}
+.lobby-card .card-line{display:flex;align-items:center;gap:7px;min-width:0;}
+.lobby-card .card-line + .card-line{margin-top:5px;}
+.lobby-card .name{font-weight:700;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.lobby-card .card-line.meta{font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);}
+.lobby-card .limits{white-space:nowrap;}
+.lobby-card .counts{margin-left:auto;white-space:nowrap;}
+.lobby-card .counts b{color:var(--ink-dim);font-family:var(--sans);font-weight:600;}
+/* ---- the multi-bet panel's spots ----
+   Speed is several tables at once, so an open table can stake its neighbours from a panel that
+   gives each of them the same five spots. They mirror the table screen's board - pairs and tie
+   across the top, the two hands beneath - in the same colours, so a spot means the same thing
+   in the panel as it does on the felt. */
+.tb-row{display:grid;gap:4px;}
+.tb-row.pairs{grid-template-columns:1fr 1fr 1fr;}
+.tb-row.hands{grid-template-columns:1fr 1fr;}
+.tb-spot{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);border-radius:8px;
+  padding:5px 3px;font-weight:700;line-height:1.15;cursor:pointer;min-width:0;
+  transition:border-color .12s ease, background .12s ease;
+}
+.tb-spot:hover:not(.locked){background:rgba(255,255,255,.09);border-color:var(--brass-dim);}
+.tb-spot .tb-label{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.tb-row.hands .tb-spot{padding:7px 3px;}
+.tb-row.hands .tb-spot .tb-label{font-size:12.5px;}
+.tb-spot .tb-amt{font-family:var(--mono);font-size:10px;color:var(--brass);min-height:12px;font-weight:700;}
+.tb-spot.player .tb-label{color:#4FA8F0;}
+.tb-spot.banker .tb-label{color:#FF6B5C;}
+.tb-spot.tie .tb-label{color:#2FD39B;}
+/* a spot carrying a stake keeps the brass edge the table screen gives its selected spot */
+.tb-spot.staked{border-color:var(--brass);background:rgba(217,178,106,.12);}
+.tb-spot.locked{opacity:.4;cursor:not-allowed;}
+
+/* The multi-bet button sits in the open table's own chip tray, so the chip picked for this
+   table is the one the panel stakes. Its badge counts the other tables currently carrying a
+   bet, so the panel does not have to be open to know something is riding elsewhere. */
+.sd-multi-btn{display:inline-flex;align-items:center;gap:6px;}
+.sd-multi-btn.active{border-color:var(--brass);color:var(--brass);background:rgba(217,178,106,.14);}
+.sd-multi-btn .sm-count:not(:empty){
+  min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--brass);color:#1b1206;
+  font-family:var(--mono);font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
+}
+/* The sheet floats over the screen from the bottom edge rather than sitting in the layout, so
+   opening it moves nothing else on the page - it is fixed, so no ancestor's overflow clips it
+   and no reflow reaches the felt or the board. It slides rather than appears, and goes
+   visibility:hidden when closed so nothing in it is tabbable or clickable. */
+.speed-multi{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  /* as tall as the tables need, capped - a fixed height left a half-empty sheet when only a
+     couple of rows were in it, and the list scrolls once there are more than fit */
+  max-height:min(76vh,820px);display:flex;flex-direction:column;
+  background:linear-gradient(180deg,var(--panel-hi),var(--panel));
+  border-top:1px solid var(--brass);box-shadow:0 -18px 46px -16px rgba(0,0,0,.85);
+  transform:translateY(100%);visibility:hidden;
+  transition:transform .22s ease, visibility .22s;
+}
+.speed-multi.open{transform:none;visibility:visible;}
+.sm-top{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap;flex-shrink:0;}
+.sm-top > b{font-size:13.5px;color:var(--brass);letter-spacing:.3px;}
+/* the sheet covers the table's tray, so it brings its own chips */
+.sm-chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.sm-chips .chip{width:42px;height:42px;}
+.sm-total{margin-left:auto;display:flex;align-items:baseline;gap:6px;font-size:11.5px;color:var(--ink-faint);}
+.sm-total b{font-family:var(--mono);font-size:16px;font-weight:800;color:var(--brass);}
+.sm-close{width:28px;height:28px;font-size:13px;}
+.sm-list{flex:1;min-height:0;overflow-y:auto;padding:14px 18px 18px;display:grid;gap:12px;
+  align-content:start;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));}
+/* min-width:0 on the row and the road both: without it the road's own content sets the row's
+   min-content width, the grid track is blown out past the viewport, and the whole list scrolls
+   sideways instead of the one road that is too long. */
+.sm-row{border:1px solid var(--line);border-radius:10px;padding:8px;background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:5px;min-width:0;}
+/* The name gets a line to itself with only the enter button beside it, and the phase and clock
+   sit underneath: at panel widths a row can actually be, all four on one line left the name a
+   sliver and ellipsised every table to "Speed Table ...". */
+.sm-head{display:flex;align-items:center;gap:7px;font-size:11.5px;min-width:0;}
+.sm-name{flex:1;min-width:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sm-sub{display:flex;align-items:center;gap:7px;margin-top:-2px;}
+.sm-phase{font-size:10px;color:var(--ink-faint);white-space:nowrap;}
+.sm-phase.betting{color:var(--jade);}
+.sm-phase.dealing{color:var(--brass);}
+.sm-timer{margin-left:auto;flex-shrink:0;font-size:10.5px;color:var(--ink-faint);white-space:nowrap;}
+.sm-timer b{font-family:var(--mono);color:var(--ink-dim);}
+/* The round just finished, in the winner's colour, beside the phase. */
+.sm-last{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--ink-faint);white-space:nowrap;}
+.sm-last.player{color:#4FA8F0;}
+.sm-last.banker{color:#FF6B5C;}
+.sm-last.tie{color:#2FD39B;}
+/* The Big Road on the scoreboard's own paper, same marks and same size as the one the list
+   draws under each still - a table's record reads identically wherever it is shown. */
+.sm-road{
+  /* six rows of 10px marks with 1px between them is 65, plus the padding and the border - a
+     shorter box clips the bottom row off every column. Six is the Big Road's own depth, so a
+     column runs its dragon tail here exactly as it does on the table's board. It scrolls, so
+     the whole shoe is reachable however long it runs; paintRoad pins it to the newest column. */
+  display:flex;gap:1px;padding:5px 6px;height:79px;box-sizing:border-box;align-items:flex-start;min-width:0;
+  overflow-x:auto;overflow-y:hidden;background:#fafafa;border:1px solid var(--line);border-radius:6px;
+}
+.sm-road .br-col{gap:1px;}
+.sm-road .br-cell{width:10px;height:10px;border-width:1.6px;}
+.sm-road .br-cell.tie-only{width:7px;height:7px;}
+.sm-road .br-tie::before{height:1.5px;}
+.sm-road .br-tie span{display:none;}
+.sm-road .br-pair{width:3px;height:3px;}
+.sm-counts{font-size:10px;color:var(--ink-faint);letter-spacing:.2px;}
+.sm-counts b{font-family:var(--mono);color:var(--ink-dim);font-weight:700;}
+.sm-open{flex-shrink:0;background:none;border:1px solid var(--line);color:var(--ink-faint);border-radius:7px;
+  padding:2px 7px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.sm-open:hover{border-color:var(--brass-dim);color:var(--brass);}
+@media (max-width:640px){
+  /* one table to a row on a phone; the sheet's own height still governs, so no max-height here */
+  .speed-multi{max-height:min(82vh,760px);}
+  .sm-top{padding:9px 12px;gap:8px;}
+  .sm-chips .chip{width:36px;height:36px;}
+  .sm-list{grid-template-columns:1fr;padding:12px;}
+  .tb-spot .tb-label{font-size:9px;}
+  .tb-row.hands .tb-spot .tb-label{font-size:11px;}
+}
 .lobby-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
 .lobby-toolbar select{background:var(--panel-raised);color:var(--ink);border:1px solid var(--line);padding:7px 10px;border-radius:var(--radius);font-size:12.5px;}
-.casino-tabs{display:flex;align-items:center;gap:22px;border-bottom:1px solid var(--line);margin-bottom:16px;}
-.casino-tab{background:none;border:none;color:var(--ink-faint);padding:9px 2px;font-size:13px;font-weight:700;letter-spacing:.2px;border-bottom:2px solid transparent;margin-bottom:-1px;}
+/* Each house is picked by its own mark with its name under it, centred on the rule, as the
+   reference lobby lists them. The one that is not selected reads back: its mark goes to grey
+   and half strength, so the house in play is the only one in colour. */
+.casino-tabs{display:flex;align-items:flex-end;justify-content:center;gap:34px;border-bottom:1px solid var(--line);margin-bottom:16px;}
+.casino-tab{
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+  background:none;border:none;color:var(--ink-faint);padding:10px 8px 9px;
+  font-size:12.5px;font-weight:700;letter-spacing:.2px;min-width:84px;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+}
+/* the houses' marks are not the same shape - HANN's monogram is twice as tall as it is wide,
+   Solaire's wordmark nearly twice as wide as tall - so each is given the same height to sit on
+   and takes the width it needs, and the tabs are floored to a common width so the names below
+   them still line up as a row. */
+.casino-tab .cl-mark{display:flex;align-items:flex-end;justify-content:center;height:34px;}
+.casino-tab .cl-mark img{height:100%;width:auto;max-width:78px;object-fit:contain;display:block;}
+.casino-tab:not(.active) .cl-mark{filter:grayscale(1);opacity:.42;}
+.casino-tab:hover .cl-mark{opacity:.75;}
 .casino-tab.active{color:var(--brass);border-bottom-color:var(--brass);}
+.casino-tab.active .cl-mark{filter:none;opacity:1;}
+@media (max-width:640px){
+  .casino-tabs{gap:16px;}
+  .casino-tab{font-size:11.5px;padding:8px 4px 7px;gap:5px;min-width:64px;}
+  .casino-tab .cl-mark{height:26px;}
+  .casino-tab .cl-mark img{max-width:60px;}
+}
 .game-type-tabs{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
 .game-type-tab{background:var(--panel-raised);border:1px solid var(--line);color:var(--ink-dim);padding:8px 16px;border-radius:20px;font-size:12.5px;font-weight:700;}
 .game-type-tab.active{border-color:var(--danger);color:var(--danger);}
@@ -127,7 +277,7 @@
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   background:
     linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.26)),
-    url('assets/table-live.jpg') center/cover no-repeat;
+    url('assets/table-live.jpg?v=3') center/cover no-repeat;
 }
 .sd-stage-top{position:absolute;top:14px;left:56px;right:64px;display:flex;align-items:center;gap:10px;z-index:2;flex-wrap:wrap;}
 .sd-type-badge{background:rgba(4,20,30,.7);backdrop-filter:blur(4px);border:1px solid #3fd0e8;color:#3fd0e8;border-radius:14px;padding:5px 16px;font-weight:800;font-size:11.5px;letter-spacing:1px;flex-shrink:0;}
@@ -136,28 +286,35 @@
 .sd-stage .phase-banner{top:52px;}
 .cards-area{display:flex;gap:44px;align-items:center;perspective:600px;}
 .hand{display:flex;flex-direction:column;align-items:center;gap:10px;}
-.hand .side-label{font-size:11px;letter-spacing:3px;font-weight:800;color:var(--ink-dim);}
-.hand.player .side-label{color:#7FBFEA;text-shadow:0 0 10px rgba(127,191,234,.35);}
-.hand.banker .side-label{color:#E89286;text-shadow:0 0 10px rgba(232,146,134,.35);}
-.hand .cards{display:flex;gap:5px;min-height:76px;}
+.hand .cards{display:flex;gap:6px;min-height:100px;}
+/* The card is a face from shared/assets/cards, set on the element rather than drawn in CSS, so
+   it keeps the deck's own artwork - rank, pip and rounded corners all come from the file. Its
+   height is what sizes it; the width follows the deck's own 225:314, which is a real card's
+   2.5 x 3.5in. The shadow is a drop-shadow rather than a box-shadow so it follows the rounded
+   corners instead of squaring them off. */
 .playing-card{
-  width:44px;height:64px;background:linear-gradient(155deg,#fff,#f2f2ef);border-radius:6px;position:relative;
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;
-  box-shadow:0 6px 14px -4px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.6) inset;
-  border:1px solid rgba(0,0,0,.06);
+  height:88px;aspect-ratio:225/314;position:relative;
+  background:center/contain no-repeat;
+  filter:drop-shadow(0 5px 9px rgba(0,0,0,.5));
   animation:dealCard .38s cubic-bezier(.2,.7,.3,1.1);
   transform-style:preserve-3d;
 }
-.playing-card::before,.playing-card::after{
-  content:attr(data-rank);position:absolute;font-size:9.5px;font-weight:800;line-height:1;
-}
-.playing-card::before{top:4px;left:5px;}
-.playing-card::after{bottom:4px;right:5px;transform:rotate(180deg);}
-.playing-card.red{color:#c0392b;}
-.playing-card.black{color:#181818;}
 @keyframes dealCard{
   from{transform:translateY(-30px) translateX(10px) rotate(-8deg) rotateY(90deg) scale(.7);opacity:0;}
   to{transform:none;opacity:1;}
+}
+/* The third card is laid across, the way the dealer turns it sideways onto the felt. Rotating
+   it leaves its layout box upright, so the margin gives back the (88-63.1)/2 it now overhangs
+   at each side - 63.1 being 88 at the deck's 225:314 - and it needs its own keyframes: the
+   deal animation ends at transform:none, which would drop the rotation on the last frame. */
+.playing-card.third{transform:rotate(90deg);margin:0 12px;animation-name:dealCardSideways;}
+/* The player's hand sits on the left of the felt, so its third card is laid on the outside -
+   to the left of the pair, mirroring the banker's, which stays on the right. It is dealt last,
+   so the order moves it without touching the deal sequence. */
+.hand.player .playing-card.third{order:-1;}
+@keyframes dealCardSideways{
+  from{transform:translateY(-30px) translateX(10px) rotate(82deg) rotateY(90deg) scale(.7);opacity:0;}
+  to{transform:rotate(90deg);opacity:1;}
 }
 .hand .score{
   font-family:var(--mono);font-weight:800;font-size:19px;color:#071120;
@@ -200,57 +357,46 @@
 .bet-spot.selected{border-color:var(--brass);box-shadow:0 0 0 3px rgba(217,178,106,.18), 0 8px 20px -8px rgba(217,178,106,.4);}
 .bet-spot.locked{opacity:.5;cursor:not-allowed;}
 .bet-spot .label{font-weight:800;font-size:16px;letter-spacing:.6px;}
-.bet-spot.player .label{color:#7FBFEA;}
-.bet-spot.banker .label{color:#E89286;}
-.bet-spot.tie .label{color:var(--jade);}
-.bet-spot.pair .label{color:var(--brass);font-size:11.5px;}
+/* Each spot is named in its own side's colour - player blue, banker red, tie green, and each
+   pair the colour of the hand it belongs to rather than the one gold both used to share.
+   They are stronger than the washed tints they replace, and as deep as the felt they sit on
+   will carry: the two big labels take the darker shade, the pair labels a step lighter because
+   they are set at 11.5px against the others' 20 and need the contrast a small size costs. */
+.bet-spot.player .label{color:#3E9BE8;}
+.bet-spot.banker .label{color:#F2564A;}
+.bet-spot.tie .label{color:#2FD39B;}
+.bet-spot.pair .label{font-size:11.5px;}
+.bet-spot.pair.player .label{color:#4FA8F0;}
+.bet-spot.pair.banker .label{color:#FF6B5C;}
 .bet-spot .odds{font-size:10.5px;color:var(--ink-faint);margin-top:3px;font-family:var(--mono);}
 .bet-spot .my-bet{margin-top:9px;font-family:var(--mono);font-weight:700;color:var(--brass);font-size:13.5px;min-height:18px;}
 .chip-stack{display:flex;justify-content:center;align-items:flex-end;height:0;margin-top:6px;transition:height .15s ease;}
 .chip-stack:not(:empty){height:16px;}
-.chip-stack .cs-chip{width:18px;height:18px;border-radius:50%;margin-left:-8px;box-shadow:0 2px 4px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.25), inset 0 1px 1px rgba(255,255,255,.3);}
+/* the chips in a betting spot are the same artwork at bead size, overlapped into a stack */
+.chip-stack .cs-chip{width:18px;height:18px;margin-left:-8px;background:center/contain no-repeat;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55));}
 .chip-stack .cs-chip:first-child{margin-left:0;}
-.cs-chip.c5000{background:radial-gradient(circle at 35% 30%, #6b6b6b, #2c2c2c 70%);}
-.cs-chip.c10000{background:radial-gradient(circle at 35% 30%, #e2665c, #a8291f 70%);}
-.cs-chip.c50000{background:radial-gradient(circle at 35% 30%, #4fc6a4, #16594a 70%);}
-.cs-chip.c100000{background:radial-gradient(circle at 35% 30%, #3a3a3a, #0d0d0d 70%);}
-.cs-chip.c500000{background:radial-gradient(circle at 35% 30%, #a05fd1, #522072 70%);}
-.cs-chip.c1000000{background:radial-gradient(circle at 35% 30%, #FFF3D4, #C89A4E 70%);}
 .pair-row{display:flex;gap:10px;margin-top:8px;}
 .pair-row .bet-spot{flex:1;padding:9px 6px;}
 
 .chip-tray{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));border:1px solid var(--line);border-radius:14px;}
+/* The chip is the operator's own artwork, which carries its value on its face - so no drawn
+   disc, no edge spots and no label of ours over the top of it. The shadow is a drop-shadow so it
+   follows the chip's rim rather than boxing it, and the selected chip takes the gold ring the
+   set ships with (chip-hover) rather than a border of ours. */
 .chip{
-  width:54px;height:54px;border-radius:50%;position:relative;cursor:pointer;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-  transition:transform .15s ease, box-shadow .15s ease;
-  box-shadow:0 5px 12px -3px rgba(0,0,0,.55), inset 0 1px 1px rgba(255,255,255,.15), inset 0 -2px 3px rgba(0,0,0,.35);
+  width:54px;height:54px;position:relative;cursor:pointer;flex-shrink:0;
+  background:center/contain no-repeat;
+  filter:drop-shadow(0 5px 10px rgba(0,0,0,.55));
+  transition:transform .15s ease, filter .15s ease;
 }
-.chip::before{
-  content:'';position:absolute;inset:0;border-radius:50%;
-  background:repeating-conic-gradient(currentColor 0deg 18deg, transparent 18deg 36deg);
-  opacity:.55; -webkit-mask:radial-gradient(circle, transparent 62%, #000 63%, #000 84%, transparent 85%);
-          mask:radial-gradient(circle, transparent 62%, #000 63%, #000 84%, transparent 85%);
+.chip::after{
+  content:'';position:absolute;inset:-4px;border-radius:50%;
+  background:url('assets/chips/chip-hover.png') center/contain no-repeat;
+  opacity:0;transition:opacity .15s ease;pointer-events:none;
 }
-.chip::after{content:'';position:absolute;inset:5px;border-radius:50%;border:1px solid rgba(255,255,255,.25);}
-.chip span.cv{position:relative;font-family:var(--mono);font-weight:800;font-size:11px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 .chip:hover{transform:translateY(-4px);}
-.chip.selected{transform:translateY(-4px);box-shadow:0 0 0 3px var(--brass), 0 10px 20px -6px rgba(217,178,106,.55);}
-.chip.c5000{background:radial-gradient(circle at 35% 30%, #6b6b6b, #2c2c2c 70%);color:#eee;}
-.chip.c10000{background:radial-gradient(circle at 35% 30%, #e2665c, #a8291f 70%);color:#3a0e0a;}
-.chip.c50000{background:radial-gradient(circle at 35% 30%, #4fc6a4, #16594a 70%);color:#06251d;}
-.chip.c100000{background:radial-gradient(circle at 35% 30%, #3a3a3a, #0d0d0d 70%);color:#999;}
-/* 500K+ render as flat rectangular cash plaques instead of round chips, matching
-   how real tables (and the reference screenshots) present high denominations. */
-.chip.c500000,.chip.c1000000{width:66px;height:42px;border-radius:7px;}
-.chip.c500000::before,.chip.c1000000::before{display:none;}
-.chip.c500000::after,.chip.c1000000::after{border-radius:5px;}
-.chip.c500000{background:linear-gradient(160deg,#f7f6f1,#dcd7c8 55%,#b7ae96);border:2px solid #8a6d2e;color:#3a2f1a;}
-.chip.c1000000{background:linear-gradient(160deg,#f9ecc0,#dcb35f 55%,#93641f);border:2px solid #6b4a12;color:#3a2408;}
-.chip.c500000 span.cv,.chip.c1000000 span.cv{color:inherit;text-shadow:none;font-size:12px;}
-@media (max-width:860px){
-  .chip.c500000,.chip.c1000000{width:54px;height:34px;}
-}
+.chip.selected{transform:translateY(-4px);filter:drop-shadow(0 8px 14px rgba(217,178,106,.55));}
+.chip.selected::after{opacity:1;}
 .bet-controls{margin-left:auto;display:flex;gap:8px;flex-shrink:0;align-items:center;}
 .current-bet-total{font-family:var(--mono);font-weight:800;color:var(--brass);font-size:16px;}
 
@@ -265,9 +411,19 @@
 .br-cell.overflow{border:none;color:var(--ink-faint);font-size:9px;display:flex;align-items:center;justify-content:center;}
 .br-cell.tie-only{background:var(--road-green);border:none;width:10px;height:10px;align-self:center;}
 .br-tie{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:flex-end;pointer-events:none;}
-.br-tie::before{content:'';position:absolute;left:10%;top:50%;width:80%;height:2px;background:var(--road-green);transform:rotate(-30deg);}
+/* The tie is a 45-degree stroke straight through the ring, running past it at both ends rather
+   than stopping inside it - measured off the board at 66px across a 52px ring, so 116% of the
+   cell, and 8.3px thick against that ring, so a touch over an eighth of it. */
+.br-tie::before{content:'';position:absolute;left:-8%;top:50%;width:116%;height:2.5px;background:var(--road-green);transform:rotate(-45deg);}
 .br-tie span{position:relative;font-size:7.5px;font-weight:800;color:var(--road-green);background:var(--void);border-radius:2px;padding:0 1px;line-height:1.3;}
 .br-pair{position:absolute;width:4px;height:4px;border-radius:50%;}
+/* On the board the pair dot sits on the ring itself and notches the stroke where it lands - the
+   ring reads as a C with the dot in its opening. The halo is the paper colour, so it cuts the
+   gap; it is 15px against a 52px ring there, a little over a quarter of it. */
+.sd-road .br-pair{width:5.5px;height:5.5px;box-shadow:0 0 0 2px #fafafa;}
+/* centred on the ring's stroke at 45 degrees rather than tucked into the cell's corner */
+.sd-road .br-pair.player{top:5%;left:5%;right:auto;bottom:auto;}
+.sd-road .br-pair.banker{top:67%;left:67%;right:auto;bottom:auto;}
 .br-pair.player{top:0;left:0;background:var(--road-blue);}
 .br-pair.banker{bottom:0;right:0;background:var(--road-red);}
 .lobby-card .mini-road .br-pair{width:2.5px;height:2.5px;}
@@ -288,7 +444,7 @@
 .derived-road-grid .dr-cell.filled.blue{background:var(--road-blue);}
 /* Cockroach Road is conventionally a diagonal tick, not a dot. */
 .derived-road-grid .dr-cell.diagonal{border:none;border-radius:0;position:relative;}
-.derived-road-grid .dr-cell.diagonal::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-38deg);}
+.derived-road-grid .dr-cell.diagonal::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-45deg);}
 .derived-road-grid .dr-cell.diagonal.red{color:var(--road-red);}
 .derived-road-grid .dr-cell.diagonal.blue{color:var(--road-blue);}
 .bet-history-mini{font-size:11.5px;}
@@ -338,18 +494,25 @@
   .lobby-title{font-size:17px;margin-bottom:10px;}
   .lobby-toolbar{position:sticky;top:0;z-index:15;background:var(--void);padding:8px 0;margin:0 0 10px;}
   .lobby-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
-  .lobby-card .info{padding:9px 10px 2px;}
-  .lobby-card .info .name{font-size:12.5px;}
-  .lobby-card .info .limits{font-size:9.5px;}
-  .lobby-card .mini-road{padding:7px 10px 2px;}
+  .lobby-card .mini-road{padding:5px 7px;height:39px;}
   .lobby-card .mini-road .br-cell{width:6px;height:6px;}
-  .lobby-card .stat-row{font-size:9px;padding:3px 10px 9px;}
-  .card-status-row{padding:8px 10px 0;gap:6px;}
-  .card-status{font-size:10px;padding:3px 8px;}
+  .lobby-card .card-foot{padding:7px 10px 9px;}
+  .lobby-card .card-line{gap:5px;}
+  .lobby-card .name{font-size:12.5px;}
+  .lobby-card .card-line.meta{font-size:9px;}
+  /* two cards to a phone's width is 166px of card - the limits and the countdown are what a
+     player picks a table on, so the streak badge and the P/B/T tally stand down rather than
+     everything being squeezed to an ellipsis */
+  .lobby-card .card-hot,.lobby-card .counts{display:none;}
+  .card-status{font-size:10px;padding:2px 7px;}
   .card-hot{font-size:9px;}
 
-  .cards-area{gap:22px;}
-  .playing-card{width:36px;height:52px;font-size:14px;}
+  /* Below 860 the felt is only as wide as the screen, and six cards plus two sideways thirds
+     have to sit inside it, so the hands close up and the card comes down from 88. At 390 that
+     leaves 355.7 of cards in 372 of felt - still well up on the 52 the card used to be. */
+  .cards-area{gap:12px;}
+  .playing-card{height:66px;}
+  .playing-card.third{margin:0 9px;}   /* (66 - 66*225/314)/2 */
   .hand .score{min-width:28px;height:28px;font-size:15px;}
   .bet-rail{gap:8px;}
   .bet-rail.with-pairs{grid-template-columns:1fr 1.15fr 1fr;}
@@ -357,7 +520,6 @@
   .bet-spot .label{font-size:13.5px;}
   .pair-row{gap:6px;}
   .chip{width:44px;height:44px;}
-  .chip span.cv{font-size:9.5px;}
 
   .modal-sheet{
     position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;max-width:100%;
@@ -370,10 +532,9 @@
   .picker-wrap{padding:36px 16px;}
   .picker-grid{grid-template-columns:1fr;gap:14px;}
 
-  .speed-detail-wrap{padding:8px 8px 100px;}
-  .sd-stage{min-height:220px;border-radius:12px;}
   .tally-bar{font-size:11.5px;padding:9px 12px;gap:10px;flex-wrap:wrap;}
-  .sd-chip-tray{position:fixed;left:8px;right:8px;bottom:8px;z-index:25;box-shadow:0 12px 30px -10px rgba(0,0,0,.65);}
+  /* the .speed-detail-* phone overrides live in the media block at the end of this file -
+     they have to come after the base rules they narrow, which are declared further down. */
 }
 
 /* ---- language switcher (login card + header) ---- */
@@ -421,18 +582,38 @@
    Layout mirrors the reference: video + bead road stacked on the left,
    one large edge-to-edge betting board filling the right column, and a
    bottom bar carrying the casino mark / round info / chip tray. ---- */
-.speed-detail-wrap{padding:16px 18px 90px;max-width:1400px;margin:0 auto;}
+/* 18 at the foot rather than 24: the screen comes to 898px at a 1440x900, which is the
+   commonest desktop there is, and four pixels of padding are not worth a scrollbar on it */
+.speed-detail-wrap{padding:16px 18px 18px;max-width:1400px;margin:0 auto;box-sizing:border-box;}
 .speed-detail-head{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
 .speed-detail-head .name{font-weight:800;font-size:16px;color:var(--brass);}
 .speed-detail-head .meta{font-size:11.5px;color:var(--ink-faint);font-family:var(--mono);}
 .speed-detail-close{margin-left:auto;}
 .speed-detail-grid{
-  display:grid;gap:12px;grid-template-columns:1.35fr 1fr;grid-template-rows:auto 285px;
+  /* --sd-board is the results row, ruled the way the reference board is: a full-size Big Road
+     six deep (6 x 24), the three derived roads six deep at half a square beneath it (3 x 24),
+     the rule that separates them, and the card's own padding - 252px on the nose.
+     Everything else is what the screen has left. The video row takes it, and because the stage
+     carries the still's aspect ratio its width follows from that height - so the whole table
+     screen lands inside one viewport instead of running off the bottom of it. */
+  --sd-board:252px;
+  display:grid;gap:12px;
+  /* The video is sized by the width it is given, not by the height the screen has left: it had
+     been the other way round, and on a laptop's 768 or 800 the still came out a fifth smaller
+     than its own size. The results row is 252px now rather than the 355 it was, so the screen
+     still comes out in one piece from about 900px of height; below that it scrolls, which is
+     what it did before, rather than the still paying for it. */
+  grid-template-columns:1.35fr 1fr;
+  grid-template-rows:auto var(--sd-board);
   grid-template-areas:
     "stage bets"
-    "tally road";
+    "board board";
 }
-.sd-stage{grid-area:stage;position:relative;border-radius:16px;min-height:300px;display:flex;align-items:center;justify-content:center;overflow:hidden;
+/* The stage carries the live still's own 672x470 proportions, so the photo fills it corner to
+   corner at full size instead of being cropped top and bottom to fit a wider box. Its width is
+   the column's and its height follows from that, which is what keeps the still the same size on
+   every screen rather than trading it away for the screen's height. */
+.sd-stage{grid-area:stage;position:relative;border-radius:16px;aspect-ratio:672/470;min-height:300px;display:flex;align-items:center;justify-content:center;overflow:hidden;
   border:1px solid var(--line);
   background:radial-gradient(ellipse 140% 100% at 50% -20%, rgba(217,178,106,.10) 0%, transparent 45%),
              radial-gradient(ellipse at 50% 22%, #123c2f 0%, #07130e 78%);
@@ -442,82 +623,173 @@
    plain graph-paper card, contrasting with the dark felt/betting board above. */
 /* One square of the graph paper is one cell of every road: --rc is that square, and each
    mark is --rc minus a hairline gap so it sits inside its own square rather than drifting
-   across the ruling. background-position offsets the grid by the panel padding so a ruling
-   line lands exactly on the content origin, which is where the first mark starts. */
+   across the ruling. */
 .sd-graph-bg{
   --rc:18px;
   background-color:#fafafa;
-  background-image:linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
-  background-size:var(--rc) var(--rc);
-  background-position:14px 10px;
   border:1px solid #e4e4e4;border-radius:12px;color:#1a1a1a;
 }
 /* the board rules the bead side in bigger squares than the road side */
-.sd-tally{grid-area:tally;--rc:22px;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
-.sd-tally-head{display:flex;justify-content:space-between;align-items:center;height:var(--rc);font-size:10.5px;color:#8a8a8a;flex-shrink:0;}
+/* The Plate's six rows are sized to fill its card exactly, the way the roads beside it do:
+   10px of padding, a 30px head, then 6 beads of 30px on a 34px pitch (6*34-4 = 200) comes to
+   the 250px inside the 252px results row. A bead fills its square the same way a Big Road ring
+   fills its smaller one - 30 of 34 against 20 of 24. */
+.sd-tally{grid-area:tally;--rc:34px;display:flex;flex-direction:column;padding:10px 14px;overflow:hidden;}
+.sd-tally-head{display:flex;justify-content:space-between;align-items:center;height:30px;font-size:10.5px;color:#8a8a8a;flex-shrink:0;}
 .sd-tally-head b{color:#1a1a1a;font-family:var(--mono);font-weight:700;}
 .sd-tally-body{display:flex;flex:1;min-height:0;}
-.sd-tally-list{display:flex;flex-direction:column;flex-shrink:0;padding-right:14px;border-right:1px solid #e4e4e4;margin-right:14px;}
+.sd-tally-list{display:flex;flex-direction:column;justify-content:space-between;flex-shrink:0;padding-right:14px;border-right:1px solid #e4e4e4;margin-right:14px;}
 .sd-tally-list .tl-row{display:flex;align-items:center;gap:6px;height:var(--rc);font-size:13px;font-weight:800;font-family:var(--mono);}
+/* the reference draws the P/B/T badges at about three quarters of a ruled square and the two
+   pair badges noticeably smaller again, a little over half */
 .sd-tally-list .tl-badge{
-  width:20px;height:20px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
-  display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;font-family:var(--sans);
+  width:27px;height:27px;border-radius:50%;flex-shrink:0;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:800;font-family:var(--sans);
 }
 .sd-tally-list .tl-row.player .tl-badge{background:var(--road-blue);} .sd-tally-list .tl-row.player b{color:var(--road-blue);}
 .sd-tally-list .tl-row.banker .tl-badge{background:var(--road-red);} .sd-tally-list .tl-row.banker b{color:var(--road-red);}
 .sd-tally-list .tl-row.tie .tl-badge{background:var(--road-green);} .sd-tally-list .tl-row.tie b{color:var(--road-green);}
 /* pair rows: grey bead carrying the road's own corner-dot marker, with the count tinted
    to the side that dot stands for. */
-.sd-tally-list .tl-row.pair .tl-badge{background:#b0b0b0;position:relative;}
+.sd-tally-list .tl-row.pair .tl-badge{width:20px;height:20px;background:#b0b0b0;position:relative;}
 .sd-tally-list .tl-row.pair .br-pair{width:6px;height:6px;}
 .sd-tally-list .tl-row.pair.player b{color:var(--road-blue);}
 .sd-tally-list .tl-row.pair.banker b{color:var(--road-red);}
-/* bead pitch == one graph square: 20px bead + 2px gutter = the 22px ruling */
-.sd-tally .bead-road{flex:1;gap:2px;}
-.sd-tally .bead-road .br-col{gap:2px;}
-.sd-tally .bead-road .bd-cell{width:20px;height:20px;font-size:11px;}
-.sd-tally .bead-road .br-pair{width:5px;height:5px;}
-.sd-road{grid-area:road;--rc:18px;padding:10px 14px;display:flex;gap:10px;overflow:hidden;}
-/* Three stacked bands, ruled off from each other: Big Road, then Big Eye Boy, then a band
-   split down the middle for Small Road | Cockroach Road. */
-.sd-road-main{display:flex;flex-direction:column;flex:1;min-width:0;}
-/* Each band's rule + padding sums to a whole ruled square (9 above + 9 below = 18), so the
-   marks in every band keep landing on the ruling instead of drifting a few pixels per band. */
-.sd-road-band{padding-bottom:9px;min-height:0;overflow:hidden;}
-.sd-road-band + .sd-road-band{border-top:1px solid #e4e4e4;padding-top:8px;}
-/* every band sizes to its own content: stretching them to share the leftover space made the
-   leftover (not a whole square) land inside the offsets and knocked the lower bands off the ruling */
-.sd-road-band{flex:0 0 auto;}
-.sd-road .br-grid{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;padding-bottom:2px;}
-.sd-road .br-col{gap:2px;}
-.sd-road .br-cell{width:16px;height:16px;border-width:2px;}
-.sd-road .br-cell.tie-only{width:10px;height:10px;}
+/* bead pitch == one graph square: a 30px bead with 2px either side is the 34px ruling, so the
+   bead sits in the middle of its square rather than against one corner of it. Six of those
+   need 204, where the old gap-based run needed 200 (no gutter after the last bead) - so the
+   panel gives back the 4 it was short, 2 off the padding and 2 off the head. Without it the
+   flex column simply squeezed the beads to fit and they came off the ruling by 7px at the
+   bottom of the plate. The trailing pad goes too: the last bead's own margin is that gutter. */
+.sd-tally{padding-top:9px;padding-bottom:9px;}
+.sd-tally-head{height:28px;}
+/* columns start at the content origin, where the ruling starts. Left to centre themselves in
+   whatever slack the panel has they sat half a pixel low and the beads came off their squares. */
+.sd-tally .bead-road{flex:1;gap:0;padding-bottom:0;align-items:flex-start;}
+.sd-tally .bead-road .br-col{gap:0;}
+.sd-tally .bead-road .bd-cell{width:30px;height:30px;font-size:16px;margin:2px;}
+.sd-tally .bead-road .br-pair{width:8px;height:8px;}
+/* The results row is one strip carrying both cards: the Bead Plate side takes the width its
+   twelve columns need and the roads take the rest, rather than the two splitting the screen the
+   way the video and the betting board above them do. On the phone the same wrapper becomes the
+   horizontal scroller that carries the board's two pages. */
+.sd-board-row{
+  grid-area:board;display:grid;gap:12px;
+  grid-template-columns:min(520px,42%) minmax(0,1fr);
+  grid-template-areas:"tally road";
+}
+/* 12px above the Big Road and 9px below the derived roads, which is what the reference leaves
+   around its board (0.49 and 0.37 of a ruled square). */
+.sd-road{grid-area:road;--rc:24px;padding:12px 14px 9px;display:flex;gap:10px;overflow:hidden;}
+/* The ruling is painted on the element that scrolls - each band, and the Bead Plate - with
+   background-attachment:local, so it travels with the marks. Painted on the panel around them
+   it stayed nailed in place while the board slid underneath, and a mark that started on its
+   ruling drifted across it the moment the board was swiped sideways.
+   The bands still read as one continuous sheet: their offsets (0/126/198/270) are all whole
+   multiples of the 18px square, so every band's rules fall exactly where a single panel-wide
+   grid would have put them. */
+/* The board draws no scrollbars. On a browser that gives them their own space (rather than
+   overlaying them) an 8px bar came out of every band's height, which squeezed the six rows off
+   their ruling and set a vertical bar going on top of that. The roads still slide - they are
+   pinned to the newest column, and can be dragged or wheeled sideways - they just carry no
+   chrome, which is how a real board reads. Vertical scrolling is off outright: a band is exactly
+   as deep as its six rows, so there is never anything below to scroll to. */
+.sd-road-band,.bead-road,.mini-road,.derived-road-grid,.br-grid,.sd-board-row{scrollbar-width:none;-ms-overflow-style:none;}
+.sd-road-band::-webkit-scrollbar,.bead-road::-webkit-scrollbar,.mini-road::-webkit-scrollbar,
+.derived-road-grid::-webkit-scrollbar,.br-grid::-webkit-scrollbar,.sd-board-row::-webkit-scrollbar{display:none;width:0;height:0;}
+.sd-road-band,.bead-road,.mini-road,.derived-road-grid{overflow-y:hidden;}
+.sd-road-band,.sd-tally .bead-road{
+  background-image:linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
+  background-size:var(--rc) var(--rc);
+  background-attachment:local;
+  background-position:0 0;
+}
+/* every band rules from its own content origin, and there is no padding above one now */
+.sd-road-band + .sd-road-band{background-position:0 0;}
+/* The board's own arrangement: the Big Road across the whole top at full cell size, and the
+   three derived roads side by side in equal thirds beneath it, each ruled off from its
+   neighbour. That is 6 squares of board over 3 - the 2:1 the reference reads at - instead of
+   four boards stacked down a narrow column, which is what made the results row twice as tall
+   as it needed to be. */
+.sd-road-main{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-areas:"big big big" "eye small cock";flex:1;min-width:0;}
+.sd-road-band:nth-child(1){grid-area:big;}
+.sd-road-band:nth-child(2){grid-area:eye;}
+.sd-road-band:nth-child(3){grid-area:small;}
+.sd-road-band:nth-child(4){grid-area:cock;}
+/* Each band's separator + padding sums to a whole ruled square (12 + the hairline + 11 of the
+   band below), so the marks in every band keep landing on the ruling instead of drifting. */
+.sd-road-band{padding-bottom:0;min-height:0;overflow-x:auto;}
+/* the derived roads butt straight onto the Big Road - the separator is a hairline rule and
+   nothing more, where it used to carry 12px of padding under it and 8px between the thirds */
+.sd-road-band + .sd-road-band{border-top:1px solid #e4e4e4;padding-top:0;}
+/* The two later thirds are ruled off from the third on their left, and their own ruling starts
+   at their own content origin - as the reference restarts it in each of its three blocks.
+   The breathing room around the rule is a margin rather than padding: a scroller clips at its
+   padding box, so a road that has been scrolled runs its marks through its own left padding and
+   the oldest one on screen comes out sliced against the rule. Outside the box it cannot. */
+.sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;margin-left:0;background-position:0 0;}
+/* the band is the scroller now (it has to be, to carry the ruling), so the grid inside it just
+   takes its natural width. Its bottom padding completes the sixth ruled square: 6 rings of 20
+   and 5 gutters of 4 is 140, and 4 more makes the 144 that six 24px squares occupy. */
+/* The gutter is split either side of the mark as a margin rather than laid after it as a gap:
+   with a gap the whole 4px fell on one side, so every mark sat hard against the top-left of its
+   ruled square instead of in the middle of it. 20 of mark plus 2 and 2 is the 24px square, and
+   six of those still measure exactly six squares, so no trailing pad is needed either. */
+.sd-road .br-grid{display:flex;gap:0;flex-shrink:0;width:max-content;}
+/* A road fills from the left, as a board is written. It only ends on the panel's right edge by
+   running past it - and when it does, it is scrolled there so the hand that just finished is
+   the one on screen (see paintRoad). A road that fits needs no scrolling and stays left. */
+.sd-road .br-col{gap:0;}
+/* 20 of the 24px square, the 0.84 the reference draws its rings at */
+.sd-road .br-cell{width:20px;height:20px;border-width:2px;margin:2px;}
+.sd-road .br-cell.tie-only{width:12px;height:12px;}
 .sd-road .bd-cell.overflow,.sd-road .br-cell.overflow,.sd-road .dr-cell.overflow{color:#8a8a8a;}
-/* .br-tie's count badge defaults to a dark pill (matching the dark lobby-card/sidebar
-   backgrounds it was designed for) - on this panel's white/graph-paper background that
-   reads as a stray dark smudge above the ring, so give it a light pill here instead. */
-.sd-road .br-tie span{background:#fff;box-shadow:0 0 0 1px #fff;}
-.sd-road .derived-road-grid{overflow-x:auto;}
+/* The board draws a tie as the slash alone - the reference has no count on it, and the pill
+   the count used to sit in covered most of the ring it was drawn over. */
+.sd-road .br-tie span{display:none;}
+/* the stroke keeps its eighth-of-a-ring weight now the ring is 20px rather than 16 */
+.sd-road .br-tie::before{height:3px;}
+/* six half-rows fill three ruled squares: a 10px mark centred on a 12px half-square is 72
+   over six rows, which is the three 24px squares they share with the Big Road above */
+.sd-road .derived-road-grid{overflow:visible;width:max-content;gap:0;}
 /* half the Big Road mark, on half its pitch: two derived marks span one ruled square.
    The column gap has to be re-stated at this depth - `.sd-road .br-col` matches the derived
-   columns too, at equal specificity but later in the file, so it otherwise wins with 2px. */
-.sd-road .derived-road-grid .dr-cell{width:8px;height:8px;}
-.sd-road .derived-road-grid .br-col{gap:1px;}
+   columns too, at equal specificity but later in the file, so it otherwise wins with 4px. */
+.sd-road .derived-road-grid .dr-cell{width:10px;height:10px;margin:1px;}
+.sd-road .derived-road-grid .br-col{gap:0;}
 /* legend rail: a small key explaining the three marks used on the board (hollow
    ring = Big Road/Big Eye Boy/Small Road, solid dot = Bead Plate, diagonal = tie),
    grouped into a P (blue) pill and a B (red) pill stacked on the right edge. */
-.sd-road-legend-rail{display:flex;flex-direction:column;justify-content:space-around;align-items:center;flex-shrink:0;width:34px;border-left:1px solid #e4e4e4;}
-.sd-road-legend-rail .rail-badge{
-  display:flex;flex-direction:column;align-items:center;gap:5px;font-size:10px;font-weight:800;
-  border:1.5px solid currentColor;border-radius:14px;padding:8px 4px;
+/* The prediction rail: one grid, so the three marks on the B row sit exactly over the three on
+   the P row and the two side letters share a column. The old rail stacked two free-standing
+   badges, which lined up with nothing. Each column is one road - ring for Big Eye Boy, dot for
+   Small Road, tick for Cockroach - and the mark's colour is what that road would draw if the
+   next hand went the way its row says. */
+.sd-road-ask{
+  flex-shrink:0;align-self:center;border-left:1px solid #e4e4e4;padding-left:12px;margin-left:2px;
+  display:grid;grid-template-columns:14px repeat(3,16px);gap:9px 7px;
+  justify-items:center;align-items:center;
 }
-.sd-road-legend-rail .rail-badge .ring{width:11px;height:11px;border-radius:50%;border:2px solid currentColor;box-sizing:border-box;}
-.sd-road-legend-rail .rail-badge .dot{width:9px;height:9px;border-radius:50%;background:currentColor;}
-.sd-road-legend-rail .rail-badge .slash{width:11px;height:11px;border-radius:50%;border:2px solid currentColor;box-sizing:border-box;position:relative;}
-.sd-road-legend-rail .rail-badge .slash::before{content:'';position:absolute;left:8%;top:50%;width:84%;height:1.5px;background:currentColor;transform:rotate(-30deg);}
-.sd-road-legend-rail .rail-badge.player{color:var(--road-blue);}
-.sd-road-legend-rail .rail-badge.banker{color:var(--road-red);}
+.sd-road-ask .ask-title{
+  grid-column:1/-1;justify-self:center;font-size:8.5px;font-weight:800;letter-spacing:.6px;
+  color:#8a8a8a;text-transform:uppercase;
+}
+.sd-road-ask .ask-side{font-size:11px;font-weight:800;font-family:var(--mono);}
+.sd-road-ask .ask-side.banker{color:var(--road-red);}
+.sd-road-ask .ask-side.player{color:var(--road-blue);}
+/* the marks draw the road they stand for, at the rail's own size */
+.sd-road-ask .ask-mark{display:block;box-sizing:border-box;width:13px;height:13px;}
+.sd-road-ask .ask-mark.ring{border-radius:50%;border:2.5px solid currentColor;}
+.sd-road-ask .ask-mark.dot{border-radius:50%;background:currentColor;width:12px;height:12px;}
+.sd-road-ask .ask-mark.slash{position:relative;}
+.sd-road-ask .ask-mark.slash::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2.5px;background:currentColor;transform:rotate(-45deg);}
+.sd-road-ask .ask-mark.red{color:var(--road-red);}
+.sd-road-ask .ask-mark.blue{color:var(--road-blue);}
+/* a road that has not started yet - Big Eye needs the third hand, Cockroach the fifth - has no
+   colour to give, so its mark reads as an empty slot rather than a wrong answer */
+.sd-road-ask .ask-mark.none{color:#d8d8d8;opacity:.85;}
+.sd-road-ask .ask-mark.none.dot{background:#e8e8e8;}
 .sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 .sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
 .sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}
@@ -542,9 +814,128 @@
 .sd-bets.avatar-side .chat-panel{flex:1;min-height:160px;}
 /* chip tray now lives inside .sd-bets itself (its last child), not a separate
    full-width row, so it only needs bottom corners matching the parent card. */
-.sd-chip-tray{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));border-top:1px solid var(--line);flex-shrink:0;}
-.sd-chip-tray .spacer{margin-left:auto;}
+.sd-chip-tray{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));border-top:1px solid var(--line);flex-shrink:0;}
+/* the betting board is a column now rather than half the screen, so the tray is scaled to it:
+   the chips still read at a glance but the row fits under Player and Banker without the
+   confirm/repeat buttons being pushed onto a line of their own */
+.sd-chip-tray .chip{width:44px;height:44px;}
+.sd-chip-tray .spacer{display:none;}
 @media (max-width:860px){
-  .speed-detail-grid{grid-template-columns:1fr;grid-template-rows:auto auto auto;grid-template-areas:"stage" "bets" "tally" "road";}
+  .speed-detail-wrap{padding:8px 8px 24px;}
+  .sd-stage{min-height:220px;height:auto;border-radius:12px;}
+  /* ---- phone board, laid out as the reference app draws it ----
+     Video, then a slim strip carrying the P/B/T counts and the two legend pills, then the
+     roads with the Bead Plate as its own narrow card beside them, then the betting board with
+     the chips at the foot of the page.
+     The two panels dissolve with display:contents so their parts land on this grid directly -
+     the counts and the Bead Plate come out of the tally card, the legend rail out of the road
+     card - without either screen needing its own markup. Their paper backgrounds go with them,
+     so the pieces that are still cards carry it themselves below. */
+  .sd-tally,.sd-tally-body,.sd-road{display:contents;}
+  .sd-tally-head{display:none;}
+  .speed-detail-grid{
+    grid-template-columns:1fr;grid-template-rows:none;
+    grid-template-areas:"stage" "board" "bets";
+    gap:8px;height:auto;max-height:none;
+  }
+  /* The board is two pages wide and scrolls sideways: the first is the screen's own width and
+     carries the strip and the roads, the second is the Bead Plate at its full width. Swiping the
+     board left brings the whole Plate into view instead of the two-column sliver that fitted
+     beside the roads. Snapping means it comes to rest on one page or the other. */
+  .sd-board-row{
+    grid-area:board;display:grid;gap:8px 8px;
+    /* page one stops short of the edge so the Plate's first column peeks past it - the cue that
+       there is a second page to swipe to, which is how the reference leaves it */
+    grid-template-columns:calc(100% - 46px) auto;
+    grid-template-areas:
+      "stats stats"
+      "roads bead";
+    overflow-x:auto;scroll-snap-type:x proximity;overscroll-behavior-x:contain;
+  }
+  .sd-board-row > *,.sd-tally-list,.sd-road-ask,.sd-road-main,.sd-tally .bead-road{scroll-snap-align:start;}
+  .sd-stage{grid-area:stage;}
+  /* the table line reads across in one go, as the reference has it, instead of wrapping onto a
+     second line over the felt; and the icon column stops short of the countdown ring it used to
+     run into (five buttons at 34px reached 210px down, past the ring's top edge at 236) */
+  .sd-stage-top{left:50px;right:50px;gap:7px;flex-wrap:nowrap;}
+  .sd-type-badge{padding:4px 11px;font-size:10px;}
+  .sd-table-id-mini{font-size:11px;}
+  .sd-limit-text{font-size:11.5px;white-space:nowrap;}
+  .sd-stage-icons{top:10px;right:10px;gap:6px;}
+  .sd-stage-icons button{width:26px;height:26px;}
+  .sd-stage-icons button svg{width:13px;height:13px;}
+  .sd-bets{grid-area:bets;}
   .sd-bets .bet-rail .bet-spot{padding:14px 8px;}
+
+  /* Counts and key share one full-width strip - they sit in the same grid area, pushed to
+     opposite ends, rather than the key claiming a column of its own. It had been claiming one,
+     and since the Bead Plate sits under it that column went 172px wide and squeezed the roads
+     into 188px of a 374px screen. */
+  /* the strip stays put while the board slides under it, so the counts and the key are still
+     there to read once the Bead Plate has been swiped into view */
+  .sd-tally-list{grid-area:stats;justify-self:start;position:sticky;left:0;flex-direction:row;justify-content:flex-start;align-items:center;gap:12px;padding:0;margin:0;border:none;align-self:center;}
+  .sd-tally-list .tl-row{height:auto;gap:5px;font-size:14px;}
+  .sd-tally-list .tl-row.pair{display:none;}
+  .sd-tally-list .tl-badge{width:20px;height:20px;font-size:11px;}
+
+  /* the prediction rides at the right of the stats strip on a phone, keeping its two rows and
+     three columns so the B and P answers still line up with each other */
+  .sd-road-ask{grid-area:stats;justify-self:end;position:sticky;right:0;align-self:center;
+    border-left:none;padding-left:0;margin-left:0;grid-template-columns:12px repeat(3,13px);gap:5px 6px;}
+  .sd-road-ask .ask-title{font-size:8px;letter-spacing:.4px;}
+  .sd-road-ask .ask-side{font-size:10px;}
+  .sd-road-ask .ask-mark{width:11px;height:11px;}
+  .sd-road-ask .ask-mark.ring{border-width:2px;}
+  .sd-road-ask .ask-mark.dot{width:10px;height:10px;}
+  .sd-road-ask .ask-mark.slash::before{height:2px;}
+
+  /* the roads keep one card, the Bead Plate gets its own alongside */
+  .sd-road-main,.sd-tally .bead-road{background-color:#fafafa;border:1px solid #e4e4e4;border-radius:10px;}
+  .sd-road-main{grid-area:roads;padding:5px 7px;min-width:0;}
+  /* the Plate takes its natural width on its own page - all twelve columns of the window, not
+     the sliver that used to fit beside the roads. Its padding and ruling anchor are set with the
+     rest of its sizing further down. */
+  .sd-tally .bead-road{grid-area:bead;width:max-content;flex:0 0 auto;overflow:visible;}
+
+  /* the Big-Road-over-three-thirds arrangement is the board's own and is set with the rest of
+     the road panel; the phone only tightens the rules that separate the four bands */
+  .sd-road-band+.sd-road-band{border-top:1px solid #e4e4e4;padding-top:0;background-position:0 0;}
+  .sd-road-band:nth-child(3),.sd-road-band:nth-child(4){border-left:1px solid #e4e4e4;margin-left:0;background-position:0 0;}
+
+  /* marks scaled to the phone: the reference runs about a 12px square on the roads and a 16px
+     one on the beads, keeping the same mark-fills-its-square proportions as the desktop board */
+  .sd-road{--rc:12px;}
+  .sd-road .br-cell{width:10px;height:10px;border-width:1.5px;margin:1px;}
+  .sd-road .br-cell.tie-only{width:7px;height:7px;}
+  /* the gutter is split either side of the mark, so it sits in the middle of its square;
+     10 plus 1 and 1 is the 12px phone square, and six of those are still six squares */
+  .sd-road .br-grid{gap:0;}
+  .sd-road .br-col{gap:0;}
+  .sd-road .br-tie::before{height:1.5px;}
+  /* the pair dot and its notch scale with the phone's smaller ring */
+  .sd-road .br-pair{width:3px;height:3px;box-shadow:0 0 0 1px #fafafa;}
+  .sd-road .br-tie span{display:none;}
+  .sd-road .derived-road-grid{gap:0;}
+  .sd-road .derived-road-grid .dr-cell{width:5px;height:5px;border-width:1px;margin:.5px;}
+  .sd-road .derived-road-grid .br-col{gap:0;}
+  /* The Plate's six rows are sized to fill its card exactly rather than sitting in the top of
+     it: the roads card next to it comes out 126px tall (6 Big Road rows on a 12px pitch, the
+     separator, then 6 derived half-rows on a 6px one), so 3px of padding either side of a
+     border leaves 118px, and 6 beads of 18px on a 20px pitch is 118px on the nose. Before this
+     six 15px beads filled 95 of 114 and left a row and a bit of empty ruling below them. */
+  .sd-tally{--rc:20px;}
+  /* 4px above and 2px below puts the sixth rule exactly on the card's inner edge, so no sliver
+     of a seventh row is drawn against the border */
+  /* sized to its six beads rather than stretched to the card: 3px of padding, then 6 rows of
+     20, ends the ruling exactly on the last row. Stretched, the card's spare 3px drew a sliver
+     of a seventh row against the bottom border. */
+  .sd-tally .bead-road{flex:none;gap:0;padding:3px 3px 0;background-position:3px 3px;}
+  .sd-tally .bead-road .br-col{gap:0;}
+  .sd-tally .bead-road .bd-cell{width:18px;height:18px;font-size:10px;margin:1px;}
+  .sd-tally .bead-road .br-pair{width:5px;height:5px;}
+  /* The chip tray is simply the last row of the betting board - straight under Player and
+     Banker - rather than being pinned anywhere. It was fixed to the viewport once, which parked
+     it on top of the scoreboard, then sticky to the board's bottom edge; neither is needed now
+     that the results sit above the board rather than below it. Nothing sticky means the board
+     keeps its own clip, and the tray needs no corners of its own. */
 }

@@ -573,7 +573,7 @@ function watchRoadRelayout(){
    that are painted in later, and it stays out of the way of ordinary use: a press that never
    travels more than a few pixels is left alone, so clicking a bet spot or a card still works,
    and nothing is dragged on a strip that has nowhere to go. */
-const DRAG_SCROLLERS = '.sd-road-band, .bead-road, .mini-road, .sd-board-row, .sm-road, .br-grid, .derived-road-grid';
+const DRAG_SCROLLERS = '.sd-road-band, .bead-road, .mini-road, .sd-board-row, .sm-road, .sm-list, .br-grid, .derived-road-grid';
 const DRAG_SLOP = 4;   // px of travel before a press counts as a drag rather than a click
 let dragScrollWatched = false;
 function watchDragScroll(){

@@ -1031,32 +1031,44 @@ const SPEED_TILE_SPOTS = [
   ['playerPair','playerPairShort','pair player'], ['tie','tie','tie'], ['bankerPair','bankerPairShort','pair banker'],
   ['player','player','player'], ['banker','banker','banker'],
 ];
-/* The multi-bet panel: the open table's neighbours, each with the same five spots, so several
-   tables can be staked without leaving the one being watched. It stakes whatever chip is
-   selected in this table's tray, and carries the total committed across every table. */
+/* The multi-bet panel: every table on one strip, the one being watched first, each with the same
+   five spots - so a round can be staked across the room without leaving the table on the screen.
+   The open table is on it too. It has its own full-size board above, but that board is not always
+   in the clear once the strip is up, and a rail that carries every table means one place to bet
+   them all from whatever the strip happens to be covering. It stakes whatever chip is selected -
+   the same STATE.selectedChip the table's own tray uses - and carries the running total. */
 function speedMultiPanelHtml(){
   const openId = SPEED.detailTableId;
-  const others = Object.keys(SPEED.tstate).filter(id => id !== openId);
+  const all = Object.keys(SPEED.tstate);
+  const others = openId && SPEED.tstate[openId]
+    ? [openId, ...all.filter(id => id !== openId)]
+    : all;
   const spot = (tableId) => ([key,label,cls]) =>
     `<button type="button" class="tb-spot ${cls}" id="tilespot-${tableId}-${key}" onclick="placeSpeedBet('${tableId}','${key}')">
        <span class="tb-label">${t(label)}</span><b class="tb-amt" id="tilebet-${tableId}-${key}"></b>
      </button>`;
   const rows = others.map(id=>{
     const tb = SPEED.tables[id] || {name:id};
-    return `<div class="sm-row" id="smrow-${id}">
+    const here = id === openId;
+    return `<div class="sm-row${here ? ' current' : ''}" id="smrow-${id}">
       <div class="sm-head">
         <span class="sm-name">${escapeHtml(tb.name || id)}</span>
-        <button class="sm-open" onclick="openSpeedTableDetail('${id}')">${t('enterShort')}</button>
+        <span class="sm-timer">⏱ <b id="smtimer-${id}">–</b></span>
+        ${here ? `<span class="sm-here">${t('watchingNow')}</span>`
+               : `<button class="sm-open" onclick="openSpeedTableDetail('${id}')">${t('enterShort')}</button>`}
       </div>
       <div class="sm-sub">
         <span class="sm-phase" id="smphase-${id}"></span>
         <span class="sm-last" id="smlast-${id}"></span>
-        <span class="sm-timer">⏱ <b id="smtimer-${id}">–</b></span>
+        <span class="sm-counts" id="smcounts-${id}"></span>
       </div>
-      <div class="sm-road mini-road" id="smroad-${id}"></div>
-      <div class="sm-counts" id="smcounts-${id}"></div>
-      <div class="tb-row pairs">${SPEED_TILE_SPOTS.slice(0,3).map(spot(id)).join('')}</div>
-      <div class="tb-row hands">${SPEED_TILE_SPOTS.slice(3).map(spot(id)).join('')}</div>
+      <div class="sm-body">
+        <div class="sm-road mini-road" id="smroad-${id}"></div>
+        <div class="sm-spots">
+          <div class="tb-row pairs">${SPEED_TILE_SPOTS.slice(0,3).map(spot(id)).join('')}</div>
+          <div class="tb-row hands">${SPEED_TILE_SPOTS.slice(3).map(spot(id)).join('')}</div>
+        </div>
+      </div>
     </div>`;
   }).join('');
   // the sheet covers the table's own tray, so it carries the chip picker itself - the same
@@ -1081,7 +1093,6 @@ function toggleSpeedMultiPanel(open){
   if (show){
     el.innerHTML = speedMultiPanelHtml();
     Object.keys(SPEED.tstate).forEach(id=>{
-      if (id === SPEED.detailTableId) return;
       renderSpeedTileBets(id);
       setSpeedTileBetsLocked(id, SPEED.tstate[id].phase !== 'betting');
       paintSpeedMultiRow(id);

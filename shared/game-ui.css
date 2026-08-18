@@ -195,7 +195,19 @@
    min-content width, the grid track is blown out past the viewport, and the whole list scrolls
    sideways instead of the one road that is too long. */
 .sm-row{flex:0 0 316px;width:316px;border:1px solid var(--line);border-radius:10px;padding:7px 8px;
-  background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:4px;min-width:0;}
+  background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:4px;min-width:0;
+  /* A house can run thirty tables, and laying all of them out at once was what was left of the
+     freeze after the roads were made lazy - 375ms of the 407 it took to open. The browser is
+     told it may skip the ones off the end of the rail and given their size so the rail is still
+     the right length to scroll; they lay themselves out as they are swiped to. Where this is not
+     supported nothing changes - it simply lays them all out as before. */
+  /* The row is given its height rather than taking it from its contents, because the placeholder
+     below has to match it exactly: the rail stretches every row to the tallest thing on the line,
+     and a skipped row contributes its placeholder - so a placeholder even a little too big walks
+     the whole rail taller. 135 outside the border is the 119 of content these rows have always
+     drawn in. */
+  height:135px;
+  content-visibility:auto;contain-intrinsic-size:auto 316px auto 119px;}
 /* the record and the spots side by side rather than stacked: stacked they made the row twice as
    deep, and depth is the whole cost of this panel */
 .sm-body{display:flex;gap:8px;min-width:0;height:78px;}

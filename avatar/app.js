@@ -1063,7 +1063,7 @@ function speedMultiPanelHtml(){
         <span class="sm-counts" id="smcounts-${id}"></span>
       </div>
       <div class="sm-body">
-        <div class="sm-road mini-road" id="smroad-${id}"></div>
+        <div class="sm-road mini-road" id="smroad-${id}" data-table="${id}" data-stale="1"></div>
         <div class="sm-spots">
           <div class="tb-row pairs">${SPEED_TILE_SPOTS.slice(0,3).map(spot(id)).join('')}</div>
           <div class="tb-row hands">${SPEED_TILE_SPOTS.slice(3).map(spot(id)).join('')}</div>
@@ -1096,10 +1096,13 @@ function toggleSpeedMultiPanel(open){
       renderSpeedTileBets(id);
       setSpeedTileBetsLocked(id, SPEED.tstate[id].phase !== 'betting');
       paintSpeedMultiRow(id);
-      renderSpeedMultiResult(id);
+      renderSpeedMultiResult(id);      // marks the road; the observer draws the ones on screen
       paintSpeedConfirmState(id);
     });
     renderSpeedStakedTotal();
+    watchSpeedMultiRoads();
+  } else {
+    unwatchSpeedMultiRoads();
   }
   el.classList.toggle('open', show);
   document.getElementById('speedMultiBtn')?.classList.toggle('active', show);
@@ -1123,23 +1126,66 @@ function paintSpeedMultiRow(tableId){
     last.className = 'sm-last' + (r ? ' ' + r.side : '');
   }
 }
-/* The row's roadmap and running count. The whole shoe goes in, not a tail of it, drawn six
-   rows deep the way the table's own board draws it - so no column is cut short and every
-   result played is on the paper, reachable by scrolling back from the newest column.
-   Only redrawn when a round lands, not on every tick. */
+/* The row's roadmap and running count. The whole shoe goes in, not a tail of it, drawn six rows
+   deep the way the table's own board draws it - so no column is cut short and every result played
+   is on the paper, reachable by scrolling back from the newest column.
+
+   A road is only drawn once its row is actually on the screen. Drawing them all when the panel
+   opens is what made pressing 멀티 베팅 freeze: a house running 32 tables put six thousand marks
+   into the page in one go, and every road then forces two layout passes to pin itself to its
+   newest column. Measured on a phone's processor that was 819ms of blocked main thread in a
+   single block and about 1.4s in all - the screen simply stopped. The rail only ever shows one
+   or two rows at a time, so the cost of opening it no longer depends on how many tables the
+   house runs at all. The rest are marked and drawn as they are swiped to. */
+const speedMultiVisible = new Set();
+let speedMultiRoadWatch = null;
 function renderSpeedMultiResult(tableId){
   const s = SPEED.tstate[tableId];
   if (!s) return;
   const road = document.getElementById(`smroad-${tableId}`);
   if (road){
-    const cols = buildBigRoad(s.history, s.pairFlags || []);
-    paintRoad(road, renderBigRoad(cols, 6) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`);
+    road.dataset.stale = '1';
+    if (speedMultiVisible.has(tableId)) paintSpeedMultiRoad(tableId);
   }
   const counts = document.getElementById(`smcounts-${tableId}`);
   if (counts){
-    const w = tableWinCounts(s.history);
+    const w = tableWinCounts(s.history);   // text, so cheap enough to keep current off-screen
     counts.innerHTML = `P <b>${w.player}</b> · B <b>${w.banker}</b> · T <b>${w.tie}</b>`;
   }
+}
+function paintSpeedMultiRoad(tableId){
+  const road = document.getElementById(`smroad-${tableId}`);
+  const s = SPEED.tstate[tableId];
+  if (!road || !s || road.dataset.stale !== '1') return;
+  road.dataset.stale = '0';
+  const cols = buildBigRoad(s.history, s.pairFlags || []);
+  paintRoad(road, renderBigRoad(cols, 6) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`);
+}
+/* Which rows are on the rail's screen. The margin means the next table along is drawn before it
+   is swiped to, so it is never caught being painted. */
+function watchSpeedMultiRoads(){
+  const list = document.querySelector('#speedMultiPanel .sm-list');
+  speedMultiRoadWatch?.disconnect();
+  speedMultiVisible.clear();
+  if (!list || typeof IntersectionObserver === 'undefined'){
+    // no observer: fall back to drawing them all, which is what it always did
+    Object.keys(SPEED.tstate).forEach(id=>{ speedMultiVisible.add(id); paintSpeedMultiRoad(id); });
+    return;
+  }
+  speedMultiRoadWatch = new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      const id = e.target.dataset.table;
+      if (!id) return;
+      if (e.isIntersecting){ speedMultiVisible.add(id); paintSpeedMultiRoad(id); }
+      else speedMultiVisible.delete(id);
+    });
+  }, {root: list, rootMargin: '0px 400px'});
+  list.querySelectorAll('.sm-road[data-table]').forEach(el=>speedMultiRoadWatch.observe(el));
+}
+function unwatchSpeedMultiRoads(){
+  speedMultiRoadWatch?.disconnect();
+  speedMultiRoadWatch = null;
+  speedMultiVisible.clear();
 }
 function renderSpeedStakedTotal(){
   let staked = 0;

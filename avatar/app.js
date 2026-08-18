@@ -1307,11 +1307,27 @@ function setSpeedTileBetsLocked(tableId, locked){
   });
   paintSpeedMultiRow(tableId);
 }
+/* What is genuinely still pending against the balance. A table's stake only leaves
+   STATE.balance for real once betting closes on it - beginSpeedDealing does that subtraction and
+   then leaves s.bets holding the confirmed amounts all through dealing and the result, so the
+   felt and the multi-bet panel still have something to show. Counting every table's s.bets as
+   "locked" without checking phase double-charges the display: a table already in dealing or
+   result has had its stake taken out of STATE.balance once for real, and summing its s.bets on
+   top of that took it out a second time. With two tables live - one just placed, one still being
+   staked - the balance came out ten thousand short of what it should have read. Only a table
+   still in 'betting' has money that has not actually moved yet. */
+function speedLockedTotal(){
+  let locked = 0;
+  Object.values(SPEED.tstate).forEach(s=>{
+    if (s.phase !== 'betting') return;
+    locked += Object.values(s.bets).reduce((a,b)=>a+b,0);
+  });
+  return locked;
+}
 function placeSpeedBet(tableId, type){
   const s = SPEED.tstate[tableId];
   if (!s || s.phase !== 'betting'){ toast(t('notBettingTime'), true); return; }
-  let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
-  const free = STATE.balance - locked;
+  const free = STATE.balance - speedLockedTotal();
   // the table's limits apply to each betting position, not to the round as a whole
   const max = tableBetMax(tableId);
   const headroom = Math.max(0, max - s.bets[type]);
@@ -1627,9 +1643,8 @@ function paintSpeedConfirmState(tableId){
 function repeatLastSpeedBetDetail(tableId){
   const s = SPEED.tstate[tableId]; if (!s || s.phase!=='betting') return;
   if (!s.lastBets || !Object.values(s.lastBets).some(v=>v>0)){ toast(t('repeatNoPrev'), true); return; }
-  let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
   const need = Object.values(s.lastBets).reduce((a,b)=>a+b,0);
-  if (STATE.balance - locked < need){ toast(t('insufficientBalance'), true); return; }
+  if (STATE.balance - speedLockedTotal() < need){ toast(t('insufficientBalance'), true); return; }
   const max = tableBetMax(tableId);
   if (Object.entries(s.lastBets).some(([k,v]) => v > 0 && (s.bets[k]||0) + v > max)){
     toast(t('aboveTableMax', {max: fmtNum(max)}), true); return;
@@ -1641,9 +1656,7 @@ function repeatLastSpeedBetDetail(tableId){
   projectSpeedBalance();
 }
 function projectSpeedBalance(){
-  let locked = 0;
-  Object.values(SPEED.tstate).forEach(s=> locked += Object.values(s.bets).reduce((a,b)=>a+b,0));
-  document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance - locked);
+  document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance - speedLockedTotal());
 }
 /* One loop drives every table's clock, so it must never wait on any of them. It used to await
    the phase changes, and a phase change is not quick: closing betting writes each staked spot to
@@ -1715,6 +1728,11 @@ function beginSpeedBetting(tableId){
   setSpeedTileBetsLocked(tableId, false);
   renderSpeedTileBets(tableId);
   renderSpeedStakedTotal();
+  // the header can be showing this table's stake projected off the balance - clearing s.bets
+  // above without this leaves it stuck low with nothing actually riding, which is exactly what
+  // happens when a bet fails to reach the cage: the table recovers to a clean round, but the
+  // balance display never did
+  projectSpeedBalance();
   setSpeedTilePhaseText(tableId, t('phaseBetting'));
   const scoreEl = document.getElementById('score-'+tableId); if (scoreEl) scoreEl.textContent = '';
   if (SPEED.detailTableId===tableId) clearSpeedDetailCards();

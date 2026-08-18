@@ -64,11 +64,9 @@ input,select,textarea{font-family:var(--sans);}
 .status-dot{width:7px;height:7px;border-radius:50%;background:var(--jade);box-shadow:0 0 6px var(--jade);}
 .status-dot.off{background:var(--danger);box-shadow:0 0 6px var(--danger);}
 .topbar-meta{display:flex;align-items:center;gap:16px;font-size:12px;color:var(--ink-dim);}
+.notif-wrap{margin-left:auto;}
 .topbar-meta b{color:var(--ink);font-weight:600;}
-/* margin-left:auto lives here (not on .notif-wrap) so the language switch is pulled rightward
-   along with the notification bells instead of sitting with the left-aligned meta info before
-   it - keeps it immediately to the left of the bells at every width. */
-.lang-switch{display:flex;gap:2px;background:var(--panel-raised);border-radius:var(--radius);padding:2px;border:1px solid var(--line);margin-left:auto;}
+.lang-switch{display:flex;gap:2px;background:var(--panel-raised);border-radius:var(--radius);padding:2px;border:1px solid var(--line);}
 .lang-switch button{
   background:transparent;border:none;color:var(--ink-faint);font-size:11px;font-weight:600;
   padding:5px 9px;border-radius:2px;transition:.15s;
@@ -474,6 +472,14 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     functionality, just repeated numbers there wasn't room to show twice. */
  .brand .ver,.divider-v,.status-chip,.topbar-meta{display:none;}
  .branch-select select{font-size:12px;padding:5px 8px;}
+ /* Phone only - on desktop the language switch stays where it's always been, with .notif-wrap
+    carrying the margin-left:auto. Here that auto margin moves to .lang-switch instead, so it
+    gets pulled rightward together with the notification bells (.notif-wrap's own auto margin is
+    cleared so it doesn't also grab space and split the two apart) and wraps onto the topbar's
+    second row right next to them, instead of getting left behind with the (already-hidden) meta
+    info or centered alone on its own row. */
+ .lang-switch{margin-left:auto;}
+ .notif-wrap{margin-left:0;}
  .notif-dropdown{width:min(320px,calc(100vw - 24px));right:-8px;}
 
  .shell{flex-direction:column;}

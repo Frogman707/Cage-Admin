@@ -4599,18 +4599,45 @@ function subscribeLedgerCloud(){
   scheduleFirestoreResubscribe('ledger', subscribeLedgerCloud);
  });
 }
+// Stable per-browser identifier for audit trails on money-relevant writes - same idea as
+// shared/cage-ui.js's getDeviceId() (used by avatar/partner-admin), duplicated locally rather than
+// shared since index.html doesn't load that file (predates the 5.0 shared-script split and pulling
+// it in now would risk colliding with this file's own toast()/openModal()/etc globals).
+function getDeviceId(){
+ let id = localStorage.getItem('cage-device-id');
+ if(!id){
+  id = crypto.randomUUID();
+  localStorage.setItem('cage-device-id', id);
+ }
+ return id;
+}
 // Returns a promise resolving true/false - a real money movement silently failing to reach
 // Firestore (flaky connection, blocked request) used to be indistinguishable from success: the
 // game/notification/toast all proceeded as if the cash had actually moved, with no way for staff
 // to know the ledger entry itself never landed. Local mode is unaffected (already synchronous/
 // reliable - the balance mutation there doesn't depend on any network round trip).
+//
+// Also applies FieldValue.increment() to balanceTotals/acct_{accountId} in the same batch as the
+// ledger write (see docs/BALANCE_ARCHITECTURE_DESIGN.md) - dual-write phase only, nothing reads
+// balanceTotals yet, hasSufficientTotalBalance below still checks the existing listener-derived
+// DB.accounts state. The batch (not a transaction) is enough here: there's no read-then-check
+// happening in this function, just "these two writes must land together or not at all".
 function writeLedgerEntry(opts){
  const {accountId, casino, type, amount, staff, memo} = opts;
  const id = 'ldg_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const entry = {id, accountId, casino, dt:now, type, inn: type==='IN'?amount:0, out: type==='OUT'?amount:0, staff, memo};
  if(fbDb){
-  return fbDb.collection('ledger').doc(id).set(entry).then(()=>true).catch(()=>false);
+  // createdAt/clientCreatedAt/deviceId only added on the Firestore write, not the shared `entry`
+  // above - a FieldValue.serverTimestamp() sentinel has no business in the local (non-cloud)
+  // branch's DB.ledger array below, which saveDB() later JSON.stringifies to localStorage.
+  const cloudEntry = {...entry, createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: now, deviceId: getDeviceId()};
+  const balRef = fbDb.collection('balanceTotals').doc('acct_'+accountId);
+  const delta = type==='IN' ? amount : -amount;
+  const batch = fbDb.batch();
+  batch.set(fbDb.collection('ledger').doc(id), cloudEntry);
+  batch.set(balRef, {balances:{[casino]: firebase.firestore.FieldValue.increment(delta)}}, {merge:true});
+  return batch.commit().then(()=>true).catch(()=>false);
  } else {
   DB.ledger[accountId] = DB.ledger[accountId]||[];
   DB.ledger[accountId].unshift(entry);
@@ -4770,13 +4797,21 @@ function deleteGameDoc(gameId){
   return batch.commit();
  }).catch(()=>{});
 }
+// Also increments games/{gameId}.rolling in the same batch (docs/BALANCE_ARCHITECTURE_DESIGN.md) -
+// piggybacks on the existing game doc rather than a new collection, since one already exists per
+// game. Dual-write only: renderAllGameViews/buildGameFromCache still derive `rolling` from summing
+// fbRollingEventsByGame, not from this field, until cutover.
 function writeRollingEvent(opts){
  const {gameId, amount, staff, memo} = opts;
  if(!fbDb || !amount) return null;
  const id = 'rev_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const entry = {id, gameId, amount, dt:now, staff, memo:memo||''};
- fbDb.collection('rollingEvents').doc(id).set(entry).catch(()=>{});
+ const entry = {id, gameId, amount, dt:now, staff, memo:memo||'',
+  createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: now, deviceId: getDeviceId()};
+ const batch = fbDb.batch();
+ batch.set(fbDb.collection('rollingEvents').doc(id), entry);
+ batch.set(fbDb.collection('games').doc(gameId), {rolling: firebase.firestore.FieldValue.increment(amount)}, {merge:true});
+ batch.commit().catch(()=>{});
  return entry;
 }
 function getGuestRollingGrandTotal(){
@@ -4981,12 +5016,23 @@ function subscribeMainCageLedgerCloud(){
   scheduleFirestoreResubscribe('mainCage', subscribeMainCageLedgerCloud);
  });
 }
+// buyin/rollingCC/marker add to the branch's rolling total, redeem subtracts - same rule
+// deriveMainCageForBranch already applies when summing the raw collection.
+const MAINCAGE_SIGN = {buyin:1, rollingCC:1, marker:1, redeem:-1};
+// Also increments balanceTotals/maincage_{branch}.total in the same batch (docs/BALANCE_ARCHITECTURE_DESIGN.md).
+// Dual-write only: deriveMainCageForBranch still derives the displayed total from fbMainCageRaw.
 function writeMainCageEntry(type, amt, staff){
  if(!fbDb) return null;
  const id = 'mcl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- const entry = {id, type, amt, dt:now, staff, branch:currentBranch()};
- fbDb.collection('mainCageLedger').doc(id).set(entry).catch(()=>{});
+ const branch = currentBranch();
+ const entry = {id, type, amt, dt:now, staff, branch,
+  createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: now, deviceId: getDeviceId()};
+ const batch = fbDb.batch();
+ batch.set(fbDb.collection('mainCageLedger').doc(id), entry);
+ const sign = MAINCAGE_SIGN[type] || 0;
+ batch.set(fbDb.collection('balanceTotals').doc('maincage_'+branch), {total: firebase.firestore.FieldValue.increment(sign*amt)}, {merge:true});
+ batch.commit().catch(()=>{});
  return entry;
 }
 function deleteMainCageEntry(id){
@@ -5115,11 +5161,19 @@ function subscribeShiftEventsCloud(){
   scheduleFirestoreResubscribe('shiftEvents', subscribeShiftEventsCloud);
  });
 }
+// Also increments balanceTotals/shift_{branch}.{field} in the same batch (docs/BALANCE_ARCHITECTURE_DESIGN.md).
+// Dual-write only: deriveShiftTotalsForBranch still derives the displayed totals from fbShiftRaw.
 function writeShiftEvent(field, delta, staff){
  if(!fbDb || !delta) return;
  const id = 'shf_'+Date.now()+'_'+Math.random().toString(36).slice(2,9)+'_'+field;
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
- fbDb.collection('shiftEvents').doc(id).set({id, field, delta, dt:now, staff:staff||'', branch:currentBranch()}).catch(()=>{});
+ const branch = currentBranch();
+ const entry = {id, field, delta, dt:now, staff:staff||'', branch,
+  createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: now, deviceId: getDeviceId()};
+ const batch = fbDb.batch();
+ batch.set(fbDb.collection('shiftEvents').doc(id), entry);
+ batch.set(fbDb.collection('balanceTotals').doc('shift_'+branch), {[field]: firebase.firestore.FieldValue.increment(delta)}, {merge:true});
+ batch.commit().catch(()=>{});
 }
 function applyShift(field, delta, staff){
  if(fbDb){ writeShiftEvent(field, delta, staff); } else { bd()[field] = (bd()[field]||0) + delta; }

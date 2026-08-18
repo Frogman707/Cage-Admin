@@ -5,6 +5,11 @@
   "functions": {
     "source": "functions"
   },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    }
+  },
   "hosting": {
     "public": ".",
     "ignore": [

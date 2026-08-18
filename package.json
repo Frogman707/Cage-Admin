@@ -1,16 +1,20 @@
 {
   "name": "cage-admin",
   "private": true,
-  "description": "Dev tooling only (lint/format) - the app itself has no build step; index.html and the other pages deploy as-is via Firebase Hosting.",
+  "description": "Dev tooling only (lint/format/emulator tests) - the app itself has no build step; index.html and the other pages deploy as-is via Firebase Hosting.",
   "scripts": {
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:balance-emulator": "npx --yes firebase-tools emulators:exec --only firestore --project cage-admin-balance-emulator-test \"node test/balance-emulator.test.js\"",
+    "test:dual-write-compat": "npx --yes firebase-tools emulators:exec --only firestore --project cage-admin-balance-compat-test \"node test/dual-write-compat.test.js\""
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
+    "@firebase/rules-unit-testing": "^5.0.1",
     "eslint": "^9.9.0",
     "eslint-plugin-html": "^8.1.4",
+    "firebase": "^12.17.1",
     "prettier": "^3.3.3"
   }
 }

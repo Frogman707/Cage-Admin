@@ -480,7 +480,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;height:auto;z-index:40;
   flex-direction:row;padding:0;border-right:none;border-top:1px solid var(--line);
   overflow-x:auto;-webkit-overflow-scrolling:touch;
-  padding-bottom:env(safe-area-inset-bottom);
  }
  .nav button{
   flex:1 0 auto;min-width:58px;flex-direction:column;gap:3px;
@@ -489,7 +488,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  }
  .nav button.active{border-left-color:transparent;border-top-color:var(--brass);box-shadow:none;}
  .nav-foot{display:none;}
- .main{padding:14px 14px calc(70px + env(safe-area-inset-bottom));}
+ .main{padding:14px 14px 70px;}
 
  /* Fixed-width card with no viewport safeguard - clipped on phones narrower than ~390px. */
  .login-card{max-width:calc(100vw - 32px);padding:28px 20px 24px;}
@@ -625,7 +624,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
       <option value="HANN">HANN</option>
       <option value="SOLAIRE">SOLAIRE</option>
       <option value="MIDORI">MIDORI</option>
-      <option value="ONLINE">ONLINE</option>
     </select>
   </div>
   <div class="status-chip dt-only"><span class="status-dot" id="nfcDot"></span><span id="nfcTxt" data-i18n="nfcConnected"></span></div>
@@ -4771,7 +4769,11 @@ function getRollingDailyTotal(){
 }
 
 /* ---- Branch-scoped balancing data (HANN/NUSTAR/ONLINE each have independent cage/balancing state) ---- */
-function currentBranch(){ return DB.currentCasino || 'HANN'; }
+// ONLINE was removed from the branch selector - anyone whose locally saved currentCasino is still
+// 'ONLINE' from before that change needs to fall back to a real, still-selectable branch, or the
+// dropdown renders with nothing selected while every currentBranch()-keyed view keeps acting as
+// if 'ONLINE' were current.
+function currentBranch(){ const c = DB.currentCasino; return (c && c !== 'ONLINE') ? c : 'HANN'; }
 // Guest accounts are shared across every branch (a member can be found and transacted with
 // regardless of which branch registered them - only their per-branch balances.HANN/NUSTAR/ONLINE
 // differ). MAIN accounts are the exception: each one is a branch's own house bank, so it only

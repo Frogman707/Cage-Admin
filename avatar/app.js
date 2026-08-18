@@ -1586,20 +1586,47 @@ function projectSpeedBalance(){
   Object.values(SPEED.tstate).forEach(s=> locked += Object.values(s.bets).reduce((a,b)=>a+b,0));
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance - locked);
 }
-async function tickAllSpeedTables(){
+/* One loop drives every table's clock, so it must never wait on any of them. It used to await
+   the phase changes, and a phase change is not quick: closing betting writes each staked spot to
+   the cage over the network and then deals the cards one at a time, a second and a half of
+   animation on its own. Every table behind that one in the loop stopped counting until it
+   finished - stake the room from the multi-bet rail on a slow link and the whole screen froze.
+   The clock now only counts. A phase change is started and left to finish on its own. */
+function tickAllSpeedTables(){
   for (const tableId of Object.keys(SPEED.tstate)){
     const s = SPEED.tstate[tableId];
     s.secondsLeft--;
     if (s.phase==='betting'){
       setSpeedTileTimer(tableId, Math.max(0,s.secondsLeft));
-      if (s.secondsLeft <= 0) await beginSpeedDealing(tableId);
+      if (s.secondsLeft <= 0) startSpeedPhase(tableId, beginSpeedDealing);
     } else if (s.phase==='dealing'){
-      if (s.secondsLeft <= 0) await beginSpeedResult(tableId);
+      if (s.secondsLeft <= 0) startSpeedPhase(tableId, beginSpeedResult);
     } else if (s.phase==='result'){
       setSpeedTileTimer(tableId, Math.max(0,s.secondsLeft));
       if (s.secondsLeft <= 0) beginSpeedBetting(tableId);
     }
   }
+}
+/* A table runs one phase change at a time. The guard is what keeps a slow round honest: while
+   the cage is still taking the bets, the clock keeps counting down and would otherwise call the
+   result in on a hand that has not been dealt yet - which read the cards off an empty round and
+   threw. Held back, it simply tries again on the next second. A failure is caught here as well,
+   so one table losing its connection cannot stop the rest of the room. */
+const speedPhaseBusy = new Set();
+function startSpeedPhase(tableId, fn){
+  if (speedPhaseBusy.has(tableId)) return;
+  speedPhaseBusy.add(tableId);
+  Promise.resolve()
+    .then(()=>fn(tableId))
+    .catch(err=>{
+      // A round that could not be put through leaves the table mid-phase, and a table stuck in
+      // dealing never deals again - its clock runs on into the negative for ever. Say so and
+      // start it over on a fresh round, which is the only state it can safely be left in.
+      console.error('speed phase failed on', tableId, err);
+      if (SPEED.detailTableId === tableId) toast(t('roundFailed'), true);
+      try { beginSpeedBetting(tableId); } catch (e){ console.error('speed recovery failed on', tableId, e); }
+    })
+    .finally(()=>speedPhaseBusy.delete(tableId));
 }
 function setSpeedTileTimer(tableId, v){
   const el = document.getElementById('timer-'+tableId); if (el) el.textContent = v;
@@ -1620,6 +1647,9 @@ function beginSpeedBetting(tableId){
   if (hadBets) s.lastBets = {...s.bets};
   s.phase = 'betting'; s.secondsLeft = SPEED_BETTING_SECONDS; s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0}; s.currentRoundId = uuidv4();
   s.confirmed = null;
+  // the hand belongs to the round that just ended; clearing it is what lets "no hand, no result"
+  // in beginSpeedResult mean this round's hand rather than possibly the last one's
+  s._sim = null;
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
     if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${k}`)?.classList.remove('selected','locked');
   });
@@ -1692,6 +1722,9 @@ function advanceSpeedShoe(tableId){
 }
 async function beginSpeedResult(tableId){
   const s = SPEED.tstate[tableId];
+  // no hand, no result: the deal is still going through, so leave the table where it is and let
+  // the next second call it in rather than reading the cards off a round that has none
+  if (!s._sim) return;
   s.phase = 'result'; s.secondsLeft = SPEED_RESULT_SECONDS;
   const sim = s._sim;
   const tb = SPEED.tables[tableId];

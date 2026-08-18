@@ -184,6 +184,7 @@ const I18N_DICT = {
   betCompleteToast:{ko:'베팅이 접수되었습니다',zh:'投注已提交',en:'Bet placed',ja:'ベットを受け付けました',vi:'Đã đặt cược'},
   repeatNoPrev:{ko:'반복할 이전 베팅이 없습니다',zh:'没有可重复的上一次投注',en:'No previous bet to repeat',ja:'繰り返すベットがありません',vi:'Không có cược trước để lặp lại'},
   streakLabel:{ko:'연속',zh:'连',en:'streak',ja:'連続',vi:'liên tiếp'},
+  roundFailed:{ko:'이번 라운드 처리에 실패했습니다. 연결을 확인해 주세요.',zh:'本局处理失败，请检查网络连接。',en:'This round could not be settled — check your connection.',ja:'このラウンドの処理に失敗しました。接続を確認してください。',vi:'Không xử lý được ván này — vui lòng kiểm tra kết nối.'},
   watchingNow:{ko:'보는 중',zh:'观看中',en:'Watching',ja:'視聴中',vi:'Đang xem'},
   multiBet:{ko:'멀티 베팅',zh:'多桌投注',en:'Multi-bet',ja:'マルチベット',vi:'Cược nhiều bàn'},
   enterShort:{ko:'입장',zh:'进入',en:'Enter',ja:'入場',vi:'Vào'},

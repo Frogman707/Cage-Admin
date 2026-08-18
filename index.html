@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cage Admin</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
@@ -482,6 +482,13 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   flex-direction:row;padding:0;border-right:none;border-top:1px solid var(--line);
   overflow-x:auto;-webkit-overflow-scrolling:touch;
  }
+ /* Without viewport-fit=cover (set on the <meta viewport> tag), the page couldn't draw into a
+    notched phone's home-indicator strip at all, so the browser letterboxed that area below any
+    fixed-bottom content instead - reading as the bar floating short of the true bottom edge.
+    Now that it can, the bar's own background (this padding) reaches the real edge; the safe-area
+    inset is pushed onto the *buttons* below instead, so their tap targets still clear the gesture
+    area rather than sitting flush and getting swallowed by system swipe-up gestures. */
+ .nav{padding-bottom:env(safe-area-inset-bottom, 0px);}
  .nav button{
   flex:1 0 auto;min-width:58px;flex-direction:column;gap:3px;
   padding:7px 2px 8px;font-size:9.5px;text-align:center;white-space:nowrap;
@@ -489,7 +496,12 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  }
  .nav button.active{border-left-color:transparent;border-top-color:var(--brass);box-shadow:none;}
  .nav-foot{display:none;}
- .main{padding:14px 14px 70px;}
+ .main{padding:14px 14px calc(100px + env(safe-area-inset-bottom, 0px));}
+ /* Toast sits at a plain bottom:20px normally - now that the bottom nav occupies that same
+    strip on phone, push the toast up above it instead of letting the two overlap (the nav is
+    ~94px tall with icon+label buttons, not the ~70px reserved in .main's padding above). */
+ .toast{bottom:calc(104px + env(safe-area-inset-bottom, 0px));}
+ .toast.show{bottom:calc(114px + env(safe-area-inset-bottom, 0px));}
 
  /* Fixed-width card with no viewport safeguard - clipped on phones narrower than ~390px. */
  .login-card{max-width:calc(100vw - 32px);padding:28px 20px 24px;}

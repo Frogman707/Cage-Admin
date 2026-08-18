@@ -1233,8 +1233,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <button class="btn btn-sm" style="align-self:flex-end;height:38px;margin-bottom:12px;" onclick="randomAccId()" data-i18n="regRandomBtn"></button>
           </div>
           <div class="row">
-            <div class="field"><label data-i18n="regPw"></label><input type="password"></div>
-            <div class="field"><label data-i18n="regPwConfirm"></label><input type="password"></div>
+            <div class="field"><label data-i18n="regPw"></label><input type="password" id="regPw"></div>
+            <div class="field"><label data-i18n="regPwConfirm"></label><input type="password" id="regPwConfirm"></div>
           </div>
           <div class="row">
             <div class="field req-field"><label data-i18n="regWdPw"></label><input type="password" id="regWdPw" inputmode="numeric"></div>
@@ -1432,8 +1432,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="field"><label data-i18n="colAccount"></label><input id="editAccId" disabled></div>
 
   <div class="row" style="margin-top:12px;">
-    <div class="field"><label data-i18n="regPw"></label><input type="password"></div>
-    <div class="field"><label data-i18n="regPwConfirm"></label><input type="password"></div>
+    <div class="field"><label data-i18n="regPw"></label><input type="password" id="editPw"></div>
+    <div class="field"><label data-i18n="regPwConfirm"></label><input type="password" id="editPwConfirm"></div>
   </div>
   <div class="row">
     <div class="field"><label data-i18n="regWdPw"></label><input type="password" id="editWdPw" inputmode="numeric"></div>
@@ -4387,6 +4387,67 @@ function subscribeStaffCloud(){
  });
 }
 
+/* ---- Avatar Speed link: a cage account is a player account ----
+   The player site signs a member in against the `members` collection, so an account opened here
+   cannot log into Avatar Speed until it exists as one. This pushes every guest account across -
+   the MAIN-* house floats are not players and stay out - keyed by the same account ID, so a
+   customer uses the ID and withdrawal password they already have at the cage.
+
+   The money needs no handing over: a cage account's balance is the cage's own `ledger`, and the
+   player site reads and writes that same ledger, so a stake leaves the account and a win returns
+   to it on the rows the cage floor is already watching. */
+
+/* What an account signs into Avatar Speed with: the password set when it was opened, or the
+   withdrawal password for accounts opened before that field was wired up, or 0000 for the demo
+   accounts that have neither. */
+function avatarPasswordFor(id){
+ const acc = DB.accounts[id] || {};
+ return acc.pw || acc.withdrawPw || '0000';
+}
+function cageAccountAsMember(id){
+ const acc = DB.accounts[id] || {};
+ const blocked = (DB.blocks||[]).some(b=>b.account===id);
+ const clean = v => (v && v !== '—') ? v : '';
+ return {
+  id, loginId:id,
+  pw: avatarPasswordFor(id),
+  withdrawPw: acc.withdrawPw || '0000',
+  nickname: acc.nickname || acc.engName || id,
+  engName: acc.engName || '',
+  phone: clean(acc.phone),
+  telegram: clean(acc.telegram) || null,
+  casino: acc.openedCasino || 'HANN',
+  agentCode: acc.agentCode || 'DIRECT',
+  parentAgent: acc.agentCode || 'DIRECT',
+  memberType: acc.vip ? 'VIP' : '정회원',
+  status: blocked ? '차단' : '정상',
+  vip: !!acc.vip,
+  betMin: 5000, betMax: 3000000,
+  source: 'cage',
+  createdAt: acc.openedDt || phNow().toISOString(),
+ };
+}
+/* `silent` suppresses the success message only - a failure always speaks. An account that never
+   reached Avatar Speed cannot be signed into, and finding that out from the customer at the table
+   is worse than a toast nobody asked for. */
+async function syncAccountsToAvatarSpeed(silent){
+ if(!fbDb){ toast(t('toastAvatarSyncOffline')); return {ok:false, synced:0}; }
+ const ids = Object.keys(DB.accounts||{}).filter(id=>!isMainAccount(id));
+ if(!ids.length){ if(!silent) toast(t('toastAvatarSyncNone')); return {ok:true, synced:0}; }
+ try{
+  const batch = fbDb.batch();
+  ids.forEach(id=>{
+   batch.set(fbDb.collection('members').doc(id), cageAccountAsMember(id), {merge:true});
+  });
+  await batch.commit();
+  if(!silent) toast(t('toastAvatarSynced').replace('{n}', ids.length));
+  return {ok:true, synced:ids.length};
+ }catch(e){
+  toast(t('toastAvatarSyncFailed'));
+  return {ok:false, synced:0, error:String(e)};
+ }
+}
+
 /* ---- Ledger (account deposits/withdrawals/transfers) — append-only, balance is derived ---- */
 async function seedLedgerToCloudIfEmpty(){
  if(!fbDb) return;
@@ -5055,7 +5116,7 @@ ko:{
  ioAction:"입출금 처리", ioTypeDeposit:"입금", ioTypeWithdraw:"출금", amount:"금액", targetCasino:"대상 카지노", ioRemark:"비고", workingChipLabel:"워킹칩",
  ioMemoPh:"입출금 관련 비고 입력", processBtn:"처리하기",
  transferTo:"이체 대상", transferBtn:"이체 실행",
- btnAccountOpening:"어카운트 목록", btnAccountBlock:"어카운트 차단", btnAccountUpdate:"정보 수정", btnBlockList:"차단 목록", btnDailyIo:"전체 입출금 내역", btnMemoList:"비고 목록", btnTotalDeposit:"총 입금 현황",
+ btnAccountOpening:"어카운트 목록", toastAvatarSynced:"어카운트 {n}건을 아바타 스피드에 연동했습니다.", toastAvatarSyncOffline:"클라우드에 연결되어 있지 않아 연동할 수 없습니다.", toastAvatarSyncNone:"연동할 어카운트가 없습니다.", toastAvatarSyncFailed:"아바타 스피드 연동에 실패했습니다.", btnAccountBlock:"어카운트 차단", btnAccountUpdate:"정보 수정", btnBlockList:"차단 목록", btnDailyIo:"전체 입출금 내역", btnMemoList:"비고 목록", btnTotalDeposit:"총 입금 현황",
  accLedger:"입출금 내역", allRecords:"전체 기록",
  colCasino:"카지노", colDate:"일시", colType:"구분", colIn:"입금", colOut:"출금", colBalance:"잔액", colStaff:"담당자", colMemo:"비고",
  colAccount:"어카운트", colCurrency:"통화", colInAmt:"입금액", colOutAmt:"출금액", colRemark:"비고",
@@ -5193,7 +5254,7 @@ en:{
  ioAction:"Deposit / Withdraw", ioTypeDeposit:"Deposit", ioTypeWithdraw:"Withdraw", amount:"Amount", targetCasino:"Target Casino", ioRemark:"Remark", workingChipLabel:"Working Chip",
  ioMemoPh:"Enter a remark for this transaction", processBtn:"Process",
  transferTo:"Transfer To", transferBtn:"Transfer",
- btnAccountOpening:"Account List", btnAccountBlock:"Block Account", btnAccountUpdate:"Edit Info", btnBlockList:"Block List", btnDailyIo:"All Transaction History", btnMemoList:"Remark List", btnTotalDeposit:"Total Deposits",
+ btnAccountOpening:"Account List", toastAvatarSynced:"Linked {n} accounts to Avatar Speed.", toastAvatarSyncOffline:"Not connected to the cloud - cannot link.", toastAvatarSyncNone:"No accounts to link.", toastAvatarSyncFailed:"Linking to Avatar Speed failed.", btnAccountBlock:"Block Account", btnAccountUpdate:"Edit Info", btnBlockList:"Block List", btnDailyIo:"All Transaction History", btnMemoList:"Remark List", btnTotalDeposit:"Total Deposits",
  accLedger:"Transaction History", allRecords:"All Records",
  colCasino:"Casino", colDate:"Date/Time", colType:"Type", colIn:"In", colOut:"Out", colBalance:"Balance", colStaff:"Staff", colMemo:"Remark",
  colAccount:"Account", colCurrency:"Currency", colInAmt:"In Amt", colOutAmt:"Out Amt", colRemark:"Remark",
@@ -5331,7 +5392,7 @@ en:{
  ioAction:"存提款作業", ioTypeDeposit:"存入", ioTypeWithdraw:"提出", amount:"金額", targetCasino:"對象賭場", ioRemark:"備註", workingChipLabel:"工作碼",
  ioMemoPh:"輸入本筆交易備註", processBtn:"送出處理",
  transferTo:"轉帳對象", transferBtn:"執行轉帳",
- btnAccountOpening:"帳戶清單", btnAccountBlock:"帳戶封鎖", btnAccountUpdate:"資料修改", btnBlockList:"封鎖名單", btnDailyIo:"全部收付紀錄", btnMemoList:"備註紀錄", btnTotalDeposit:"總存款狀況",
+ btnAccountOpening:"帳戶清單", toastAvatarSynced:"已將 {n} 個帳戶連動至 Avatar Speed。", toastAvatarSyncOffline:"未連線至雲端，無法連動。", toastAvatarSyncNone:"沒有可連動的帳戶。", toastAvatarSyncFailed:"連動 Avatar Speed 失敗。", btnAccountBlock:"帳戶封鎖", btnAccountUpdate:"資料修改", btnBlockList:"封鎖名單", btnDailyIo:"全部收付紀錄", btnMemoList:"備註紀錄", btnTotalDeposit:"總存款狀況",
  accLedger:"收付記錄", allRecords:"全部紀錄",
  colCasino:"賭場", colDate:"日期時間", colType:"類別", colIn:"存入", colOut:"提出", colBalance:"餘額", colStaff:"經辦人", colMemo:"備註",
  colAccount:"帳戶", colCurrency:"幣別", colInAmt:"存入金額", colOutAmt:"提出金額", colRemark:"備註",
@@ -5469,7 +5530,7 @@ en:{
  ioAction:"存取款操作", ioTypeDeposit:"存入", ioTypeWithdraw:"取出", amount:"金额", targetCasino:"目标赌场", ioRemark:"备注", workingChipLabel:"工作码",
  ioMemoPh:"输入本笔交易备注", processBtn:"提交处理",
  transferTo:"转账对象", transferBtn:"执行转账",
- btnAccountOpening:"账户清单", btnAccountBlock:"账户封锁", btnAccountUpdate:"资料修改", btnBlockList:"封锁名单", btnDailyIo:"全部收付记录", btnMemoList:"备注记录", btnTotalDeposit:"总存款情况",
+ btnAccountOpening:"账户清单", toastAvatarSynced:"已将 {n} 个账户联动至 Avatar Speed。", toastAvatarSyncOffline:"未连接云端，无法联动。", toastAvatarSyncNone:"没有可联动的账户。", toastAvatarSyncFailed:"联动 Avatar Speed 失败。", btnAccountBlock:"账户封锁", btnAccountUpdate:"资料修改", btnBlockList:"封锁名单", btnDailyIo:"全部收付记录", btnMemoList:"备注记录", btnTotalDeposit:"总存款情况",
  accLedger:"收付记录", allRecords:"全部记录",
  colCasino:"赌场", colDate:"日期时间", colType:"类别", colIn:"存入", colOut:"取出", colBalance:"余额", colStaff:"经办人", colMemo:"备注",
  colAccount:"账户", colCurrency:"币种", colInAmt:"存入金额", colOutAmt:"取出金额", colRemark:"备注",
@@ -5877,7 +5938,7 @@ function checkAvatarRequest(){
 function renderAvatarReqList(){
  const reqs = pendingAvatarRequestsForBranch();
  const body = document.getElementById('avatarReqListBody');
- body.innerHTML = !reqs.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
+ body.innerHTML = !reqs.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   reqs.map(req=>`<tr><td>${esc(req.casino)||'—'}</td><td class="num">${fmtPhFromIso(req.requestedAt)}</td><td>${esc(req.memberId)||'—'}</td><td>${esc(req.tableId)||'—'}</td><td class="num">${req.buyin?fmt(req.buyin):'—'}</td><td>${esc(req.avatarStaffId)||'—'}</td>
    <td><button class="btn btn-sm btn-danger" onclick="cancelAvatarRequest('${esc(req.id)}')">${t('cancelBtn')}</button></td></tr>`).join('');
 }
@@ -6128,6 +6189,8 @@ function openEditAccount(){
  // of forcing staff to retype a value they never meant to touch just to avoid a mismatch error.
  document.getElementById('editWdPw').value = '';
  document.getElementById('editWdPwConfirm').value = '';
+ document.getElementById('editPw').value = '';
+ document.getElementById('editPwConfirm').value = '';
  document.getElementById('editEngName').value = acc.engName||'';
  document.getElementById('editNickname').value = acc.nickname||'';
  document.getElementById('editVip').checked = !!acc.vip;
@@ -6164,6 +6227,11 @@ function saveAccountEdit(){
  const wdPwConfirm = document.getElementById('editWdPwConfirm').value;
  if(wdPw && wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
  if(wdPw) acc.withdrawPw = wdPw;
+ // the account password - this is what the customer signs into Avatar Speed with
+ const loginPw = document.getElementById('editPw').value;
+ const loginPwConfirm = document.getElementById('editPwConfirm').value;
+ if(loginPw && loginPw !== loginPwConfirm){ toast(t('toastPwMismatch')); return; }
+ if(loginPw) acc.pw = loginPw;
  acc.engName = document.getElementById('editEngName').value.trim();
  acc.nickname = document.getElementById('editNickname').value.trim();
  acc.vip = document.getElementById('editVip').checked;
@@ -6172,6 +6240,7 @@ function saveAccountEdit(){
  // If this account is already sitting in the buy-in form, refresh its game-type default so a
  // rate change is reflected immediately instead of only on the next time the account is looked up.
  if(document.getElementById('gAccount').value.trim().toUpperCase() === id) applyAccountRateToGameType(id);
+ syncAccountsToAvatarSpeed(true);   // name, status or password - Avatar Speed needs the change too
  acc.phone = document.getElementById('editPhone').value.trim();
  acc.telegram = document.getElementById('editTelegram').value.trim();
  acc.agentCode = document.getElementById('editAgentCode').value.trim();
@@ -8557,11 +8626,18 @@ function submitReg(){
  const wdPw = document.getElementById('regWdPw').value;
  const wdPwConfirm = document.getElementById('regWdPwConfirm').value;
  if(wdPw !== wdPwConfirm){ toast(t('toastPwMismatch')); return; }
+ // The account password. It had no id on its input and was read by nothing, so whatever the
+ // operator typed here was thrown away - which is why an account could never sign into Avatar
+ // Speed with it. It is the login password, so it is what Avatar Speed is given.
+ const loginPw = document.getElementById('regPw').value;
+ const loginPwConfirm = document.getElementById('regPwConfirm').value;
+ if(loginPw !== loginPwConfirm){ toast(t('toastPwMismatch')); return; }
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  DB.accounts[id] = {member:memberNo||"NEW", phone:"—", rate:"1.5%", telegram:"—", balance:0, openedCasino:DB.currentCasino||'HANN', openedDt:now, currency:'PHP', remark:''};
  const acc = DB.accounts[id];
  if(memberNo) acc.member = memberNo;
  if(wdPw) acc.withdrawPw = wdPw;
+ if(loginPw) acc.pw = loginPw;
  acc.engName = document.getElementById('regEngName').value.trim();
  acc.nickname = document.getElementById('regNickname').value.trim();
  acc.vip = document.getElementById('regVip').checked;
@@ -8581,11 +8657,14 @@ function submitReg(){
  if(sPad && sPad.ctx) acc.signaturePhoto = sPad.ctx.canvas.toDataURL();
  DB.ledger[id] = DB.ledger[id] || [];
  saveDB();
+ // a new account is a player account too - hand it straight to Avatar Speed rather than waiting
+ // for someone to press the link button on the list
+ syncAccountsToAvatarSpeed(true);
  pushNotification('notifRegister', id);
  toast(t('toastRegistered'));
 
  // Reset the form so this customer's photos/signature aren't carried into the next registration.
- ['regAccId','regMembershipNo','regWdPw','regWdPwConfirm','regEngName','regNickname','regPhone','regTelegramId','regAgentCode','regPassportNo','regPassportExp'].forEach(fid=>{
+ ['regAccId','regMembershipNo','regPw','regPwConfirm','regWdPw','regWdPwConfirm','regEngName','regNickname','regPhone','regTelegramId','regAgentCode','regPassportNo','regPassportExp'].forEach(fid=>{
   const el = document.getElementById(fid); if(el) el.value='';
  });
  document.getElementById('regVip').checked = false;
@@ -8655,7 +8734,7 @@ function renderBranchRecord(){
  });
  rows.sort((a,b)=> (b.dt||'').localeCompare(a.dt||''));
  const body = document.getElementById('branchRecordBody');
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   rows.map(r=>`<tr><td class="num">${esc(r.dt)}</td><td>${esc(r.account)}</td><td>${esc(r.type)}</td>
    <td class="num pos">${r.inn?fmt(r.inn):''}</td><td class="num neg">${r.out?fmt(r.out):''}</td>
    <td class="num">${fmt(r.bal)}</td><td>${esc(r.staff)}</td></tr>`).join('');
@@ -8816,7 +8895,7 @@ function showHotelReceipt(id){
 }
 function renderHotels(){
  const rows = (DB.hotels||[]).filter(b=>recordVisibleInBranch(b.account));
- document.getElementById('hotelBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
+ document.getElementById('hotelBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   rows.map(b=>`<tr class="row-click" onclick="showHotelReceipt('${b.id}')"><td>${esc(b.account)}</td><td>${esc(b.guest)||'—'}</td><td>${esc(b.roomType)}</td><td class="num">${esc(b.checkin)}</td><td class="num">${esc(b.checkout)}</td>
    <td>${b.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
    <td>${b.status==='confirmed'?`<button class="btn btn-sm" onclick="event.stopPropagation();cancelHotelBooking('${b.id}')">${t('cancelBtn')}</button>`:''}</td></tr>`).join('');
@@ -8869,7 +8948,7 @@ function showCarReceipt(id){
 }
 function renderCars(){
  const rows = (DB.cars||[]).filter(c=>recordVisibleInBranch(c.account));
- document.getElementById('carBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
+ document.getElementById('carBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   rows.map(c=>`<tr class="row-click" onclick="showCarReceipt('${c.id}')"><td>${esc(c.account)}</td><td class="num">${esc(c.dt)}</td><td>${esc(c.pickup)||'—'}</td><td>${esc(c.dropoff)||'—'}</td><td>${esc(c.carType)}</td>
    <td>${c.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
    <td>${c.status==='confirmed'?`<button class="btn btn-sm" onclick="event.stopPropagation();cancelCarReservation('${c.id}')">${t('cancelBtn')}</button>`:''}</td></tr>`).join('');
@@ -8920,7 +8999,7 @@ function showAeroReceipt(id){
 }
 function renderAero(){
  const rows = (DB.aero||[]).filter(a=>recordVisibleInBranch(a.account));
- document.getElementById('aeroBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
+ document.getElementById('aeroBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   rows.map(a=>`<tr class="row-click" onclick="showAeroReceipt('${a.id}')"><td>${esc(a.account)}</td><td>${a.direction==='arrival'?t('directionArrival'):t('directionDeparture')}</td><td>${esc(a.flight)}</td><td>${esc(a.airport)||'—'}</td><td class="num">${esc(a.dt)}</td>
    <td>${a.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
    <td>${a.status==='confirmed'?`<button class="btn btn-sm" onclick="event.stopPropagation();cancelAero('${a.id}')">${t('cancelBtn')}</button>`:''}</td></tr>`).join('');
@@ -9412,6 +9491,11 @@ function startInactivityTimer(){
   await withTimeout(seedCageConfigToCloudIfEmpty(), 6000);
   subscribeCageConfigCloud();
   subscribeAvatarRequestsCloud();
+  // Every account opened here is a player account, so they are handed to Avatar Speed as soon as
+  // the cloud is up rather than waiting for anyone to press anything. Quiet on success - there is
+  // nothing for staff to do about it - but a failure still speaks, because an account that never
+  // arrived cannot be signed into.
+  withTimeout(syncAccountsToAvatarSpeed(true), 8000);
  }
 })();
 </script>

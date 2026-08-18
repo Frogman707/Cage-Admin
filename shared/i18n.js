@@ -148,6 +148,8 @@ const I18N_DICT = {
   notBettingTime:{ko:'베팅 시간이 아닙니다',zh:'不在投注时间',en:'Not betting time',ja:'ベット時間ではありません',vi:'Không phải giờ đặt cược'},
   connectingTable:{ko:'테이블에 연결 중입니다...',zh:'正在连接桌台...',en:'Connecting to table...',ja:'テーブルに接続中...',vi:'Đang kết nối bàn...'},
   dealsLabel:{ko:'게임 횟수',zh:'局數',en:'Deals',ja:'ゲーム回数',vi:'Số ván'},
+  roundLabel:{ko:'라운드 번호',zh:'局號',en:'Round',ja:'ラウンド番号',vi:'Số ván'},
+  shoeLabel:{ko:'슈 번호',zh:'靴號',en:'Shoe',ja:'シュー番号',vi:'Số giày bài'},
   myBetHistory:{ko:'내 베팅내역',zh:'我的投注记录',en:'My Bet History',ja:'私のベット履歴',vi:'Lịch sử cược của tôi'},
   noBetsYet:{ko:'아직 베팅 내역이 없습니다',zh:'暂无投注记录',en:'No bets yet',ja:'まだベット履歴がありません',vi:'Chưa có lịch sử cược'},
   push:{ko:'푸시',zh:'走水',en:'Push',ja:'プッシュ',vi:'Hòa cược'},
@@ -182,10 +184,15 @@ const I18N_DICT = {
   betCompleteToast:{ko:'베팅이 접수되었습니다',zh:'投注已提交',en:'Bet placed',ja:'ベットを受け付けました',vi:'Đã đặt cược'},
   repeatNoPrev:{ko:'반복할 이전 베팅이 없습니다',zh:'没有可重复的上一次投注',en:'No previous bet to repeat',ja:'繰り返すベットがありません',vi:'Không có cược trước để lặp lại'},
   streakLabel:{ko:'연속',zh:'连',en:'streak',ja:'連続',vi:'liên tiếp'},
+  roundFailed:{ko:'이번 라운드 처리에 실패했습니다. 연결을 확인해 주세요.',zh:'本局处理失败，请检查网络连接。',en:'This round could not be settled — check your connection.',ja:'このラウンドの処理に失敗しました。接続を確認してください。',vi:'Không xử lý được ván này — vui lòng kiểm tra kết nối.'},
+  watchingNow:{ko:'보는 중',zh:'观看中',en:'Watching',ja:'視聴中',vi:'Đang xem'},
   multiBet:{ko:'멀티 베팅',zh:'多桌投注',en:'Multi-bet',ja:'マルチベット',vi:'Cược nhiều bàn'},
   enterShort:{ko:'입장',zh:'进入',en:'Enter',ja:'入場',vi:'Vào'},
-  // the board's next-hand prediction rail, kept to one short word - the rail is a few marks wide
-  nextRoadAsk:{ko:'다음',zh:'下局',en:'NEXT',ja:'次局',vi:'Kế'},
+  allInStaked:{ko:'보유금 전액 {amount} 을 베팅했습니다',zh:'已投注全部余额 {amount}',en:'Staked your whole balance, {amount}',ja:'保有金全額 {amount} をベットしました',vi:'Đã cược toàn bộ số dư {amount}'},
+  confirmToBet:{ko:'베팅완료를 눌러야 베팅이 확정됩니다',zh:'需按下"下注完成"才会生效',en:'Press Confirm or the bet will not be placed',ja:'「ベット完了」を押すと確定します',vi:'Nhấn Xác nhận để đặt cược'},
+  betNotConfirmed:{ko:'베팅완료를 누르지 않아 {amount} 이 반환되었습니다',zh:'未按下注完成，已退还 {amount}',en:'{amount} returned — never confirmed',ja:'ベット完了を押さなかったため {amount} が返却されました',vi:'Đã hoàn {amount} — chưa xác nhận'},
+  nothingToConfirm:{ko:'베팅할 금액이 없습니다',zh:'没有可确认的投注',en:'Nothing staked to confirm',ja:'確定するベットがありません',vi:'Chưa có cược nào để xác nhận'},
+  betConfirmedCount:{ko:'{n}개 테이블 베팅이 확정되었습니다',zh:'{n} 张桌台的投注已确认',en:'Bets confirmed on {n} tables',ja:'{n}卓のベットが確定しました',vi:'Đã xác nhận cược trên {n} bàn'},
 };
 
 function t(key, vars){

@@ -160,13 +160,43 @@ async function playerSignup(db, data){
   PLAYER = member;
   return {ok:true, member};
 }
-async function getPlayerBalance(db, memberId){
-  const snap = await db.collection('memberLedger').where('memberId','==',memberId).get();
+/* ---------------- the cage's ledger is a cage account's balance ----------------
+   An account opened at a cage keeps its money in the cage's own `ledger` collection: the same
+   rows the cage floor reads, where its balance is the sum of what has come in less what has gone
+   out. So a player's stake and winnings are written there as they happen, and the cage sees the
+   balance move on the same rows it already watches - one book, both sides, live - rather than the
+   two keeping separate accounts that quietly drift apart.
+
+   Members who were never opened at a cage - a demo account, an online signup - have no cage
+   ledger to draw on, so they keep their own memberLedger balance, which is the only book they
+   have. memberLedger is written either way: it is the partner admin's record of play. */
+function isCageAccount(member){ return !!member && member.source === 'cage'; }
+async function writeCageLedger(db, {accountId, casino, type, amount, memo}){
+  const value = Math.abs(Number(amount) || 0);
+  if (!value) return;
+  const id = 'ldg_' + Date.now() + '_' + Math.random().toString(36).slice(2,9);
+  await db.collection('ledger').doc(id).set({
+    id, accountId, casino: casino || 'HANN',
+    dt: new Date().toISOString().slice(0,16).replace('T',' '),
+    type, inn: type === 'IN' ? value : 0, out: type === 'OUT' ? value : 0,
+    staff: 'avatar', memo: memo || '',
+  });
+}
+async function getPlayerBalance(db, memberId, member){
+  const cage = isCageAccount(member || PLAYER);
+  const [ledgerSnap, memberSnap] = await Promise.all([
+    cage ? db.collection('ledger').where('accountId','==',memberId).get() : Promise.resolve(null),
+    db.collection('memberLedger').where('memberId','==',memberId).get(),
+  ]);
   let balance = 0, points = 0;
-  snap.forEach(d=>{
+  memberSnap.forEach(d=>{
     const r = d.data();
     if (r.category==='point_earn' || r.category==='point_convert') points += Number(r.amount)||0;
-    else balance += Number(r.amount)||0;
+    else if (!cage) balance += Number(r.amount)||0;
+  });
+  if (cage && ledgerSnap) ledgerSnap.forEach(d=>{
+    const r = d.data();
+    balance += (Number(r.inn)||0) - (Number(r.out)||0);
   });
   return {balance, points};
 }
@@ -177,6 +207,11 @@ async function placeBet(db, {memberId, casino, tableId, roundId, betType, amount
     memberId, casino, amount: -Math.abs(amount), category:'bet', betType,
     relatedTableId: tableId, relatedRoundId: roundId, staff: staff||'system',
     createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
+  });
+  // the stake leaves the cage account as it is placed
+  if (isCageAccount(PLAYER)) await writeCageLedger(db, {
+    accountId: memberId, casino, type:'OUT', amount,
+    memo: `${tableId} ${betType}`,
   });
 }
 async function settleBet(db, {memberId, casino, tableId, roundId, betType, amount, resultInfo}){
@@ -192,6 +227,11 @@ async function settleBet(db, {memberId, casino, tableId, roundId, betType, amoun
       memberId, casino, amount: payout, category:'payout',
       relatedTableId: tableId, relatedRoundId: roundId, staff:'system',
       createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
+    });
+    // and the return comes back into it
+    if (isCageAccount(PLAYER)) await writeCageLedger(db, {
+      accountId: memberId, casino, type:'IN', amount: payout,
+      memo: `${tableId} ${betType}`,
     });
   }
   return payout;
@@ -431,6 +471,7 @@ function paintRoad(el, html){
   if (!el) return;
   el.innerHTML = html;
   watchRoadRelayout();
+  watchDragScroll();
   // a road on the board scrolls with its band (the band carries the ruling, so the two travel
   // together); elsewhere the painted element is the scroller itself
   const scroller = (el.closest && el.closest('.sd-road-band')) || el;
@@ -523,6 +564,61 @@ function watchRoadRelayout(){
   const again = () => { clearTimeout(pending); pending = setTimeout(()=>resnapRoads(), 80); };
   window.addEventListener('resize', again);
   window.addEventListener('orientationchange', again);
+}
+
+/* ---------------- drag a board sideways with the mouse ----------------
+   These strips scroll but a mouse has no sideways wheel, so on a desktop the only way across a
+   long shoe was a shift-wheel most players will never try. Press and drag now moves them, the
+   way a finger already does on a phone. It is delegated from the document so it covers strips
+   that are painted in later, and it stays out of the way of ordinary use: a press that never
+   travels more than a few pixels is left alone, so clicking a bet spot or a card still works,
+   and nothing is dragged on a strip that has nowhere to go. */
+const DRAG_SCROLLERS = '.sd-road-band, .bead-road, .mini-road, .sd-board-row, .sm-road, .sm-list, .br-grid, .derived-road-grid';
+const DRAG_SLOP = 4;   // px of travel before a press counts as a drag rather than a click
+let dragScrollWatched = false;
+function watchDragScroll(){
+  if (dragScrollWatched || typeof document === 'undefined') return;
+  dragScrollWatched = true;
+  let el = null, startX = 0, startLeft = 0, moved = false;
+
+  // The nearest match is not always the one that scrolls - a road's grid matches too and is
+  // inside the band that actually carries the overflow - so keep walking up until one of them
+  // has somewhere to go.
+  const scrollerFor = node => {
+    for (let n = node; n && n.closest; n = n.parentElement){
+      const hit = n.closest(DRAG_SCROLLERS);
+      if (!hit) return null;
+      if (hit.scrollWidth > hit.clientWidth + 1) return hit;
+      n = hit;                       // this one cannot scroll; try the next match above it
+    }
+    return null;
+  };
+  document.addEventListener('pointerdown', e=>{
+    if (e.button !== 0 || e.pointerType !== 'mouse') return;
+    const hit = scrollerFor(e.target);
+    if (!hit) return;
+    el = hit; startX = e.clientX; startLeft = hit.scrollLeft; moved = false;
+  });
+  document.addEventListener('pointermove', e=>{
+    if (!el) return;
+    const dx = e.clientX - startX;
+    if (!moved && Math.abs(dx) < DRAG_SLOP) return;
+    if (!moved){ moved = true; el.classList.add('drag-scrolling'); }
+    el.scrollLeft = startLeft - dx;
+    e.preventDefault();
+  });
+  const end = () => {
+    if (!el) return;
+    el.classList.remove('drag-scrolling');
+    // a press that turned into a drag must not also fire the click underneath it
+    if (moved){ const was = el; document.addEventListener('click', ev=>{
+      if (was.contains(ev.target)){ ev.stopPropagation(); ev.preventDefault(); }
+    }, {capture:true, once:true}); }
+    el = null;
+  };
+  document.addEventListener('pointerup', end);
+  document.addEventListener('pointercancel', end);
+  window.addEventListener('blur', end);
 }
 
 /* Same pin for roads that ship inside a bigger block of markup rather than being painted into

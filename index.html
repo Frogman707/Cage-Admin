@@ -814,6 +814,13 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             </table></div>
           </div>
         </div>
+        <div class="card" style="margin-top:16px;">
+          <h3 data-i18n="avatarSpeedOngoingTitle"></h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th data-i18n="tableLabel"></th><th data-i18n="colType"></th><th data-i18n="shoeNoLabel"></th><th data-i18n="colStatus"></th><th data-i18n="betLimitLabel"></th></tr></thead>
+            <tbody id="avatarSpeedOngoingBody"></tbody>
+          </table></div>
+        </div>
       </div>
 
       <div id="gtab-ongoing" style="display:none;">
@@ -4720,6 +4727,32 @@ function subscribeAvatarRequestsCloud(){
 function pendingAvatarRequestsForBranch(){
  return fbAvatarRequestsCache.filter(r=>r.status==='대기' && r.casino===currentBranch());
 }
+/* ---- Avatar/Speed tables — real-time, same 'tables' collection /avatar and partner-admin's
+   아바타게임관리 already read/write (type:'avatar'|'speed', status:'open'|'closed' set by staff
+   opening/closing a table for service). Cage Admin only reads this to show which tables are
+   currently live per branch - it doesn't open/close tables itself. ---- */
+let fbTablesUnsub = null;
+let fbTablesCache = [];
+function subscribeTablesCloud(){
+ if(!fbDb) return;
+ if(fbTablesUnsub) fbTablesUnsub();
+ fbTablesUnsub = fbDb.collection('tables').onSnapshot(snap=>{
+  fbTablesCache = [];
+  snap.forEach(doc=>{ fbTablesCache.push({id:doc.id, ...doc.data()}); });
+  renderAvatarSpeedOngoingTables();
+  resetFirestoreResubscribeBackoff('tables');
+ }, err=>{
+  console.error('subscribeTablesCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('tables', subscribeTablesCloud);
+ });
+}
+function renderAvatarSpeedOngoingTables(){
+ const body = document.getElementById('avatarSpeedOngoingBody');
+ if(!body) return;
+ const tables = fbTablesCache.filter(t=>(t.type==='avatar'||t.type==='speed') && t.status==='open' && t.casino===currentBranch());
+ body.innerHTML = !tables.length ? `<tr class="empty-row"><td colspan="5">—</td></tr>` :
+  tables.map(tb=>`<tr><td>${esc(tb.name)||'—'}</td><td>${tb.type==='speed'?t('startKindSpeed'):t('startKindAvatar')}</td><td class="num">${esc(tb.shoeNo)||1}</td><td>${t('tableStatusOpen')}</td><td class="num">${tb.betMin?`${fmt(tb.betMin)} ~ ${fmt(tb.betMax)}`:'—'}</td></tr>`).join('');
+}
 function buildGameFromCache(gameId, meta){
  const events = fbRollingEventsByGame[gameId]||[];
  let running = 0;
@@ -4878,6 +4911,7 @@ function switchBranch(branch){
  renderAvatarReqBtn();
  const avatarReqModal = document.getElementById('modal-avatar-request');
  if(avatarReqModal && avatarReqModal.classList.contains('open')) renderAvatarReqList();
+ renderAvatarSpeedOngoingTables();
  const topBalEl = document.getElementById('lastBalTime');
  if(topBalEl) topBalEl.textContent = bd().lastBalancingDt || '—';
  const lastCutoffEl = document.getElementById('lastCutoff');
@@ -5213,6 +5247,7 @@ ko:{
  tableLabel:"테이블", gameType:"게임 타입", avatarId:"아바타 ID", buyinTotal:"바이인 총액", startBtn:"게임 시작",
  inGameTitle:"진행중인 게임", gameIdLabel:"게임 ID",
  ongoingGamesTitle:"롤링", dailyLabel:"당일", cumulativeLabel:"누적", ongoingCountLabel:"진행 건수",
+ avatarSpeedOngoingTitle:"아바타·스피드 진행중인 게임", shoeNoLabel:"슈 번호", betLimitLabel:"배팅 한도", tableStatusOpen:"영업중", tableStatusClosed:"마감",
  colTime:"시간", colReqMember:"요청 회원", colKind:"구분", colPrevRolling:"이전 롤링", colRollingSub:"롤링누계", colRollingTotal:"롤링 합계",
  settlePageTitle:"롤링 커미션 정산", gameTypeFld:"게임 타입", rollingComm:"롤링 커미션", fbDiscount:"F&B 할인", resultLabel:"정산금", settleBtn:"정산 확정",
  receiptTitle:"정산 영수증", receiptEmptyHint:"게임을 선택하고 정산을 확정하면 영수증이 표시됩니다.", receiptGameNo:"게임 번호", receiptAccNo:"어카운트", receiptDate:"일자",
@@ -5351,6 +5386,7 @@ en:{
  tableLabel:"Table", gameType:"Game Type", avatarId:"Avatar ID", buyinTotal:"Buy-in Total", startBtn:"Start Game",
  inGameTitle:"Games In Progress", gameIdLabel:"Game ID",
  ongoingGamesTitle:"Rolling", dailyLabel:"Daily", cumulativeLabel:"Cumulative", ongoingCountLabel:"In Progress",
+ avatarSpeedOngoingTitle:"Avatar/Speed Games In Progress", shoeNoLabel:"Shoe No.", betLimitLabel:"Bet Limit", tableStatusOpen:"Open", tableStatusClosed:"Closed",
  colTime:"Time", colReqMember:"Requested By", colKind:"Kind", colPrevRolling:"Prev. Rolling", colRollingSub:"Rolling Cumulative", colRollingTotal:"Rolling Total",
  settlePageTitle:"Rolling Commission Settlement", gameTypeFld:"Game Type", rollingComm:"Rolling Commission", fbDiscount:"F&B Discount", resultLabel:"Settlement Amount", settleBtn:"Confirm Settlement",
  receiptTitle:"Settlement Receipt", receiptEmptyHint:"Select a game and confirm settlement to see the receipt.", receiptGameNo:"Game No.", receiptAccNo:"Account No.", receiptDate:"Date",
@@ -5489,6 +5525,7 @@ en:{
  tableLabel:"賭桌", gameType:"局別", avatarId:"分身編號", buyinTotal:"買入總額", startBtn:"開始遊戲",
  inGameTitle:"進行中賽局", gameIdLabel:"局號",
  ongoingGamesTitle:"轉碼", dailyLabel:"當日", cumulativeLabel:"累計", ongoingCountLabel:"進行局數",
+ avatarSpeedOngoingTitle:"電投·快速電投 進行中賽局", shoeNoLabel:"靴號", betLimitLabel:"投注限額", tableStatusOpen:"營業中", tableStatusClosed:"結束",
  colTime:"時間", colReqMember:"申請會員", colKind:"類別", colPrevRolling:"先前轉碼", colRollingSub:"轉碼累計", colRollingTotal:"轉碼合計",
  settlePageTitle:"轉碼佣金結算", gameTypeFld:"局別", rollingComm:"轉碼佣金", fbDiscount:"F&B 折讓", resultLabel:"結算金額", settleBtn:"確認結算",
  receiptTitle:"結算收據", receiptEmptyHint:"選擇遊戲並確認結算後將顯示收據。", receiptGameNo:"局號", receiptAccNo:"帳號", receiptDate:"日期",
@@ -5627,6 +5664,7 @@ en:{
  tableLabel:"赌桌", gameType:"局别", avatarId:"分身编号", buyinTotal:"买入总额", startBtn:"开始游戏",
  inGameTitle:"进行中赛局", gameIdLabel:"局号",
  ongoingGamesTitle:"转码", dailyLabel:"当日", cumulativeLabel:"累计", ongoingCountLabel:"进行局数",
+ avatarSpeedOngoingTitle:"电投·快速电投 进行中赛局", shoeNoLabel:"靴号", betLimitLabel:"投注限额", tableStatusOpen:"营业中", tableStatusClosed:"结束",
  colTime:"时间", colReqMember:"申请会员", colKind:"类别", colPrevRolling:"先前转码", colRollingSub:"转码累计", colRollingTotal:"转码合计",
  settlePageTitle:"转码佣金结算", gameTypeFld:"局别", rollingComm:"转码佣金", fbDiscount:"F&B 折让", resultLabel:"结算金额", settleBtn:"确认结算",
  receiptTitle:"结算收据", receiptEmptyHint:"选择游戏并确认结算后将显示收据。", receiptGameNo:"局号", receiptAccNo:"账号", receiptDate:"日期",
@@ -9580,6 +9618,7 @@ function startInactivityTimer(){
   await withTimeout(seedCageConfigToCloudIfEmpty(), 6000);
   subscribeCageConfigCloud();
   subscribeAvatarRequestsCloud();
+  subscribeTablesCloud();
   // Every account opened here is a player account, so they are handed to Avatar Speed as soon as
   // the cloud is up rather than waiting for anyone to press anything. Quiet on success - there is
   // nothing for staff to do about it - but a failure still speaks, because an account that never

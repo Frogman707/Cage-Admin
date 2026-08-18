@@ -84,8 +84,12 @@ function toast(msg, isErr){
     t = document.createElement('div');
     t.id = 'cageToast';
     t.className = 'toast';
-    document.body.appendChild(t);
+    t.setAttribute('data-fs-follow', '');
   }
+  /* A toast is only drawn over the page it is in. On a fullscreen table that page is the table
+     itself, so the toast goes in there - left on the body it fired invisibly behind it. */
+  const host = document.fullscreenElement || document.body;
+  if (t.parentElement !== host) host.appendChild(t);
   t.textContent = msg;
   t.classList.toggle('err', !!isErr);
   t.classList.add('show');

@@ -953,3 +953,157 @@
      that the results sit above the board rather than below it. Nothing sticky means the board
      keeps its own clip, and the tray needs no corners of its own. */
 }
+
+/* ================= 전체화면 (fullscreen) =================
+   The button fullscreens the whole table, so this is the table's second layout rather than a
+   coat of paint on the first one. Two screens, chosen by the same 860px the ordinary screen
+   is chosen by:
+
+   Desktop - the still fills the screen corner to corner and everything else rides over its foot
+   as one strip, in the order a live studio table reads: the counts and the Bead Plate on the
+   left, the betting spots in the middle, the roads and the P/B prediction on the right. The
+   strip is exactly as deep as the board it carries (--sd-board), so nothing inside it is
+   squeezed out of the ruling it is drawn on.
+
+   Phone - there is no room to lay anything over anything, so the pieces stack the way they
+   already do outside fullscreen, with two bars the ordinary screen does not need: the page
+   header is not on the screen any more, so the round, the shoe and the balance it carried get
+   bars of their own at the top and the foot. */
+.speed-detail-wrap.is-fs{
+  position:relative;width:100%;height:100%;max-width:none;margin:0;padding:0;
+  background:#05100c;display:flex;flex-direction:column;overflow:hidden;
+}
+/* the bars are the phone's fullscreen only */
+.sd-fs-bar{display:none;}
+/* The avatar table has no betting board of its own - its side column is the dealer's status and
+   the chat - so it gets no strip. Fullscreen there is simply the table screen on the whole
+   screen, scrolling if the screen is short. */
+.speed-detail-wrap.is-fs:not(.sd-live){padding:14px;overflow:auto;background:var(--bg);}
+/* The wrapper around the board and the spots costs the ordinary screen nothing: it is not a box
+   at all, so its children land on the table grid exactly as they did before it existed. */
+.sd-underbar{display:contents;}
+
+/* ---- desktop fullscreen ---- */
+.sd-live.is-fs .speed-detail-grid{display:block;position:relative;flex:1;min-height:0;gap:0;}
+.sd-live.is-fs .sd-stage{
+  position:absolute;inset:0;width:100%;height:100%;
+  aspect-ratio:auto;min-height:0;border:none;border-radius:0;
+}
+/* the strip: the wrapper becomes a three-column grid and the row that normally holds the two
+   board cards dissolves into it, which is what lets the betting spots sit between the Bead
+   Plate and the roads without either panel being moved in the markup */
+.sd-live.is-fs .sd-underbar{
+  display:grid;position:absolute;left:0;right:0;bottom:0;z-index:6;
+  grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr) minmax(0,1.44fr);
+  gap:10px;padding:0 12px 12px;height:calc(var(--sd-board) + 12px);
+  background:linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,.58) 62%,rgba(0,0,0,0) 100%);
+}
+.sd-live.is-fs .sd-board-row{display:contents;}
+.sd-live.is-fs .sd-tally{grid-row:1;grid-column:1;box-shadow:0 10px 26px -10px rgba(0,0,0,.8);}
+.sd-live.is-fs .sd-bets{grid-row:1;grid-column:2;box-shadow:0 10px 26px -10px rgba(0,0,0,.8);}
+.sd-live.is-fs .sd-road{grid-row:1;grid-column:3;box-shadow:0 10px 26px -10px rgba(0,0,0,.8);}
+/* the still's own furniture clears the strip: the countdown moves off the foot of the screen to
+   the middle of its right edge, and the phase caption sits just above the spots, which is where
+   a live table says "place your bets" */
+.sd-live.is-fs .timer-ring-wrap{top:50%;bottom:auto;right:26px;transform:translateY(-50%);}
+.sd-live.is-fs .timer-ring-wrap.urgent{animation:none;}
+.sd-live.is-fs .sd-stage .phase-banner{
+  top:auto;bottom:calc(var(--sd-board) + 44px);font-size:17px;padding:11px 32px;
+}
+/* the hands deal in the middle of what is left of the still, not the middle of the screen -
+   centred on the whole of it they came out half behind the strip */
+.sd-live.is-fs .table-felt{padding-bottom:calc(var(--sd-board) + 12px);}
+.sd-live.is-fs .playing-card{height:110px;}
+.sd-live.is-fs .playing-card.third{margin:0 15px;}
+.sd-live.is-fs .cards-area{gap:60px;}
+/* 타이 arches down between 플레이어 and 뱅커, the way the felt is painted: the spot keeps the
+   width of the middle column and drops a rounded tongue over the line below it. The two spots
+   underneath are unchanged - the arch simply sits on top of where they meet. */
+.sd-live.is-fs .sd-bets .pair-row{position:relative;z-index:2;}
+.sd-live.is-fs .sd-bets .pair-row .bet-spot.tie{
+  border-radius:0 0 44% 44% / 0 0 100% 100%;
+  margin-bottom:-18px;padding-bottom:24px;
+  background:linear-gradient(180deg,rgba(63,208,232,.10) 0%,rgba(4,20,30,.86) 100%);
+  box-shadow:0 6px 14px -6px rgba(0,0,0,.8);
+}
+.sd-live.is-fs .sd-bets .pair-row .bet-spot.tie.selected{
+  background:linear-gradient(180deg,rgba(217,178,106,.22) 0%,rgba(4,20,30,.9) 100%);
+}
+/* the pair spots keep a straight edge on the side the arch springs from */
+.sd-live.is-fs .sd-bets .pair-row .bet-spot.pair{border-bottom-color:rgba(255,255,255,.14);}
+/* The board is a column of the strip now rather than half the screen, so the spots and the chip
+   tray are drawn to that column. At the page's own sizes the tray's five chips and four buttons
+   ran onto a second line and the whole board came to 343px in a 252px card - the tray was simply
+   clipped off the bottom of it, which took 베팅완료 with it. */
+.sd-live.is-fs .sd-bets .bet-spot{padding:9px 6px;gap:3px;}
+.sd-live.is-fs .sd-bets .pair-row .bet-spot.tie{padding-bottom:20px;margin-bottom:-14px;}
+.sd-live.is-fs .sd-bets .bet-rail .bet-spot{padding:9px 8px;}
+.sd-live.is-fs .sd-bets .bet-rail .bet-spot .label{font-size:17px;}
+.sd-live.is-fs .sd-chip-tray{padding:6px 8px;gap:5px;}
+.sd-live.is-fs .sd-chip-tray .chip{width:34px;height:34px;}
+.sd-live.is-fs .sd-chip-tray .btn{padding:4px 9px;font-size:10.5px;}
+/* Player and Banker give up whatever the card is still short: min-height:0 is what lets a flex
+   item shrink under its own contents, and without it the two spots held the tray off the card. */
+.sd-live.is-fs .sd-bets .bet-rail.two-up{min-height:0;}
+
+/* ---- phone fullscreen ---- */
+@media (max-width:860px){
+  /* nothing overlays anything: the strip goes back to being no box at all and the pieces stack.
+     The three columns it put them on go with it - left on, they pinned the betting board to a
+     second column of the phone's single-column grid and squeezed the video to nothing. */
+  .sd-live.is-fs .sd-underbar{display:contents;}
+  .sd-live.is-fs .sd-board-row{display:grid;}
+  .sd-live.is-fs .sd-tally{grid-area:tally;box-shadow:none;}
+  .sd-live.is-fs .sd-road{grid-area:road;box-shadow:none;}
+  .sd-live.is-fs .sd-bets{grid-area:bets;box-shadow:none;}
+  .sd-live.is-fs .speed-detail-grid{
+    display:grid;position:static;flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;
+    padding:6px;gap:6px;align-content:start;
+  }
+  /* the still is a panel again, sized by its own 672x470 - the desktop screen took those away
+     when it stretched the still over the whole screen, and without them it came out 0 tall */
+  .sd-live.is-fs .sd-stage{
+    position:relative;inset:auto;width:auto;height:auto;
+    aspect-ratio:672/470;min-height:220px;border-radius:10px;
+  }
+  /* the whole table has to fit between the two bars, so the spots and the chips are drawn a
+     little tighter than they are on the page, where the screen can simply scroll on */
+  .sd-live.is-fs .sd-bets .bet-spot{padding:9px 6px;gap:4px;}
+  .sd-live.is-fs .sd-bets .bet-rail .bet-spot{padding:11px 8px;}
+  .sd-live.is-fs .sd-bets .bet-rail .bet-spot .label{font-size:17px;}
+  .sd-live.is-fs .sd-chip-tray{padding:7px 10px;gap:6px;}
+  .sd-live.is-fs .sd-chip-tray .chip{width:38px;height:38px;}
+  .sd-live.is-fs .table-felt{padding-bottom:0;}
+  .sd-live.is-fs .cards-area{gap:12px;}
+  .sd-live.is-fs .playing-card{height:66px;}
+  .sd-live.is-fs .playing-card.third{margin:0 9px;}
+  .sd-live.is-fs .timer-ring-wrap{top:auto;bottom:10px;right:10px;transform:none;}
+  .sd-live.is-fs .sd-stage .phase-banner{top:52px;bottom:auto;font-size:14px;padding:8px 22px;}
+  /* the arch is the desktop's; the phone's board is too shallow to carry one */
+  .sd-live.is-fs .sd-bets .pair-row .bet-spot.tie{
+    border-radius:0;border-right:1px solid rgba(255,255,255,.08);
+    margin-bottom:0;padding-bottom:9px;background:none;box-shadow:none;
+  }
+  /* the page header is off the screen in fullscreen, so its two jobs - saying which round and
+     which shoe you are in, and showing the balance - are done by a bar at each end */
+  .sd-live.is-fs .sd-fs-bar{
+    display:flex;align-items:center;gap:10px;flex-shrink:0;
+    padding:8px 12px;background:#08120f;border-bottom:1px solid rgba(255,255,255,.08);
+    color:#fff;font-size:12px;
+  }
+  .sd-live.is-fs .sd-fs-bottom{border-bottom:none;border-top:1px solid rgba(255,255,255,.08);}
+  .sd-fs-bar .fs-mark{display:flex;align-items:center;gap:6px;color:var(--brass);font-weight:800;letter-spacing:1px;font-size:12px;}
+  .sd-fs-bar .fs-mark img{width:18px;height:18px;object-fit:contain;}
+  /* the bar carries the way out, so the one over the video would be a second ✕ saying the same
+     thing in a different place */
+  .sd-live.is-fs .speed-detail-close{display:none;}
+  .sd-fs-bar .fs-stat{display:flex;align-items:center;gap:5px;color:rgba(255,255,255,.55);font-size:11px;}
+  .sd-fs-bar .fs-stat b{color:#fff;font-family:var(--mono);font-size:12.5px;}
+  .sd-fs-bar .fs-x{margin-left:auto;width:28px;height:28px;border-radius:50%;flex-shrink:0;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:13px;}
+  .sd-fs-bar .fs-who{display:flex;align-items:center;gap:5px;color:rgba(255,255,255,.7);}
+  .sd-fs-bar .fs-bal{color:var(--brass);font-weight:800;font-family:var(--mono);font-size:14px;}
+  .sd-fs-bottom button{margin-left:auto;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);
+    color:#fff;border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:700;flex-shrink:0;}
+  .sd-fs-bottom button + button{margin-left:0;}
+}

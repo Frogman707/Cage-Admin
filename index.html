@@ -104,7 +104,10 @@ h2.page-title{font-family:var(--serif);font-weight:800;font-size:25px;color:var(
 .grid-3{grid-template-columns:1fr 1fr 1fr;}
 .grid-4{grid-template-columns:1fr 1fr 1fr 1fr;}
 .grid-io{grid-template-columns:400px 1fr;align-items:start;}
-@media (max-width:900px){.grid-2,.grid-3,.grid-io{grid-template-columns:1fr;}}
+/* !important: a few views set their own grid-template-columns inline (e.g. the 포인트·이벤트 and
+   일일 리포트 7fr/3fr splits) which otherwise wins over this collapse rule regardless of source
+   order, silently leaving those two views uncollapsed at every width down to a phone's. */
+@media (max-width:900px){.grid-2,.grid-3,.grid-io{grid-template-columns:1fr !important;}}
 
 .card{
   background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
@@ -454,6 +457,64 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  .receipt .ramt-col .ramt-row{padding:6px 0;font-size:13px;}
  .receipt .ramt-final .ramt-line{padding:7px 10px;}
  .receipt .ramt-final .val{font-size:14px;}
+}
+/* Phone-width layout — same markup as desktop, just reflowed. The permanent 186px left sidebar
+   was the single biggest problem: on a ~375px phone it left barely 190px for every view's actual
+   content, so rows of buttons/tabs had no room to lay out horizontally and Korean labels wrapped
+   one syllable per line. Moving the sidebar's own buttons into a fixed bottom tab bar (pure CSS
+   reflow of the existing #navBar - no separate markup) gives every view close to the full width
+   back, matching how the topbar/login-card/table/modal responsiveness below leans the same way:
+   reflow what's there rather than hide or duplicate it. */
+@media (max-width:720px){
+ .topbar{flex-wrap:wrap;padding:8px 12px;gap:8px;row-gap:8px;}
+ /* Decorative divider and purely informational chrome (NFC status dot, last-balancing/staff
+    counters) - all duplicated inside the Dashboard view already, so dropping them here loses no
+    functionality, just repeated numbers there wasn't room to show twice. */
+ .brand .ver,.divider-v,.status-chip,.topbar-meta{display:none;}
+ .branch-select select{font-size:12px;padding:5px 8px;}
+ .lang-switch{order:3;width:100%;justify-content:center;}
+ .notif-dropdown{width:min(320px,calc(100vw - 24px));right:-8px;}
+
+ .shell{flex-direction:column;}
+ .nav{
+  position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;height:auto;z-index:40;
+  flex-direction:row;padding:0;border-right:none;border-top:1px solid var(--line);
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  padding-bottom:env(safe-area-inset-bottom);
+ }
+ .nav button{
+  flex:1 0 auto;min-width:58px;flex-direction:column;gap:3px;
+  padding:7px 2px 8px;font-size:9.5px;text-align:center;white-space:nowrap;
+  border-left:none;border-top:2px solid transparent;
+ }
+ .nav button.active{border-left-color:transparent;border-top-color:var(--brass);box-shadow:none;}
+ .nav-foot{display:none;}
+ .main{padding:14px 14px calc(70px + env(safe-area-inset-bottom));}
+
+ /* Fixed-width card with no viewport safeguard - clipped on phones narrower than ~390px. */
+ .login-card{max-width:calc(100vw - 32px);padding:28px 20px 24px;}
+
+ /* Below 16px, focusing any field auto-zooms the whole page in on iOS Safari - every input here
+    was 13-14px, so simply tapping a field used to zoom the page for no reason on every phone. */
+ .field input,.field select,.field textarea,#accSearch,.breakdown-input{font-size:16px;}
+
+ /* Tab/button rows (e.g. Game Management's 게임시작/추가롤링/중간정산/게임종료 strip) have no
+    intrinsic wrap-safe sizing - let them scroll horizontally like every table here already does,
+    instead of squeezing each button down to one Hangul syllable per line. */
+ .tabs-mini{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+ .tabs-mini button{white-space:nowrap;flex:0 0 auto;}
+
+ /* Account I/O's 3-equal-column layout sets grid-template-columns inline, which beats any
+    non-!important override - same reason .grid-2/.grid-3/.grid-io needed !important above. */
+ .grid{grid-template-columns:1fr !important;}
+ /* Identity Verification's 3 fixed 260px photo columns (780px+ minimum) never fit a phone width. */
+ .id-verify-grid{grid-template-columns:1fr;justify-items:center;}
+
+ /* A grid item's default min-width is auto (content-based), not 0 - so once a grid collapses to
+    one column above, its card can still refuse to shrink below its widest child's natural
+    content width and overflow the column instead of the .row/.field flex-wrap inside it ever
+    getting a chance to kick in. This is what was pushing Game Management's fields off-screen. */
+ .grid>*,.grid-2>*,.grid-3>*,.grid-io>*{min-width:0;}
 }
 @media print{
  /* A non-zero @page margin leaves Chrome room to draw its own default header/footer (page title +

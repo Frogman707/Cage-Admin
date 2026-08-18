@@ -501,13 +501,20 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   border-left:none;border-top:2px solid transparent;
  }
  .nav button.active{border-left-color:transparent;border-top-color:var(--brass);box-shadow:none;}
- .nav-foot{display:none;}
- .main{padding:14px 14px calc(100px + env(safe-area-inset-bottom, 0px));}
+ /* !important: the element carries its own inline style="display:flex;..." (for the desktop
+    sidebar layout), which otherwise beats this rule regardless of source order - same reason
+    .grid/.grid-2/.grid-3/.grid-io needed !important above. Without it, this was never actually
+    hidden: it rendered as a squeezed, word-wrapped extra item at the scrolled-off far right end
+    of the bottom tab bar instead. */
+ .nav-foot{display:none !important;}
+ /* The nav-foot bug above was also stretching the whole row to its wrapped text's height (~94px)
+    via flexbox's default align-items:stretch - with it actually hidden now, the bar's real height
+    is the buttons' own ~52px. Reserved space below is sized to that, not the old inflated figure. */
+ .main{padding:14px 14px calc(64px + env(safe-area-inset-bottom, 0px));}
  /* Toast sits at a plain bottom:20px normally - now that the bottom nav occupies that same
-    strip on phone, push the toast up above it instead of letting the two overlap (the nav is
-    ~94px tall with icon+label buttons, not the ~70px reserved in .main's padding above). */
- .toast{bottom:calc(104px + env(safe-area-inset-bottom, 0px));}
- .toast.show{bottom:calc(114px + env(safe-area-inset-bottom, 0px));}
+    strip on phone, push the toast up above it instead of letting the two overlap. */
+ .toast{bottom:calc(64px + env(safe-area-inset-bottom, 0px));}
+ .toast.show{bottom:calc(74px + env(safe-area-inset-bottom, 0px));}
 
  /* Fixed-width card with no viewport safeguard - clipped on phones narrower than ~390px. */
  .login-card{max-width:calc(100vw - 32px);padding:28px 20px 24px;}

@@ -64,9 +64,11 @@ input,select,textarea{font-family:var(--sans);}
 .status-dot{width:7px;height:7px;border-radius:50%;background:var(--jade);box-shadow:0 0 6px var(--jade);}
 .status-dot.off{background:var(--danger);box-shadow:0 0 6px var(--danger);}
 .topbar-meta{display:flex;align-items:center;gap:16px;font-size:12px;color:var(--ink-dim);}
-.notif-wrap{margin-left:auto;}
 .topbar-meta b{color:var(--ink);font-weight:600;}
-.lang-switch{display:flex;gap:2px;background:var(--panel-raised);border-radius:var(--radius);padding:2px;border:1px solid var(--line);}
+/* margin-left:auto lives here (not on .notif-wrap) so the language switch is pulled rightward
+   along with the notification bells instead of sitting with the left-aligned meta info before
+   it - keeps it immediately to the left of the bells at every width. */
+.lang-switch{display:flex;gap:2px;background:var(--panel-raised);border-radius:var(--radius);padding:2px;border:1px solid var(--line);margin-left:auto;}
 .lang-switch button{
   background:transparent;border:none;color:var(--ink-faint);font-size:11px;font-weight:600;
   padding:5px 9px;border-radius:2px;transition:.15s;
@@ -472,7 +474,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     functionality, just repeated numbers there wasn't room to show twice. */
  .brand .ver,.divider-v,.status-chip,.topbar-meta{display:none;}
  .branch-select select{font-size:12px;padding:5px 8px;}
- .lang-switch{order:3;width:100%;justify-content:center;}
  .notif-dropdown{width:min(320px,calc(100vw - 24px));right:-8px;}
 
  .shell{flex-direction:column;}

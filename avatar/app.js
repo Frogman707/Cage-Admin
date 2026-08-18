@@ -196,6 +196,7 @@ document.addEventListener('fullscreenchange', ()=>{
   document.querySelectorAll('.speed-detail-wrap').forEach(w=>w.classList.toggle('is-fs', w === fs));
   adoptFsFollowers(fsFollowHost());
   if (SPEED.detailTableId){
+    renderBetBoard(SPEED.detailTableId);   // the page's board and the felt are not the same board
     paintSpeedFsBars(SPEED.detailTableId);
     renderSpeedDetailRoad(SPEED.detailTableId);
   }
@@ -1304,13 +1305,57 @@ function fsBarHtml(tb, where){
 }
 
 /* ---------------- the betting board ----------------
-   Laid out as the felt is: 플레이어 페어 and 뱅커 페어 across the top, 플레이어 and 뱅커 across
-   the bottom in half the board each, and 타이 as a green arch standing between them - a column
-   through the top row that ends in a semicircle over the line where 플레이어 meets 뱅커.
-   Every spot carries the same four readings the board carries: the share of the table's money
-   on it, how many are on it, what is on it, and what it pays. They face inwards - the player
-   side reads from the left edge, the banker side mirrors it - so the two labels sit either side
-   of the arch rather than at the far ends of the board. */
+   There are two of them, and which one is drawn is whether the table is fullscreen.
+
+   On the page it is the board this screen has always had: the two pairs and 타이 across the top
+   of the card, 플레이어 and 뱅커 under them, flat cells divided by hairlines on the dark green.
+
+   In fullscreen it is the felt itself: 플레이어 페어 and 뱅커 페어 across the top, 플레이어 and
+   뱅커 across the bottom in half the board each, and 타이 as a green arch standing between them
+   - a column through the top row that ends in a semicircle over the line where 플레이어 meets
+   뱅커. Every spot carries the four readings a live board carries: the share of the round's
+   money on it, how many are on it, what is on it, and what it pays. They face inwards - the
+   player side reads from the outer edge, the banker side mirrors it - so the two names sit
+   either side of the arch rather than at the far ends of the board.
+
+   Both carry the same ids, so everything that paints a spot paints either of them. */
+function betBoardHtml(tableId){
+  return document.fullscreenElement ? feltBoardHtml(tableId) : classicBoardHtml(tableId);
+}
+/* the screen is not rebuilt when fullscreen is entered or left, so the board is swapped in place */
+function renderBetBoard(tableId){
+  const host = document.querySelector('#viewSpeedTable .sd-bets');
+  if (!host) return;
+  const old = host.querySelector('.bet-board, .bb-classic');
+  if (old) old.outerHTML = betBoardHtml(tableId);
+  applyI18n?.(host);
+  renderSpeedTileBets(tableId);
+  const s = SPEED.tstate[tableId];
+  if (s) ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+    const spot = document.getElementById(`spot-detail-${k}`);
+    if (spot){ spot.classList.toggle('selected', s.bets[k]>0); spot.classList.toggle('locked', s.phase!=='betting'); }
+  });
+}
+function classicBoardHtml(tableId){
+  const cell = (key, cls, i18n, ko, odds) =>
+    `<div class="bet-spot ${cls}" id="spot-detail-${key}" onclick="placeSpeedBet('${tableId}','${key}')">
+      <div class="label" data-i18n="${i18n}">${ko}</div>
+      <div class="meta-row"><span>👤 <b id="heads-detail-${key}">0</b></span><span>₱ <b id="pool-detail-${key}">0</b></span></div>
+      <div class="odds">${odds}</div>
+      <div class="my-bet" id="mybet-detail-${key}"></div>
+    </div>`;
+  return `<div class="bb-classic">
+    <div class="pair-row">
+      ${cell('playerPair','pair player','playerPair','플레이어 페어','11:1')}
+      ${cell('tie','tie','tie','타이','8:1')}
+      ${cell('bankerPair','pair banker','bankerPair','뱅커 페어','11:1')}
+    </div>
+    <div class="bet-rail two-up" style="margin-top:0;">
+      ${cell('player','player','player','플레이어','1:1')}
+      ${cell('banker','banker','banker','뱅커','0.95:1')}
+    </div>
+  </div>`;
+}
 const BET_SPOTS = [
   {key:'playerPair', cls:'bb-pp', side:'player', i18n:'playerPair', ko:'플레이어 페어', odds:'11:1'},
   {key:'bankerPair', cls:'bb-bp', side:'banker', i18n:'bankerPair', ko:'뱅커 페어',     odds:'11:1'},
@@ -1331,7 +1376,7 @@ function betSpotHtml(tableId, s){
     <div class="my-bet" id="mybet-detail-${s.key}"></div>
   </div>`;
 }
-function betBoardHtml(tableId){
+function feltBoardHtml(tableId){
   const spot = key => betSpotHtml(tableId, BET_SPOTS.find(s=>s.key===key));
   return `<div class="bet-board">
     <div class="bb-row bb-top">

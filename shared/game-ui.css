@@ -342,7 +342,10 @@
   padding:8px 22px;font-size:14px;font-weight:700;color:#fff;letter-spacing:.4px;
   box-shadow:0 4px 14px -4px rgba(0,0,0,.5);
 }
-/* ---- betting spots ---- */
+/* ---- betting rail ---- */
+.bet-rail{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.bet-rail.with-pairs{grid-template-columns:1fr 1.4fr 1fr;}
+.bet-rail.two-up{grid-template-columns:1fr 1fr;}
 .bet-spot{
   background:linear-gradient(165deg,var(--panel-hi),var(--panel));border:2px solid var(--line);border-radius:14px;
   padding:14px 10px;text-align:center;cursor:pointer;position:relative;overflow:hidden;
@@ -367,6 +370,8 @@
 .bet-spot.pair.banker .label{color:#FF6B5C;}
 .bet-spot .odds{font-size:10.5px;color:var(--ink-faint);margin-top:3px;font-family:var(--mono);}
 .bet-spot .my-bet{margin-top:9px;font-family:var(--mono);font-weight:700;color:var(--brass);font-size:13.5px;min-height:18px;}
+.pair-row{display:flex;gap:10px;margin-top:8px;}
+.pair-row .bet-spot{flex:1;padding:9px 6px;}
 .chip-stack{display:flex;justify-content:center;align-items:flex-end;height:0;margin-top:6px;transition:height .15s ease;}
 .chip-stack:not(:empty){height:16px;}
 /* the chips in a betting spot are the same artwork at bead size, overlapped into a stack */
@@ -509,6 +514,9 @@
   .playing-card{height:66px;}
   .playing-card.third{margin:0 9px;}   /* (66 - 66*225/314)/2 */
   .hand .score{min-width:28px;height:28px;font-size:15px;}
+  .bet-rail{gap:8px;}
+  .bet-rail.with-pairs{grid-template-columns:1fr 1.15fr 1fr;}
+  .pair-row{gap:6px;}
   .bet-spot{padding:10px 6px;border-radius:11px;}
   .bet-spot .label{font-size:13.5px;}
   .chip{width:44px;height:44px;}
@@ -800,9 +808,28 @@
 .sd-road-legend-rail .rail-badge .red{color:var(--road-red);}
 .sd-road-legend-rail .rail-badge .blue{color:var(--road-blue);}
 .sd-road-legend-rail .rail-badge .none{color:#d8d8d8;}
-.sd-bets{grid-area:bets;background:none;border:none;border-radius:12px;overflow:visible;display:flex;flex-direction:column;}
+.sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
+/* ---- the board on the page: flat cells on the dark green, as this screen has always had it.
+   The felt below is fullscreen's, and only fullscreen draws it. ---- */
+.bb-classic{display:flex;flex-direction:column;flex:1;min-height:0;}
+.sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
+.sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}
+.sd-bets .bet-spot{
+  background:none;border:none;border-radius:0;box-shadow:none;
+  border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  padding:16px 8px;position:relative;
+}
+.sd-bets .bet-spot::before{display:none;}
+.sd-bets .bet-spot:hover{transform:none;background:rgba(255,255,255,.03);}
+.sd-bets .pair-row .bet-spot:last-child,.sd-bets .bet-rail .bet-spot:last-child{border-right:none;}
+.sd-bets .bet-rail .bet-spot{border-bottom:none;padding:14px 8px;}
+.sd-bets .bet-rail .bet-spot .label{font-size:20px;}
+.sd-bets .bet-spot.selected{background:rgba(217,178,106,.1);box-shadow:inset 0 0 0 2px var(--brass);}
+.sd-bets .bet-spot .meta-row{display:flex;gap:10px;font-size:9.5px;color:rgba(255,255,255,.5);font-family:var(--mono);}
+.sd-bets .bet-spot .odds{font-size:9.5px;opacity:.7;}
 
-/* ---- the betting board, as the felt is painted ----
+/* ---- fullscreen's board: the felt, as it is painted ----
    Two rows: the pairs across the top at 38% of the board, 플레이어 and 뱅커 across the bottom
    in half each; and 타이 standing between them as a green column that ends in a semicircle over
    the line where the two meet. The arch is a third child laid over the rows rather than a cell
@@ -890,9 +917,7 @@
 .sd-bets.avatar-side .chat-panel{flex:1;min-height:160px;}
 /* chip tray now lives inside .sd-bets itself (its last child), not a separate
    full-width row, so it only needs bottom corners matching the parent card. */
-/* the board is its own coloured felt now rather than a panel inside a card, so the tray carries
-   its own frame instead of borrowing the card's bottom edge */
-.sd-chip-tray{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));border:1px solid var(--line);border-radius:12px;margin-top:8px;flex-shrink:0;}
+.sd-chip-tray{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:linear-gradient(165deg,var(--panel-hi),var(--panel));border-top:1px solid var(--line);flex-shrink:0;}
 /* the betting board is a column now rather than half the screen, so the tray is scaled to it:
    the chips still read at a glance but the row fits under Player and Banker without the
    confirm/repeat buttons being pushed onto a line of their own */
@@ -1103,7 +1128,7 @@
 }
 .sd-live.is-fs .sd-board-row{display:contents;}
 .sd-live.is-fs .sd-tally{grid-row:1;grid-column:1;box-shadow:0 10px 26px -10px rgba(0,0,0,.8);}
-.sd-live.is-fs .sd-bets{grid-row:1;grid-column:2;}
+.sd-live.is-fs .sd-bets{grid-row:1;grid-column:2;background:none;border:none;overflow:visible;}
 .sd-live.is-fs .sd-road{grid-row:1;grid-column:3;box-shadow:0 10px 26px -10px rgba(0,0,0,.8);}
 /* the felt stands proud of the two paper panels beside it and breaks the top of the strip */
 .sd-live.is-fs .sd-bets{align-self:end;height:calc(var(--sd-board) + 34px);}
@@ -1130,6 +1155,13 @@
 .sd-live.is-fs .timer-ring-wrap .txt{color:#fff;}
 .sd-live.is-fs .timer-ring-wrap.urgent{animation:none;}
 .sd-live.is-fs .sd-stage .phase-banner{top:74px;bottom:auto;font-size:21px;padding:10px 30px;border-radius:6px;}
+/* The still goes in whole. Filling the screen with it (background-size:cover) crops it to the
+   shape of the screen, and on a 1440x838 that took a sixth of the height off the top and the
+   bottom of the shot - the shoe, the rack and the floor with it. Fitted instead, the whole of
+   the scene is on the screen and the shape it does not fill is black, which is how a studio
+   stream is letterboxed. The gradient over it keeps its own sizing, so it is named first. */
+.sd-live.is-fs .sd-stage{background:#000;}
+.sd-live.is-fs .table-felt{background-size:auto, contain;}
 /* the hands deal in the middle of what is left of the still, not the middle of the screen -
    centred on the whole of it they came out half behind the strip */
 .sd-live.is-fs .table-felt{padding-bottom:calc(var(--sd-board) + 10px);}
@@ -1184,6 +1216,12 @@
     position:relative;inset:auto;width:auto;height:auto;
     aspect-ratio:672/470;min-height:220px;border-radius:10px;
   }
+  /* the desktop's fullscreen sizes are not inside a query, so they reach the phone and beat the
+     phone's own - which had the readings and the name printing over each other again in the
+     pair spots. Restated here at the same weight, they do not. */
+  .sd-live.is-fs .bet-board{--bb-pad:6px;--bb-pct:21px;--bb-fs-pct:7.5px;--bb-fs-stat:6.5px;
+                            --bb-fs-label:12px;--bb-fs-plabel:9px;--bb-fs-odds:9px;--bb-fs-mine:13px;}
+  .sd-live.is-fs .bet-board .bb-meta{gap:4px;}
   .sd-live.is-fs .table-felt{padding-bottom:0;}
   .sd-live.is-fs .cards-area{gap:12px;}
   .sd-live.is-fs .playing-card{height:66px;}

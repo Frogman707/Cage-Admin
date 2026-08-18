@@ -6553,6 +6553,14 @@ async function withdrawAcrossBranches(accountId, casino, amt, staffName, memo){
  }
  return allOk;
 }
+// Avatar games have no dealer/pit to physically cross-reference a payment against later, unlike
+// a live table - the ledger memo is the only record tying a buy-in/settlement back to which table
+// it happened on, so it needs the table number baked in (live/speed games keep the plain memo,
+// since GAME# already ties those back to a specific table via the game record).
+function gameLedgerMemoSuffix(g){
+ if(!g || g.startKind !== 'avatar') return '';
+ return ` · ${t('startKindAvatar')} · ${t('tableLabel')}: ${g.table||'—'}`;
+}
 async function applyAccountTransaction(accountId, type, amount, memo){
  const acc = DB.accounts[accountId];
  if(!acc || !amount || amount<=0) return null;
@@ -6881,7 +6889,7 @@ async function _doAddBuyin(existing, buyin, workingChip){
   applyShift('cashBuyinShift', buyin, staffName);
   sendCageNotification(existing.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${existing.account}`, `GAME#: ${existing.gameId}`, `CURR.: ${existing.cur||'PHP'}`, `ADD B/I: (CASH) ${fmt(buyin)}`, `REMARKS: ADD B/I#${remarkNo}`]);
  } else if(existing.startType === 'account'){
-  const txn = await applyAccountTransaction(existing.account, 'OUT', buyin, `${t('memoGameBuyin')} (${existing.gameId})`);
+  const txn = await applyAccountTransaction(existing.account, 'OUT', buyin, `${t('memoGameBuyin')} (${existing.gameId})${gameLedgerMemoSuffix(existing)}`);
   renderMemberCard(); renderLedger();
   if(txn) sendCageNotification(existing.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${existing.account}`, `GAME#: ${existing.gameId}`, `CURR.: ${existing.cur||'PHP'}`, `ADD B/I: ${fmt(buyin)}`, `BAL: ${fmt(txn.balance)}`, `REMARKS: ADD B/I#${remarkNo}`]);
   else acctWriteFailed = true;
@@ -6924,7 +6932,7 @@ async function _doStartGame(account, buyin, workingChip, enteredId){
   applyShift('cashBuyinShift', buyin, staffName);
   sendCageNotification(account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${account}`, `GAME#: ${gameId}`, `CURR.: ${cur||'PHP'}`, `B/I: (CASH) ${fmt(buyin)}`, `REMARKS: B/I #${remarkNo}`]);
  } else if(startType === 'account'){
-  var txn = await applyAccountTransaction(account, 'OUT', buyin, `${t('memoGameBuyin')} (${gameId})`);
+  var txn = await applyAccountTransaction(account, 'OUT', buyin, `${t('memoGameBuyin')} (${gameId})${gameLedgerMemoSuffix(newGame)}`);
   renderMemberCard(); renderLedger();
   if(txn) sendCageNotification(account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${account}`, `GAME#: ${gameId}`, `CURR.: ${cur||'PHP'}`, `B/I: (D/P) ${fmt(buyin)}`, `BAL: ${fmt(txn.balance)}`, `REMARKS: B/I #${remarkNo}`]);
  }
@@ -6945,7 +6953,7 @@ async function cancelGame(gameId){
   // Refund the account BEFORE touching any local/shift state below - if this fails, bail out
   // entirely and leave the game exactly as it was, rather than deleting the game record (and
   // reversing shift/rolling adjustments) while the customer's buy-in was never actually refunded.
-  const txn = await applyAccountTransaction(g.account, 'IN', g.buyin, `${t('memoGameCancelRefund')} (${g.gameId})`);
+  const txn = await applyAccountTransaction(g.account, 'IN', g.buyin, `${t('memoGameCancelRefund')} (${g.gameId})${gameLedgerMemoSuffix(g)}`);
   if(!txn){ toast(t('toastStaffSyncFailed')); return; }
   renderMemberCard(); renderLedger();
  }
@@ -7225,7 +7233,7 @@ async function _doSettleGame(){
  // than recording a settlement whose payout never actually reached the customer's account.
  let settleTxn = null;
  if(result > 0){
-  settleTxn = await applyAccountTransaction(g.account, 'IN', result, `${t('memoRollingSettle')} (${g.gameId})`);
+  settleTxn = await applyAccountTransaction(g.account, 'IN', result, `${t('memoRollingSettle')} (${g.gameId})${gameLedgerMemoSuffix(g)}`);
   if(!settleTxn){ toast(t('toastStaffSyncFailed')); return; }
   renderMemberCard(); renderLedger();
  }
@@ -7392,7 +7400,7 @@ async function _doConfirmMidSettle(){
  const depositSum = cc.deposit + nn.deposit;
  let depositFailed = false;
  if(depositSum > 0){
-  const txn = await applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoMidSettleDeposit')} (${g.gameId})`);
+  const txn = await applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoMidSettleDeposit')} (${g.gameId})${gameLedgerMemoSuffix(g)}`);
   renderMemberCard(); renderLedger();
   if(txn){
    const {date, time} = nowDateTimeParts();
@@ -7614,7 +7622,7 @@ async function _doConfirmGameEnd(){
  const depositSum = cc.deposit + nn.deposit;
  let depositFailed = false;
  if(depositSum > 0){
-  const txn = await applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoGameEndDeposit')} (${g.gameId})`);
+  const txn = await applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoGameEndDeposit')} (${g.gameId})${gameLedgerMemoSuffix(g)}`);
   renderMemberCard(); renderLedger();
   if(txn){
    const {date, time} = nowDateTimeParts();

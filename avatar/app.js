@@ -372,10 +372,10 @@ function onLangChange(){
   if (MODE==='avatar'){
     if (document.getElementById('viewAvatarTable').style.display !== 'none' && AVATAR.table){
       if (AVATAR.request){
-        document.getElementById('viewAvatarTable').innerHTML = avatarTableShellHtml();
+        paintScreen(document.getElementById('viewAvatarTable'), avatarTableShellHtml());
         renderAvatarRoad(); renderAvatarTally(); renderMyBetHistory(); updateAvatarStatusPanel();
       } else {
-        document.getElementById('viewAvatarTable').innerHTML = avatarPreviewShellHtml(avatarRequestStateForTable(AVATAR.previewTableId).state);
+        paintScreen(document.getElementById('viewAvatarTable'), avatarPreviewShellHtml(avatarRequestStateForTable(AVATAR.previewTableId).state));
         renderAvatarRoad(); renderAvatarTally();
       }
     } else if (AVATAR.lobbyData){
@@ -563,7 +563,7 @@ async function openAvatarTablePreview(tableId, state){
   AVATAR.history = rounds.map(r=>r.result);
   AVATAR.pairFlags = rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair}));
 
-  view.innerHTML = avatarPreviewShellHtml(state ?? avatarRequestStateForTable(tableId).state);
+  paintScreen(view, avatarPreviewShellHtml(state ?? avatarRequestStateForTable(tableId).state));
   renderAvatarRoad();
   renderAvatarTally();
 }
@@ -708,7 +708,7 @@ async function enterAvatarSession(tableId){
   AVATAR.shoe = openShoe(AVATAR.table.shoeNo || 1);
   await refreshTipTotals();
 
-  view.innerHTML = avatarTableShellHtml();
+  paintScreen(view, avatarTableShellHtml());
   renderAvatarRoad();
   renderAvatarTally();
   renderMyBetHistory();
@@ -1091,7 +1091,7 @@ function toggleSpeedMultiPanel(open){
   if (!el) return;
   const show = open === undefined ? !el.classList.contains('open') : !!open;
   if (show){
-    el.innerHTML = speedMultiPanelHtml();
+    paintScreen(el, speedMultiPanelHtml());
     Object.keys(SPEED.tstate).forEach(id=>{
       renderSpeedTileBets(id);
       setSpeedTileBetsLocked(id, SPEED.tstate[id].phase !== 'betting');
@@ -1331,6 +1331,19 @@ function placeSpeedBet(tableId, type){
   projectSpeedBalance();
 }
 
+/* Every screen is built from a template that carries its Korean inline with a data-i18n name
+   beside it, and applyI18n swaps that text for whatever language is in force. It only ran on
+   load and when the language was changed - so a screen built after that kept the Korean it was
+   written with, whatever the player had picked. That is every table screen: the felt read
+   플레이어 / 뱅커 / 베팅완료 in all six languages. Screens are painted through here now, so a
+   screen speaks the right language from the moment it exists. */
+function paintScreen(el, html){
+  if (!el) return null;
+  el.innerHTML = html;
+  applyI18n(el);
+  return el;
+}
+
 /* ---------------- the fullscreen bars ----------------
    In fullscreen the page header is off the screen, so what it carried gets bars of its own: the
    casino's mark, which round and which shoe, who is playing and for how much, and the way out.
@@ -1456,7 +1469,7 @@ function openSpeedTableDetail(tableId, preserveScroll){
   SPEED.detailTableId = tableId;
   showView('viewSpeedTable');
   releaseFsFollowers();     // whatever is on loan to the old screen, before it is thrown away
-  document.getElementById('viewSpeedTable').innerHTML = speedDetailShellHtml(tableId);
+  paintScreen(document.getElementById('viewSpeedTable'), speedDetailShellHtml(tableId));
   renderSpeedTileBets(tableId);
   renderSpeedDetailRoad(tableId);
   paintSpeedFsBars(tableId);

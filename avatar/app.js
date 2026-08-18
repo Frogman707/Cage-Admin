@@ -157,11 +157,58 @@ function toggleHeaderFavorite(){
 function toggleCardFavorite(btn){
   btn.classList.toggle('active');
 }
+/* ---------------- 전체화면 ----------------
+   The whole table goes fullscreen, not the video on its own. Fullscreening just the still left
+   the board, the spots and the chips behind on a page nobody could see, so there was no game to
+   play once you were in it. The screen the button opens now is the table itself:
+     - on a desktop the still fills the screen corner to corner and everything else rides over
+       its foot as one strip - the counts and the Bead Plate on the left, the betting spots in
+       the middle, the roads and the P/B prediction on the right;
+     - on a phone there is no room to lay anything over anything, so the same pieces stack down
+       the screen with a bar naming the round and the shoe above them and a bar carrying the
+       balance below.
+   Which of the two you get is the screen's own width, exactly as it is outside fullscreen. */
 function toggleStageFullscreen(btn){
-  const stage = btn.closest('.sd-stage');
-  if (!stage) return;
-  if (!document.fullscreenElement) stage.requestFullscreen?.().catch(()=>{});
+  const root = (btn && btn.closest('.speed-detail-wrap')) || document.querySelector('.speed-detail-wrap');
+  if (!root) return;
+  if (!document.fullscreenElement) root.requestFullscreen?.().catch(()=>{});
   else document.exitFullscreen?.();
+}
+function exitStageFullscreen(){ if (document.fullscreenElement) document.exitFullscreen?.(); }
+/* The layout swap is a class rather than :fullscreen so the pieces that have to move in JS -
+   the roads, which are pinned to their newest column and have to be re-pinned once the panel
+   they live in changes width - move with it. */
+/* Anything that floats over the page - the toast, the history sheet - is only drawn over the
+   page it is in, so on a fullscreen table it has to be inside the table or it fires invisibly
+   behind it. It is lent to the screen, not given: the table screen is rebuilt from scratch on
+   every open, and a sheet left inside the old one is thrown away with it, so it goes home to
+   the body before anything replaces the screen and is lent again afterwards. */
+function adoptFsFollowers(host){
+  document.querySelectorAll('[data-fs-follow]').forEach(el=>{ if (el.parentElement !== host) host.appendChild(el); });
+}
+function releaseFsFollowers(){ adoptFsFollowers(document.body); }
+function fsFollowHost(){
+  const fs = document.fullscreenElement;
+  return fs && fs.classList.contains('speed-detail-wrap') ? fs : document.body;
+}
+document.addEventListener('fullscreenchange', ()=>{
+  const fs = document.fullscreenElement;
+  document.querySelectorAll('.speed-detail-wrap').forEach(w=>w.classList.toggle('is-fs', w === fs));
+  adoptFsFollowers(fsFollowHost());
+  if (SPEED.detailTableId){
+    paintSpeedFsBars(SPEED.detailTableId);
+    renderSpeedDetailRoad(SPEED.detailTableId);
+  }
+});
+/* the round, the shoe and the balance the phone's fullscreen bars carry */
+function paintSpeedFsBars(tableId){
+  const s = SPEED.tstate[tableId];
+  if (!s) return;
+  const set = (id, v)=>{ const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('fsRound', '#' + (s.roundNo || 1));
+  set('fsShoe', s.shoe ? s.shoe.no : (SPEED.tables[tableId]?.shoeNo || 1));
+  const hdr = document.getElementById('hdrBalance');
+  set('fsBalance', hdr ? hdr.textContent : fmtNum(STATE.balance));
 }
 
 /* ---------------- game history bottom sheet (mobile-style, grouped by day) ---------------- */
@@ -1214,9 +1261,17 @@ function openSpeedTableDetail(tableId, preserveScroll){
   if (!s || !tb) return;
   SPEED.detailTableId = tableId;
   showView('viewSpeedTable');
+  releaseFsFollowers();     // whatever is on loan to the old screen, before it is thrown away
   document.getElementById('viewSpeedTable').innerHTML = speedDetailShellHtml(tableId);
   renderSpeedTileBets(tableId);
   renderSpeedDetailRoad(tableId);
+  paintSpeedFsBars(tableId);
+  // the screen is rebuilt from scratch on every open, so one opened while already fullscreen
+  // needs the class - and the loans - put back on the new wrapper
+  if (document.fullscreenElement){
+    document.querySelector('.speed-detail-wrap')?.classList.add('is-fs');
+    adoptFsFollowers(fsFollowHost());
+  }
   setSpeedTilePhaseText(tableId, s.phase==='betting'?t('phaseBetting'):s.phase==='dealing'?t('phaseDealing'):'');
   setSpeedTileTimer(tableId, Math.max(0, s.secondsLeft));
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
@@ -1227,13 +1282,22 @@ function openSpeedTableDetail(tableId, preserveScroll){
 }
 function closeSpeedTableDetail(){
   SPEED.detailTableId = null;
+  if (document.fullscreenElement) document.exitFullscreen?.();
+  releaseFsFollowers();
   document.getElementById('viewSpeedTable').innerHTML = '';
   showView('viewSpeedLobby');
 }
 function speedDetailShellHtml(tableId){
   const tb = SPEED.tables[tableId];
   return `
-  <div class="speed-detail-wrap">
+  <div class="speed-detail-wrap sd-live">
+    <!-- the two bars belong to the phone's fullscreen screen and are drawn nowhere else -->
+    <div class="sd-fs-bar sd-fs-top">
+      <span class="fs-mark">${CASINO_MARK_SRC[tb.casino] ? `<img src="${CASINO_MARK_SRC[tb.casino]}" alt="">` : ''}${escapeHtml(tb.casino || '')}</span>
+      <span class="fs-stat"><i>${t('roundLabel')}</i><b id="fsRound">#1</b></span>
+      <span class="fs-stat"><i>${t('shoeLabel')}</i><b id="fsShoe">1</b></span>
+      <button class="fs-x" onclick="exitStageFullscreen()" data-i18n-title="fullscreen" title="전체화면">✕</button>
+    </div>
     <div class="speed-detail-grid">
       <div class="sd-stage">
         <button class="icon-btn speed-detail-close" onclick="closeSpeedTableDetail()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
@@ -1261,6 +1325,11 @@ function speedDetailShellHtml(tableId){
         </div>
         <div class="timer-ring-wrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-detail">15</div></div>
       </div>
+      <!-- The board and the betting spots share one wrapper. It is display:contents everywhere
+           except a desktop fullscreen, so on the ordinary screen it is not there at all and its
+           children land on the table grid exactly as they did; in fullscreen it becomes the
+           strip over the foot of the video and puts them on three columns of its own. -->
+      <div class="sd-underbar">
       ${avatarScoreboardHtml('detail')}
       <div class="sd-bets">
         <div class="pair-row">
@@ -1283,6 +1352,13 @@ function speedDetailShellHtml(tableId){
           </button>
         </div>
       </div>
+      </div>
+    </div>
+    <div class="sd-fs-bar sd-fs-bottom">
+      <span class="fs-who"><i>👤</i>${escapeHtml(PLAYER?.nickname || PLAYER?.id || '')}</span>
+      <span class="fs-bal">₱ <b id="fsBalance">0</b></span>
+      <button onclick="openGameHistory()" data-i18n="gameHistory">게임기록</button>
+      <button onclick="toggleSpeedMultiPanel()" data-i18n="multiBet">멀티 베팅</button>
     </div>
     <!-- the multi-bet sheet lives outside the grid: it floats over the screen rather than
          sitting in the layout, so opening it moves nothing else on the page -->
@@ -1396,7 +1472,10 @@ async function tickAllSpeedTables(){
 }
 function setSpeedTileTimer(tableId, v){
   const el = document.getElementById('timer-'+tableId); if (el) el.textContent = v;
-  if (SPEED.detailTableId===tableId){ const d = document.getElementById('timer-detail'); if (d) d.textContent = v; }
+  if (SPEED.detailTableId===tableId){
+    const d = document.getElementById('timer-detail'); if (d) d.textContent = v;
+    paintSpeedFsBars(tableId);   // the fullscreen bars carry the round, the shoe and the balance
+  }
   paintSpeedMultiRow(tableId);   // the multi-bet panel counts its neighbours down too
 }
 // The list no longer captions the phase - only the open table does.

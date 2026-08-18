@@ -372,10 +372,10 @@ function onLangChange(){
   if (MODE==='avatar'){
     if (document.getElementById('viewAvatarTable').style.display !== 'none' && AVATAR.table){
       if (AVATAR.request){
-        document.getElementById('viewAvatarTable').innerHTML = avatarTableShellHtml();
+        paintScreen(document.getElementById('viewAvatarTable'), avatarTableShellHtml());
         renderAvatarRoad(); renderAvatarTally(); renderMyBetHistory(); updateAvatarStatusPanel();
       } else {
-        document.getElementById('viewAvatarTable').innerHTML = avatarPreviewShellHtml(avatarRequestStateForTable(AVATAR.previewTableId).state);
+        paintScreen(document.getElementById('viewAvatarTable'), avatarPreviewShellHtml(avatarRequestStateForTable(AVATAR.previewTableId).state));
         renderAvatarRoad(); renderAvatarTally();
       }
     } else if (AVATAR.lobbyData){
@@ -563,7 +563,7 @@ async function openAvatarTablePreview(tableId, state){
   AVATAR.history = rounds.map(r=>r.result);
   AVATAR.pairFlags = rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair}));
 
-  view.innerHTML = avatarPreviewShellHtml(state ?? avatarRequestStateForTable(tableId).state);
+  paintScreen(view, avatarPreviewShellHtml(state ?? avatarRequestStateForTable(tableId).state));
   renderAvatarRoad();
   renderAvatarTally();
 }
@@ -708,7 +708,7 @@ async function enterAvatarSession(tableId){
   AVATAR.shoe = openShoe(AVATAR.table.shoeNo || 1);
   await refreshTipTotals();
 
-  view.innerHTML = avatarTableShellHtml();
+  paintScreen(view, avatarTableShellHtml());
   renderAvatarRoad();
   renderAvatarTally();
   renderMyBetHistory();
@@ -799,7 +799,9 @@ async function submitTip(){
   const target = document.getElementById('tipTarget').value;
   const amount = rawNum(document.getElementById('tipAmount').value);
   if (!amount){ toast(t('suErrRequired'), true); return; }
-  if (amount > STATE.balance){ toast(t('insufficientBalance'), true); return; }
+  // avatarCommittedAmount(): this round's stake, while it is still spoken for but has not
+  // actually left STATE.balance yet - see the comment there
+  if (amount > STATE.balance - avatarCommittedAmount()){ toast(t('insufficientBalance'), true); return; }
   await db.collection('memberLedger').doc(uuidv4()).set({
     memberId: PLAYER.id, casino: PLAYER.casino, amount: -amount,
     category: target==='avatar' ? 'avatar_tip' : 'dealer_tip',
@@ -829,6 +831,16 @@ async function endAvatarSession(){
 
 /* ---------------- round loop (auto-bets the member's saved instruction each round) ---------------- */
 function avatarTotalBet(){ return Object.values(AVATAR.bets).reduce((a,b)=>a+b,0); }
+/* AVATAR auto-bets the member's saved instruction every round with no confirm step, so the stake
+   is committed the moment betting opens - unlike Speed, there is no "unconfirmed, might not
+   happen" middle state to wait out. But it does not actually leave STATE.balance until
+   beginAvatarDealingPhase's placeBet write lands, and that is a real network round-trip: the tip
+   form reads STATE.balance directly, and on a slow connection a tip sent from what still looked
+   like the full balance landed on top of the round's own deduction and took STATE.balance
+   negative. AVATAR.committed tracks the gap: true from the moment a round's betting phase opens,
+   false again once the deduction has actually happened (or the round turned out to have nothing
+   staked). */
+function avatarCommittedAmount(){ return AVATAR.committed ? avatarTotalBet() : 0; }
 function stopAvatarRoundLoop(){ if (AVATAR.timerHandle){ clearInterval(AVATAR.timerHandle); AVATAR.timerHandle = null; } }
 function startAvatarRoundLoop(){
   stopAvatarRoundLoop();
@@ -841,6 +853,10 @@ function beginAvatarBettingPhase(){
   AVATAR.currentRoundId = uuidv4();
   AVATAR.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
   AVATAR.bets[AVATAR.request.betSide] = AVATAR.request.betAmount;
+  AVATAR.committed = true;   // this round's stake is spoken for from the moment betting opens
+  // the hand belongs to the round that just ended; clearing it is what lets "no hand, no result"
+  // in beginAvatarResultPhase mean this round's hand rather than possibly a stale earlier one
+  AVATAR._sim = null;
   setAvatarPhaseBanner(t('phaseBetting'), AVATAR_BETTING_SECONDS);
   document.getElementById('playerCardsAvatar').innerHTML = ''; document.getElementById('bankerCardsAvatar').innerHTML = '';
   document.getElementById('playerScoreAvatar').textContent = ''; document.getElementById('bankerScoreAvatar').textContent = '';
@@ -856,30 +872,71 @@ function updateAvatarTimerRing(secLeft, secTotal){
   const wrap = document.getElementById('timerRingWrap');
   if (wrap) wrap.classList.toggle('urgent', secLeft <= 5 && secLeft > 0);
 }
-async function avatarTick(){
+/* avatarTick is driven by a plain setInterval, which fires again every second whether or not the
+   previous tick's async work has finished. A slow placeBet/settleBet write can outlast dealing's
+   own 4-second clock, and once that happens a later tick sees the phase's countdown already at
+   or below zero and tries to start the NEXT phase while the current one is still running - result
+   was seen reading AVATAR._sim before dealing had set it ("Cannot read properties of undefined
+   (reading 'result')"), and worse: the round that placeBet had already, genuinely staked then had
+   its settlement silently skipped, so a winning bet's payout was never credited. avatarPhaseBusy
+   is the same guard tickAllSpeedTables uses per table, sized down to Avatar's one instance. */
+let avatarPhaseBusy = false;
+function avatarTick(){
   AVATAR.secondsLeft--;
   if (AVATAR.phase==='betting'){
     updateAvatarTimerRing(Math.max(0,AVATAR.secondsLeft), AVATAR_BETTING_SECONDS);
-    if (AVATAR.secondsLeft <= 0) await beginAvatarDealingPhase();
+    if (AVATAR.secondsLeft <= 0) startAvatarPhase(beginAvatarDealingPhase);
   } else if (AVATAR.phase==='dealing'){
-    if (AVATAR.secondsLeft <= 0) await beginAvatarResultPhase();
+    if (AVATAR.secondsLeft <= 0) startAvatarPhase(beginAvatarResultPhase);
   } else if (AVATAR.phase==='result'){
     updateAvatarTimerRing(Math.max(0,AVATAR.secondsLeft), AVATAR_RESULT_SECONDS);
     if (AVATAR.secondsLeft <= 0) beginAvatarBettingPhase();
   }
 }
+/* One phase change runs at a time. A failure here (a rejected write, a dropped connection) is
+   caught and recovered by starting a fresh round rather than left to jam the loop or silently
+   drop a settlement - the player is told, in case real money already moved for the round that
+   was lost. */
+function startAvatarPhase(fn){
+  if (avatarPhaseBusy) return;
+  avatarPhaseBusy = true;
+  Promise.resolve()
+    .then(fn)
+    .catch(err=>{
+      console.error('avatar phase failed', err);
+      toast(t('roundFailed'), true);
+      AVATAR.committed = false;
+      beginAvatarBettingPhase();
+    })
+    .finally(()=>{ avatarPhaseBusy = false; });
+}
 async function beginAvatarDealingPhase(){
+  // this round's own stake and the request it belongs to, read once before the write rather than
+  // live afterward - AVATAR is one shared object, and a player who closes this table and opens
+  // another while placeBet is still on the wire would otherwise have this call resume after the
+  // switch and subtract the NEW round's total, or announce the wrong side, for a bet that was
+  // actually placed under the OLD round entirely
+  const myRound = AVATAR.currentRoundId;
+  const bets = AVATAR.bets, total = avatarTotalBet(), betSide = AVATAR.request.betSide, betAmount = AVATAR.request.betAmount;
   AVATAR.phase = 'dealing';
   AVATAR.secondsLeft = AVATAR_DEALING_SECONDS;
   setAvatarPhaseBanner(t('phaseDealing'), AVATAR_DEALING_SECONDS);
-  for (const [betType, amount] of Object.entries(AVATAR.bets)){
-    if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId:AVATAR.table.id, roundId:AVATAR.currentRoundId, betType, amount, staff:'avatar'});
+  for (const [betType, amount] of Object.entries(bets)){
+    if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId:AVATAR.table.id, roundId:myRound, betType, amount, staff:'avatar'});
   }
-  if (avatarTotalBet() > 0){
-    STATE.balance -= avatarTotalBet();
+  if (AVATAR.currentRoundId !== myRound){
+    // moved on to a new round while this write was in flight - the stake still landed correctly
+    // under the old round, but applying it to whatever is on screen now would corrupt that
+    // instead, so the real balance is re-read from the ledger rather than guessed at locally
+    await refreshBalance();
+    return;
+  }
+  if (total > 0){
+    STATE.balance -= total;
     document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
-    toast(t('avatarPlacedBet', {side: betLabel(AVATAR.request.betSide), amount: fmtNum(AVATAR.request.betAmount)}));
+    toast(t('avatarPlacedBet', {side: betLabel(betSide), amount: fmtNum(betAmount)}));
   }
+  AVATAR.committed = false;   // the stake has actually left STATE.balance now, one way or the other
   AVATAR._sim = simulateRound(AVATAR.shoe);
   await revealAvatarCards(AVATAR._sim);
 }
@@ -906,23 +963,39 @@ async function revealAvatarCards(sim){
   document.getElementById('bankerScoreAvatar').textContent = sim.banker.score;
 }
 async function beginAvatarResultPhase(){
+  // no hand, no result: the deal is still going through (startAvatarPhase should already have
+  // kept this from being reached, but a table with no hand yet is never worth reading as one)
+  if (!AVATAR._sim) return;
+  // this round's own table, shoe and stake, read once before settling rather than live afterward
+  // or mid-loop - see the identical comment in beginAvatarDealingPhase
+  const myRound = AVATAR.currentRoundId;
+  const tableId = AVATAR.table.id, tableName = AVATAR.table.name, roundNo = AVATAR.roundNo, shoe = AVATAR.shoe, bets = AVATAR.bets;
   AVATAR.phase = 'result';
   AVATAR.secondsLeft = AVATAR_RESULT_SECONDS;
   const sim = AVATAR._sim;
   setAvatarPhaseBanner(sim.result==='player' ? t('phasePlayerWin') : sim.result==='banker' ? t('phaseBankerWin') : t('phaseTie'), AVATAR_RESULT_SECONDS);
 
   let totalPayout = 0;
-  for (const [betType, amount] of Object.entries(AVATAR.bets)){
+  for (const [betType, amount] of Object.entries(bets)){
     if (amount <= 0) continue;
-    const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId:AVATAR.table.id, roundId:AVATAR.currentRoundId, betType, amount, resultInfo:sim});
+    const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:myRound, betType, amount, resultInfo:sim});
     totalPayout += payout;
-    MY_BET_LOG.unshift({tableName:AVATAR.table.name, roundNo:AVATAR.roundNo, betType, amount, payout, mode:'avatar', dt:new Date().toISOString()});
+    MY_BET_LOG.unshift({tableName, roundNo, betType, amount, payout, mode:'avatar', dt:new Date().toISOString()});
+  }
+  if (MY_BET_LOG.length) renderMyBetHistory();
+  if (AVATAR.currentRoundId !== myRound){
+    // moved on to a new round while this settlement was in flight - the payout still landed
+    // correctly in the member's ledger under the old round, so the real balance is re-read
+    // rather than applied here (or the shoe/history below carried onto whatever table is now
+    // on screen)
+    await refreshBalance();
+    return;
   }
   if (totalPayout > 0){ STATE.balance += totalPayout; toast(t('wonAmount', {amount: fmtNum(totalPayout)})); }
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
   refreshPointsQuiet();
 
-  await writeRoundDoc(db, {tableId:AVATAR.table.id, tableType:'avatar', roundNo:AVATAR.roundNo, shoeNo:AVATAR.shoe.no, sim, startedAt:new Date(Date.now()-(AVATAR_BETTING_SECONDS+AVATAR_DEALING_SECONDS)*1000).toISOString()});
+  await writeRoundDoc(db, {tableId, tableType:'avatar', roundNo, shoeNo:shoe.no, sim, startedAt:new Date(Date.now()-(AVATAR_BETTING_SECONDS+AVATAR_DEALING_SECONDS)*1000).toISOString()});
   AVATAR.history.push(sim.result);
   AVATAR.pairFlags.push({playerPair:!!sim.playerPair, bankerPair:!!sim.bankerPair});
   AVATAR.roundNo++;
@@ -935,7 +1008,6 @@ async function beginAvatarResultPhase(){
   }
   renderAvatarRoad();
   renderAvatarTally();
-  renderMyBetHistory();
 }
 async function refreshPointsQuiet(){
   const b = await getPlayerBalance(db, PLAYER.id);
@@ -1091,7 +1163,7 @@ function toggleSpeedMultiPanel(open){
   if (!el) return;
   const show = open === undefined ? !el.classList.contains('open') : !!open;
   if (show){
-    el.innerHTML = speedMultiPanelHtml();
+    paintScreen(el, speedMultiPanelHtml());
     Object.keys(SPEED.tstate).forEach(id=>{
       renderSpeedTileBets(id);
       setSpeedTileBetsLocked(id, SPEED.tstate[id].phase !== 'betting');
@@ -1307,11 +1379,35 @@ function setSpeedTileBetsLocked(tableId, locked){
   });
   paintSpeedMultiRow(tableId);
 }
+/* What is genuinely still pending against the balance. A table's stake only leaves
+   STATE.balance for real once betting closes on it - beginSpeedDealing does that subtraction and
+   then leaves s.bets holding the confirmed amounts all through dealing and the result, so the
+   felt and the multi-bet panel still have something to show. Counting every table's s.bets as
+   "locked" without checking phase double-charges the display: a table already in dealing or
+   result has had its stake taken out of STATE.balance once for real, and summing its s.bets on
+   top of that took it out a second time. With two tables live - one just placed, one still being
+   staked - the balance came out ten thousand short of what it should have read. Only a table
+   still in 'betting' has money that has not actually moved yet.
+
+   There is one more window: beginSpeedDealing flips the phase to 'dealing' the instant betting
+   closes, but the stake is not actually taken out of STATE.balance until every placeBet() write
+   has round-tripped the network - and placeSpeedBet() runs synchronously in between on whatever
+   table the player taps next. Excluding a table the moment its phase leaves 'betting' would let
+   that in-flight stake be spent a second time on another table before beginSpeedDealing finishes
+   subtracting it. s.settling covers exactly that gap: true from the moment dealing starts, false
+   again once the real subtraction has happened. */
+function speedLockedTotal(){
+  let locked = 0;
+  Object.values(SPEED.tstate).forEach(s=>{
+    if (s.phase !== 'betting' && !s.settling) return;
+    locked += Object.values(s.bets).reduce((a,b)=>a+b,0);
+  });
+  return locked;
+}
 function placeSpeedBet(tableId, type){
   const s = SPEED.tstate[tableId];
   if (!s || s.phase !== 'betting'){ toast(t('notBettingTime'), true); return; }
-  let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
-  const free = STATE.balance - locked;
+  const free = STATE.balance - speedLockedTotal();
   // the table's limits apply to each betting position, not to the round as a whole
   const max = tableBetMax(tableId);
   const headroom = Math.max(0, max - s.bets[type]);
@@ -1329,6 +1425,19 @@ function placeSpeedBet(tableId, type){
   renderSpeedTileBets(tableId);
   renderSpeedStakedTotal();
   projectSpeedBalance();
+}
+
+/* Every screen is built from a template that carries its Korean inline with a data-i18n name
+   beside it, and applyI18n swaps that text for whatever language is in force. It only ran on
+   load and when the language was changed - so a screen built after that kept the Korean it was
+   written with, whatever the player had picked. That is every table screen: the felt read
+   플레이어 / 뱅커 / 베팅완료 in all six languages. Screens are painted through here now, so a
+   screen speaks the right language from the moment it exists. */
+function paintScreen(el, html){
+  if (!el) return null;
+  el.innerHTML = html;
+  applyI18n(el);
+  return el;
 }
 
 /* ---------------- the fullscreen bars ----------------
@@ -1456,7 +1565,7 @@ function openSpeedTableDetail(tableId, preserveScroll){
   SPEED.detailTableId = tableId;
   showView('viewSpeedTable');
   releaseFsFollowers();     // whatever is on loan to the old screen, before it is thrown away
-  document.getElementById('viewSpeedTable').innerHTML = speedDetailShellHtml(tableId);
+  paintScreen(document.getElementById('viewSpeedTable'), speedDetailShellHtml(tableId));
   renderSpeedTileBets(tableId);
   renderSpeedDetailRoad(tableId);
   paintSpeedFsBars(tableId);
@@ -1614,9 +1723,8 @@ function paintSpeedConfirmState(tableId){
 function repeatLastSpeedBetDetail(tableId){
   const s = SPEED.tstate[tableId]; if (!s || s.phase!=='betting') return;
   if (!s.lastBets || !Object.values(s.lastBets).some(v=>v>0)){ toast(t('repeatNoPrev'), true); return; }
-  let locked = 0; Object.values(SPEED.tstate).forEach(x=> locked += Object.values(x.bets).reduce((a,b)=>a+b,0));
   const need = Object.values(s.lastBets).reduce((a,b)=>a+b,0);
-  if (STATE.balance - locked < need){ toast(t('insufficientBalance'), true); return; }
+  if (STATE.balance - speedLockedTotal() < need){ toast(t('insufficientBalance'), true); return; }
   const max = tableBetMax(tableId);
   if (Object.entries(s.lastBets).some(([k,v]) => v > 0 && (s.bets[k]||0) + v > max)){
     toast(t('aboveTableMax', {max: fmtNum(max)}), true); return;
@@ -1628,9 +1736,7 @@ function repeatLastSpeedBetDetail(tableId){
   projectSpeedBalance();
 }
 function projectSpeedBalance(){
-  let locked = 0;
-  Object.values(SPEED.tstate).forEach(s=> locked += Object.values(s.bets).reduce((a,b)=>a+b,0));
-  document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance - locked);
+  document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance - speedLockedTotal());
 }
 /* One loop drives every table's clock, so it must never wait on any of them. It used to await
    the phase changes, and a phase change is not quick: closing betting writes each staked spot to
@@ -1692,6 +1798,7 @@ function beginSpeedBetting(tableId){
   const hadBets = Object.values(s.bets).some(v=>v>0);
   if (hadBets) s.lastBets = {...s.bets};
   s.phase = 'betting'; s.secondsLeft = SPEED_BETTING_SECONDS; s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0}; s.currentRoundId = uuidv4();
+  s.settling = false;
   s.confirmed = null;
   // the hand belongs to the round that just ended; clearing it is what lets "no hand, no result"
   // in beginSpeedResult mean this round's hand rather than possibly the last one's
@@ -1702,6 +1809,11 @@ function beginSpeedBetting(tableId){
   setSpeedTileBetsLocked(tableId, false);
   renderSpeedTileBets(tableId);
   renderSpeedStakedTotal();
+  // the header can be showing this table's stake projected off the balance - clearing s.bets
+  // above without this leaves it stuck low with nothing actually riding, which is exactly what
+  // happens when a bet fails to reach the cage: the table recovers to a clean round, but the
+  // balance display never did
+  projectSpeedBalance();
   setSpeedTilePhaseText(tableId, t('phaseBetting'));
   const scoreEl = document.getElementById('score-'+tableId); if (scoreEl) scoreEl.textContent = '';
   if (SPEED.detailTableId===tableId) clearSpeedDetailCards();
@@ -1709,6 +1821,8 @@ function beginSpeedBetting(tableId){
 async function beginSpeedDealing(tableId){
   const s = SPEED.tstate[tableId];
   s.phase = 'dealing'; s.secondsLeft = SPEED_DEALING_SECONDS;
+  // still counts as locked until the balance actually moves below - see speedLockedTotal
+  s.settling = true;
   if (SPEED.detailTableId===tableId){
     ['player','tie','banker','playerPair','bankerPair'].forEach(k=> document.getElementById(`spot-detail-${k}`)?.classList.add('locked'));
   }
@@ -1732,6 +1846,7 @@ async function beginSpeedDealing(tableId){
   }
   const totalBet = Object.values(s.bets).reduce((a,b)=>a+b,0);
   if (totalBet > 0){ STATE.balance -= totalBet; }
+  s.settling = false;
   s._sim = simulateRound(s.shoe);
   if (SPEED.detailTableId===tableId) await revealSpeedDetailCards(s._sim);
 }

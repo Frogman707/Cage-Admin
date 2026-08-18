@@ -890,7 +890,12 @@
 .bb-main{grid-template-columns:1fr 1fr;flex:1 1 auto;min-height:0;}
 .bet-board{--bb-arch:27%;}
 .bet-board > .bet-spot.bb-tie{
-  position:absolute;left:50%;transform:translateX(-50%);top:0;
+  /* Centred with a margin rather than a transform. It used to ride on translateX(-50%), and the
+     spots clear the base rail's 1px hover lift with transform:none - which wiped the arch's
+     centring with it, so hovering 타이 threw it half its own width to the right. A negative
+     margin of half the width does the same centring and is not a transform, so nothing else on
+     the board can undo it. Both are percentages of the same containing block, so half is exact. */
+  position:absolute;left:50%;margin-left:calc(var(--bb-arch) / -2);top:0;
   width:var(--bb-arch);height:68%;
   border-radius:10px 10px 50% 50%;
 }

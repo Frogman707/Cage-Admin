@@ -200,15 +200,16 @@ document.addEventListener('fullscreenchange', ()=>{
     renderSpeedDetailRoad(SPEED.detailTableId);
   }
 });
-/* the round, the shoe and the balance the phone's fullscreen bars carry */
+/* the round, the shoe and the balance the fullscreen bars carry - by class, because the head and
+   the foot both carry them and only one of the two is on the screen at a time */
 function paintSpeedFsBars(tableId){
   const s = SPEED.tstate[tableId];
   if (!s) return;
-  const set = (id, v)=>{ const el = document.getElementById(id); if (el) el.textContent = v; };
-  set('fsRound', '#' + (s.roundNo || 1));
-  set('fsShoe', s.shoe ? s.shoe.no : (SPEED.tables[tableId]?.shoeNo || 1));
+  const set = (cls, v)=>document.querySelectorAll('.' + cls).forEach(el=>{ el.textContent = v; });
+  set('fs-round', s.roundNo || 1);
+  set('fs-shoe', s.shoe ? s.shoe.no : (SPEED.tables[tableId]?.shoeNo || 1));
   const hdr = document.getElementById('hdrBalance');
-  set('fsBalance', hdr ? hdr.textContent : fmtNum(STATE.balance));
+  set('fs-bal', hdr ? hdr.textContent : fmtNum(STATE.balance));
 }
 
 /* ---------------- game history bottom sheet (mobile-style, grouped by day) ---------------- */
@@ -583,7 +584,7 @@ function avatarPreviewShellHtml(state){
           <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
         </div>
         <div class="sd-stage-icons">
-          <button onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
+          <button class="sd-ico-history" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
         </div>
         <div class="table-felt"></div>
       </div>
@@ -756,7 +757,7 @@ function avatarTableShellHtml(){
           </button>
           <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
           <button onclick="openTipModal()" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
-          <button onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
+          <button class="sd-ico-history" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
         </div>
         <div class="table-felt">
           <div class="cards-area">
@@ -1221,6 +1222,23 @@ function renderSpeedTileBets(tableId){
       if (el) el.textContent = amt;
     }
   });
+  if (SPEED.detailTableId===tableId) paintBetBoardReadings(tableId);
+}
+/* The four readings on a spot. There is one player's money on this table, so what is on a spot
+   is what this player put there, one head where there is anything at all, and the share is that
+   spot's part of everything riding on the round - which is what the percentage on a live board
+   means, and is worth reading even with a single player on it. */
+function paintBetBoardReadings(tableId){
+  const s = SPEED.tstate[tableId];
+  if (!s) return;
+  const total = speedBetsTotal(s.bets);
+  BET_SPOTS.forEach(({key})=>{
+    const amt = s.bets[key] || 0;
+    const set = (id, v)=>{ const el = document.getElementById(id); if (el) el.textContent = v; };
+    set(`pct-detail-${key}`, (total ? Math.round(amt / total * 100) : 0) + '%');
+    set(`heads-detail-${key}`, amt ? 1 : 0);
+    set(`pool-detail-${key}`, fmtNum(amt));
+  });
 }
 /* the tile's spots take and release the same lock the open table's do, so a round that has gone
    to the cards cannot be bet into from the list either */
@@ -1253,6 +1271,80 @@ function placeSpeedBet(tableId, type){
   renderSpeedTileBets(tableId);
   renderSpeedStakedTotal();
   projectSpeedBalance();
+}
+
+/* ---------------- the fullscreen bars ----------------
+   In fullscreen the page header is off the screen, so what it carried gets bars of its own: the
+   casino's mark, which round and which shoe, who is playing and for how much, and the way out.
+   The phone shows both bars - the round and the shoe at the head, the player and the balance at
+   the foot. The desktop shows only the foot, which carries the round, the shoe, the chips and
+   the two round buttons, and keeps the ✕ over the video where the reference has it.
+   Both bars carry the same readings, so they are written once and painted by class. */
+const FS_BAR_ICONS = {
+  history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>',
+  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+};
+function fsBarHtml(tb, where){
+  const mark = `<span class="fs-mark">${CASINO_MARK_SRC[tb.casino] ? `<img src="${CASINO_MARK_SRC[tb.casino]}" alt="">` : ''}<b>${escapeHtml(tb.casino || '')}</b></span>`;
+  const stats = `
+    <span class="fs-stat"><i>${t('roundLabel')}</i><b class="fs-round">1</b></span>
+    <span class="fs-stat shoe"><i>${t('shoeLabel')}</i><b class="fs-shoe">1</b></span>`;
+  if (where === 'top'){
+    return `<div class="sd-fs-bar sd-fs-top">${mark}${stats}
+      <button class="fs-x" onclick="exitStageFullscreen()" data-i18n-title="fullscreen" title="전체화면">✕</button>
+    </div>`;
+  }
+  return `<div class="sd-fs-bar sd-fs-bottom">
+    ${mark}${stats}
+    <span class="fs-who"><em><i>👤</i>${escapeHtml(PLAYER?.nickname || PLAYER?.id || '')}</em><b>₱ <span class="fs-bal">0</span></b></span>
+    <span class="fs-sp"></span>
+    <button class="fs-ico" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록">${FS_BAR_ICONS.history}</button>
+    <button class="fs-ico" onclick="toggleSpeedMultiPanel()" data-i18n-title="multiBet" title="멀티 베팅">${FS_BAR_ICONS.menu}</button>
+  </div>`;
+}
+
+/* ---------------- the betting board ----------------
+   Laid out as the felt is: 플레이어 페어 and 뱅커 페어 across the top, 플레이어 and 뱅커 across
+   the bottom in half the board each, and 타이 as a green arch standing between them - a column
+   through the top row that ends in a semicircle over the line where 플레이어 meets 뱅커.
+   Every spot carries the same four readings the board carries: the share of the table's money
+   on it, how many are on it, what is on it, and what it pays. They face inwards - the player
+   side reads from the left edge, the banker side mirrors it - so the two labels sit either side
+   of the arch rather than at the far ends of the board. */
+const BET_SPOTS = [
+  {key:'playerPair', cls:'bb-pp', side:'player', i18n:'playerPair', ko:'플레이어 페어', odds:'11:1'},
+  {key:'bankerPair', cls:'bb-bp', side:'banker', i18n:'bankerPair', ko:'뱅커 페어',     odds:'11:1'},
+  {key:'player',     cls:'bb-pl', side:'player', i18n:'player',     ko:'플레이어',      odds:'1:1'},
+  {key:'banker',     cls:'bb-bk', side:'banker', i18n:'banker',     ko:'뱅커',          odds:'0.95:1'},
+  {key:'tie',        cls:'bb-tie',side:'tie',    i18n:'tie',        ko:'타이',          odds:'8:1'},
+];
+function betSpotHtml(tableId, s){
+  return `<div class="bet-spot ${s.cls} ${s.side}" id="spot-detail-${s.key}" onclick="placeSpeedBet('${tableId}','${s.key}')">
+    <div class="bb-meta">
+      <span class="bb-pct" id="pct-detail-${s.key}">0%</span>
+      <span class="bb-stats"><i>👤 <b id="heads-detail-${s.key}">0</b></i><i>₱ <b id="pool-detail-${s.key}">0</b></i></span>
+    </div>
+    <div class="bb-name">
+      <span class="bb-label" data-i18n="${s.i18n}">${s.ko}</span>
+      <span class="bb-odds">${s.odds}</span>
+    </div>
+    <div class="my-bet" id="mybet-detail-${s.key}"></div>
+  </div>`;
+}
+function betBoardHtml(tableId){
+  const spot = key => betSpotHtml(tableId, BET_SPOTS.find(s=>s.key===key));
+  return `<div class="bet-board">
+    <div class="bb-row bb-top">
+      ${spot('playerPair')}
+      <div class="bb-arch-gap"></div>
+      ${spot('bankerPair')}
+    </div>
+    <div class="bb-row bb-main">
+      ${spot('player')}
+      ${spot('banker')}
+    </div>
+    ${spot('tie')}
+  </div>`;
 }
 
 /* ---------------- speed single-table detail screen (opened from a tile) ---------------- */
@@ -1291,13 +1383,9 @@ function speedDetailShellHtml(tableId){
   const tb = SPEED.tables[tableId];
   return `
   <div class="speed-detail-wrap sd-live">
-    <!-- the two bars belong to the phone's fullscreen screen and are drawn nowhere else -->
-    <div class="sd-fs-bar sd-fs-top">
-      <span class="fs-mark">${CASINO_MARK_SRC[tb.casino] ? `<img src="${CASINO_MARK_SRC[tb.casino]}" alt="">` : ''}${escapeHtml(tb.casino || '')}</span>
-      <span class="fs-stat"><i>${t('roundLabel')}</i><b id="fsRound">#1</b></span>
-      <span class="fs-stat"><i>${t('shoeLabel')}</i><b id="fsShoe">1</b></span>
-      <button class="fs-x" onclick="exitStageFullscreen()" data-i18n-title="fullscreen" title="전체화면">✕</button>
-    </div>
+    <!-- the two bars belong to the fullscreen screen and are drawn nowhere else. The phone gets
+         both; the desktop gets only the foot, where the round, the shoe and the chips live. -->
+    ${fsBarHtml(tb, 'top')}
     <div class="speed-detail-grid">
       <div class="sd-stage">
         <button class="icon-btn speed-detail-close" onclick="closeSpeedTableDetail()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
@@ -1315,7 +1403,7 @@ function speedDetailShellHtml(tableId){
           </button>
           <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
           <button onclick="toast(t('tipComingSoon'))" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
-          <button onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
+          <button class="sd-ico-history" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
         </div>
         <div class="table-felt">
           <div class="cards-area">
@@ -1332,15 +1420,7 @@ function speedDetailShellHtml(tableId){
       <div class="sd-underbar">
       ${avatarScoreboardHtml('detail')}
       <div class="sd-bets">
-        <div class="pair-row">
-          <div class="bet-spot pair player" id="spot-detail-playerPair" onclick="placeSpeedBet('${tableId}','playerPair')"><div class="label" data-i18n="playerPair">플레이어 페어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-playerPair"></div></div>
-          <div class="bet-spot tie" id="spot-detail-tie" onclick="placeSpeedBet('${tableId}','tie')"><div class="label" data-i18n="tie">타이</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">8:1</div><div class="my-bet" id="mybet-detail-tie"></div></div>
-          <div class="bet-spot pair banker" id="spot-detail-bankerPair" onclick="placeSpeedBet('${tableId}','bankerPair')"><div class="label" data-i18n="bankerPair">뱅커 페어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">11:1</div><div class="my-bet" id="mybet-detail-bankerPair"></div></div>
-        </div>
-        <div class="bet-rail two-up" style="margin-top:0;">
-          <div class="bet-spot player" id="spot-detail-player" onclick="placeSpeedBet('${tableId}','player')"><div class="label" data-i18n="player">플레이어</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">1:1</div><div class="my-bet" id="mybet-detail-player"></div></div>
-          <div class="bet-spot banker" id="spot-detail-banker" onclick="placeSpeedBet('${tableId}','banker')"><div class="label" data-i18n="banker">뱅커</div><div class="meta-row"><span>👤 0</span><span>₱ 0</span></div><div class="odds">0.95:1</div><div class="my-bet" id="mybet-detail-banker"></div></div>
-        </div>
+        ${betBoardHtml(tableId)}
         <div class="sd-chip-tray">
           <button class="btn btn-sm" onclick="clearSpeedDetailBets('${tableId}')" data-i18n="cancelBet">취소</button>
           ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
@@ -1354,12 +1434,7 @@ function speedDetailShellHtml(tableId){
       </div>
       </div>
     </div>
-    <div class="sd-fs-bar sd-fs-bottom">
-      <span class="fs-who"><i>👤</i>${escapeHtml(PLAYER?.nickname || PLAYER?.id || '')}</span>
-      <span class="fs-bal">₱ <b id="fsBalance">0</b></span>
-      <button onclick="openGameHistory()" data-i18n="gameHistory">게임기록</button>
-      <button onclick="toggleSpeedMultiPanel()" data-i18n="multiBet">멀티 베팅</button>
-    </div>
+    ${fsBarHtml(tb, 'bottom')}
     <!-- the multi-bet sheet lives outside the grid: it floats over the screen rather than
          sitting in the layout, so opening it moves nothing else on the page -->
     <div class="speed-multi" id="speedMultiPanel"></div>

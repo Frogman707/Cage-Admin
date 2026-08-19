@@ -6615,14 +6615,18 @@ function branchLabel(){ return currentBranch(); }
 function last3Digits(id){ return String(id||'').slice(-3); }
 function sendCageNotification(accountId, lines){
  const acc = DB.accounts[accountId];
- const links = acc && acc.telegramLinks;
- if(!links || !links.length || !links[0].chatId) return;
+ const links = ((acc && acc.telegramLinks) || []).filter(l=>l.chatId);
+ if(!links.length) return;
  const text = lines.filter(l=>l!==null).join('\n');
- fetch(`${TG_FUNCTIONS_BASE}/sendTelegramMessage`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'X-App-Secret': TG_APP_API_SECRET },
-  body: JSON.stringify({ account: accountId, chatId: links[0].chatId, text }),
- }).catch(()=>{});
+ // A guest can link more than one Telegram account (modal-telegram-manage lists/removes each
+ // one individually) - notify every linked chat, not just the first one on file.
+ links.forEach(link=>{
+  fetch(`${TG_FUNCTIONS_BASE}/sendTelegramMessage`, {
+   method: 'POST',
+   headers: { 'Content-Type': 'application/json', 'X-App-Secret': TG_APP_API_SECRET },
+   body: JSON.stringify({ account: accountId, chatId: link.chatId, text }),
+  }).catch(()=>{});
+ });
 }
 
 function setIoType(type){
@@ -6660,22 +6664,22 @@ async function sendWithdrawPwTelegram(){
  const id = pendingAuthAccount || DB.currentAccount;
  if(!id){ toast(t('toastNoAcc')); return; }
  const acc = DB.accounts[id];
- const links = (acc && acc.telegramLinks) || [];
+ const links = ((acc && acc.telegramLinks) || []).filter(l=>l.chatId);
  if(!links.length){ toast(t('toastNoTelegram')); return; }
  if(!document.getElementById('wdAuthLinkVal').value) genWithdrawPwLink();
  const link = document.getElementById('wdAuthLinkVal').value;
- const chatId = links[0].chatId;
- try{
-  const resp = await fetch(`${TG_FUNCTIONS_BASE}/sendTelegramMessage`, {
+ const text = `[${id}] 출금 인증 요청 / Withdrawal authentication request\n${link}`;
+ // Send to every linked Telegram account, not just the first - report success if at least one
+ // goes through, so one recipient's blocked bot/deleted chat doesn't hide the others succeeding.
+ const results = await Promise.all(links.map(l=>
+  fetch(`${TG_FUNCTIONS_BASE}/sendTelegramMessage`, {
    method: 'POST',
    headers: { 'Content-Type': 'application/json', 'X-App-Secret': TG_APP_API_SECRET },
-   body: JSON.stringify({ account: id, chatId, text: `[${id}] 출금 인증 요청 / Withdrawal authentication request\n${link}` }),
-  });
-  if(!resp.ok) throw new Error('send failed');
-  toast(t('toastTelegramSent'));
- }catch(e){
-  toast(t('toastTelegramSendFailed'));
- }
+   body: JSON.stringify({ account: id, chatId: l.chatId, text }),
+  }).then(r=>r.ok).catch(()=>false)
+ ));
+ if(results.some(ok=>ok)) toast(t('toastTelegramSent'));
+ else toast(t('toastTelegramSendFailed'));
 }
 function confirmWithdrawPw(){
  const acc = DB.accounts[pendingAuthAccount];

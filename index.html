@@ -4739,8 +4739,8 @@ function pendingAvatarRequestsForBranch(){
 }
 /* ---- Avatar/Speed tables — real-time, same 'tables' collection /avatar and partner-admin's
    아바타게임관리 already read/write (type:'avatar'|'speed', status:'open'|'closed' set by staff
-   opening/closing a table for service). Cage Admin only reads this to show which tables are
-   currently live per branch - it doesn't open/close tables itself. ---- */
+   opening/closing a table for service). Cage Admin shows which tables are currently live per
+   branch, and can also open/close them itself (see toggleTableStatus below). ---- */
 let fbTablesUnsub = null;
 let fbTablesCache = [];
 function subscribeTablesCloud(){
@@ -4775,7 +4775,7 @@ function renderAvatarSpeedOngoingTables(){
  body.innerHTML = !tables.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   tables.map(tb=>{
    const isOpen = tb.status==='open';
-   return `<tr><td>${esc(tb.name)||'—'}</td><td>${tb.type==='speed'?t('startKindSpeed'):t('startKindAvatar')}</td><td class="num">${esc(tb.shoeNo)||1}</td><td>${isOpen?t('tableStatusOpen'):t('tableStatusClosed')}</td><td class="num">${tb.betMin?`${fmt(tb.betMin)} ~ ${fmt(tb.betMax)}`:'—'}</td>
+   return `<tr><td>${esc(tb.name)||'—'}</td><td>${tb.type==='speed'?t('startKindSpeed'):t('startKindAvatar')}</td><td class="num">${esc(tb.shoeNo)||1}</td><td>${isOpen?t('tableStatusOpen'):t('tableStatusClosed')}</td><td class="num">${tb.betMin!=null?`${fmt(tb.betMin)} ~ ${fmt(tb.betMax)}`:'—'}</td>
     <td><button class="btn btn-sm ${isOpen?'btn-danger':'btn-jade'}" onclick="toggleTableStatus('${esc(tb.id)}', ${isOpen})">${isOpen?t('tableCloseBtn'):t('tableOpenBtn')}</button></td></tr>`;
   }).join('');
 }
@@ -9329,7 +9329,7 @@ function renderAll(){
  renderHotels(); renderCars(); renderAero(); renderPoints(); renderNotifications();
  renderEndedGames(); renderShiftStaff(); renderMemberCompanyDiff(); renderBalancingSummary();
  renderDashboard(); updateAccSearchBtn(); renderEventToggle(); renderEventHistory(); renderAvatarReqBtn();
- renderTotalDeposit(); renderReportCards();
+ renderTotalDeposit(); renderReportCards(); renderAvatarSpeedOngoingTables();
 }
 function renderTotalDeposit(){
  const allInEl = document.getElementById('totalDepositAllIn');

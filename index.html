@@ -4559,6 +4559,83 @@ async function syncAccountsToAvatarSpeed(silent){
  }
 }
 
+/* ---- Accounts (guest/member profiles) — auth-gated (see firestore.rules: plaintext passwords +
+   ID photos live here). Balance is NOT synced through this collection - accountBalanceFor()/
+   acc.balance/acc.balances are a local cache that subscribeLedgerCloud() derives fresh from the
+   already-synced `ledger` collection every time it changes, so writing a balance here would just
+   be a second, staler copy of a number the ledger already owns. This collection only carries the
+   profile fields: member/phone/rate/telegram/currency/remark/photos/passwords/telegramLinks/etc. ---- */
+async function seedAccountsToCloud(){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('accounts').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = Object.keys(DB.accounts||{}).filter(id=>!existingIds.has(id));
+  if(!missing.length) return;
+  // Every terminal's DB.accounts was local-only until now, so different terminals can each hold
+  // accounts none of the others have - upsert only what Firestore doesn't already have (never
+  // overwrite an existing cloud doc). A plain "seed once if the whole collection is empty" (the
+  // pattern every other seedXToCloudIfEmpty here uses) would let whichever terminal happens to
+  // load this code first silently become the only source, and every other terminal's own
+  // local-only accounts would never reach Firestore at all.
+  const batch = fbDb.batch();
+  missing.forEach(id=>{ batch.set(fbDb.collection('accounts').doc(id), accountForCloud(DB.accounts[id])); });
+  await batch.commit();
+ }catch(e){}
+}
+// Strips the locally-derived balance fields before a profile write, so a stale number never sits
+// in the cloud doc even momentarily - see the note atop this section for why balance lives only
+// in the ledger. Shallow clone only; photo/telegramLinks fields are copied by reference, which is
+// fine since callers always replace them wholesale rather than mutating in place.
+function accountForCloud(acc){
+ const {balance, balances, ...rest} = acc;
+ return rest;
+}
+let fbAccountsUnsub = null;
+function subscribeAccountsCloud(){
+ if(!fbDb) return;
+ if(fbAccountsUnsub) fbAccountsUnsub();
+ fbAccountsUnsub = fbDb.collection('accounts').onSnapshot(snap=>{
+  const fresh = {};
+  snap.forEach(doc=>{ fresh[doc.id] = doc.data(); });
+  DB.accounts = fresh;
+  // The snapshot above just replaced every account object wholesale, including whatever balance
+  // fields happened to still be attached to old cloud docs written before this rule existed -
+  // rebuild them immediately from the ledger cache instead of waiting for the next unrelated
+  // ledger change to happen to correct them.
+  recomputeAccountBalancesFromLedgerCache();
+  renderAll();
+  resetFirestoreResubscribeBackoff('accounts');
+ }, err=>{
+  console.error('subscribeAccountsCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('accounts', subscribeAccountsCloud);
+ });
+}
+function recomputeAccountBalancesFromLedgerCache(){
+ Object.keys(DB.ledger||{}).forEach(accId=>{
+  const acc = DB.accounts[accId];
+  if(!acc) return;
+  const balByCasino = {};
+  (DB.ledger[accId]||[]).forEach(r=>{ balByCasino[r.casino] = (balByCasino[r.casino]||0) + (r.inn||0) - (r.out||0); });
+  if(isMainAccount(accId)){
+   acc.balances = acc.balances||{};
+   new Set([...Object.keys(acc.balances), ...Object.keys(balByCasino)]).forEach(c=>{ acc.balances[c] = balByCasino[c]||0; });
+  } else {
+   acc.balance = Object.values(balByCasino).reduce((a,b)=>a+(b||0),0);
+  }
+ });
+}
+function syncAccountToCloud(id){
+ if(!fbDb) return;
+ const acc = DB.accounts[id];
+ if(!acc) return;
+ fbDb.collection('accounts').doc(id).set(accountForCloud(acc)).catch(err=>console.error('syncAccountToCloud failed:', id, err));
+}
+function deleteAccountFromCloud(id){
+ if(!fbDb) return;
+ fbDb.collection('accounts').doc(id).delete().catch(err=>console.error('deleteAccountFromCloud failed:', id, err));
+}
+
 /* ---- Ledger (account deposits/withdrawals/transfers) — append-only, balance is derived ---- */
 async function seedLedgerToCloudIfEmpty(){
  if(!fbDb) return;
@@ -6431,6 +6508,7 @@ function saveAccountEdit(){
  const s = sigPads['editSigPad'];
  if(s && s.ctx) acc.signaturePhoto = s.ctx.canvas.toDataURL();
  saveDB(); renderMemberCard();
+ syncAccountToCloud(id);
  closeModal('modal-edit-account');
  toast(t('toastAccountUpdated'));
 }
@@ -6461,6 +6539,7 @@ async function _doWithdrawAccount(id){
  });
  closeModal('modal-edit-account');
  delete DB.accounts[id];
+ deleteAccountFromCloud(id);
  if(fbDb){
   try{
    const snap = await fbDb.collection('ledger').where('accountId','==',id).get();
@@ -6542,7 +6621,7 @@ function openTelegramLink(overrideId){
    knownCount = links.length;
   }
   const acc = DB.accounts[id];
-  if(acc){ acc.telegramLinks = links; saveDB(); }
+  if(acc){ acc.telegramLinks = links; saveDB(); syncAccountToCloud(id); }
   if(tgLinkTargetId===id && document.getElementById('modal-telegram-manage').classList.contains('open')) renderTelegramManage();
  };
  poll();
@@ -6571,7 +6650,7 @@ async function openTelegramManage(overrideId){
  const links = await fetchTelegramLinks(id);
  if(links !== null){
   const acc = DB.accounts[id];
-  if(acc){ acc.telegramLinks = links; saveDB(); }
+  if(acc){ acc.telegramLinks = links; saveDB(); syncAccountToCloud(id); }
   if(tgLinkTargetId===id) renderTelegramManage();
  }
  openModal('modal-telegram-manage');
@@ -6591,6 +6670,7 @@ async function deleteTelegramLink(idx){
  const chatId = acc.telegramLinks[idx].chatId;
  acc.telegramLinks.splice(idx,1);
  saveDB(); renderTelegramManage();
+ syncAccountToCloud(id);
  toast(t('toastTelegramDeleted'));
  if(chatId){
   try{
@@ -8837,6 +8917,7 @@ function submitReg(){
  if(sPad && sPad.ctx) acc.signaturePhoto = sPad.ctx.canvas.toDataURL();
  DB.ledger[id] = DB.ledger[id] || [];
  saveDB();
+ syncAccountToCloud(id);
  // a new account is a player account too - hand it straight to Avatar Speed rather than waiting
  // for someone to press the link button on the list
  syncAccountsToAvatarSpeed(true);
@@ -9452,7 +9533,10 @@ async function attemptLogin(){
  if(result.reason==='offline'){ toast(t('toastLoginOffline')); return; }
  if(!result.ok) return;
  await signInStaffSession(result.token);
- if(fbDb){ await seedStaffToCloudIfEmpty(); subscribeStaffCloud(); }
+ if(fbDb){
+  await seedStaffToCloudIfEmpty(); subscribeStaffCloud();
+  await seedAccountsToCloud(); subscribeAccountsCloud();
+ }
  document.getElementById('login-gate').style.display = 'none';
  if(typeof DB !== 'undefined' && DB){
   DB.onDutyStaff = DB.onDutyStaff || ['Eric'];
@@ -9521,6 +9605,8 @@ async function attemptMasterLogin(){
   }catch(e){ console.error('masterSessionToken failed', e); toast(t('toastAuthSessionFailed')); }
   await seedStaffToCloudIfEmpty();
   subscribeStaffCloud();
+  await seedAccountsToCloud();
+  subscribeAccountsCloud();
  }
  document.getElementById('login-gate').style.display = 'none';
  // Master is an admin override login, not a floor worker - never add it to the on-duty roster.

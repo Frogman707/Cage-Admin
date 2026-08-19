@@ -4529,11 +4529,13 @@ function forceLogoutDuplicateSession(){
  if(document.getElementById('login-gate').style.display !== 'none') return; // already logged out
  [fbStaffUnsub, fbAccountsUnsub, fbLedgerUnsub, fbGamesUnsub, fbRollingEventsUnsub, fbAvatarReqUnsub,
   fbTablesUnsub, fbMainCageUnsub, fbBranchTransferUnsub, fbShiftUnsub, fbCageConfigUnsub, fbMasterSessionUnsub,
-  fbBlocksUnsub, fbHotelsUnsub, fbCarsUnsub, fbAeroUnsub, fbPointsUnsub, fbStaffShiftUnsub]
+  fbBlocksUnsub, fbHotelsUnsub, fbCarsUnsub, fbAeroUnsub, fbPointsUnsub, fbStaffShiftUnsub,
+  fbEventConfigUnsub, fbEventActivationUnsub, fbEventHistoryUnsub]
   .forEach(unsub=>{ if(unsub) try{ unsub(); }catch(e){} });
  fbStaffUnsub = fbAccountsUnsub = fbLedgerUnsub = fbGamesUnsub = fbRollingEventsUnsub = fbAvatarReqUnsub =
   fbTablesUnsub = fbMainCageUnsub = fbBranchTransferUnsub = fbShiftUnsub = fbCageConfigUnsub = fbMasterSessionUnsub =
-  fbBlocksUnsub = fbHotelsUnsub = fbCarsUnsub = fbAeroUnsub = fbPointsUnsub = fbStaffShiftUnsub = null;
+  fbBlocksUnsub = fbHotelsUnsub = fbCarsUnsub = fbAeroUnsub = fbPointsUnsub = fbStaffShiftUnsub =
+  fbEventConfigUnsub = fbEventActivationUnsub = fbEventHistoryUnsub = null;
  firebase.auth().signOut().catch(()=>{});
  mySessionId = null; myStaffId = null; myRole = null;
  clearTimeout(_inactivityTimer);
@@ -4930,6 +4932,102 @@ function writePointsEntry(account, change, reason){
   DB.pointsHistory.unshift({id, dt:now, account, reason: reason||'—', change, balance:balAfter});
   saveDB();
  }
+}
+
+/* ---- Event / promo rolling-bonus period — a single global config doc (not per-branch, unlike
+   cageConfig - the promo applies app-wide) plus two append-only logs (each activation, each payout).
+   Open-access tier, same as ledger/games. ---- */
+async function seedEventConfigToCloudIfEmpty(){
+ if(!fbDb) return;
+ try{
+  const doc = await fbDb.collection('eventConfig').doc('current').get();
+  if(!doc.exists && (DB.eventStart || DB.eventEnd || DB.eventRate)){
+   await fbDb.collection('eventConfig').doc('current').set({eventStart:DB.eventStart||null, eventEnd:DB.eventEnd||null, eventRate:DB.eventRate||null});
+  }
+ }catch(e){}
+}
+let fbEventConfigUnsub = null;
+function subscribeEventConfigCloud(){
+ if(!fbDb) return;
+ if(fbEventConfigUnsub) fbEventConfigUnsub();
+ fbEventConfigUnsub = fbDb.collection('eventConfig').doc('current').onSnapshot(doc=>{
+  const data = doc.data()||{};
+  DB.eventStart = data.eventStart||null;
+  DB.eventEnd = data.eventEnd||null;
+  DB.eventRate = data.eventRate||null;
+  renderEventToggle();
+  resetFirestoreResubscribeBackoff('eventConfig');
+ }, err=>{
+  console.error('subscribeEventConfigCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('eventConfig', subscribeEventConfigCloud);
+ });
+}
+function writeEventConfigToCloud(){
+ if(!fbDb) return;
+ fbDb.collection('eventConfig').doc('current').set({eventStart:DB.eventStart||null, eventEnd:DB.eventEnd||null, eventRate:DB.eventRate||null}).catch(err=>console.error('writeEventConfigToCloud failed:', err));
+}
+async function seedEventActivationLogToCloud(){
+ if(!fbDb) return;
+ try{
+  DB.eventActivationLog = DB.eventActivationLog||[];
+  DB.eventActivationLog.forEach(r=>{ if(!r.id) r.id = 'eal_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('eventActivationLog').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = DB.eventActivationLog.filter(r=>!existingIds.has(r.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(r=>{ batch.set(fbDb.collection('eventActivationLog').doc(r.id), r); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbEventActivationUnsub = null;
+function subscribeEventActivationLogCloud(){
+ if(!fbDb) return;
+ if(fbEventActivationUnsub) fbEventActivationUnsub();
+ fbEventActivationUnsub = fbDb.collection('eventActivationLog').orderBy('id','desc').onSnapshot(snap=>{
+  DB.eventActivationLog = snap.docs.map(d=>d.data());
+  const listModal = document.getElementById('modal-event-activation-list');
+  if(listModal && listModal.classList.contains('open')) renderEventActivationList();
+  resetFirestoreResubscribeBackoff('eventActivationLog');
+ }, err=>{
+  console.error('subscribeEventActivationLogCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('eventActivationLog', subscribeEventActivationLogCloud);
+ });
+}
+function addEventActivationToCloud(r){
+ if(!fbDb) return;
+ fbDb.collection('eventActivationLog').doc(r.id).set(r).catch(err=>console.error('addEventActivationToCloud failed:', r.id, err));
+}
+async function seedEventHistoryToCloud(){
+ if(!fbDb) return;
+ try{
+  DB.eventHistory = DB.eventHistory||[];
+  DB.eventHistory.forEach(r=>{ if(!r.id) r.id = 'evh_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('eventHistory').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = DB.eventHistory.filter(r=>!existingIds.has(r.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(r=>{ batch.set(fbDb.collection('eventHistory').doc(r.id), r); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbEventHistoryUnsub = null;
+function subscribeEventHistoryCloud(){
+ if(!fbDb) return;
+ if(fbEventHistoryUnsub) fbEventHistoryUnsub();
+ fbEventHistoryUnsub = fbDb.collection('eventHistory').orderBy('id','desc').onSnapshot(snap=>{
+  DB.eventHistory = snap.docs.map(d=>d.data());
+  renderEventHistory();
+  resetFirestoreResubscribeBackoff('eventHistory');
+ }, err=>{
+  console.error('subscribeEventHistoryCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('eventHistory', subscribeEventHistoryCloud);
+ });
+}
+function addEventHistoryToCloud(r){
+ if(!fbDb) return;
+ fbDb.collection('eventHistory').doc(r.id).set(r).catch(err=>console.error('addEventHistoryToCloud failed:', r.id, err));
 }
 
 /* ---- Games (buy-in/rolling/settlement) — game metadata synced as a doc; rolling always derived from rollingEvents ---- */
@@ -6830,6 +6928,7 @@ async function _doWithdrawAccount(id){
     fbDb.collection('hotels').where('account','==',id).get(),
     fbDb.collection('cars').where('account','==',id).get(),
     fbDb.collection('aero').where('account','==',id).get(),
+    fbDb.collection('eventHistory').where('account','==',id).get(),
    ]);
    snaps.forEach(snap=>snap.forEach(d=>batch.delete(d.ref)));
    await batch.commit();
@@ -6841,8 +6940,8 @@ async function _doWithdrawAccount(id){
   DB.hotels = (DB.hotels||[]).filter(b=>b.account!==id);
   DB.cars = (DB.cars||[]).filter(c=>c.account!==id);
   DB.aero = (DB.aero||[]).filter(a=>a.account!==id);
+  DB.eventHistory = (DB.eventHistory||[]).filter(h=>h.account!==id);
  }
- DB.eventHistory = (DB.eventHistory||[]).filter(h=>h.account!==id);
  saveDB();
  renderMemberCard(); renderAccountList(); renderLedger(); renderPoints(); renderEventHistory(); renderTotalDeposit();
  if(typeof renderHotels==='function') renderHotels();
@@ -9626,9 +9725,15 @@ function activateEvent(){
  DB.eventEnd = end;
  DB.eventRate = document.getElementById('eventRate').value.trim() || '1.00';
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
- DB.eventActivationLog = DB.eventActivationLog||[];
- DB.eventActivationLog.unshift({dt: phNow().toISOString().slice(0,16).replace('T',' '), start: DB.eventStart, end: DB.eventEnd, rate: DB.eventRate, staff: staffName});
- saveDB();
+ const activation = {id:'eal_'+Date.now()+'_'+Math.random().toString(36).slice(2,9), dt: phNow().toISOString().slice(0,16).replace('T',' '), start: DB.eventStart, end: DB.eventEnd, rate: DB.eventRate, staff: staffName};
+ if(fbDb){
+  writeEventConfigToCloud();
+  addEventActivationToCloud(activation);
+ } else {
+  DB.eventActivationLog = DB.eventActivationLog||[];
+  DB.eventActivationLog.unshift(activation);
+  saveDB();
+ }
  renderEventToggle();
  toast(t('toastEventPeriodSet'));
 }
@@ -9673,7 +9778,7 @@ function endEventNow(){
  // evaluates to inactive immediately, instead of staying "active" for the rest of this minute.
  DB.eventEnd = new Date(phNow().getTime() - 60000).toISOString().slice(0,16);
  document.getElementById('eventEndDate').value = now;
- saveDB();
+ if(fbDb){ writeEventConfigToCloud(); } else { saveDB(); }
  renderEventToggle();
  toast(t('toastEventEnded'));
 }
@@ -9689,8 +9794,8 @@ async function payEventCommissionForSettle(account, rolling){
  if(!txn) return;
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
- DB.eventHistory = DB.eventHistory||[];
- DB.eventHistory.unshift({dt:now, account, rolling, rate, amt, staff:staffName});
+ const entry = {id:'evh_'+Date.now()+'_'+Math.random().toString(36).slice(2,9), dt:now, account, rolling, rate, amt, staff:staffName};
+ if(fbDb){ addEventHistoryToCloud(entry); } else { DB.eventHistory = DB.eventHistory||[]; DB.eventHistory.unshift(entry); saveDB(); }
  renderMemberCard(); renderLedger(); renderEventHistory();
  pushNotification('notifEvent', `${account} · +${fmt(amt)}`);
 }
@@ -9836,6 +9941,9 @@ async function attemptLogin(){
   await seedRecordsToCloud('aero', DB.aero); subscribeAeroCloud();
   await seedPointsToCloud(); subscribePointsCloud();
   await seedStaffShiftLogToCloud(); subscribeStaffShiftLogCloud();
+  await seedEventConfigToCloudIfEmpty(); subscribeEventConfigCloud();
+  await seedEventActivationLogToCloud(); subscribeEventActivationLogCloud();
+  await seedEventHistoryToCloud(); subscribeEventHistoryCloud();
  }
  document.getElementById('login-gate').style.display = 'none';
  if(typeof DB !== 'undefined' && DB){
@@ -9917,6 +10025,9 @@ async function attemptMasterLogin(){
   await seedRecordsToCloud('aero', DB.aero); subscribeAeroCloud();
   await seedPointsToCloud(); subscribePointsCloud();
   await seedStaffShiftLogToCloud(); subscribeStaffShiftLogCloud();
+  await seedEventConfigToCloudIfEmpty(); subscribeEventConfigCloud();
+  await seedEventActivationLogToCloud(); subscribeEventActivationLogCloud();
+  await seedEventHistoryToCloud(); subscribeEventHistoryCloud();
  }
  document.getElementById('login-gate').style.display = 'none';
  // Master is an admin override login, not a floor worker - never add it to the on-duty roster.

@@ -126,6 +126,13 @@ exports.listStaffNames = onRequest({}, async (req, res) => {
  * Verifies a staff PIN + TOTP code server-side (Admin SDK, bypasses firestore.rules) and, on
  * success, mints a Firebase custom auth token so the client can sign in and reach the rest of
  * Firestore for the remainder of the session. The PIN and TOTP secret never leave this function.
+ *
+ * Also stamps a fresh, random sessionId onto the staff doc and returns it. Every client that's
+ * logged in as this staff member watches this field via subscribeStaffCloud() - when it changes
+ * out from under a session (because a newer login just overwrote it), that session knows it's no
+ * longer the current one and logs itself out. Written here rather than client-side so the two
+ * logins racing each other can't both "win": Firestore serializes the two writes, and whichever
+ * one lands last is unambiguously the sessionId every client converges on.
  */
 exports.staffLogin = onRequest({}, async (req, res) => {
   if (applyCors(req, res)) return;
@@ -163,7 +170,9 @@ exports.staffLogin = onRequest({}, async (req, res) => {
     staffId: staffDoc.id,
     name: staffData.name,
   });
-  res.status(200).json({ ok: true, token });
+  const sessionId = crypto.randomUUID();
+  await staffDoc.ref.update({ sessionId, sessionDt: FieldValue.serverTimestamp() });
+  res.status(200).json({ ok: true, token, staffId: staffDoc.id, sessionId });
 });
 
 // Duplicated from index.html's MASTER_RESET_PASSWORD_HASH rather than shared, since the client
@@ -176,6 +185,10 @@ const MASTER_PASSWORD_HASH = "a28bda95db05b4b2b710c9286166bfcc7038a1948e2f7a0dc4
  * (the master TOTP secret isn't synced to Firestore, so it can't be re-checked here too) before
  * minting a real session token, so a forged client-side "pwOk=true" alone can't reach any
  * collection that now requires request.auth != null.
+ *
+ * Master has no per-account staff doc to stamp a sessionId onto (the UID is the fixed string
+ * "master" for every login), so it gets its own single doc, masterSession/current, playing the
+ * same role staff docs' sessionId field plays for staff logins - see subscribeMasterSessionCloud.
  */
 exports.masterSessionToken = onRequest({}, async (req, res) => {
   if (applyCors(req, res)) return;
@@ -190,7 +203,9 @@ exports.masterSessionToken = onRequest({}, async (req, res) => {
     return;
   }
   const token = await getAuth().createCustomToken("master", { role: "master" });
-  res.status(200).json({ ok: true, token });
+  const sessionId = crypto.randomUUID();
+  await db.collection("masterSession").doc("current").set({ sessionId, sessionDt: FieldValue.serverTimestamp() });
+  res.status(200).json({ ok: true, token, sessionId });
 });
 
 /**

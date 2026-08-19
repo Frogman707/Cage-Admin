@@ -154,6 +154,9 @@ input[type="datetime-local"]{min-width:150px;}
 .btn-ghost{background:transparent;}
 .btn-sm{padding:5px 10px;font-size:11px;}
 .btn-block{width:100%;}
+.chevron-toggle-btn{padding:6px 9px;display:inline-flex;align-items:center;justify-content:center;}
+.chevron-toggle-icon{width:15px;height:15px;display:block;transition:transform .15s ease;}
+.chevron-toggle-btn.expanded .chevron-toggle-icon{transform:rotate(180deg);}
 .btn:focus-visible{outline:2px solid var(--brass);outline-offset:2px;}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;}
 .field input:focus-visible,.field select:focus-visible,.field textarea:focus-visible{outline:2px solid var(--brass);outline-offset:1px;}
@@ -817,7 +820,9 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="card" style="margin-top:16px;">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
             <h3 style="margin:0;flex:1;" data-i18n="avatarSpeedOngoingTitle"></h3>
-            <button class="btn btn-sm" id="avatarSpeedToggleBtn" style="flex:0 0 auto;" onclick="toggleAvatarSpeedTablePanel()" data-i18n="expandBtn"></button>
+            <button class="btn btn-sm chevron-toggle-btn" id="avatarSpeedToggleBtn" style="flex:0 0 auto;" onclick="toggleAvatarSpeedTablePanel()" data-i18n-title="expandBtn" title="">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chevron-toggle-icon"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
           </div>
           <div id="avatarSpeedTablePanel" style="display:none;">
             <div class="table-wrap"><table>
@@ -4757,8 +4762,9 @@ function toggleAvatarSpeedTablePanel(){
  if(!panel || !btn) return;
  const nowOpen = panel.style.display === 'none';
  panel.style.display = nowOpen ? '' : 'none';
- btn.textContent = t(nowOpen ? 'collapseBtn' : 'expandBtn');
- btn.dataset.i18n = nowOpen ? 'collapseBtn' : 'expandBtn';
+ btn.classList.toggle('expanded', nowOpen);
+ btn.title = t(nowOpen ? 'collapseBtn' : 'expandBtn');
+ btn.dataset.i18nTitle = nowOpen ? 'collapseBtn' : 'expandBtn';
 }
 function renderAvatarSpeedOngoingTables(){
  const body = document.getElementById('avatarSpeedOngoingBody');

@@ -4528,10 +4528,12 @@ function subscribeMasterSessionCloud(){
 function forceLogoutDuplicateSession(){
  if(document.getElementById('login-gate').style.display !== 'none') return; // already logged out
  [fbStaffUnsub, fbAccountsUnsub, fbLedgerUnsub, fbGamesUnsub, fbRollingEventsUnsub, fbAvatarReqUnsub,
-  fbTablesUnsub, fbMainCageUnsub, fbBranchTransferUnsub, fbShiftUnsub, fbCageConfigUnsub, fbMasterSessionUnsub]
+  fbTablesUnsub, fbMainCageUnsub, fbBranchTransferUnsub, fbShiftUnsub, fbCageConfigUnsub, fbMasterSessionUnsub,
+  fbBlocksUnsub, fbHotelsUnsub, fbCarsUnsub, fbAeroUnsub, fbPointsUnsub]
   .forEach(unsub=>{ if(unsub) try{ unsub(); }catch(e){} });
  fbStaffUnsub = fbAccountsUnsub = fbLedgerUnsub = fbGamesUnsub = fbRollingEventsUnsub = fbAvatarReqUnsub =
-  fbTablesUnsub = fbMainCageUnsub = fbBranchTransferUnsub = fbShiftUnsub = fbCageConfigUnsub = fbMasterSessionUnsub = null;
+  fbTablesUnsub = fbMainCageUnsub = fbBranchTransferUnsub = fbShiftUnsub = fbCageConfigUnsub = fbMasterSessionUnsub =
+  fbBlocksUnsub = fbHotelsUnsub = fbCarsUnsub = fbAeroUnsub = fbPointsUnsub = null;
  firebase.auth().signOut().catch(()=>{});
  mySessionId = null; myStaffId = null; myRole = null;
  clearTimeout(_inactivityTimer);
@@ -4772,6 +4774,161 @@ function writeLedgerEntry(opts){
   }
   saveDB();
   return Promise.resolve(true);
+ }
+}
+
+/* ---- Blocks / Hotels / Cars / Aero / Points — guest-account-scoped collaborative records.
+   None of these carry credentials or ID photos (unlike staff/accounts), so they stay under the
+   app's existing open-access tier, same as ledger/games below - no firestore.rules change needed.
+   Each collection is seeded upsert-missing (not "seed once if empty") because, like accounts, this
+   data has been local-only per terminal since the app's inception - different terminals may each
+   hold records none of the others have ever seen.
+   Known limitation shared with hotels/cars/aero's existing id format (HTL-/CAR-/AER- + 4 random
+   digits, ~9000 possible values): upsert-missing dedupes by that same id, so two terminals that
+   independently generated the same 4-digit suffix for two different bookings will merge into one
+   doc, silently dropping the loser. Pre-existing collision risk (not introduced by this sync),
+   tracked for a proper fix alongside nextGameSeq/nextWalkinSeq. ---- */
+async function seedBlocksToCloud(){
+ if(!fbDb) return;
+ try{
+  DB.blocks = DB.blocks||[];
+  // Existing local blocks predate this collection having a stable id - backfill one so every
+  // record can be addressed as its own Firestore doc (unblock() needs this to delete the right one).
+  DB.blocks.forEach(b=>{ if(!b.id) b.id = 'blk_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('blocks').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = DB.blocks.filter(b=>!existingIds.has(b.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(b=>{ batch.set(fbDb.collection('blocks').doc(b.id), b); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbBlocksUnsub = null;
+function subscribeBlocksCloud(){
+ if(!fbDb) return;
+ if(fbBlocksUnsub) fbBlocksUnsub();
+ // id embeds Date.now() (see seedBlocksToCloud/applyBlock), so ordering by it descending is
+ // ordering by creation time descending - matches the local unshift()-newest-first behavior this
+ // replaces, without needing a separate field just for sorting.
+ fbBlocksUnsub = fbDb.collection('blocks').orderBy('id','desc').onSnapshot(snap=>{
+  DB.blocks = snap.docs.map(d=>d.data());
+  renderBlocks();
+  resetFirestoreResubscribeBackoff('blocks');
+ }, err=>{
+  console.error('subscribeBlocksCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('blocks', subscribeBlocksCloud);
+ });
+}
+function addBlockToCloud(b){
+ if(!fbDb) return;
+ fbDb.collection('blocks').doc(b.id).set(b).catch(err=>console.error('addBlockToCloud failed:', b.id, err));
+}
+function removeBlockFromCloud(id){
+ if(!fbDb) return;
+ fbDb.collection('blocks').doc(id).delete().catch(err=>console.error('removeBlockFromCloud failed:', id, err));
+}
+
+// Hotels/cars/aero share one shape: each record already has its own display id (HTL-/CAR-/AER- +
+// 4 random digits) used throughout the UI (receipt lookups, cancel buttons) - reused here as the
+// Firestore doc id too, rather than inventing a second one (see the collision caveat in the block
+// comment above). None of the three has a creation-order field (checkin/dt are the *reservation's*
+// date, not when it was booked), so _ts (a plain Date.now(), never shown) is added purely so
+// subscribeXCloud can order newest-first, matching the local unshift() behavior this replaces.
+function seedRecordsToCloud(collectionName, records){
+ if(!fbDb) return Promise.resolve();
+ (records||[]).forEach(r=>{ if(r._ts===undefined) r._ts = Date.now(); });
+ return fbDb.collection(collectionName).get().then(snap=>{
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = (records||[]).filter(r=>!existingIds.has(r.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(r=>{ batch.set(fbDb.collection(collectionName).doc(r.id), r); });
+  return batch.commit();
+ }).catch(()=>{});
+}
+let fbHotelsUnsub = null, fbCarsUnsub = null, fbAeroUnsub = null;
+function subscribeHotelsCloud(){
+ if(!fbDb) return;
+ if(fbHotelsUnsub) fbHotelsUnsub();
+ fbHotelsUnsub = fbDb.collection('hotels').orderBy('_ts','desc').onSnapshot(snap=>{
+  DB.hotels = snap.docs.map(d=>d.data());
+  renderHotels();
+  resetFirestoreResubscribeBackoff('hotels');
+ }, err=>{ console.error('subscribeHotelsCloud onSnapshot error:', err); scheduleFirestoreResubscribe('hotels', subscribeHotelsCloud); });
+}
+function subscribeCarsCloud(){
+ if(!fbDb) return;
+ if(fbCarsUnsub) fbCarsUnsub();
+ fbCarsUnsub = fbDb.collection('cars').orderBy('_ts','desc').onSnapshot(snap=>{
+  DB.cars = snap.docs.map(d=>d.data());
+  renderCars();
+  resetFirestoreResubscribeBackoff('cars');
+ }, err=>{ console.error('subscribeCarsCloud onSnapshot error:', err); scheduleFirestoreResubscribe('cars', subscribeCarsCloud); });
+}
+function subscribeAeroCloud(){
+ if(!fbDb) return;
+ if(fbAeroUnsub) fbAeroUnsub();
+ fbAeroUnsub = fbDb.collection('aero').orderBy('_ts','desc').onSnapshot(snap=>{
+  DB.aero = snap.docs.map(d=>d.data());
+  renderAero();
+  resetFirestoreResubscribeBackoff('aero');
+ }, err=>{ console.error('subscribeAeroCloud onSnapshot error:', err); scheduleFirestoreResubscribe('aero', subscribeAeroCloud); });
+}
+function addRecordToCloud(collectionName, r){
+ if(!fbDb) return;
+ fbDb.collection(collectionName).doc(r.id).set(r).catch(err=>console.error('addRecordToCloud failed:', collectionName, r.id, err));
+}
+function cancelRecordInCloud(collectionName, id){
+ if(!fbDb) return;
+ fbDb.collection(collectionName).doc(id).update({status:'cancelled'}).catch(err=>console.error('cancelRecordInCloud failed:', collectionName, id, err));
+}
+
+/* ---- Points — balance is derived from pointsHistory, exactly like accounts' balance is derived
+   from ledger (see recomputeAccountBalancesFromLedgerCache): writing a balance field anywhere else
+   would just be a second, staler copy of a number this history already owns. Unlike ledger's cash
+   withdrawals, point spends don't gate on a server-confirmed snapshot before allowing a spend -
+   points are a loyalty balance, not cash physically leaving the cage, so that extra safeguard
+   wasn't carried over here. ---- */
+async function seedPointsToCloud(){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('pointsHistory').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = (DB.pointsHistory||[]).filter(h=>!existingIds.has(h.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(h=>{ batch.set(fbDb.collection('pointsHistory').doc(h.id), h); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbPointsUnsub = null;
+function subscribePointsCloud(){
+ if(!fbDb) return;
+ if(fbPointsUnsub) fbPointsUnsub();
+ fbPointsUnsub = fbDb.collection('pointsHistory').orderBy('id','desc').onSnapshot(snap=>{
+  DB.pointsHistory = snap.docs.map(d=>d.data());
+  const byAcc = {};
+  DB.pointsHistory.slice().reverse().forEach(h=>{ byAcc[h.account] = (byAcc[h.account]||0) + (h.change||0); });
+  DB.pointsByAccount = byAcc;
+  renderPoints();
+  resetFirestoreResubscribeBackoff('points');
+ }, err=>{ console.error('subscribePointsCloud onSnapshot error:', err); scheduleFirestoreResubscribe('points', subscribePointsCloud); });
+}
+function writePointsEntry(account, change, reason){
+ const id = 'pts_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
+ if(fbDb){
+  const balAfter = ((DB.pointsByAccount||{})[account]||0) + change;
+  const entry = {id, dt:now, account, reason: reason||'—', change, balance:balAfter};
+  fbDb.collection('pointsHistory').doc(id).set(entry).catch(err=>console.error('writePointsEntry failed:', id, err));
+ } else {
+  DB.pointsByAccount = DB.pointsByAccount||{};
+  const balAfter = (DB.pointsByAccount[account]||0) + change;
+  DB.pointsByAccount[account] = balAfter;
+  DB.pointsHistory = DB.pointsHistory||[];
+  DB.pointsHistory.unshift({id, dt:now, account, reason: reason||'—', change, balance:balAfter});
+  saveDB();
  }
 }
 
@@ -6594,13 +6751,27 @@ async function _doWithdrawAccount(id){
  } else {
   delete DB.ledger[id];
  }
- DB.pointsByAccount = DB.pointsByAccount||{};
- delete DB.pointsByAccount[id];
- DB.pointsHistory = (DB.pointsHistory||[]).filter(h=>h.account!==id);
+ if(fbDb){
+  try{
+   const batch = fbDb.batch();
+   const snaps = await Promise.all([
+    fbDb.collection('pointsHistory').where('account','==',id).get(),
+    fbDb.collection('hotels').where('account','==',id).get(),
+    fbDb.collection('cars').where('account','==',id).get(),
+    fbDb.collection('aero').where('account','==',id).get(),
+   ]);
+   snaps.forEach(snap=>snap.forEach(d=>batch.delete(d.ref)));
+   await batch.commit();
+  }catch(e){}
+ } else {
+  DB.pointsByAccount = DB.pointsByAccount||{};
+  delete DB.pointsByAccount[id];
+  DB.pointsHistory = (DB.pointsHistory||[]).filter(h=>h.account!==id);
+  DB.hotels = (DB.hotels||[]).filter(b=>b.account!==id);
+  DB.cars = (DB.cars||[]).filter(c=>c.account!==id);
+  DB.aero = (DB.aero||[]).filter(a=>a.account!==id);
+ }
  DB.eventHistory = (DB.eventHistory||[]).filter(h=>h.account!==id);
- DB.hotels = (DB.hotels||[]).filter(b=>b.account!==id);
- DB.cars = (DB.cars||[]).filter(c=>c.account!==id);
- DB.aero = (DB.aero||[]).filter(a=>a.account!==id);
  saveDB();
  renderMemberCard(); renderAccountList(); renderLedger(); renderPoints(); renderEventHistory(); renderTotalDeposit();
  if(typeof renderHotels==='function') renderHotels();
@@ -8989,13 +9160,19 @@ function applyBlock(){
  const reason = document.getElementById('blockReason').value.trim();
  if(!account) return;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
- DB.blocks.unshift({account, type:"Full", reason, staff:staffName, dt:phNow().toISOString().slice(0,10)});
+ const block = {id:'blk_'+Date.now()+'_'+Math.random().toString(36).slice(2,9), account, type:"Full", reason, staff:staffName, dt:phNow().toISOString().slice(0,10)};
+ if(fbDb){ addBlockToCloud(block); } else { DB.blocks.unshift(block); saveDB(); }
  document.getElementById('blockAcc').value=''; document.getElementById('blockReason').value='';
- saveDB(); renderBlocks();
+ renderBlocks();
  pushNotification('notifBlock', account);
  toast(t('toastBlocked'));
 }
-function unblock(idx){ DB.blocks.splice(idx,1); saveDB(); renderBlocks(); }
+function unblock(idx){
+ const b = DB.blocks[idx];
+ if(!b) return;
+ if(fbDb){ removeBlockFromCloud(b.id); } else { DB.blocks.splice(idx,1); saveDB(); }
+ renderBlocks();
+}
 function renderBlocks(){
  const rows = DB.blocks;
  document.getElementById('blockBodyModal').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
@@ -9168,7 +9345,8 @@ function bookHotel(){
  const remark = document.getElementById('hRemark').value.trim();
  if(!account || !checkin || !checkout){ toast(t('toastNoAcc')); return; }
  const id = 'HTL-'+Math.floor(1000+Math.random()*9000);
- DB.hotels.unshift({id, account, guest, roomType, bedType, checkin, checkout, remark, status:'confirmed'});
+ const rec = {id, account, guest, roomType, bedType, checkin, checkout, remark, status:'confirmed', _ts:Date.now()};
+ if(fbDb){ addRecordToCloud('hotels', rec); } else { DB.hotels.unshift(rec); saveDB(); }
  document.getElementById('hrAccount').textContent = account;
  document.getElementById('hrGuest').textContent = guest||'—';
  document.getElementById('hrRoomType').textContent = roomType;
@@ -9177,14 +9355,14 @@ function bookHotel(){
  document.getElementById('hrCheckout').textContent = checkout;
  document.getElementById('hrRemark').textContent = remark||'—';
  document.getElementById('hGuest').value=''; document.getElementById('hCheckin').value=''; document.getElementById('hCheckout').value=''; document.getElementById('hRemark').value='';
- saveDB(); renderHotels();
+ renderHotels();
  pushNotification('notifHotel', `${account} · ${roomType} · ${checkin} → ${checkout}`);
  openModal('modal-hotel-receipt');
  toast(t('toastProcessed'));
 }
 function cancelHotelBooking(id){
- const b = DB.hotels.find(x=>x.id===id); if(b) b.status='cancelled';
- saveDB(); renderHotels();
+ if(fbDb){ cancelRecordInCloud('hotels', id); } else { const b = DB.hotels.find(x=>x.id===id); if(b) b.status='cancelled'; saveDB(); }
+ renderHotels();
 }
 function showHotelReceipt(id){
  const b = (DB.hotels||[]).find(x=>x.id===id);
@@ -9219,7 +9397,8 @@ function reserveCar(){
  if(!account || !date || !time){ toast(t('toastNoAcc')); return; }
  const id = 'CAR-'+Math.floor(1000+Math.random()*9000);
  const dt = `${date} ${time}`;
- DB.cars.unshift({id, account, guest, dt, pickup, dropoff, carType, pax, remark, status:'confirmed'});
+ const rec = {id, account, guest, dt, pickup, dropoff, carType, pax, remark, status:'confirmed', _ts:Date.now()};
+ if(fbDb){ addRecordToCloud('cars', rec); } else { DB.cars.unshift(rec); saveDB(); }
  document.getElementById('crAccount').textContent = account;
  document.getElementById('crGuest').textContent = guest||'—';
  document.getElementById('crType').textContent = carType;
@@ -9229,14 +9408,14 @@ function reserveCar(){
  document.getElementById('crPax').textContent = pax||'—';
  document.getElementById('crRemark').textContent = remark||'—';
  document.getElementById('cGuestName').value=''; document.getElementById('cPickup').value=''; document.getElementById('cDropoff').value=''; document.getElementById('cPax').value=''; document.getElementById('cRemark').value='';
- saveDB(); renderCars();
+ renderCars();
  pushNotification('notifCar', `${account} · ${carType} · ${dt}`);
  openModal('modal-car-receipt');
  toast(t('toastProcessed'));
 }
 function cancelCarReservation(id){
- const c = DB.cars.find(x=>x.id===id); if(c) c.status='cancelled';
- saveDB(); renderCars();
+ if(fbDb){ cancelRecordInCloud('cars', id); } else { const c = DB.cars.find(x=>x.id===id); if(c) c.status='cancelled'; saveDB(); }
+ renderCars();
 }
 function showCarReceipt(id){
  const c = (DB.cars||[]).find(x=>x.id===id);
@@ -9270,7 +9449,8 @@ function requestAero(){
  const dt = (document.getElementById('aDateTime').value||'').replace('T',' ');
  if(!account || !flight || !dt){ toast(t('toastNoAcc')); return; }
  const id = 'AER-'+Math.floor(1000+Math.random()*9000);
- DB.aero.unshift({id, account, guest, direction, flight, airline, airport, pax, dt, status:'confirmed'});
+ const rec = {id, account, guest, direction, flight, airline, airport, pax, dt, status:'confirmed', _ts:Date.now()};
+ if(fbDb){ addRecordToCloud('aero', rec); } else { DB.aero.unshift(rec); saveDB(); }
  document.getElementById('arAccount').textContent = account;
  document.getElementById('arGuest').textContent = guest||'—';
  document.getElementById('arDirection').textContent = direction==='arrival'?t('directionArrival'):t('directionDeparture');
@@ -9280,14 +9460,14 @@ function requestAero(){
  document.getElementById('arDateTime').textContent = dt;
  document.getElementById('arPax').textContent = pax||'—';
  document.getElementById('aGuestName').value=''; document.getElementById('aFlight').value=''; document.getElementById('aAirport').value=''; document.getElementById('aDateTime').value=''; document.getElementById('aPax').value='';
- saveDB(); renderAero();
+ renderAero();
  pushNotification('notifAero', `${account} · ${flight} · ${dt}`);
  openModal('modal-aero-receipt');
  toast(t('toastProcessed'));
 }
 function cancelAero(id){
- const a = DB.aero.find(x=>x.id===id); if(a) a.status='cancelled';
- saveDB(); renderAero();
+ if(fbDb){ cancelRecordInCloud('aero', id); } else { const a = DB.aero.find(x=>x.id===id); if(a) a.status='cancelled'; saveDB(); }
+ renderAero();
 }
 function showAeroReceipt(id){
  const a = (DB.aero||[]).find(x=>x.id===id);
@@ -9339,16 +9519,11 @@ function usePoints(){
  const amt = unformatNum(document.getElementById('pUseAmt').value);
  const reason = document.getElementById('pUseReason').value.trim();
  if(amt<=0) return;
- DB.pointsByAccount = DB.pointsByAccount||{};
- const balBefore = DB.pointsByAccount[pointsTargetAcc]||0;
+ const balBefore = ((DB.pointsByAccount||{})[pointsTargetAcc])||0;
  if(amt>balBefore){ toast(t('toastInsufficientPoints')); return; }
- const balAfter = balBefore - amt;
- DB.pointsByAccount[pointsTargetAcc] = balAfter;
- const now = phNow().toISOString().slice(0,16).replace('T',' ');
- DB.pointsHistory = DB.pointsHistory||[];
- DB.pointsHistory.unshift({dt:now, account:pointsTargetAcc, reason: reason||'—', change:-amt, balance:balAfter});
+ writePointsEntry(pointsTargetAcc, -amt, reason);
  document.getElementById('pUseAmt').value=''; document.getElementById('pUseReason').value='';
- saveDB(); renderPoints();
+ renderPoints();
  pushNotification('notifPoints', `${pointsTargetAcc} · -${fmt(amt)} · ${reason||'—'}`);
  toast(t('toastProcessed'));
 }
@@ -9357,14 +9532,9 @@ function grantPoints(){
  const amt = unformatNum(document.getElementById('pGrantAmt').value);
  const reason = document.getElementById('pUseReason').value.trim();
  if(amt<=0) return;
- DB.pointsByAccount = DB.pointsByAccount||{};
- const balAfter = (DB.pointsByAccount[pointsTargetAcc]||0) + amt;
- DB.pointsByAccount[pointsTargetAcc] = balAfter;
- const now = phNow().toISOString().slice(0,16).replace('T',' ');
- DB.pointsHistory = DB.pointsHistory||[];
- DB.pointsHistory.unshift({dt:now, account:pointsTargetAcc, reason: reason||'—', change:amt, balance:balAfter});
+ writePointsEntry(pointsTargetAcc, amt, reason);
  document.getElementById('pGrantAmt').value=''; document.getElementById('pUseReason').value='';
- saveDB(); renderPoints();
+ renderPoints();
  pushNotification('notifPoints', `${pointsTargetAcc} · +${fmt(amt)} · ${reason||'—'}`);
  toast(t('toastProcessed'));
 }
@@ -9592,6 +9762,11 @@ async function attemptLogin(){
  if(fbDb){
   await seedStaffToCloudIfEmpty(); subscribeStaffCloud();
   await seedAccountsToCloud(); subscribeAccountsCloud();
+  await seedBlocksToCloud(); subscribeBlocksCloud();
+  await seedRecordsToCloud('hotels', DB.hotels); subscribeHotelsCloud();
+  await seedRecordsToCloud('cars', DB.cars); subscribeCarsCloud();
+  await seedRecordsToCloud('aero', DB.aero); subscribeAeroCloud();
+  await seedPointsToCloud(); subscribePointsCloud();
  }
  document.getElementById('login-gate').style.display = 'none';
  if(typeof DB !== 'undefined' && DB){
@@ -9665,6 +9840,11 @@ async function attemptMasterLogin(){
   await seedAccountsToCloud();
   subscribeAccountsCloud();
   subscribeMasterSessionCloud();
+  await seedBlocksToCloud(); subscribeBlocksCloud();
+  await seedRecordsToCloud('hotels', DB.hotels); subscribeHotelsCloud();
+  await seedRecordsToCloud('cars', DB.cars); subscribeCarsCloud();
+  await seedRecordsToCloud('aero', DB.aero); subscribeAeroCloud();
+  await seedPointsToCloud(); subscribePointsCloud();
  }
  document.getElementById('login-gate').style.display = 'none';
  // Master is an admin override login, not a floor worker - never add it to the on-duty roster.

@@ -4530,12 +4530,14 @@ function forceLogoutDuplicateSession(){
  [fbStaffUnsub, fbAccountsUnsub, fbLedgerUnsub, fbGamesUnsub, fbRollingEventsUnsub, fbAvatarReqUnsub,
   fbTablesUnsub, fbMainCageUnsub, fbBranchTransferUnsub, fbShiftUnsub, fbCageConfigUnsub, fbMasterSessionUnsub,
   fbBlocksUnsub, fbHotelsUnsub, fbCarsUnsub, fbAeroUnsub, fbPointsUnsub, fbStaffShiftUnsub,
-  fbEventConfigUnsub, fbEventActivationUnsub, fbEventHistoryUnsub]
+  fbEventConfigUnsub, fbEventActivationUnsub, fbEventHistoryUnsub,
+  fbSettledUnsub, fbCorrectionLogUnsub, fbBalancingCheckUnsub]
   .forEach(unsub=>{ if(unsub) try{ unsub(); }catch(e){} });
  fbStaffUnsub = fbAccountsUnsub = fbLedgerUnsub = fbGamesUnsub = fbRollingEventsUnsub = fbAvatarReqUnsub =
   fbTablesUnsub = fbMainCageUnsub = fbBranchTransferUnsub = fbShiftUnsub = fbCageConfigUnsub = fbMasterSessionUnsub =
   fbBlocksUnsub = fbHotelsUnsub = fbCarsUnsub = fbAeroUnsub = fbPointsUnsub = fbStaffShiftUnsub =
-  fbEventConfigUnsub = fbEventActivationUnsub = fbEventHistoryUnsub = null;
+  fbEventConfigUnsub = fbEventActivationUnsub = fbEventHistoryUnsub =
+  fbSettledUnsub = fbCorrectionLogUnsub = fbBalancingCheckUnsub = null;
  firebase.auth().signOut().catch(()=>{});
  mySessionId = null; myStaffId = null; myRole = null;
  clearTimeout(_inactivityTimer);
@@ -5320,6 +5322,7 @@ function switchBranch(branch){
  if(fbDb){
   deriveMainCageForBranch();
   deriveShiftTotalsForBranch();
+  deriveBalancingCheckForBranch();
   seedCageConfigToCloudIfEmpty().then(()=>subscribeCageConfigCloud());
  } else {
   renderMainCageList();
@@ -7914,6 +7917,43 @@ function printReceiptFrom(boxId){
 function printReceipt(){ printReceiptFrom('receiptBox'); }
 // Render one historical settled record into #settledReceiptBox and print it immediately, without
 // needing to first open the settled-receipt popup.
+/* ---- Settled games — per-game financial settlement record (parallel to ledger/games), doc id =
+   gameId since a game settles at most once. Open-access tier, same as ledger/games. ---- */
+async function seedSettledToCloud(){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('settled').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = (DB.settled||[]).filter(s=>!existingIds.has(s.gameId));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(s=>{ batch.set(fbDb.collection('settled').doc(s.gameId), s); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbSettledUnsub = null;
+function subscribeSettledCloud(){
+ if(!fbDb) return;
+ if(fbSettledUnsub) fbSettledUnsub();
+ fbSettledUnsub = fbDb.collection('settled').orderBy('dt').onSnapshot(snap=>{
+  DB.settled = snap.docs.map(d=>d.data());
+  populateSettleSelect();
+  renderEndedGames();
+  const listModal = document.getElementById('modal-settle-list');
+  if(listModal && listModal.classList.contains('open')) renderSettleList();
+  if(typeof renderDashboard==='function') renderDashboard();
+  if(typeof renderReportCards==='function') renderReportCards();
+  resetFirestoreResubscribeBackoff('settled');
+ }, err=>{
+  console.error('subscribeSettledCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('settled', subscribeSettledCloud);
+ });
+}
+function addSettledToCloud(s){
+ if(!fbDb) return;
+ fbDb.collection('settled').doc(s.gameId).set(s).catch(err=>console.error('addSettledToCloud failed:', s.gameId, err));
+}
+
 function printSettledRow(gameId){
  const s = (DB.settled||[]).find(x=>x.gameId===gameId);
  if(!s) return;
@@ -7955,8 +7995,8 @@ async function _doSettleGame(){
   g.settled = true;
   if(fbDb) writeGameDoc(g, 'ended');
  }
- DB.settled = DB.settled||[];
- DB.settled.push({gameId:g.gameId, account:g.account, cur:g.cur, branch:g.branch||currentBranch(), dt, buyin:g.buyin, cashout, winLoss, rolling:g.rolling, commission, fb, result, staff:staffName});
+ const settledRecord = {gameId:g.gameId, account:g.account, cur:g.cur, branch:g.branch||currentBranch(), dt, buyin:g.buyin, cashout, winLoss, rolling:g.rolling, commission, fb, result, staff:staffName};
+ if(fbDb){ addSettledToCloud(settledRecord); } else { DB.settled = DB.settled||[]; DB.settled.push(settledRecord); }
  if(settleTxn){
   const {date, time} = nowDateTimeParts();
   const remarkNo = last3Digits(g.gameId);
@@ -8776,6 +8816,53 @@ function deleteCutoff(idx){
  }
  toast(t('toastEntryDeleted'));
 }
+/* ---- Balancing-check confirmation log — per branch, same raw-global-array + derive-per-branch
+   pattern as mainCageLedger/shiftEvents above (see deriveMainCageForBranch/
+   deriveShiftTotalsForBranch): a snapshot listener can't scope itself to "whichever branch is
+   current", it always sees every branch's docs, so the client buckets them at derive time. Open-
+   access tier, same as ledger/games. ---- */
+async function seedBalancingCheckLogToCloud(){
+ if(!fbDb) return;
+ try{
+  const branch = currentBranch();
+  const rows = bd().balancingCheckLog||[];
+  if(!rows.length) return;
+  rows.forEach(r=>{ if(!r.id) r.id = 'bcl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('balancingCheckLog').where('branch','==',branch).get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = rows.filter(r=>!existingIds.has(r.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(r=>{ batch.set(fbDb.collection('balancingCheckLog').doc(r.id), {...r, branch}); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbBalancingCheckUnsub = null;
+let fbBalancingCheckRaw = [];
+function deriveBalancingCheckForBranch(){
+ const branch = currentBranch();
+ bd().balancingCheckLog = fbBalancingCheckRaw.filter(r=>r.branch===branch).slice().reverse();
+ const listModal = document.getElementById('modal-balancing-check-list');
+ if(listModal && listModal.classList.contains('open')) renderBalancingCheckList();
+}
+function subscribeBalancingCheckLogCloud(){
+ if(!fbDb) return;
+ if(fbBalancingCheckUnsub) fbBalancingCheckUnsub();
+ fbBalancingCheckUnsub = fbDb.collection('balancingCheckLog').orderBy('dt').onSnapshot(snap=>{
+  fbBalancingCheckRaw = snap.docs.map(d=>d.data());
+  deriveBalancingCheckForBranch();
+  resetFirestoreResubscribeBackoff('balancingCheckLog');
+ }, err=>{
+  console.error('subscribeBalancingCheckLogCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('balancingCheckLog', subscribeBalancingCheckLogCloud);
+ });
+}
+function writeBalancingCheckEntry(entry){
+ if(!fbDb) return;
+ const id = 'bcl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ fbDb.collection('balancingCheckLog').doc(id).set({id, branch:currentBranch(), ...entry}).catch(err=>console.error('writeBalancingCheckEntry failed:', id, err));
+}
+
 function confirmBalancingCheck(){
  const diffRolling = Number((document.getElementById('diffRolling').textContent||'0').replace(/,/g,''));
  const diffCash = Number((document.getElementById('diffCash').textContent||'0').replace(/,/g,''));
@@ -8788,8 +8875,12 @@ function confirmBalancingCheck(){
 function _doConfirmBalancingCheck(){
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
- bd().balancingCheckLog = bd().balancingCheckLog||[];
- bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'confirm'});
+ if(fbDb){
+  writeBalancingCheckEntry({dt:now, staff:staffName, type:'confirm'});
+ } else {
+  bd().balancingCheckLog = bd().balancingCheckLog||[];
+  bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'confirm'});
+ }
  bd().lastBalancingDt = now;
  const topEl = document.getElementById('lastBalTime');
  if(topEl) topEl.textContent = now;
@@ -8817,8 +8908,12 @@ function _doInitialSetupBalancing(){
  bd().rollingCarryBaseline = (bd().rollingCarryBaseline||0) - diffRolling;
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
- bd().balancingCheckLog = bd().balancingCheckLog||[];
- bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'setup', diffCash, diffRolling});
+ if(fbDb){
+  writeBalancingCheckEntry({dt:now, staff:staffName, type:'setup', diffCash, diffRolling});
+ } else {
+  bd().balancingCheckLog = bd().balancingCheckLog||[];
+  bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'setup', diffCash, diffRolling});
+ }
  if(fbDb) writeCageConfig({cashCarryBaseline: bd().cashCarryBaseline, rollingCarryBaseline: bd().rollingCarryBaseline});
  saveDB(); renderBalancingSummary();
  toast(t('toastInitialSetupApplied'));
@@ -9063,6 +9158,44 @@ h4:first-child{margin-top:0;}
  document.body.removeChild(a);
  URL.revokeObjectURL(url);
 }
+/* ---- Member/company balance-diff corrections — audit log. Currently dormant in this build (the
+   feeding value DB.memberCompanyDiffVal is never populated to a nonzero amount anywhere else in the
+   app, so correctDiff() is effectively unreachable), synced anyway for when/if that changes and for
+   consistency with every other log this session. Open-access tier, same as ledger/games. ---- */
+async function seedCorrectionLogToCloud(){
+ if(!fbDb) return;
+ try{
+  DB.correctionLog = DB.correctionLog||[];
+  DB.correctionLog.forEach(r=>{ if(!r.id) r.id = 'crl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('correctionLog').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = DB.correctionLog.filter(r=>!existingIds.has(r.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(r=>{ batch.set(fbDb.collection('correctionLog').doc(r.id), r); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbCorrectionLogUnsub = null;
+function subscribeCorrectionLogCloud(){
+ if(!fbDb) return;
+ if(fbCorrectionLogUnsub) fbCorrectionLogUnsub();
+ fbCorrectionLogUnsub = fbDb.collection('correctionLog').orderBy('id','desc').onSnapshot(snap=>{
+  DB.correctionLog = snap.docs.map(d=>d.data());
+  renderMemberCompanyDiff();
+  const listModal = document.getElementById('modal-correction-list');
+  if(listModal && listModal.classList.contains('open')) renderCorrectionRecordList();
+  resetFirestoreResubscribeBackoff('correctionLog');
+ }, err=>{
+  console.error('subscribeCorrectionLogCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('correctionLog', subscribeCorrectionLogCloud);
+ });
+}
+function addCorrectionLogToCloud(r){
+ if(!fbDb) return;
+ fbDb.collection('correctionLog').doc(r.id).set(r).catch(err=>console.error('addCorrectionLogToCloud failed:', r.id, err));
+}
+
 function renderMemberCompanyDiff(){
  const diffEl = document.getElementById('curDiffVal');
  const dateEl = document.getElementById('lastCorrectionVal');
@@ -9079,8 +9212,8 @@ function correctDiff(){
  requestPinAuth(()=>{
   const now = phNow().toISOString().slice(0,16).replace('T',' ');
   const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
-  DB.correctionLog = DB.correctionLog||[];
-  DB.correctionLog.unshift({dt:now, amount:val, staff:staffName});
+  const entry = {id:'crl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9), dt:now, amount:val, staff:staffName};
+  if(fbDb){ addCorrectionLogToCloud(entry); } else { DB.correctionLog = DB.correctionLog||[]; DB.correctionLog.unshift(entry); }
   DB.memberCompanyDiffVal = 0;
   saveDB(); renderMemberCompanyDiff();
   toast(t('toastDiffCorrected'));
@@ -9944,6 +10077,9 @@ async function attemptLogin(){
   await seedEventConfigToCloudIfEmpty(); subscribeEventConfigCloud();
   await seedEventActivationLogToCloud(); subscribeEventActivationLogCloud();
   await seedEventHistoryToCloud(); subscribeEventHistoryCloud();
+  await seedSettledToCloud(); subscribeSettledCloud();
+  await seedCorrectionLogToCloud(); subscribeCorrectionLogCloud();
+  await seedBalancingCheckLogToCloud(); subscribeBalancingCheckLogCloud();
  }
  document.getElementById('login-gate').style.display = 'none';
  if(typeof DB !== 'undefined' && DB){
@@ -10028,6 +10164,9 @@ async function attemptMasterLogin(){
   await seedEventConfigToCloudIfEmpty(); subscribeEventConfigCloud();
   await seedEventActivationLogToCloud(); subscribeEventActivationLogCloud();
   await seedEventHistoryToCloud(); subscribeEventHistoryCloud();
+  await seedSettledToCloud(); subscribeSettledCloud();
+  await seedCorrectionLogToCloud(); subscribeCorrectionLogCloud();
+  await seedBalancingCheckLogToCloud(); subscribeBalancingCheckLogCloud();
  }
  document.getElementById('login-gate').style.display = 'none';
  // Master is an admin override login, not a floor worker - never add it to the on-duty roster.

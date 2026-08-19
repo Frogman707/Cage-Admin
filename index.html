@@ -4529,11 +4529,11 @@ function forceLogoutDuplicateSession(){
  if(document.getElementById('login-gate').style.display !== 'none') return; // already logged out
  [fbStaffUnsub, fbAccountsUnsub, fbLedgerUnsub, fbGamesUnsub, fbRollingEventsUnsub, fbAvatarReqUnsub,
   fbTablesUnsub, fbMainCageUnsub, fbBranchTransferUnsub, fbShiftUnsub, fbCageConfigUnsub, fbMasterSessionUnsub,
-  fbBlocksUnsub, fbHotelsUnsub, fbCarsUnsub, fbAeroUnsub, fbPointsUnsub]
+  fbBlocksUnsub, fbHotelsUnsub, fbCarsUnsub, fbAeroUnsub, fbPointsUnsub, fbStaffShiftUnsub]
   .forEach(unsub=>{ if(unsub) try{ unsub(); }catch(e){} });
  fbStaffUnsub = fbAccountsUnsub = fbLedgerUnsub = fbGamesUnsub = fbRollingEventsUnsub = fbAvatarReqUnsub =
   fbTablesUnsub = fbMainCageUnsub = fbBranchTransferUnsub = fbShiftUnsub = fbCageConfigUnsub = fbMasterSessionUnsub =
-  fbBlocksUnsub = fbHotelsUnsub = fbCarsUnsub = fbAeroUnsub = fbPointsUnsub = null;
+  fbBlocksUnsub = fbHotelsUnsub = fbCarsUnsub = fbAeroUnsub = fbPointsUnsub = fbStaffShiftUnsub = null;
  firebase.auth().signOut().catch(()=>{});
  mySessionId = null; myStaffId = null; myRole = null;
  clearTimeout(_inactivityTimer);
@@ -5481,6 +5481,77 @@ function applyShift(field, delta, staff){
 }
 function getShiftVal(field){
  return fbDb ? (fbShiftTotals[field]||0) : (bd()[field]||0);
+}
+
+/* ---- Staff shift log (clock in/out) — onDutyStaff is derived from this log's most recent entry
+   per staff name, exactly like accounts' balance is derived from ledger: writing the on-duty roster
+   anywhere else would just be a second, staler copy of something this log already determines.
+   Named staffShiftLog (not shiftEvents) to avoid colliding with the balancing cash/rolling shift
+   counters just above, an unrelated per-branch financial concept that happens to share the word
+   "shift". ---- */
+async function seedStaffShiftLogToCloud(){
+ if(!fbDb) return;
+ try{
+  DB.shiftLog = DB.shiftLog||[];
+  // Pre-existing local entries predate this log having a stable id - backfill one so every entry
+  // can be addressed as its own Firestore doc.
+  DB.shiftLog.forEach(r=>{ if(!r.id) r.id = 'shl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('staffShiftLog').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = DB.shiftLog.filter(r=>!existingIds.has(r.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(r=>{ batch.set(fbDb.collection('staffShiftLog').doc(r.id), r); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbStaffShiftUnsub = null;
+function subscribeStaffShiftLogCloud(){
+ if(!fbDb) return;
+ if(fbStaffShiftUnsub) fbStaffShiftUnsub();
+ fbStaffShiftUnsub = fbDb.collection('staffShiftLog').orderBy('id','desc').onSnapshot(snap=>{
+  DB.shiftLog = snap.docs.map(d=>d.data());
+  // Newest-first order (see orderBy above) means the first entry seen per staff name is their
+  // most recent event - derive the on-duty roster from that instead of tracking it separately.
+  const latestByStaff = {};
+  DB.shiftLog.forEach(r=>{ if(!(r.staff in latestByStaff)) latestByStaff[r.staff] = r.action; });
+  DB.onDutyStaff = Object.keys(latestByStaff).filter(name=>latestByStaff[name]==='in');
+  renderShiftStaff();
+  const listModal = document.getElementById('modal-shift-list');
+  if(listModal && listModal.classList.contains('open')) renderShiftList();
+  resetFirestoreResubscribeBackoff('staffShiftLog');
+ }, err=>{
+  console.error('subscribeStaffShiftLogCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('staffShiftLog', subscribeStaffShiftLogCloud);
+ });
+}
+function writeStaffShiftEvent(staff, action){
+ const id = 'shl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
+ const entry = {id, dt:now, staff, action};
+ if(fbDb){
+  fbDb.collection('staffShiftLog').doc(id).set(entry).catch(err=>console.error('writeStaffShiftEvent failed:', id, err));
+ } else {
+  DB.onDutyStaff = DB.onDutyStaff || ['Eric'];
+  if(action==='in'){ if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff); }
+  else { DB.onDutyStaff = DB.onDutyStaff.filter(s=>s!==staff); }
+  DB.shiftLog = DB.shiftLog || [];
+  DB.shiftLog.unshift(entry);
+  saveDB();
+ }
+}
+// Renames every staffShiftLog entry attributed to oldName - the cloud-mode equivalent of what
+// submitStaffForm's local branch does with an in-memory Array.forEach, since the entries themselves
+// now live in Firestore in cloud mode.
+async function renameStaffInShiftLogCloud(oldName, newName){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('staffShiftLog').where('staff','==',oldName).get();
+  if(snap.empty) return;
+  const batch = fbDb.batch();
+  snap.forEach(d=>batch.update(d.ref, {staff:newName}));
+  await batch.commit();
+ }catch(e){}
 }
 
 /* ---- Shared cage config, per branch (rare-write: last-action timestamps, month-settle baselines) ---- */
@@ -8215,17 +8286,8 @@ function renderGameEndList(){
    ============================================================ */
 function shiftAction(dir){
  const staff = document.getElementById('checkInStaffSelect').value;
- DB.onDutyStaff = DB.onDutyStaff || ['Eric'];
- if(dir==='in'){
-  if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff);
- } else {
-  DB.onDutyStaff = DB.onDutyStaff.filter(s=>s!==staff);
- }
- const now = phNow().toISOString().slice(0,16).replace('T',' ');
- DB.shiftLog = DB.shiftLog || [];
- DB.shiftLog.unshift({dt:now, staff, action:dir});
+ writeStaffShiftEvent(staff, dir);
  renderShiftStaff();
- saveDB();
  toast(t('toastShift'));
 }
 function renderShiftStaff(){
@@ -8360,8 +8422,12 @@ async function submitStaffForm(){
   const ok = await writeStaffDoc({...s, name, pin: pin || s.pin});
   if(!ok){ toast(t('toastStaffSyncFailed')); return; }
   if(oldName!==name){
-   DB.onDutyStaff = (DB.onDutyStaff||[]).map(n=>n===oldName?name:n);
-   (DB.shiftLog||[]).forEach(r=>{ if(r.staff===oldName) r.staff=name; });
+   if(fbDb){
+    renameStaffInShiftLogCloud(oldName, name);
+   } else {
+    DB.onDutyStaff = (DB.onDutyStaff||[]).map(n=>n===oldName?name:n);
+    (DB.shiftLog||[]).forEach(r=>{ if(r.staff===oldName) r.staff=name; });
+   }
   }
   saveDB(); renderShiftStaff();
   toast(t('toastStaffUpdated'));
@@ -8389,7 +8455,9 @@ function deleteStaffRow(id){
   if(!s) return;
   const ok = await deleteStaffDoc(id);
   if(!ok){ toast(t('toastStaffSyncFailed')); return; }
-  DB.onDutyStaff = (DB.onDutyStaff||[]).filter(n=>n!==s.name);
+  // In cloud mode onDutyStaff is derived from staffShiftLog (see subscribeStaffShiftLogCloud) and
+  // renderShiftStaff already prunes any name no longer in DB.staff - nothing extra to write here.
+  if(!fbDb) DB.onDutyStaff = (DB.onDutyStaff||[]).filter(n=>n!==s.name);
   saveDB(); renderShiftStaff();
   toast(t('toastStaffDeleted'));
  });
@@ -9767,13 +9835,16 @@ async function attemptLogin(){
   await seedRecordsToCloud('cars', DB.cars); subscribeCarsCloud();
   await seedRecordsToCloud('aero', DB.aero); subscribeAeroCloud();
   await seedPointsToCloud(); subscribePointsCloud();
+  await seedStaffShiftLogToCloud(); subscribeStaffShiftLogCloud();
  }
  document.getElementById('login-gate').style.display = 'none';
  if(typeof DB !== 'undefined' && DB){
-  DB.onDutyStaff = DB.onDutyStaff || ['Eric'];
-  if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff);
+  // A snapshot from subscribeStaffShiftLogCloud() above may not have landed yet at this exact
+  // instant, so this on-duty check can occasionally be working off a stale/empty DB.onDutyStaff and
+  // write a redundant extra "in" event for someone already on duty - harmless (the derived roster
+  // still correctly resolves to "in" either way), just an extra log entry rather than a lost one.
+  if(!(DB.onDutyStaff||[]).includes(staff)) writeStaffShiftEvent(staff, 'in');
   if(typeof renderShiftStaff === 'function') renderShiftStaff();
-  if(typeof saveDB === 'function') saveDB();
  }
  startInactivityTimer();
 }
@@ -9845,6 +9916,7 @@ async function attemptMasterLogin(){
   await seedRecordsToCloud('cars', DB.cars); subscribeCarsCloud();
   await seedRecordsToCloud('aero', DB.aero); subscribeAeroCloud();
   await seedPointsToCloud(); subscribePointsCloud();
+  await seedStaffShiftLogToCloud(); subscribeStaffShiftLogCloud();
  }
  document.getElementById('login-gate').style.display = 'none';
  // Master is an admin override login, not a floor worker - never add it to the on-duty roster.

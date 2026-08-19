@@ -537,12 +537,21 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  .grid{grid-template-columns:1fr !important;}
  /* Identity Verification's 3 fixed 260px photo columns (780px+ minimum) never fit a phone width. */
  .id-verify-grid{grid-template-columns:1fr;justify-items:center;}
+ /* Each .photo-box inside is also individually fixed at 260px - on a phone narrower than
+    ~326px (260px box + this breakpoint's padding) that still overflows even in one column. */
+ .id-verify-grid .photo-box{width:100%;max-width:260px;}
 
  /* A grid item's default min-width is auto (content-based), not 0 - so once a grid collapses to
     one column above, its card can still refuse to shrink below its widest child's natural
     content width and overflow the column instead of the .row/.field flex-wrap inside it ever
     getting a chance to kick in. This is what was pushing Game Management's fields off-screen. */
  .grid>*,.grid-2>*,.grid-3>*,.grid-io>*{min-width:0;}
+
+ /* A MAIN account's per-branch balance strip is a fixed 5-across grid (.ticket-sm .lbl already
+    ellipsis-truncates on overflow by design) - with 5 branches now instead of the original 3,
+    each cell got too narrow on a phone to show more than "HAN…"/"S…"/"MI…", indistinguishable
+    from one another. Two columns gives each label enough room to read in full. */
+ .balance-sub-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 @media print{
  /* A non-zero @page margin leaves Chrome room to draw its own default header/footer (page title +
@@ -6129,6 +6138,12 @@ function applyI18n(){
  document.querySelectorAll('[data-i18n-title]').forEach(el=>{ el.title = t(el.dataset.i18nTitle); });
  document.querySelectorAll('.lang-switch button').forEach(b=>b.classList.toggle('active', b.dataset.lang===LANG));
  renderAll();
+ // renderAll() covers the avatar-request bell/badge but not the modal's own row list (same reason
+ // switchBranch() re-renders it explicitly too) - without this a language switch while the modal
+ // is open leaves its rows/cancel-button text in the previous language until the next unrelated
+ // Firestore snapshot happens to fire.
+ const avatarReqModal = document.getElementById('modal-avatar-request');
+ if(avatarReqModal && avatarReqModal.classList.contains('open')) renderAvatarReqList();
 }
 
 function toast(msg){

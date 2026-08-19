@@ -4787,11 +4787,10 @@ function writeLedgerEntry(opts){
    Each collection is seeded upsert-missing (not "seed once if empty") because, like accounts, this
    data has been local-only per terminal since the app's inception - different terminals may each
    hold records none of the others have ever seen.
-   Known limitation shared with hotels/cars/aero's existing id format (HTL-/CAR-/AER- + 4 random
-   digits, ~9000 possible values): upsert-missing dedupes by that same id, so two terminals that
-   independently generated the same 4-digit suffix for two different bookings will merge into one
-   doc, silently dropping the loser. Pre-existing collision risk (not introduced by this sync),
-   tracked for a proper fix alongside nextGameSeq/nextWalkinSeq. ---- */
+   blocks' own id embeds a timestamp+random suffix so it's already collision-safe as a doc id;
+   hotels/cars/aero's existing display ids (HTL-/CAR-/AER- + 4 random digits, ~9000 possible values)
+   are not, so those three use a separate _key as the real doc id instead - see the block comment
+   above seedRecordsToCloud. ---- */
 async function seedBlocksToCloud(){
  if(!fbDb) return;
  try{
@@ -4833,21 +4832,36 @@ function removeBlockFromCloud(id){
  fbDb.collection('blocks').doc(id).delete().catch(err=>console.error('removeBlockFromCloud failed:', id, err));
 }
 
-// Hotels/cars/aero share one shape: each record already has its own display id (HTL-/CAR-/AER- +
-// 4 random digits) used throughout the UI (receipt lookups, cancel buttons) - reused here as the
-// Firestore doc id too, rather than inventing a second one (see the collision caveat in the block
-// comment above). None of the three has a creation-order field (checkin/dt are the *reservation's*
-// date, not when it was booked), so _ts (a plain Date.now(), never shown) is added purely so
-// subscribeXCloud can order newest-first, matching the local unshift() behavior this replaces.
+// Hotels/cars/aero share one shape: each record has its own short display id (HTL-/CAR-/AER- + 4
+// random digits) used throughout the UI (receipt lookups, cancel buttons) - kept exactly as-is for
+// display, but NOT used as the Firestore doc id. That id space is only ~9000 values, and two
+// terminals independently generating the same 4-digit suffix for two different bookings would
+// otherwise merge into a single doc during upsert-missing seeding, silently dropping the loser.
+// _key (a separately generated, effectively-unique id, same shape as every other collection's ids
+// this session) is the real doc id; _ts (a plain Date.now(), never shown) exists purely so
+// subscribeXCloud can order newest-first, since none of the three has a creation-order field
+// otherwise (checkin/dt are the *reservation's* date, not when it was booked).
 function seedRecordsToCloud(collectionName, records){
  if(!fbDb) return Promise.resolve();
- (records||[]).forEach(r=>{ if(r._ts===undefined) r._ts = Date.now(); });
  return fbDb.collection(collectionName).get().then(snap=>{
-  const existingIds = new Set(snap.docs.map(d=>d.id));
-  const missing = (records||[]).filter(r=>!existingIds.has(r.id));
+  const existingKeys = new Set(snap.docs.map(d=>d.id));
+  // A record synced by an earlier version of this app (before _key existed) landed in Firestore
+  // keyed by its own display id - match those back up by business id first, so a local record that
+  // hasn't picked up a _key yet doesn't look "new" and get pushed a second time under a fresh key.
+  // (Narrow accepted gap: if two DIFFERENT bookings already share the same display id from that old
+  // scheme, this can only adopt one of them - same underlying ~9000-value collision this _key
+  // scheme exists to prevent going forward, just not retroactively resolvable for docs that already
+  // collided before this fix shipped.)
+  const cloudIdToKey = {};
+  snap.docs.forEach(d=>{ const data = d.data(); if(data && data.id && !(data.id in cloudIdToKey)) cloudIdToKey[data.id] = d.id; });
+  (records||[]).forEach(r=>{
+   if(r._ts===undefined) r._ts = Date.now();
+   if(!r._key) r._key = cloudIdToKey[r.id] || (collectionName.slice(0,3)+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,9));
+  });
+  const missing = (records||[]).filter(r=>!existingKeys.has(r._key));
   if(!missing.length) return;
   const batch = fbDb.batch();
-  missing.forEach(r=>{ batch.set(fbDb.collection(collectionName).doc(r.id), r); });
+  missing.forEach(r=>{ batch.set(fbDb.collection(collectionName).doc(r._key), r); });
   return batch.commit();
  }).catch(()=>{});
 }
@@ -4881,11 +4895,16 @@ function subscribeAeroCloud(){
 }
 function addRecordToCloud(collectionName, r){
  if(!fbDb) return;
- fbDb.collection(collectionName).doc(r.id).set(r).catch(err=>console.error('addRecordToCloud failed:', collectionName, r.id, err));
+ if(!r._key) r._key = collectionName.slice(0,3)+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ fbDb.collection(collectionName).doc(r._key).set(r).catch(err=>console.error('addRecordToCloud failed:', collectionName, r._key, err));
 }
-function cancelRecordInCloud(collectionName, id){
+// records is the current DB.hotels/DB.cars/DB.aero array - needed to look up the doc's real _key
+// from the display id the cancel button was clicked with (see the block comment above).
+function cancelRecordInCloud(collectionName, records, id){
  if(!fbDb) return;
- fbDb.collection(collectionName).doc(id).update({status:'cancelled'}).catch(err=>console.error('cancelRecordInCloud failed:', collectionName, id, err));
+ const rec = (records||[]).find(x=>x.id===id);
+ if(!rec || !rec._key) return;
+ fbDb.collection(collectionName).doc(rec._key).update({status:'cancelled'}).catch(err=>console.error('cancelRecordInCloud failed:', collectionName, id, err));
 }
 
 /* ---- Points — balance is derived from pointsHistory, exactly like accounts' balance is derived
@@ -5310,7 +5329,6 @@ function branchData(branch){
    settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
    guestRollingGrandTotal:0, rollingDailyTotal:0,
    cashCarryBaseline:0, rollingCarryBaseline:0,
-   nextWalkinSeq:1,
   };
  }
  return DB.branchData[branch];
@@ -6431,11 +6449,9 @@ function seedDB(){
     lastBalancingDt:null, lastCutoffDt:null, lastMonthSettleDt:null,
     settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
     cashCarryBaseline:0, rollingCarryBaseline:0,
-    nextWalkinSeq:1,
    },
   },
   notifications:[],
-  nextGameSeq:1,
   currentAccount:null,
   ioType:"deposit",
   staff:[
@@ -7458,11 +7474,43 @@ function renderLedgerList(){
 /* ============================================================
    GAME
    ============================================================ */
+// Auto game IDs and walk-in labels used to come from DB.nextGameSeq/branchData[branch].nextWalkinSeq,
+// purely local counters that were never synced - two terminals starting a game/walk-in at the same
+// moment could each independently compute the same next number from their own stale local counter,
+// so two different games could land in Firestore under the same gameId (games/settled both use
+// gameId as their doc id - a real collision there silently merges two customers' games into one
+// doc) or two walk-ins could collide on the same "W3" label. Deriving the next number from the
+// already-synced games/endedGames/settled instead removes the divergence entirely: every terminal
+// computes it from the same shared, real-time data, so there's no separate counter to drift.
+// (Narrow, accepted tradeoff: a cancelled game's id/label can now be reused by a later game, since
+// cancelGame() removes it from every pool this scans - the old counter never reused ids after a
+// cancel, but a cancelled game leaves no financial trace either way, so this is cosmetic at most.)
+function nextGameIdForToday(){
+ const datePrefix = phNow().toISOString().slice(2,10).replace(/-/g,'');
+ let maxSeq = 0;
+ [...(DB.games||[]), ...(DB.endedGames||[]), ...(DB.settled||[])].forEach(g=>{
+  const id = g.gameId||'';
+  if(id.startsWith(datePrefix) && id.length===datePrefix.length+3){
+   const seq = parseInt(id.slice(datePrefix.length), 10);
+   if(!isNaN(seq) && seq>maxSeq) maxSeq = seq;
+  }
+ });
+ return datePrefix + String(maxSeq+1).padStart(3,'0');
+}
+function nextWalkinLabel(){
+ const branch = currentBranch();
+ let maxSeq = 0;
+ [...(DB.games||[]), ...(DB.endedGames||[]), ...(DB.settled||[])].forEach(g=>{
+  if((g.branch||'HANN')!==branch) return;
+  const m = /^W(\d+)$/.exec(g.account||'');
+  if(m){ const seq = parseInt(m[1],10); if(seq>maxSeq) maxSeq = seq; }
+ });
+ return 'W' + (maxSeq+1);
+}
 function updateGameIdPreview(){
  const el = document.getElementById('gGameIdPreview');
  if(!el) return;
- const now = phNow();
- el.value = now.toISOString().slice(2,10).replace(/-/g,'') + String(DB.nextGameSeq).padStart(3,'0');
+ el.value = nextGameIdForToday();
 }
 function updateGameAccBalance(){
  const id = document.getElementById('gAccount').value.trim().toUpperCase();
@@ -7509,12 +7557,10 @@ function applyAccountRateToGameType(id){
 // registered account - no account opening required. The counter is per-branch and reset by
 // the master Reset button along with the rest of that branch's records.
 function genWalkinAcc(){
- const label = 'W' + bd().nextWalkinSeq;
- bd().nextWalkinSeq++;
+ const label = nextWalkinLabel();
  document.getElementById('gAccount').value = label;
  document.getElementById('gStartType').value = 'cash';
  updateGameAccBalance();
- saveDB();
 }
 function enforceThousand(el){
  const raw = unformatNum(el.value);
@@ -7629,9 +7675,7 @@ async function _doStartGame(account, buyin, workingChip, enteredId){
  const startType = document.getElementById('gStartType').value;
  const startKind = document.getElementById('gStartKind').value;
  const now = phNow();
- const autoId = now.toISOString().slice(2,10).replace(/-/g,'') + String(DB.nextGameSeq).padStart(3,'0');
- const gameId = enteredId || autoId;
- DB.nextGameSeq++;
+ const gameId = enteredId || nextGameIdForToday();
  const newGame = {dt:now.toISOString().slice(0,16).replace('T',' '), gameId, branch:currentBranch(), account, table, cur, type, startType, startKind, rolling:0, buyin, workingChip, staff:staffName, checkpoints:[], lastAdded:0, rollingLog:[]};
  DB.games.unshift(newGame);
  seedRollingFromBuyin(newGame, buyin, workingChip, staffName);
@@ -9661,7 +9705,7 @@ function bookHotel(){
  toast(t('toastProcessed'));
 }
 function cancelHotelBooking(id){
- if(fbDb){ cancelRecordInCloud('hotels', id); } else { const b = DB.hotels.find(x=>x.id===id); if(b) b.status='cancelled'; saveDB(); }
+ if(fbDb){ cancelRecordInCloud('hotels', DB.hotels, id); } else { const b = DB.hotels.find(x=>x.id===id); if(b) b.status='cancelled'; saveDB(); }
  renderHotels();
 }
 function showHotelReceipt(id){
@@ -9714,7 +9758,7 @@ function reserveCar(){
  toast(t('toastProcessed'));
 }
 function cancelCarReservation(id){
- if(fbDb){ cancelRecordInCloud('cars', id); } else { const c = DB.cars.find(x=>x.id===id); if(c) c.status='cancelled'; saveDB(); }
+ if(fbDb){ cancelRecordInCloud('cars', DB.cars, id); } else { const c = DB.cars.find(x=>x.id===id); if(c) c.status='cancelled'; saveDB(); }
  renderCars();
 }
 function showCarReceipt(id){
@@ -9766,7 +9810,7 @@ function requestAero(){
  toast(t('toastProcessed'));
 }
 function cancelAero(id){
- if(fbDb){ cancelRecordInCloud('aero', id); } else { const a = DB.aero.find(x=>x.id===id); if(a) a.status='cancelled'; saveDB(); }
+ if(fbDb){ cancelRecordInCloud('aero', DB.aero, id); } else { const a = DB.aero.find(x=>x.id===id); if(a) a.status='cancelled'; saveDB(); }
  renderAero();
 }
 function showAeroReceipt(id){

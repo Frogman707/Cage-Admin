@@ -4517,7 +4517,15 @@ function subscribeMasterSessionCloud(){
   if(doc.metadata.fromCache) return;
   const data = doc.data();
   if(myRole==='master' && mySessionId && data && data.sessionId && data.sessionId!==mySessionId) forceLogoutDuplicateSession();
- }, err=>{ console.error('subscribeMasterSessionCloud onSnapshot error:', err); });
+  resetFirestoreResubscribeBackoff('masterSession');
+ }, err=>{
+  // Unlike every other subscribeXCloud() here, this listener dying without a resubscribe would
+  // silently and permanently disable duplicate-master-login detection for the rest of this tab's
+  // session after nothing worse than a transient network blip - see scheduleFirestoreResubscribe's
+  // own comment on why a dead onSnapshot stream never recovers on its own.
+  console.error('subscribeMasterSessionCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('masterSession', subscribeMasterSessionCloud);
+ });
 }
 // Fires when this tab's own login session has been superseded by a newer login elsewhere (same
 // staff member or master, different device/tab) - a harder logout than the inactivity auto-lock:
@@ -4841,6 +4849,11 @@ function removeBlockFromCloud(id){
 // this session) is the real doc id; _ts (a plain Date.now(), never shown) exists purely so
 // subscribeXCloud can order newest-first, since none of the three has a creation-order field
 // otherwise (checkin/dt are the *reservation's* date, not when it was booked).
+// Shared by seedRecordsToCloud/addRecordToCloud so every fresh key this session hands out for
+// hotels/cars/aero comes from one place instead of two copies of the same expression.
+function genRecordKey(collectionName){
+ return collectionName.slice(0,3)+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+}
 function seedRecordsToCloud(collectionName, records){
  if(!fbDb) return Promise.resolve();
  return fbDb.collection(collectionName).get().then(snap=>{
@@ -4854,14 +4867,33 @@ function seedRecordsToCloud(collectionName, records){
   // collided before this fix shipped.)
   const cloudIdToKey = {};
   snap.docs.forEach(d=>{ const data = d.data(); if(data && data.id && !(data.id in cloudIdToKey)) cloudIdToKey[data.id] = d.id; });
+  const batch = fbDb.batch();
+  let hasWrites = false;
   (records||[]).forEach(r=>{
    if(r._ts===undefined) r._ts = Date.now();
-   if(!r._key) r._key = cloudIdToKey[r.id] || (collectionName.slice(0,3)+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,9));
+   if(!r._key){
+    const matchedKey = cloudIdToKey[r.id];
+    if(matchedKey){
+     // Same doc as an old pre-_key record, just missing the field - persist it with a merge (never
+     // a full overwrite of the doc) so this can't clobber a status change another terminal wrote to
+     // it since our .get() above. Without this write, the recovered key only ever lived in memory on
+     // this local record: subscribeXCloud's onSnapshot (subscribed right after this call resolves)
+     // replaces DB.hotels/DB.cars/DB.aero wholesale from server data that still lacked _key, so the
+     // in-memory-only recovery was wiped before it could ever be used - silently breaking cancel for
+     // every pre-existing record, on every future login, forever.
+     r._key = matchedKey;
+     batch.set(fbDb.collection(collectionName).doc(matchedKey), {_key: matchedKey}, {merge:true});
+     hasWrites = true;
+     return;
+    }
+    r._key = genRecordKey(collectionName);
+   }
   });
-  const missing = (records||[]).filter(r=>!existingKeys.has(r._key));
-  if(!missing.length) return;
-  const batch = fbDb.batch();
-  missing.forEach(r=>{ batch.set(fbDb.collection(collectionName).doc(r._key), r); });
+  (records||[]).filter(r=>!existingKeys.has(r._key)).forEach(r=>{
+   batch.set(fbDb.collection(collectionName).doc(r._key), r);
+   hasWrites = true;
+  });
+  if(!hasWrites) return;
   return batch.commit();
  }).catch(()=>{});
 }
@@ -4895,16 +4927,20 @@ function subscribeAeroCloud(){
 }
 function addRecordToCloud(collectionName, r){
  if(!fbDb) return;
- if(!r._key) r._key = collectionName.slice(0,3)+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ if(!r._key) r._key = genRecordKey(collectionName);
  fbDb.collection(collectionName).doc(r._key).set(r).catch(err=>console.error('addRecordToCloud failed:', collectionName, r._key, err));
 }
 // records is the current DB.hotels/DB.cars/DB.aero array - needed to look up the doc's real _key
-// from the display id the cancel button was clicked with (see the block comment above).
+// from the display id the cancel button was clicked with (see the block comment above). Falls back
+// to id itself when no _key is known - seedRecordsToCloud backfills _key (and now persists it, see
+// above) for every pre-existing doc, but falling back here too means a cancel still goes through
+// even if that backfill hasn't reached this particular record yet (e.g. its write failed) rather
+// than silently doing nothing.
 function cancelRecordInCloud(collectionName, records, id){
  if(!fbDb) return;
  const rec = (records||[]).find(x=>x.id===id);
- if(!rec || !rec._key) return;
- fbDb.collection(collectionName).doc(rec._key).update({status:'cancelled'}).catch(err=>console.error('cancelRecordInCloud failed:', collectionName, id, err));
+ const docId = (rec && rec._key) || id;
+ fbDb.collection(collectionName).doc(docId).update({status:'cancelled'}).catch(err=>console.error('cancelRecordInCloud failed:', collectionName, id, err));
 }
 
 /* ---- Points — balance is derived from pointsHistory, exactly like accounts' balance is derived
@@ -4916,6 +4952,12 @@ function cancelRecordInCloud(collectionName, records, id){
 async function seedPointsToCloud(){
  if(!fbDb) return;
  try{
+  // Pre-existing local entries predate this history having a stable id - backfill one so every
+  // entry can be addressed as its own Firestore doc. Without this, .doc(h.id) is called with
+  // h.id===undefined for every such entry, which throws synchronously (aborting this whole seed,
+  // silently, via the catch below) instead of persisting anything.
+  DB.pointsHistory = DB.pointsHistory||[];
+  DB.pointsHistory.forEach(h=>{ if(!h.id) h.id = 'pts_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
   const snap = await fbDb.collection('pointsHistory').get();
   const existingIds = new Set(snap.docs.map(d=>d.id));
   const missing = (DB.pointsHistory||[]).filter(h=>!existingIds.has(h.id));
@@ -7485,14 +7527,25 @@ function renderLedgerList(){
 // (Narrow, accepted tradeoff: a cancelled game's id/label can now be reused by a later game, since
 // cancelGame() removes it from every pool this scans - the old counter never reused ids after a
 // cancel, but a cancelled game leaves no financial trace either way, so this is cosmetic at most.)
+// Shared by nextGameIdForToday/nextWalkinLabel so both scan the exact same combined history.
+function allGamesEverywhere(){
+ return [...(DB.games||[]), ...(DB.endedGames||[]), ...(DB.settled||[])];
+}
 function nextGameIdForToday(){
  const datePrefix = phNow().toISOString().slice(2,10).replace(/-/g,'');
  let maxSeq = 0;
- [...(DB.games||[]), ...(DB.endedGames||[]), ...(DB.settled||[])].forEach(g=>{
+ allGamesEverywhere().forEach(g=>{
   const id = g.gameId||'';
-  if(id.startsWith(datePrefix) && id.length===datePrefix.length+3){
-   const seq = parseInt(id.slice(datePrefix.length), 10);
-   if(!isNaN(seq) && seq>maxSeq) maxSeq = seq;
+  // Match ANY all-digit suffix, not just exactly 3 digits: padStart(3,'0') only pads short strings,
+  // it never truncates, so once a day's count reaches 1000 the auto id grows a 4th digit. A
+  // length-exact check here would stop recognizing that id on the very next call, recompute maxSeq
+  // from the remaining 3-digit ids alone (999), and hand out that same "...1000" id to a second,
+  // different game - a real gameId collision (games/settled use gameId as their doc id) of exactly
+  // the kind this whole scan exists to prevent.
+  const suffix = id.startsWith(datePrefix) ? id.slice(datePrefix.length) : '';
+  if(suffix && /^\d+$/.test(suffix)){
+   const seq = parseInt(suffix, 10);
+   if(seq>maxSeq) maxSeq = seq;
   }
  });
  return datePrefix + String(maxSeq+1).padStart(3,'0');
@@ -7500,7 +7553,7 @@ function nextGameIdForToday(){
 function nextWalkinLabel(){
  const branch = currentBranch();
  let maxSeq = 0;
- [...(DB.games||[]), ...(DB.endedGames||[]), ...(DB.settled||[])].forEach(g=>{
+ allGamesEverywhere().forEach(g=>{
   if((g.branch||'HANN')!==branch) return;
   const m = /^W(\d+)$/.exec(g.account||'');
   if(m){ const seq = parseInt(m[1],10); if(seq>maxSeq) maxSeq = seq; }
@@ -8572,7 +8625,14 @@ function cancelStaffEdit(){
 // server-side, so every other device kept showing the old data with no visible sign of failure.
 function writeStaffDoc(rec){
  if(fbDb){
-  return fbDb.collection('staff').doc(rec.id).set(rec).then(()=>true).catch(()=>false);
+  // sessionId/sessionDt are stamped server-side by staffLogin and are what the duplicate-login
+  // check compares against (see subscribeStaffCloud) - never let a client write clobber them.
+  // rec is normally built by spreading a locally-cached DB.staff entry ({...s, ...}), which can be
+  // one snapshot behind a login that just landed elsewhere; writing that stale sessionId back with
+  // a full overwrite would make this staff member's real, currently-active session look "stale"
+  // to itself and force it to log out, purely as a side effect of an unrelated PIN/name/OTP edit.
+  const {sessionId, sessionDt, ...payload} = rec;
+  return fbDb.collection('staff').doc(rec.id).set(payload, {merge:true}).then(()=>true).catch(()=>false);
  } else {
   DB.staff = DB.staff||[];
   const idx = DB.staff.findIndex(x=>x.id===rec.id);

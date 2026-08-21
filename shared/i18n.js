@@ -187,9 +187,6 @@ const I18N_DICT = {
 
   // ---- display settings (theme / skin) ----
   displaySettings:{ko:'화면 설정',zhHans:'显示设置',zhHant:'顯示設定',en:'Display Settings',ja:'画面設定',vi:'Cài đặt hiển thị'},
-  themeLabel:{ko:'테마',zhHans:'主题',zhHant:'主題',en:'Theme',ja:'テーマ',vi:'Giao diện'},
-  themeDark:{ko:'다크',zhHans:'深色',zhHant:'深色',en:'Dark',ja:'ダーク',vi:'Tối'},
-  themeLight:{ko:'라이트',zhHans:'浅色',zhHant:'淺色',en:'Light',ja:'ライト',vi:'Sáng'},
 
   // ---- speed single-table detail screen ----
   openTable:{ko:'테이블 입장',zhHans:'进入桌台',zhHant:'進入桌臺',en:'Enter Table',ja:'テーブルに入る',vi:'Vào bàn'},

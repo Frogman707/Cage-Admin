@@ -121,42 +121,49 @@ input,select,textarea{font-family:var(--sans);}
 /* The topbar's own theme toggle and language switch both sit underneath #login-gate (z-index:500)
    pre-login, so neither is visible or clickable there - login-theme-toggle-btn/login-lang-picker
    below are second, purpose-built copies (not moved originals) living inside .login-card itself,
-   matching the reference layout: a circular icon button in the card's own corner, and a single
-   flag button that opens a language dropdown, rather than the topbar's always-visible pill row. */
+   matching Avatar Speed's own login-card layout exactly (shared/cage-ui.css .login-theme-btn +
+   shared/game-ui.css .icon-btn/.lang-switcher/.lang-current/.lang-drop/.lang-opt): a small
+   rounded-square icon button pinned to the card's top-right corner, and a pill-shaped
+   flag+language-name button that opens a right-anchored dropdown. */
 .login-theme-toggle-btn{
- position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:50%;
- background:var(--void);border:1px solid var(--brass-dim);color:var(--ink-dim);
+ position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:var(--radius);
+ background:var(--panel-raised);border:1px solid var(--line);color:var(--ink-dim);
  display:flex;align-items:center;justify-content:center;transition:border-color .15s ease,color .15s ease;
 }
-.login-theme-toggle-btn:hover{border-color:var(--brass);color:var(--ink);}
-.login-theme-toggle-btn svg{width:17px;height:17px;}
-.login-lang-picker{position:relative;display:flex;justify-content:center;margin:18px 0 6px;}
+.login-theme-toggle-btn:hover{border-color:var(--brass-dim);color:var(--brass);}
+.login-theme-toggle-btn svg{width:16px;height:16px;}
+.login-lang-picker{display:flex;justify-content:center;margin-top:14px;}
+.login-lang-switcher{position:relative;display:inline-block;}
 .login-lang-flag-btn{
- width:46px;height:46px;border-radius:50%;background:var(--void);border:1px solid var(--brass-dim);
- font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;
- transition:border-color .15s ease;
+ background:var(--panel-raised);border:1px solid var(--line);color:var(--ink-dim);border-radius:20px;
+ padding:6px 12px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;
+ transition:border-color .15s ease,color .15s ease;
 }
-.login-lang-flag-btn:hover{border-color:var(--brass);}
-/* Every rule below is scoped through .login-lang-picker so it unambiguously outranks the plain
+.login-lang-flag-btn:hover{border-color:var(--brass-dim);color:var(--ink);}
+@media (max-width:860px){
+ .login-lang-flag-btn span:last-child{display:none;}
+ .login-lang-flag-btn{padding:6px 8px;}
+}
+/* Every rule below is scoped through .login-lang-switcher so it unambiguously outranks the plain
    .lang-switch/.lang-switch button/.lang-switch button.active rules (each only 1-2 classes) that
    would otherwise apply too, since .login-lang-dropdown carries the .lang-switch class itself (see
    the block comment on that element for why: reusing it is what lets the existing click-to-select
    wiring - which just does document.querySelectorAll('.lang-switch button') once at load - pick
    these buttons up for free, with no separate handler to write or keep in sync). */
-.login-lang-picker .login-lang-dropdown.lang-switch{
- display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);
- flex-direction:column;align-items:stretch;gap:2px;background:var(--panel);
- border:1px solid var(--brass-dim);border-radius:8px;box-shadow:0 14px 34px -14px rgba(0,0,0,.6);
- padding:6px;min-width:180px;z-index:10;
+.login-lang-switcher .login-lang-dropdown.lang-switch{
+ display:none;position:absolute;top:calc(100% + 6px);right:0;
+ flex-direction:column;align-items:stretch;gap:0;background:var(--panel);
+ border:1px solid var(--brass-dim);border-radius:8px;box-shadow:0 14px 30px -10px rgba(0,0,0,.6);
+ min-width:130px;z-index:50;overflow:hidden;
 }
-.login-lang-picker .login-lang-dropdown.lang-switch.open{display:flex;}
-.login-lang-picker .login-lang-dropdown.lang-switch button{
- display:flex;align-items:center;gap:10px;background:none;border:none;color:var(--ink);
- padding:9px 12px;border-radius:6px;font-size:13px;font-weight:500;text-align:left;width:100%;
+.login-lang-switcher .login-lang-dropdown.lang-switch.open{display:flex;}
+.login-lang-switcher .login-lang-dropdown.lang-switch button{
+ display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--ink-dim);
+ padding:9px 14px;font-size:12px;font-weight:500;text-align:left;width:100%;white-space:nowrap;
 }
-.login-lang-picker .login-lang-dropdown.lang-switch button:hover{background:var(--panel-raised);}
-.login-lang-picker .login-lang-dropdown.lang-switch button.active{background:var(--panel-raised);color:var(--brass);font-weight:700;}
-.login-lang-picker .login-lang-dropdown .flag{font-size:16px;}
+.login-lang-switcher .login-lang-dropdown.lang-switch button:hover{background:var(--panel-raised);color:var(--ink);}
+.login-lang-switcher .login-lang-dropdown.lang-switch button.active{background:var(--panel-raised);color:var(--brass);font-weight:700;}
+.login-lang-switcher .login-lang-dropdown .flag{font-size:14px;}
 
 /* ===== Shell ===== */
 .shell{flex:1;display:flex;min-height:0;}
@@ -701,12 +708,16 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <div class="login-ver" id="loginVerToggle" onclick="toggleMasterLogin()" style="cursor:pointer;">v5.0</div>
 
     <div class="login-lang-picker">
-      <button class="login-lang-flag-btn" id="loginLangBtn" onclick="toggleLoginLangMenu()">🇰🇷</button>
-      <div class="login-lang-dropdown lang-switch" id="loginLangDropdown">
-        <button data-lang="ko"><span class="flag">🇰🇷</span><span>한국어</span></button>
-        <button data-lang="en"><span class="flag">🇬🇧</span><span>English</span></button>
-        <button data-lang="zh-TW"><span class="flag">🇹🇼</span><span>繁體中文</span></button>
-        <button data-lang="zh-CN"><span class="flag">🇨🇳</span><span>简体中文</span></button>
+      <div class="login-lang-switcher">
+        <button type="button" class="login-lang-flag-btn" id="loginLangBtn" onclick="toggleLoginLangMenu()">
+          <span id="loginLangFlag">🇰🇷</span><span id="loginLangName">한국어</span>
+        </button>
+        <div class="login-lang-dropdown lang-switch" id="loginLangDropdown">
+          <button data-lang="ko"><span class="flag">🇰🇷</span><span>한국어</span></button>
+          <button data-lang="en"><span class="flag">🇬🇧</span><span>English</span></button>
+          <button data-lang="zh-TW"><span class="flag">🇹🇼</span><span>繁體中文</span></button>
+          <button data-lang="zh-CN"><span class="flag">🇨🇳</span><span>简体中文</span></button>
+        </div>
       </div>
     </div>
 
@@ -6762,10 +6773,13 @@ function applyI18n(){
  // its own displayed flag kept in sync with whatever LANG actually is, from any trigger - not just
  // a click on one of its own dropdown rows (e.g. this also runs on the very first applyI18n() call
  // at page load, before anything has been clicked at all).
- const loginLangBtn = document.getElementById('loginLangBtn');
- if(loginLangBtn){
+ const loginLangFlag = document.getElementById('loginLangFlag');
+ const loginLangName = document.getElementById('loginLangName');
+ if(loginLangFlag || loginLangName){
   const flags = {ko:'🇰🇷', en:'🇬🇧', 'zh-TW':'🇹🇼', 'zh-CN':'🇨🇳'};
-  loginLangBtn.textContent = flags[LANG] || '🇰🇷';
+  const names = {ko:'한국어', en:'English', 'zh-TW':'繁體中文', 'zh-CN':'简体中文'};
+  if(loginLangFlag) loginLangFlag.textContent = flags[LANG] || '🇰🇷';
+  if(loginLangName) loginLangName.textContent = names[LANG] || '한국어';
  }
  const loginLangDropdown = document.getElementById('loginLangDropdown');
  if(loginLangDropdown) loginLangDropdown.classList.remove('open');

@@ -199,6 +199,10 @@ document.addEventListener('fullscreenchange', ()=>{
     renderBetBoard(SPEED.detailTableId);   // the page's board and the felt are not the same board
     paintSpeedFsBars(SPEED.detailTableId);
     renderSpeedDetailRoad(SPEED.detailTableId);
+  } else if (AVATAR.table && document.getElementById('viewAvatarTable').style.display !== 'none'){
+    renderAvatarBetBoard();
+    paintAvatarFsBars();
+    renderAvatarRoad(); renderAvatarTally();
   }
 });
 /* the round, the shoe and the balance the fullscreen bars carry - by class, because the head and
@@ -209,6 +213,14 @@ function paintSpeedFsBars(tableId){
   const set = (cls, v)=>document.querySelectorAll('.' + cls).forEach(el=>{ el.textContent = v; });
   set('fs-round', s.roundNo || 1);
   set('fs-shoe', s.shoe ? s.shoe.no : (SPEED.tables[tableId]?.shoeNo || 1));
+  const hdr = document.getElementById('hdrBalance');
+  set('fs-bal', hdr ? hdr.textContent : fmtNum(STATE.balance));
+}
+function paintAvatarFsBars(){
+  if (!AVATAR.table) return;
+  const set = (cls, v)=>document.querySelectorAll('.' + cls).forEach(el=>{ el.textContent = v; });
+  set('fs-round', AVATAR.roundNo || 1);
+  set('fs-shoe', AVATAR.shoe ? AVATAR.shoe.no : (AVATAR.table.shoeNo || 1));
   const hdr = document.getElementById('hdrBalance');
   set('fs-bal', hdr ? hdr.textContent : fmtNum(STATE.balance));
 }
@@ -374,6 +386,7 @@ function onLangChange(){
       if (AVATAR.request){
         paintScreen(document.getElementById('viewAvatarTable'), avatarTableShellHtml());
         renderAvatarRoad(); renderAvatarTally(); renderMyBetHistory(); updateAvatarStatusPanel();
+        renderAvatarBetSpots(); paintAvatarFsBars();
       } else {
         paintScreen(document.getElementById('viewAvatarTable'), avatarPreviewShellHtml(avatarRequestStateForTable(AVATAR.previewTableId).state));
         renderAvatarRoad(); renderAvatarTally();
@@ -535,7 +548,12 @@ async function submitAvatarRequest(){
   const betSide = document.getElementById('reqSide').value;
   const betAmount = rawNum(document.getElementById('reqAmount').value);
   if (!buyin || !betAmount){ toast(t('suErrRequired'), true); return; }
-  const tbl = AVATAR.lobbyData.tables.find(x=>x.id===AVATAR_PENDING_TABLE);
+  // AVATAR.lobbyData may not be loaded if the request modal was opened from a table's own
+  // screen (an active session's "아바타 신청" button) rather than the lobby - fall back to
+  // whatever table info is on hand there instead
+  const tbl = AVATAR.lobbyData?.tables.find(x=>x.id===AVATAR_PENDING_TABLE)
+    || (AVATAR.table?.id===AVATAR_PENDING_TABLE ? AVATAR.table : null)
+    || SPEED.tables[AVATAR_PENDING_TABLE];
   await db.collection('avatarRequests').doc(uuidv4()).set({
     memberId: PLAYER.id, tableId: AVATAR_PENDING_TABLE, casino: tbl?.casino || PLAYER.casino,
     buyin, betSide, betAmount, status:'대기', avatarStaffId:null,
@@ -714,6 +732,13 @@ async function enterAvatarSession(tableId){
   renderMyBetHistory();
   updateAvatarStatusPanel();
   mountAvatarChat(tableId);
+  paintAvatarFsBars();
+  // the screen is rebuilt from scratch on every open, so one opened while already fullscreen
+  // needs the class - and the loans - put back on the new wrapper (mirrors openSpeedTableDetail)
+  if (document.fullscreenElement){
+    document.querySelector('#viewAvatarTable .speed-detail-wrap')?.classList.add('is-fs');
+    adoptFsFollowers(fsFollowHost());
+  }
   startAvatarRoundLoop();
 }
 async function refreshTipTotals(){
@@ -740,7 +765,12 @@ function updateAvatarStatusPanel(){
 function avatarTableShellHtml(){
   const tb = AVATAR.table;
   return `
-  <div class="speed-detail-wrap">
+  <div class="speed-detail-wrap sd-live">
+    <!-- ported from Speed's screen (speedDetailShellHtml) - same fullscreen bars, felt, timer
+         ring and board chrome. The board here is read-only (avatarBetBoardHtml/renderAvatarBetSpots)
+         since the avatar places the bet automatically; its chip-tray slot below carries the
+         avatar's own actions instead of chips. -->
+    ${fsBarHtml(tb, 'top', 'avatar')}
     <div class="speed-detail-grid">
       <div class="sd-stage">
         <button class="icon-btn speed-detail-close" onclick="backToAvatarLobby()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
@@ -768,16 +798,19 @@ function avatarTableShellHtml(){
         </div>
         <div class="timer-ring-wrap" id="timerRingWrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArc" cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-avatar">30</div></div>
       </div>
+      <div class="sd-underbar">
       ${avatarScoreboardHtml('avatar')}
       <div class="sd-bets avatar-side">
+        ${avatarBetBoardHtml()}
+        <div class="sd-chip-tray">
+          <button class="btn btn-sm btn-gold" onclick="openTipModal()">${t('giveTip')}</button>
+          <button class="btn btn-sm" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
+          <button class="btn btn-sm" onclick="openAvatarRequestModal('${tb.id}')">${t('btnRequestAvatar')}</button>
+          <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
+        </div>
         <div class="card avatar-status-card">
           <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
           <div class="kv-grid" id="avatarStatusGrid"></div>
-          <div class="row" style="gap:8px;margin-top:14px;">
-            <button class="btn btn-gold btn-sm" onclick="openTipModal()">${t('giveTip')}</button>
-            <button class="btn btn-sm" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
-            <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
-          </div>
         </div>
         <div class="card chat-panel">
           <h3>${t('chat')}</h3>
@@ -785,7 +818,9 @@ function avatarTableShellHtml(){
           <div class="chat-input-row"><input id="chatInput" placeholder="${t('chatPh')}" onkeydown="if(event.key==='Enter')sendAvatarChat()"><button class="btn btn-sm btn-gold" onclick="sendAvatarChat()">${t('send')}</button></div>
         </div>
       </div>
+      </div>
     </div>
+    ${fsBarHtml(tb, 'bottom', 'avatar')}
   </div>`;
 }
 
@@ -857,6 +892,7 @@ function beginAvatarBettingPhase(){
   // the hand belongs to the round that just ended; clearing it is what lets "no hand, no result"
   // in beginAvatarResultPhase mean this round's hand rather than possibly a stale earlier one
   AVATAR._sim = null;
+  renderAvatarBetSpots();
   setAvatarPhaseBanner(t('phaseBetting'), AVATAR_BETTING_SECONDS);
   document.getElementById('playerCardsAvatar').innerHTML = ''; document.getElementById('bankerCardsAvatar').innerHTML = '';
   document.getElementById('playerScoreAvatar').textContent = ''; document.getElementById('bankerScoreAvatar').textContent = '';
@@ -871,6 +907,7 @@ function updateAvatarTimerRing(secLeft, secTotal){
   if (arc){ const c = 169.6; arc.style.strokeDashoffset = c * (1 - secLeft/secTotal); }
   const wrap = document.getElementById('timerRingWrap');
   if (wrap) wrap.classList.toggle('urgent', secLeft <= 5 && secLeft > 0);
+  paintAvatarFsBars();   // the fullscreen bars carry the round, the shoe and the balance
 }
 /* avatarTick is driven by a plain setInterval, which fires again every second whether or not the
    previous tick's async work has finished. A slow placeBet/settleBet write can outlast dealing's
@@ -1451,7 +1488,8 @@ const FS_BAR_ICONS = {
   history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>',
   menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
 };
-function fsBarHtml(tb, where){
+function fsBarHtml(tb, where, mode){
+  mode = mode || 'speed';
   const mark = `<span class="fs-mark">${CASINO_MARK_SRC[tb.casino] ? `<img src="${CASINO_MARK_SRC[tb.casino]}" alt="">` : ''}<b>${escapeHtml(tb.casino || '')}</b></span>`;
   const stats = `
     <span class="fs-stat"><i>${t('roundLabel')}</i><b class="fs-round">1</b></span>
@@ -1461,12 +1499,17 @@ function fsBarHtml(tb, where){
       <button class="fs-x" onclick="exitStageFullscreen()" data-i18n-title="fullscreen" title="전체화면">✕</button>
     </div>`;
   }
+  // Speed's second icon opens the multi-bet sheet, which has no avatar equivalent (nothing to
+  // bet manually there) - it opens the tip modal instead.
+  const secondIcon = mode === 'avatar'
+    ? `<button class="fs-ico" onclick="openTipModal()" data-i18n-title="giveTip" title="팁">${FS_BAR_ICONS.menu}</button>`
+    : `<button class="fs-ico" onclick="toggleSpeedMultiPanel()" data-i18n-title="multiBet" title="멀티 베팅">${FS_BAR_ICONS.menu}</button>`;
   return `<div class="sd-fs-bar sd-fs-bottom">
     ${mark}${stats}
     <span class="fs-who"><em><i>👤</i>${escapeHtml(PLAYER?.nickname || PLAYER?.id || '')}</em><b>₱ <span class="fs-bal">0</span></b></span>
     <span class="fs-sp"></span>
     <button class="fs-ico" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록">${FS_BAR_ICONS.history}</button>
-    <button class="fs-ico" onclick="toggleSpeedMultiPanel()" data-i18n-title="multiBet" title="멀티 베팅">${FS_BAR_ICONS.menu}</button>
+    ${secondIcon}
   </div>`;
 }
 
@@ -1556,6 +1599,87 @@ function feltBoardHtml(tableId){
     </div>
     ${spot('tie')}
   </div>`;
+}
+
+/* ---------------- avatar's board is Speed's, read-only ----------------
+   Same shape/classes as Speed's board (classic or felt, whichever fullscreen calls for), kept
+   as its own small set of functions with an -avatar id suffix rather than parametrizing Speed's
+   (which take a clickable tableId throughout) - no onclick, filled from AVATAR.bets instead of
+   a chip tray, since the avatar places the bet automatically rather than the player. */
+function avatarBetBoardHtml(){
+  return document.fullscreenElement ? avatarFeltBoardHtml() : avatarClassicBoardHtml();
+}
+function avatarClassicBoardHtml(){
+  const cell = (key, cls, i18n, ko, odds) =>
+    `<div class="bet-spot ${cls} locked" id="spot-avatar-${key}">
+      <div class="label" data-i18n="${i18n}">${ko}</div>
+      <div class="meta-row"><span>👤 <b id="heads-avatar-${key}">0</b></span><span>₱ <b id="pool-avatar-${key}">0</b></span></div>
+      <div class="odds">${odds}</div>
+      <div class="my-bet" id="mybet-avatar-${key}"></div>
+    </div>`;
+  return `<div class="bb-classic">
+    <div class="pair-row">
+      ${cell('playerPair','pair player','playerPair','플레이어 페어','11:1')}
+      ${cell('tie','tie','tie','타이','8:1')}
+      ${cell('bankerPair','pair banker','bankerPair','뱅커 페어','11:1')}
+    </div>
+    <div class="bet-rail two-up" style="margin-top:0;">
+      ${cell('player','player','player','플레이어','1:1')}
+      ${cell('banker','banker','banker','뱅커','0.95:1')}
+    </div>
+  </div>`;
+}
+function avatarBetSpotHtml(s){
+  return `<div class="bet-spot ${s.cls} ${s.side} locked" id="spot-avatar-${s.key}">
+    <div class="bb-meta">
+      <span class="bb-pct" id="pct-avatar-${s.key}">0%</span>
+      <span class="bb-stats"><i>👤 <b id="heads-avatar-${s.key}">0</b></i><i>₱ <b id="pool-avatar-${s.key}">0</b></i></span>
+    </div>
+    <div class="bb-name">
+      <span class="bb-label" data-i18n="${s.i18n}">${s.ko}</span>
+      <span class="bb-odds">${s.odds}</span>
+    </div>
+    <div class="my-bet" id="mybet-avatar-${s.key}"></div>
+  </div>`;
+}
+function avatarFeltBoardHtml(){
+  const spot = key => avatarBetSpotHtml(BET_SPOTS.find(s=>s.key===key));
+  return `<div class="bet-board">
+    <div class="bb-row bb-top">
+      ${spot('playerPair')}
+      <div class="bb-arch-gap"></div>
+      ${spot('bankerPair')}
+    </div>
+    <div class="bb-row bb-main">
+      ${spot('player')}
+      ${spot('banker')}
+    </div>
+    ${spot('tie')}
+  </div>`;
+}
+/* mirrors renderSpeedTileBets + paintBetBoardReadings, but reading AVATAR.bets - the .locked
+   class in the markup above already keeps every spot inert, so there's no click state to track,
+   only amounts to paint in as the avatar's auto-bet lands each round. */
+function renderAvatarBetSpots(){
+  const total = Object.values(AVATAR.bets).reduce((a,b)=>a+b,0);
+  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+    const amt = AVATAR.bets[k] || 0;
+    const set = (id, v)=>{ const el = document.getElementById(id); if (el) el.textContent = v; };
+    set(`mybet-avatar-${k}`, amt ? fmtNum(amt) : '');
+    set(`pct-avatar-${k}`, (total ? Math.round(amt / total * 100) : 0) + '%');
+    set(`heads-avatar-${k}`, amt ? 1 : 0);
+    set(`pool-avatar-${k}`, fmtNum(amt));
+  });
+}
+/* the screen is not rebuilt when fullscreen is entered or left, so the board is swapped in
+   place - mirrors renderBetBoard for Speed's own board */
+function renderAvatarBetBoard(){
+  const host = document.querySelector('#viewAvatarTable .sd-bets');
+  if (!host) return;
+  const old = host.querySelector('.bet-board, .bb-classic');
+  if (old) old.outerHTML = avatarBetBoardHtml();
+  applyI18n?.(host);
+  renderAvatarBetSpots();
 }
 
 /* ---------------- speed single-table detail screen (opened from a tile) ---------------- */

@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cage Admin</title>
+<script>
+// Runs synchronously before <style> is parsed, so the very first paint already has the right
+// theme - applying this any later (e.g. from the main script after the DOM loads) would flash
+// the default dark theme first on every page load for anyone who picked light.
+(function(){ try{ if(localStorage.getItem('cage-admin-theme')==='light') document.documentElement.setAttribute('data-theme','light'); }catch(e){} })();
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
@@ -22,11 +28,45 @@
   --line:#1E3555;
   --danger:#D9695A;
   --danger-dim:#8C392C;
+  --pos-text:#7FCBA8;
+  --cc-text:#6FE0C4;
+  --out-text:#E8998C;
+  /* Solid button/toast fills paired with a hardcoded dark label color (#071120/#0d1a15) - these
+     stay the same bright brand swatch in both themes (a primary CTA's own color isn't usually
+     something a light/dark toggle should change), unlike --brass/--jade themselves, which DO need
+     to darken in light mode to stay legible as plain text on a light background. */
+  --brass-fill:#D9B26A;
+  --jade-fill:#2FA98C;
+  --danger-pill-bg:#3a2418;
+  --glow:#14315A;
   --radius:6px;
   --serif:var(--sans);
   --sans:'Noto Sans','Noto Sans KR','Noto Sans TC','Noto Sans SC',-apple-system,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,monospace;
   --grad-gold:linear-gradient(135deg,#F0DBA8 0%,#D9B26A 38%,#B8863A 78%,#9C7530 100%);
+  color-scheme:dark;
+}
+[data-theme="light"]{
+  --void:#FFFFFF;
+  --panel:#FFFFFF;
+  --panel-raised:#F1F1F1;
+  --panel-hi:#E4E4E4;
+  --brass:#8A6A34;
+  --brass-dim:#C9A45C;
+  --jade:#1C7A62;
+  --jade-dim:#1C6E5A;
+  --ink:#201E1A;
+  --ink-dim:#6B6864;
+  --ink-faint:#8A8682;
+  --line:#DEDEDE;
+  --danger:#B8402F;
+  --danger-dim:#8C392C;
+  --pos-text:#1C7A62;
+  --cc-text:#177A63;
+  --out-text:#A8402F;
+  --danger-pill-bg:#F5DEDA;
+  --glow:#FFFFFF;
+  color-scheme:light;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;height:100%;color:var(--ink);font-family:var(--sans);}
@@ -34,7 +74,7 @@ body{
   display:flex;flex-direction:column;overflow:hidden;background-color:var(--void);
   background-image:
     repeating-linear-gradient(135deg, rgba(217,178,106,.028) 0px, rgba(217,178,106,.028) 1px, transparent 1px, transparent 7px),
-    radial-gradient(ellipse 1500px 900px at 50% -8%, #14315A 0%, var(--void) 55%);
+    radial-gradient(ellipse 1500px 900px at 50% -8%, var(--glow) 0%, var(--void) 55%);
 }
 @media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms !important;transition-duration:.001ms !important;} }
 ::-webkit-scrollbar{width:8px;height:8px;}
@@ -71,7 +111,25 @@ input,select,textarea{font-family:var(--sans);}
   background:transparent;border:none;color:var(--ink-faint);font-size:11px;font-weight:600;
   padding:5px 9px;border-radius:2px;transition:.15s;
 }
-.lang-switch button.active{background:var(--brass);color:#071120;}
+.lang-switch button.active{background:var(--brass-fill);color:#071120;}
+/* Icon shown = what clicking switches TO (sun while dark = "go light", moon while light = "go
+   dark") - pure CSS, keyed off the same [data-theme] attribute the app already toggles for colors,
+   so there's no separate JS-driven icon state that could ever drift out of sync with it. */
+.theme-toggle-btn .icon-moon{display:none;}
+[data-theme="light"] .theme-toggle-btn .icon-sun{display:none;}
+[data-theme="light"] .theme-toggle-btn .icon-moon{display:block;}
+/* The topbar's own toggle sits underneath #login-gate (z-index:500) pre-login, so it's neither
+   visible nor clickable there - this one is a second button, not a moved one, positioned inside
+   the overlay itself so switching theme doesn't require logging in first.
+   Two classes (not one) so this beats .notif-bell's own position:relative despite coming earlier
+   in the file - equal-specificity rules resolve by source order otherwise, and .notif-bell's
+   definition sits well after this one. */
+.notif-bell.login-theme-toggle-btn{position:absolute;top:20px;right:20px;}
+/* Same reasoning as the theme toggle above - the topbar's own .lang-switch sits underneath
+   #login-gate pre-login, so this is a second, corner-pinned copy rather than a moved one. No
+   .lang-switch rule sets its own `position`, so this doesn't need the extra specificity trick
+   .login-theme-toggle-btn did against .notif-bell. */
+.login-lang-switch{position:absolute;top:20px;left:20px;}
 
 /* ===== Shell ===== */
 .shell{flex:1;display:flex;min-height:0;}
@@ -126,7 +184,6 @@ h2.page-title{font-family:var(--serif);font-weight:800;font-size:25px;color:var(
   width:100%;background:var(--void);border:1px solid var(--line);color:var(--ink);
   padding:8px 10px;border-radius:var(--radius);font-size:13px;
   transition:border-color .15s ease, box-shadow .15s ease;
-  color-scheme:dark;
 }
 .field textarea{resize:vertical;min-height:56px;}
 input[type="datetime-local"]{min-width:150px;}
@@ -145,15 +202,18 @@ input[type="datetime-local"]{min-width:150px;}
 }
 .btn:hover{border-color:var(--brass-dim);transform:translateY(-1px);box-shadow:0 4px 14px -6px rgba(0,0,0,.45);}
 .btn:active{transform:translateY(0);box-shadow:none;}
-.btn-gold{background:var(--brass);border-color:var(--brass);color:#071120;}
+.btn-gold{background:var(--brass-fill);border-color:var(--brass-fill);color:#071120;}
 .btn-gold:hover{background:linear-gradient(135deg,#F5E4BC,#E3C583,#C89A4E,#AC7F3A);box-shadow:0 6px 22px -6px rgba(217,178,106,.6);transform:translateY(-1px);}
-.btn-jade{background:var(--jade);border-color:var(--jade);color:#0d1a15;}
+.btn-jade{background:var(--jade-fill);border-color:var(--jade-fill);color:#0d1a15;}
 .btn-jade:hover{box-shadow:0 6px 18px -6px rgba(47,169,140,.55);}
 .btn-danger{background:transparent;border-color:var(--danger-dim);color:var(--danger);}
 .btn-danger:hover{background:rgba(217,105,90,.1);border-color:var(--danger);}
 .btn-ghost{background:transparent;}
 .btn-sm{padding:5px 10px;font-size:11px;}
 .btn-block{width:100%;}
+.chevron-toggle-btn{padding:6px 9px;display:inline-flex;align-items:center;justify-content:center;}
+.chevron-toggle-icon{width:15px;height:15px;display:block;transition:transform .15s ease;}
+.chevron-toggle-btn.expanded .chevron-toggle-icon{transform:rotate(180deg);}
 .btn:focus-visible{outline:2px solid var(--brass);outline-offset:2px;}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;}
 .field input:focus-visible,.field select:focus-visible,.field textarea:focus-visible{outline:2px solid var(--brass);outline-offset:1px;}
@@ -189,17 +249,17 @@ th{
   text-align:left;color:var(--ink-faint);font-weight:600;font-size:10.5px;text-transform:uppercase;
   letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;
 }
-td{padding:8px 10px;border-bottom:1px solid #24251A;color:var(--ink);white-space:nowrap;transition:background .12s ease;}
+td{padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink);white-space:nowrap;transition:background .12s ease;}
 .table-compact th,.table-compact td{padding:7px 6px;font-size:11.5px;}
 tbody tr:nth-child(even) td{background:rgba(255,255,255,.012);}
 tr:hover td{background:var(--panel-raised);}
 .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);}
-.pos{color:#7FCBA8;}
+.pos{color:var(--pos-text);}
 .neg{color:var(--danger);}
 .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
-.pill.cc{background:rgba(47,169,140,.18);color:#6FE0C4;}
+.pill.cc{background:rgba(47,169,140,.18);color:var(--cc-text);}
 .pill.nn{background:rgba(217,105,90,.18);color:var(--danger);}
-.pill.out{background:rgba(217,105,90,.18);color:#E8998C;}
+.pill.out{background:rgba(217,105,90,.18);color:var(--out-text);}
 
 .tabs-mini{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px;}
 .tabs-mini button{background:none;border:none;color:var(--ink-faint);padding:8px 14px;font-size:12px;font-weight:600;border-bottom:2px solid transparent;}
@@ -218,7 +278,7 @@ tr:hover td{background:var(--panel-raised);}
 .modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
 .hint{font-size:11px;color:var(--ink-faint);margin-top:4px;line-height:1.5;}
 .checkbox-row{display:flex;align-items:center;gap:8px;font-size:12px;}
-.stat-line{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid #26271b;}
+.stat-line{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line);}
 .stat-line b{font-family:var(--mono);}
 .sig-pad{background:var(--void);border:1px solid var(--line);border-radius:4px;touch-action:none;width:100%;height:220px;}
 @media (min-width:1300px){ #sigPad{height:340px;} }
@@ -290,7 +350,7 @@ tr:hover td{background:var(--panel-raised);}
 .receipt .rapproved{margin-top:12px;font-size:10.5px;font-weight:600;}
 .receipt .rsign-row{display:flex;justify-content:flex-end;margin-top:14px;gap:24px;}
 .receipt .rsign-row div{flex:0 0 50%;text-align:center;border-top:1px solid #1a1a1a;padding-top:5px;font-size:10.5px;}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--brass);color:#071120;
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--brass-fill);color:#071120;
   padding:9px 18px;border-radius:20px;font-size:12.5px;font-weight:700;z-index:300;opacity:0;transition:.25s;pointer-events:none;}
 .toast.show{opacity:1;bottom:30px;}
 .empty-row td{text-align:center;color:var(--ink-faint);padding:20px;}
@@ -308,7 +368,7 @@ tr:hover td{background:var(--panel-raised);}
 .notif-dropdown{display:none;position:absolute;top:calc(100% + 10px);right:0;width:320px;max-height:440px;overflow-y:auto;background:var(--panel);border:1px solid var(--brass-dim);border-radius:6px;z-index:250;box-shadow:0 14px 34px rgba(0,0,0,.55);}
 .notif-dropdown.open{display:block;}
 .notif-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:11.5px;position:sticky;top:0;background:var(--panel);}
-.notif-item{padding:10px 14px;border-bottom:1px solid #24251A;font-size:12px;cursor:pointer;}
+.notif-item{padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px;cursor:pointer;}
 .notif-item:hover{background:var(--panel-raised);}
 .notif-item.unread{background:rgba(198,149,47,.08);}
 .notif-item .ni-title{font-weight:700;color:var(--ink);margin-bottom:2px;display:flex;align-items:center;gap:6px;}
@@ -321,7 +381,7 @@ tr:hover td{background:var(--panel-raised);}
   background:var(--panel);border:1px solid var(--brass-dim);border-radius:8px;
   max-height:220px;overflow-y:auto;box-shadow:0 14px 30px -10px rgba(0,0,0,.65);
 }
-.transfer-acc-item{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;font-size:12.5px;cursor:pointer;border-bottom:1px solid #1c2c48;}
+.transfer-acc-item{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--line);}
 .transfer-acc-item:last-child{border-bottom:none;}
 .transfer-acc-item:hover{background:var(--panel-raised);}
 .transfer-acc-item b{color:var(--brass);font-family:var(--mono);font-weight:700;}
@@ -362,7 +422,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .chip-section .row > .field{flex:1 1 100px;min-width:100px;margin-bottom:8px;}
 .chip-section-title{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--brass);margin-bottom:8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
 .chip-section-title.nn{color:var(--danger);}
-.chip-section-title.cc{color:#6FE0C4;}
+.chip-section-title.cc{color:var(--cc-text);}
 .chip-section-title .hint{font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint);margin:0;}
 .tg-modal{text-align:center;}
 .tg-modal h3{margin:0 0 14px;}
@@ -384,7 +444,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 @keyframes tgPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(1.35);}}
 .tg-divider{border-top:1px solid var(--brass-dim);opacity:.28;margin:18px 0 14px;}
 .tg-manage-btn{font-size:12.5px;padding:9px;opacity:.82;}
-.tg-manage-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #24251A;font-size:12.5px;}
+.tg-manage-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);font-size:12.5px;}
 .breakdown-card{display:flex;flex-direction:column;}
 .breakdown-card .stat-line{margin-top:auto;padding-top:12px;}
 .eq-card{display:flex;flex-direction:column;}
@@ -420,7 +480,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .dash-asset-box .delta.neg{color:var(--danger);}
 #login-gate{
   position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(ellipse 1500px 900px at 50% -8%, #14315A 0%, var(--void) 55%);
+  background:radial-gradient(ellipse 1500px 900px at 50% -8%, var(--glow) 0%, var(--void) 55%);
 }
 #login-gate::before{
   content:'';position:absolute;inset:0;
@@ -534,12 +594,21 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  .grid{grid-template-columns:1fr !important;}
  /* Identity Verification's 3 fixed 260px photo columns (780px+ minimum) never fit a phone width. */
  .id-verify-grid{grid-template-columns:1fr;justify-items:center;}
+ /* Each .photo-box inside is also individually fixed at 260px - on a phone narrower than
+    ~326px (260px box + this breakpoint's padding) that still overflows even in one column. */
+ .id-verify-grid .photo-box{width:100%;max-width:260px;}
 
  /* A grid item's default min-width is auto (content-based), not 0 - so once a grid collapses to
     one column above, its card can still refuse to shrink below its widest child's natural
     content width and overflow the column instead of the .row/.field flex-wrap inside it ever
     getting a chance to kick in. This is what was pushing Game Management's fields off-screen. */
  .grid>*,.grid-2>*,.grid-3>*,.grid-io>*{min-width:0;}
+
+ /* A MAIN account's per-branch balance strip is a fixed 5-across grid (.ticket-sm .lbl already
+    ellipsis-truncates on overflow by design) - with 5 branches now instead of the original 3,
+    each cell got too narrow on a phone to show more than "HAN…"/"S…"/"MI…", indistinguishable
+    from one another. Two columns gives each label enough room to read in full. */
+ .balance-sub-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 @media print{
  /* A non-zero @page margin leaves Chrome room to draw its own default header/footer (page title +
@@ -596,6 +665,16 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <body>
 
 <div id="login-gate">
+  <div class="lang-switch login-lang-switch">
+    <button data-lang="ko">한국어</button>
+    <button data-lang="en">EN</button>
+    <button data-lang="zh-TW">繁體</button>
+    <button data-lang="zh-CN">简体</button>
+  </div>
+  <button class="notif-bell theme-toggle-btn login-theme-toggle-btn" id="themeToggleBtnLogin" onclick="toggleTheme()" data-i18n-title="themeToggleTitle">
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+  </button>
   <div class="login-card">
     <div class="login-mark">CAGE ADMIN</div>
     <div class="login-ver" id="loginVerToggle" onclick="toggleMasterLogin()" style="cursor:pointer;">v5.0</div>
@@ -664,6 +743,10 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <button data-lang="zh-TW">繁體</button>
     <button data-lang="zh-CN">简体</button>
   </div>
+  <button class="notif-bell theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" data-i18n-title="themeToggleTitle">
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+  </button>
   <button class="notif-bell" id="avatarReqBtn" onclick="checkAvatarRequest()" data-i18n-title="avatarReqTitle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><span class="notif-badge" id="avatarReqBadge" style="display:none;">!</span></button>
   <div class="notif-wrap">
     <button class="notif-bell" id="notifBell" onclick="toggleNotif()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13 6 9z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg><span class="notif-badge" id="notifBadge" style="display:none;">0</span></button>
@@ -811,6 +894,20 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             <div class="table-wrap"><table>
               <thead><tr><th data-i18n="colDate"></th><th>GameID</th><th data-i18n="colAccount"></th><th data-i18n="tableLabel"></th><th data-i18n="colCurrency"></th><th data-i18n="buyinTotal"></th><th data-i18n="workingChipLabel"></th><th data-i18n="gameType"></th><th></th></tr></thead>
               <tbody id="inGameBody"></tbody>
+            </table></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <h3 style="margin:0;flex:1;" data-i18n="avatarSpeedOngoingTitle"></h3>
+            <button class="btn btn-sm chevron-toggle-btn" id="avatarSpeedToggleBtn" style="flex:0 0 auto;" onclick="toggleAvatarSpeedTablePanel()" data-i18n-title="expandBtn" title="">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chevron-toggle-icon"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+          </div>
+          <div id="avatarSpeedTablePanel" style="display:none;">
+            <div class="table-wrap"><table>
+              <thead><tr><th data-i18n="tableLabel"></th><th data-i18n="colType"></th><th data-i18n="shoeNoLabel"></th><th data-i18n="colStatus"></th><th data-i18n="betLimitLabel"></th><th></th></tr></thead>
+              <tbody id="avatarSpeedOngoingBody"></tbody>
             </table></div>
           </div>
         </div>
@@ -1058,6 +1155,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
               <option value="rollingCC" data-i18n="mainCageRollingCC"></option>
               <option value="marker" data-i18n="mainCageMarker"></option>
               <option value="redeem" data-i18n="mainCageRedeem"></option>
+              <option value="cashout" data-i18n="mainCageCashout"></option>
             </select></div>
           <div class="field"><label data-i18n="amount"></label><input id="mainCageAmt" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this)"></div>
           <button class="btn btn-gold btn-block" style="margin-top:auto;" onclick="processMainCage()" data-i18n="mainCageProcessBtn"></button>
@@ -4461,6 +4559,14 @@ function subscribeStaffCloud(){
   clearTimeout(readyFallback);
   markLoginReady();
   resetFirestoreResubscribeBackoff('staff');
+  // Duplicate-login check: staffLogin stamps a fresh sessionId onto this staff member's doc on
+  // every successful login, so if the doc's sessionId no longer matches the one this tab got at
+  // its own login, someone (possibly this same person, on another device) logged in as this staff
+  // member more recently - this tab is stale and must not keep acting as an authenticated session.
+  if(myRole==='staff' && myStaffId && mySessionId){
+   const mine = DB.staff.find(s=>s.id===myStaffId);
+   if(mine && mine.sessionId && mine.sessionId!==mySessionId) forceLogoutDuplicateSession();
+  }
  }, err=>{
   // Every failure mode (genuinely offline, blocked network, Firestore quota exhausted, a rules/
   // permission problem) lands here and used to look identical to the user - show the SDK's own
@@ -4470,6 +4576,56 @@ function subscribeStaffCloud(){
   markLoginReady(true, err && (err.code || err.message));
   scheduleFirestoreResubscribe('staff', subscribeStaffCloud);
  });
+}
+
+let fbMasterSessionUnsub = null;
+// Master has no per-account staff doc to carry a sessionId (every master login shares the same
+// Auth UID, "master") - this single doc (masterSession/current) plays the same role for master
+// logins that each staff doc's own sessionId field plays in subscribeStaffCloud above.
+function subscribeMasterSessionCloud(){
+ if(!fbDb) return;
+ if(fbMasterSessionUnsub) fbMasterSessionUnsub();
+ fbMasterSessionUnsub = fbDb.collection('masterSession').doc('current').onSnapshot(doc=>{
+  if(doc.metadata.fromCache) return;
+  const data = doc.data();
+  if(myRole==='master' && mySessionId && data && data.sessionId && data.sessionId!==mySessionId) forceLogoutDuplicateSession();
+  resetFirestoreResubscribeBackoff('masterSession');
+ }, err=>{
+  // Unlike every other subscribeXCloud() here, this listener dying without a resubscribe would
+  // silently and permanently disable duplicate-master-login detection for the rest of this tab's
+  // session after nothing worse than a transient network blip - see scheduleFirestoreResubscribe's
+  // own comment on why a dead onSnapshot stream never recovers on its own.
+  console.error('subscribeMasterSessionCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('masterSession', subscribeMasterSessionCloud);
+ });
+}
+// Fires when this tab's own login session has been superseded by a newer login elsewhere (same
+// staff member or master, different device/tab) - a harder logout than the inactivity auto-lock:
+// that one just re-shows the PIN screen without touching Firebase Auth or any listener, because the
+// same session is still expected to resume. Here the session itself is no longer valid, so every
+// live Firestore listener is torn down and Auth is actually signed out, matching what a fresh page
+// load in a logged-out state looks like.
+function forceLogoutDuplicateSession(){
+ if(document.getElementById('login-gate').style.display !== 'none') return; // already logged out
+ [fbStaffUnsub, fbAccountsUnsub, fbLedgerUnsub, fbGamesUnsub, fbRollingEventsUnsub, fbAvatarReqUnsub,
+  fbTablesUnsub, fbMainCageUnsub, fbBranchTransferUnsub, fbShiftUnsub, fbCageConfigUnsub, fbMasterSessionUnsub,
+  fbBlocksUnsub, fbHotelsUnsub, fbCarsUnsub, fbAeroUnsub, fbPointsUnsub, fbStaffShiftUnsub,
+  fbEventConfigUnsub, fbEventActivationUnsub, fbEventHistoryUnsub,
+  fbSettledUnsub, fbCorrectionLogUnsub, fbBalancingCheckUnsub]
+  .forEach(unsub=>{ if(unsub) try{ unsub(); }catch(e){} });
+ fbStaffUnsub = fbAccountsUnsub = fbLedgerUnsub = fbGamesUnsub = fbRollingEventsUnsub = fbAvatarReqUnsub =
+  fbTablesUnsub = fbMainCageUnsub = fbBranchTransferUnsub = fbShiftUnsub = fbCageConfigUnsub = fbMasterSessionUnsub =
+  fbBlocksUnsub = fbHotelsUnsub = fbCarsUnsub = fbAeroUnsub = fbPointsUnsub = fbStaffShiftUnsub =
+  fbEventConfigUnsub = fbEventActivationUnsub = fbEventHistoryUnsub =
+  fbSettledUnsub = fbCorrectionLogUnsub = fbBalancingCheckUnsub = null;
+ firebase.auth().signOut().catch(()=>{});
+ mySessionId = null; myStaffId = null; myRole = null;
+ clearTimeout(_inactivityTimer);
+ const pinEl = document.getElementById('loginPin'), otpEl = document.getElementById('loginOtp');
+ if(pinEl) pinEl.value = '';
+ if(otpEl) otpEl.value = '';
+ document.getElementById('login-gate').style.display = 'flex';
+ toast(t('toastDuplicateLogin'));
 }
 
 /* ---- Avatar Speed link: a cage account is a player account ----
@@ -4531,6 +4687,83 @@ async function syncAccountsToAvatarSpeed(silent){
   toast(t('toastAvatarSyncFailed'));
   return {ok:false, synced:0, error:String(e)};
  }
+}
+
+/* ---- Accounts (guest/member profiles) — auth-gated (see firestore.rules: plaintext passwords +
+   ID photos live here). Balance is NOT synced through this collection - accountBalanceFor()/
+   acc.balance/acc.balances are a local cache that subscribeLedgerCloud() derives fresh from the
+   already-synced `ledger` collection every time it changes, so writing a balance here would just
+   be a second, staler copy of a number the ledger already owns. This collection only carries the
+   profile fields: member/phone/rate/telegram/currency/remark/photos/passwords/telegramLinks/etc. ---- */
+async function seedAccountsToCloud(){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('accounts').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = Object.keys(DB.accounts||{}).filter(id=>!existingIds.has(id));
+  if(!missing.length) return;
+  // Every terminal's DB.accounts was local-only until now, so different terminals can each hold
+  // accounts none of the others have - upsert only what Firestore doesn't already have (never
+  // overwrite an existing cloud doc). A plain "seed once if the whole collection is empty" (the
+  // pattern every other seedXToCloudIfEmpty here uses) would let whichever terminal happens to
+  // load this code first silently become the only source, and every other terminal's own
+  // local-only accounts would never reach Firestore at all.
+  const batch = fbDb.batch();
+  missing.forEach(id=>{ batch.set(fbDb.collection('accounts').doc(id), accountForCloud(DB.accounts[id])); });
+  await batch.commit();
+ }catch(e){}
+}
+// Strips the locally-derived balance fields before a profile write, so a stale number never sits
+// in the cloud doc even momentarily - see the note atop this section for why balance lives only
+// in the ledger. Shallow clone only; photo/telegramLinks fields are copied by reference, which is
+// fine since callers always replace them wholesale rather than mutating in place.
+function accountForCloud(acc){
+ const {balance, balances, ...rest} = acc;
+ return rest;
+}
+let fbAccountsUnsub = null;
+function subscribeAccountsCloud(){
+ if(!fbDb) return;
+ if(fbAccountsUnsub) fbAccountsUnsub();
+ fbAccountsUnsub = fbDb.collection('accounts').onSnapshot(snap=>{
+  const fresh = {};
+  snap.forEach(doc=>{ fresh[doc.id] = doc.data(); });
+  DB.accounts = fresh;
+  // The snapshot above just replaced every account object wholesale, including whatever balance
+  // fields happened to still be attached to old cloud docs written before this rule existed -
+  // rebuild them immediately from the ledger cache instead of waiting for the next unrelated
+  // ledger change to happen to correct them.
+  recomputeAccountBalancesFromLedgerCache();
+  renderAll();
+  resetFirestoreResubscribeBackoff('accounts');
+ }, err=>{
+  console.error('subscribeAccountsCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('accounts', subscribeAccountsCloud);
+ });
+}
+function recomputeAccountBalancesFromLedgerCache(){
+ Object.keys(DB.ledger||{}).forEach(accId=>{
+  const acc = DB.accounts[accId];
+  if(!acc) return;
+  const balByCasino = {};
+  (DB.ledger[accId]||[]).forEach(r=>{ balByCasino[r.casino] = (balByCasino[r.casino]||0) + (r.inn||0) - (r.out||0); });
+  if(isMainAccount(accId)){
+   acc.balances = acc.balances||{};
+   new Set([...Object.keys(acc.balances), ...Object.keys(balByCasino)]).forEach(c=>{ acc.balances[c] = balByCasino[c]||0; });
+  } else {
+   acc.balance = Object.values(balByCasino).reduce((a,b)=>a+(b||0),0);
+  }
+ });
+}
+function syncAccountToCloud(id){
+ if(!fbDb) return;
+ const acc = DB.accounts[id];
+ if(!acc) return;
+ fbDb.collection('accounts').doc(id).set(accountForCloud(acc)).catch(err=>console.error('syncAccountToCloud failed:', id, err));
+}
+function deleteAccountFromCloud(id){
+ if(!fbDb) return;
+ fbDb.collection('accounts').doc(id).delete().catch(err=>console.error('deleteAccountFromCloud failed:', id, err));
 }
 
 /* ---- Ledger (account deposits/withdrawals/transfers) — append-only, balance is derived ---- */
@@ -4628,6 +4861,310 @@ function writeLedgerEntry(opts){
  }
 }
 
+/* ---- Blocks / Hotels / Cars / Aero / Points — guest-account-scoped collaborative records.
+   None of these carry credentials or ID photos (unlike staff/accounts), so they stay under the
+   app's existing open-access tier, same as ledger/games below - no firestore.rules change needed.
+   Each collection is seeded upsert-missing (not "seed once if empty") because, like accounts, this
+   data has been local-only per terminal since the app's inception - different terminals may each
+   hold records none of the others have ever seen.
+   blocks' own id embeds a timestamp+random suffix so it's already collision-safe as a doc id;
+   hotels/cars/aero's existing display ids (HTL-/CAR-/AER- + 4 random digits, ~9000 possible values)
+   are not, so those three use a separate _key as the real doc id instead - see the block comment
+   above seedRecordsToCloud. ---- */
+async function seedBlocksToCloud(){
+ if(!fbDb) return;
+ try{
+  DB.blocks = DB.blocks||[];
+  // Existing local blocks predate this collection having a stable id - backfill one so every
+  // record can be addressed as its own Firestore doc (unblock() needs this to delete the right one).
+  DB.blocks.forEach(b=>{ if(!b.id) b.id = 'blk_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('blocks').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = DB.blocks.filter(b=>!existingIds.has(b.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(b=>{ batch.set(fbDb.collection('blocks').doc(b.id), b); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbBlocksUnsub = null;
+function subscribeBlocksCloud(){
+ if(!fbDb) return;
+ if(fbBlocksUnsub) fbBlocksUnsub();
+ // id embeds Date.now() (see seedBlocksToCloud/applyBlock), so ordering by it descending is
+ // ordering by creation time descending - matches the local unshift()-newest-first behavior this
+ // replaces, without needing a separate field just for sorting.
+ fbBlocksUnsub = fbDb.collection('blocks').orderBy('id','desc').onSnapshot(snap=>{
+  DB.blocks = snap.docs.map(d=>d.data());
+  renderBlocks();
+  resetFirestoreResubscribeBackoff('blocks');
+ }, err=>{
+  console.error('subscribeBlocksCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('blocks', subscribeBlocksCloud);
+ });
+}
+function addBlockToCloud(b){
+ if(!fbDb) return;
+ fbDb.collection('blocks').doc(b.id).set(b).catch(err=>console.error('addBlockToCloud failed:', b.id, err));
+}
+function removeBlockFromCloud(id){
+ if(!fbDb) return;
+ fbDb.collection('blocks').doc(id).delete().catch(err=>console.error('removeBlockFromCloud failed:', id, err));
+}
+
+// Hotels/cars/aero share one shape: each record has its own short display id (HTL-/CAR-/AER- + 4
+// random digits) used throughout the UI (receipt lookups, cancel buttons) - kept exactly as-is for
+// display, but NOT used as the Firestore doc id. That id space is only ~9000 values, and two
+// terminals independently generating the same 4-digit suffix for two different bookings would
+// otherwise merge into a single doc during upsert-missing seeding, silently dropping the loser.
+// _key (a separately generated, effectively-unique id, same shape as every other collection's ids
+// this session) is the real doc id; _ts (a plain Date.now(), never shown) exists purely so
+// subscribeXCloud can order newest-first, since none of the three has a creation-order field
+// otherwise (checkin/dt are the *reservation's* date, not when it was booked).
+// Shared by seedRecordsToCloud/addRecordToCloud so every fresh key this session hands out for
+// hotels/cars/aero comes from one place instead of two copies of the same expression.
+function genRecordKey(collectionName){
+ return collectionName.slice(0,3)+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+}
+function seedRecordsToCloud(collectionName, records){
+ if(!fbDb) return Promise.resolve();
+ return fbDb.collection(collectionName).get().then(snap=>{
+  const existingKeys = new Set(snap.docs.map(d=>d.id));
+  // A record synced by an earlier version of this app (before _key existed) landed in Firestore
+  // keyed by its own display id - match those back up by business id first, so a local record that
+  // hasn't picked up a _key yet doesn't look "new" and get pushed a second time under a fresh key.
+  // (Narrow accepted gap: if two DIFFERENT bookings already share the same display id from that old
+  // scheme, this can only adopt one of them - same underlying ~9000-value collision this _key
+  // scheme exists to prevent going forward, just not retroactively resolvable for docs that already
+  // collided before this fix shipped.)
+  const cloudIdToKey = {};
+  snap.docs.forEach(d=>{ const data = d.data(); if(data && data.id && !(data.id in cloudIdToKey)) cloudIdToKey[data.id] = d.id; });
+  const batch = fbDb.batch();
+  let hasWrites = false;
+  (records||[]).forEach(r=>{
+   if(r._ts===undefined) r._ts = Date.now();
+   if(!r._key){
+    const matchedKey = cloudIdToKey[r.id];
+    if(matchedKey){
+     // Same doc as an old pre-_key record, just missing the field - persist it with a merge (never
+     // a full overwrite of the doc) so this can't clobber a status change another terminal wrote to
+     // it since our .get() above. Without this write, the recovered key only ever lived in memory on
+     // this local record: subscribeXCloud's onSnapshot (subscribed right after this call resolves)
+     // replaces DB.hotels/DB.cars/DB.aero wholesale from server data that still lacked _key, so the
+     // in-memory-only recovery was wiped before it could ever be used - silently breaking cancel for
+     // every pre-existing record, on every future login, forever.
+     r._key = matchedKey;
+     batch.set(fbDb.collection(collectionName).doc(matchedKey), {_key: matchedKey}, {merge:true});
+     hasWrites = true;
+     return;
+    }
+    r._key = genRecordKey(collectionName);
+   }
+  });
+  (records||[]).filter(r=>!existingKeys.has(r._key)).forEach(r=>{
+   batch.set(fbDb.collection(collectionName).doc(r._key), r);
+   hasWrites = true;
+  });
+  if(!hasWrites) return;
+  return batch.commit();
+ }).catch(()=>{});
+}
+let fbHotelsUnsub = null, fbCarsUnsub = null, fbAeroUnsub = null;
+function subscribeHotelsCloud(){
+ if(!fbDb) return;
+ if(fbHotelsUnsub) fbHotelsUnsub();
+ fbHotelsUnsub = fbDb.collection('hotels').orderBy('_ts','desc').onSnapshot(snap=>{
+  DB.hotels = snap.docs.map(d=>d.data());
+  renderHotels();
+  resetFirestoreResubscribeBackoff('hotels');
+ }, err=>{ console.error('subscribeHotelsCloud onSnapshot error:', err); scheduleFirestoreResubscribe('hotels', subscribeHotelsCloud); });
+}
+function subscribeCarsCloud(){
+ if(!fbDb) return;
+ if(fbCarsUnsub) fbCarsUnsub();
+ fbCarsUnsub = fbDb.collection('cars').orderBy('_ts','desc').onSnapshot(snap=>{
+  DB.cars = snap.docs.map(d=>d.data());
+  renderCars();
+  resetFirestoreResubscribeBackoff('cars');
+ }, err=>{ console.error('subscribeCarsCloud onSnapshot error:', err); scheduleFirestoreResubscribe('cars', subscribeCarsCloud); });
+}
+function subscribeAeroCloud(){
+ if(!fbDb) return;
+ if(fbAeroUnsub) fbAeroUnsub();
+ fbAeroUnsub = fbDb.collection('aero').orderBy('_ts','desc').onSnapshot(snap=>{
+  DB.aero = snap.docs.map(d=>d.data());
+  renderAero();
+  resetFirestoreResubscribeBackoff('aero');
+ }, err=>{ console.error('subscribeAeroCloud onSnapshot error:', err); scheduleFirestoreResubscribe('aero', subscribeAeroCloud); });
+}
+function addRecordToCloud(collectionName, r){
+ if(!fbDb) return;
+ if(!r._key) r._key = genRecordKey(collectionName);
+ fbDb.collection(collectionName).doc(r._key).set(r).catch(err=>console.error('addRecordToCloud failed:', collectionName, r._key, err));
+}
+// records is the current DB.hotels/DB.cars/DB.aero array - needed to look up the doc's real _key
+// from the display id the cancel button was clicked with (see the block comment above). Falls back
+// to id itself when no _key is known - seedRecordsToCloud backfills _key (and now persists it, see
+// above) for every pre-existing doc, but falling back here too means a cancel still goes through
+// even if that backfill hasn't reached this particular record yet (e.g. its write failed) rather
+// than silently doing nothing.
+function cancelRecordInCloud(collectionName, records, id){
+ if(!fbDb) return;
+ const rec = (records||[]).find(x=>x.id===id);
+ const docId = (rec && rec._key) || id;
+ fbDb.collection(collectionName).doc(docId).update({status:'cancelled'}).catch(err=>console.error('cancelRecordInCloud failed:', collectionName, id, err));
+}
+
+/* ---- Points — balance is derived from pointsHistory, exactly like accounts' balance is derived
+   from ledger (see recomputeAccountBalancesFromLedgerCache): writing a balance field anywhere else
+   would just be a second, staler copy of a number this history already owns. Unlike ledger's cash
+   withdrawals, point spends don't gate on a server-confirmed snapshot before allowing a spend -
+   points are a loyalty balance, not cash physically leaving the cage, so that extra safeguard
+   wasn't carried over here. ---- */
+async function seedPointsToCloud(){
+ if(!fbDb) return;
+ try{
+  // Pre-existing local entries predate this history having a stable id - backfill one so every
+  // entry can be addressed as its own Firestore doc. Without this, .doc(h.id) is called with
+  // h.id===undefined for every such entry, which throws synchronously (aborting this whole seed,
+  // silently, via the catch below) instead of persisting anything.
+  DB.pointsHistory = DB.pointsHistory||[];
+  DB.pointsHistory.forEach(h=>{ if(!h.id) h.id = 'pts_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('pointsHistory').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = (DB.pointsHistory||[]).filter(h=>!existingIds.has(h.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(h=>{ batch.set(fbDb.collection('pointsHistory').doc(h.id), h); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbPointsUnsub = null;
+function subscribePointsCloud(){
+ if(!fbDb) return;
+ if(fbPointsUnsub) fbPointsUnsub();
+ fbPointsUnsub = fbDb.collection('pointsHistory').orderBy('id','desc').onSnapshot(snap=>{
+  DB.pointsHistory = snap.docs.map(d=>d.data());
+  const byAcc = {};
+  DB.pointsHistory.slice().reverse().forEach(h=>{ byAcc[h.account] = (byAcc[h.account]||0) + (h.change||0); });
+  DB.pointsByAccount = byAcc;
+  renderPoints();
+  resetFirestoreResubscribeBackoff('points');
+ }, err=>{ console.error('subscribePointsCloud onSnapshot error:', err); scheduleFirestoreResubscribe('points', subscribePointsCloud); });
+}
+function writePointsEntry(account, change, reason){
+ const id = 'pts_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
+ if(fbDb){
+  const balAfter = ((DB.pointsByAccount||{})[account]||0) + change;
+  const entry = {id, dt:now, account, reason: reason||'—', change, balance:balAfter};
+  fbDb.collection('pointsHistory').doc(id).set(entry).catch(err=>console.error('writePointsEntry failed:', id, err));
+ } else {
+  DB.pointsByAccount = DB.pointsByAccount||{};
+  const balAfter = (DB.pointsByAccount[account]||0) + change;
+  DB.pointsByAccount[account] = balAfter;
+  DB.pointsHistory = DB.pointsHistory||[];
+  DB.pointsHistory.unshift({id, dt:now, account, reason: reason||'—', change, balance:balAfter});
+  saveDB();
+ }
+}
+
+/* ---- Event / promo rolling-bonus period — a single global config doc (not per-branch, unlike
+   cageConfig - the promo applies app-wide) plus two append-only logs (each activation, each payout).
+   Open-access tier, same as ledger/games. ---- */
+async function seedEventConfigToCloudIfEmpty(){
+ if(!fbDb) return;
+ try{
+  const doc = await fbDb.collection('eventConfig').doc('current').get();
+  if(!doc.exists && (DB.eventStart || DB.eventEnd || DB.eventRate)){
+   await fbDb.collection('eventConfig').doc('current').set({eventStart:DB.eventStart||null, eventEnd:DB.eventEnd||null, eventRate:DB.eventRate||null});
+  }
+ }catch(e){}
+}
+let fbEventConfigUnsub = null;
+function subscribeEventConfigCloud(){
+ if(!fbDb) return;
+ if(fbEventConfigUnsub) fbEventConfigUnsub();
+ fbEventConfigUnsub = fbDb.collection('eventConfig').doc('current').onSnapshot(doc=>{
+  const data = doc.data()||{};
+  DB.eventStart = data.eventStart||null;
+  DB.eventEnd = data.eventEnd||null;
+  DB.eventRate = data.eventRate||null;
+  renderEventToggle();
+  resetFirestoreResubscribeBackoff('eventConfig');
+ }, err=>{
+  console.error('subscribeEventConfigCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('eventConfig', subscribeEventConfigCloud);
+ });
+}
+function writeEventConfigToCloud(){
+ if(!fbDb) return;
+ fbDb.collection('eventConfig').doc('current').set({eventStart:DB.eventStart||null, eventEnd:DB.eventEnd||null, eventRate:DB.eventRate||null}).catch(err=>console.error('writeEventConfigToCloud failed:', err));
+}
+async function seedEventActivationLogToCloud(){
+ if(!fbDb) return;
+ try{
+  DB.eventActivationLog = DB.eventActivationLog||[];
+  DB.eventActivationLog.forEach(r=>{ if(!r.id) r.id = 'eal_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('eventActivationLog').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = DB.eventActivationLog.filter(r=>!existingIds.has(r.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(r=>{ batch.set(fbDb.collection('eventActivationLog').doc(r.id), r); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbEventActivationUnsub = null;
+function subscribeEventActivationLogCloud(){
+ if(!fbDb) return;
+ if(fbEventActivationUnsub) fbEventActivationUnsub();
+ fbEventActivationUnsub = fbDb.collection('eventActivationLog').orderBy('id','desc').onSnapshot(snap=>{
+  DB.eventActivationLog = snap.docs.map(d=>d.data());
+  const listModal = document.getElementById('modal-event-activation-list');
+  if(listModal && listModal.classList.contains('open')) renderEventActivationList();
+  resetFirestoreResubscribeBackoff('eventActivationLog');
+ }, err=>{
+  console.error('subscribeEventActivationLogCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('eventActivationLog', subscribeEventActivationLogCloud);
+ });
+}
+function addEventActivationToCloud(r){
+ if(!fbDb) return;
+ fbDb.collection('eventActivationLog').doc(r.id).set(r).catch(err=>console.error('addEventActivationToCloud failed:', r.id, err));
+}
+async function seedEventHistoryToCloud(){
+ if(!fbDb) return;
+ try{
+  DB.eventHistory = DB.eventHistory||[];
+  DB.eventHistory.forEach(r=>{ if(!r.id) r.id = 'evh_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('eventHistory').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = DB.eventHistory.filter(r=>!existingIds.has(r.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(r=>{ batch.set(fbDb.collection('eventHistory').doc(r.id), r); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbEventHistoryUnsub = null;
+function subscribeEventHistoryCloud(){
+ if(!fbDb) return;
+ if(fbEventHistoryUnsub) fbEventHistoryUnsub();
+ fbEventHistoryUnsub = fbDb.collection('eventHistory').orderBy('id','desc').onSnapshot(snap=>{
+  DB.eventHistory = snap.docs.map(d=>d.data());
+  renderEventHistory();
+  resetFirestoreResubscribeBackoff('eventHistory');
+ }, err=>{
+  console.error('subscribeEventHistoryCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('eventHistory', subscribeEventHistoryCloud);
+ });
+}
+function addEventHistoryToCloud(r){
+ if(!fbDb) return;
+ fbDb.collection('eventHistory').doc(r.id).set(r).catch(err=>console.error('addEventHistoryToCloud failed:', r.id, err));
+}
+
 /* ---- Games (buy-in/rolling/settlement) — game metadata synced as a doc; rolling always derived from rollingEvents ---- */
 async function seedGamesToCloudIfEmpty(){
  if(!fbDb) return;
@@ -4719,6 +5256,56 @@ function subscribeAvatarRequestsCloud(){
 }
 function pendingAvatarRequestsForBranch(){
  return fbAvatarRequestsCache.filter(r=>r.status==='대기' && r.casino===currentBranch());
+}
+/* ---- Avatar/Speed tables — real-time, same 'tables' collection /avatar and partner-admin's
+   아바타게임관리 already read/write (type:'avatar'|'speed', status:'open'|'closed' set by staff
+   opening/closing a table for service). Cage Admin shows which tables are currently live per
+   branch, and can also open/close them itself (see toggleTableStatus below). ---- */
+let fbTablesUnsub = null;
+let fbTablesCache = [];
+function subscribeTablesCloud(){
+ if(!fbDb) return;
+ if(fbTablesUnsub) fbTablesUnsub();
+ fbTablesUnsub = fbDb.collection('tables').onSnapshot(snap=>{
+  fbTablesCache = [];
+  snap.forEach(doc=>{ fbTablesCache.push({id:doc.id, ...doc.data()}); });
+  renderAvatarSpeedOngoingTables();
+  resetFirestoreResubscribeBackoff('tables');
+ }, err=>{
+  console.error('subscribeTablesCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('tables', subscribeTablesCloud);
+ });
+}
+function toggleAvatarSpeedTablePanel(){
+ const panel = document.getElementById('avatarSpeedTablePanel');
+ const btn = document.getElementById('avatarSpeedToggleBtn');
+ if(!panel || !btn) return;
+ const nowOpen = panel.style.display === 'none';
+ panel.style.display = nowOpen ? '' : 'none';
+ btn.classList.toggle('expanded', nowOpen);
+ btn.title = t(nowOpen ? 'collapseBtn' : 'expandBtn');
+ btn.dataset.i18nTitle = nowOpen ? 'collapseBtn' : 'expandBtn';
+}
+function renderAvatarSpeedOngoingTables(){
+ const body = document.getElementById('avatarSpeedOngoingBody');
+ if(!body) return;
+ // Shows every avatar/speed table for the branch, open or closed, so staff can open/close them
+ // from here - not just the ones currently live (that filter now happens per-row via the pill).
+ const tables = fbTablesCache.filter(t=>(t.type==='avatar'||t.type==='speed') && t.casino===currentBranch());
+ body.innerHTML = !tables.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
+  tables.map(tb=>{
+   const isOpen = tb.status==='open';
+   return `<tr><td>${esc(tb.name)||'—'}</td><td>${tb.type==='speed'?t('startKindSpeed'):t('startKindAvatar')}</td><td class="num">${esc(tb.shoeNo)||1}</td><td>${isOpen?t('tableStatusOpen'):t('tableStatusClosed')}</td><td class="num">${tb.betMin!=null?`${fmt(tb.betMin)} ~ ${fmt(tb.betMax)}`:'—'}</td>
+    <td><button class="btn btn-sm ${isOpen?'btn-danger':'btn-jade'}" onclick="toggleTableStatus('${esc(tb.id)}', ${isOpen})">${isOpen?t('tableCloseBtn'):t('tableOpenBtn')}</button></td></tr>`;
+  }).join('');
+}
+async function toggleTableStatus(id, isCurrentlyOpen){
+ if(!fbDb) return;
+ try{
+  await fbDb.collection('tables').doc(id).set({status: isCurrentlyOpen?'closed':'open'}, {merge:true});
+ }catch(e){ console.error('toggleTableStatus failed:', e); toast(t('toastStaffSyncFailed')); return; }
+ // The onSnapshot listener re-renders this list once Firestore confirms the write.
+ toast(t('toastTableStatusChanged'));
 }
 function buildGameFromCache(gameId, meta){
  const events = fbRollingEventsByGame[gameId]||[];
@@ -4856,7 +5443,6 @@ function branchData(branch){
    settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
    guestRollingGrandTotal:0, rollingDailyTotal:0,
    cashCarryBaseline:0, rollingCarryBaseline:0,
-   nextWalkinSeq:1,
   };
  }
  return DB.branchData[branch];
@@ -4868,6 +5454,7 @@ function switchBranch(branch){
  if(fbDb){
   deriveMainCageForBranch();
   deriveShiftTotalsForBranch();
+  deriveBalancingCheckForBranch();
   seedCageConfigToCloudIfEmpty().then(()=>subscribeCageConfigCloud());
  } else {
   renderMainCageList();
@@ -4878,6 +5465,7 @@ function switchBranch(branch){
  renderAvatarReqBtn();
  const avatarReqModal = document.getElementById('modal-avatar-request');
  if(avatarReqModal && avatarReqModal.classList.contains('open')) renderAvatarReqList();
+ renderAvatarSpeedOngoingTables();
  const topBalEl = document.getElementById('lastBalTime');
  if(topBalEl) topBalEl.textContent = bd().lastBalancingDt || '—';
  const lastCutoffEl = document.getElementById('lastCutoff');
@@ -4935,7 +5523,7 @@ function switchBranch(branch){
 
 /* ---- Main Cage Ledger (바인/롤링CC/마커/리딤) — append-only per branch, rollingGrandTotal is derived ---- */
 function mainCageSignedEffect(type, amt){
- return type==='redeem' ? -amt : amt;
+ return (type==='redeem' || type==='cashout') ? -amt : amt;
 }
 async function seedMainCageLedgerToCloudIfEmpty(){
  if(!fbDb) return;
@@ -5128,6 +5716,77 @@ function getShiftVal(field){
  return fbDb ? (fbShiftTotals[field]||0) : (bd()[field]||0);
 }
 
+/* ---- Staff shift log (clock in/out) — onDutyStaff is derived from this log's most recent entry
+   per staff name, exactly like accounts' balance is derived from ledger: writing the on-duty roster
+   anywhere else would just be a second, staler copy of something this log already determines.
+   Named staffShiftLog (not shiftEvents) to avoid colliding with the balancing cash/rolling shift
+   counters just above, an unrelated per-branch financial concept that happens to share the word
+   "shift". ---- */
+async function seedStaffShiftLogToCloud(){
+ if(!fbDb) return;
+ try{
+  DB.shiftLog = DB.shiftLog||[];
+  // Pre-existing local entries predate this log having a stable id - backfill one so every entry
+  // can be addressed as its own Firestore doc.
+  DB.shiftLog.forEach(r=>{ if(!r.id) r.id = 'shl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('staffShiftLog').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = DB.shiftLog.filter(r=>!existingIds.has(r.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(r=>{ batch.set(fbDb.collection('staffShiftLog').doc(r.id), r); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbStaffShiftUnsub = null;
+function subscribeStaffShiftLogCloud(){
+ if(!fbDb) return;
+ if(fbStaffShiftUnsub) fbStaffShiftUnsub();
+ fbStaffShiftUnsub = fbDb.collection('staffShiftLog').orderBy('id','desc').onSnapshot(snap=>{
+  DB.shiftLog = snap.docs.map(d=>d.data());
+  // Newest-first order (see orderBy above) means the first entry seen per staff name is their
+  // most recent event - derive the on-duty roster from that instead of tracking it separately.
+  const latestByStaff = {};
+  DB.shiftLog.forEach(r=>{ if(!(r.staff in latestByStaff)) latestByStaff[r.staff] = r.action; });
+  DB.onDutyStaff = Object.keys(latestByStaff).filter(name=>latestByStaff[name]==='in');
+  renderShiftStaff();
+  const listModal = document.getElementById('modal-shift-list');
+  if(listModal && listModal.classList.contains('open')) renderShiftList();
+  resetFirestoreResubscribeBackoff('staffShiftLog');
+ }, err=>{
+  console.error('subscribeStaffShiftLogCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('staffShiftLog', subscribeStaffShiftLogCloud);
+ });
+}
+function writeStaffShiftEvent(staff, action){
+ const id = 'shl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ const now = phNow().toISOString().slice(0,16).replace('T',' ');
+ const entry = {id, dt:now, staff, action};
+ if(fbDb){
+  fbDb.collection('staffShiftLog').doc(id).set(entry).catch(err=>console.error('writeStaffShiftEvent failed:', id, err));
+ } else {
+  DB.onDutyStaff = DB.onDutyStaff || ['Eric'];
+  if(action==='in'){ if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff); }
+  else { DB.onDutyStaff = DB.onDutyStaff.filter(s=>s!==staff); }
+  DB.shiftLog = DB.shiftLog || [];
+  DB.shiftLog.unshift(entry);
+  saveDB();
+ }
+}
+// Renames every staffShiftLog entry attributed to oldName - the cloud-mode equivalent of what
+// submitStaffForm's local branch does with an in-memory Array.forEach, since the entries themselves
+// now live in Firestore in cloud mode.
+async function renameStaffInShiftLogCloud(oldName, newName){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('staffShiftLog').where('staff','==',oldName).get();
+  if(snap.empty) return;
+  const batch = fbDb.batch();
+  snap.forEach(d=>batch.update(d.ref, {staff:newName}));
+  await batch.commit();
+ }catch(e){}
+}
+
 /* ---- Shared cage config, per branch (rare-write: last-action timestamps, month-settle baselines) ---- */
 const CAGE_CONFIG_FIELDS = ['lastBalancingDt','lastCutoffDt','lastMonthSettleDt','settleGameOutBaseline','settleEndedRollingBaseline','settleLedgerNetBaseline','rollingDailyTotalBaseline','cashCarryBaseline','rollingCarryBaseline','cutoffs','monthRecordLog','dailyReportLog'];
 let fbCageConfigUnsub = null;
@@ -5213,6 +5872,7 @@ ko:{
  tableLabel:"테이블", gameType:"게임 타입", avatarId:"아바타 ID", buyinTotal:"바이인 총액", startBtn:"게임 시작",
  inGameTitle:"진행중인 게임", gameIdLabel:"게임 ID",
  ongoingGamesTitle:"롤링", dailyLabel:"당일", cumulativeLabel:"누적", ongoingCountLabel:"진행 건수",
+ avatarSpeedOngoingTitle:"아바타·스피드 테이블 관리", shoeNoLabel:"슈 번호", betLimitLabel:"배팅 한도", tableStatusOpen:"활성화", tableStatusClosed:"마감", tableOpenBtn:"영업 시작", tableCloseBtn:"마감", toastTableStatusChanged:"테이블 상태가 변경되었습니다.", expandBtn:"펼치기", collapseBtn:"접기",
  colTime:"시간", colReqMember:"요청 회원", colKind:"구분", colPrevRolling:"이전 롤링", colRollingSub:"롤링누계", colRollingTotal:"롤링 합계",
  settlePageTitle:"롤링 커미션 정산", gameTypeFld:"게임 타입", rollingComm:"롤링 커미션", fbDiscount:"F&B 할인", resultLabel:"정산금", settleBtn:"정산 확정",
  receiptTitle:"정산 영수증", receiptEmptyHint:"게임을 선택하고 정산을 확정하면 영수증이 표시됩니다.", receiptGameNo:"게임 번호", receiptAccNo:"어카운트", receiptDate:"일자",
@@ -5222,7 +5882,7 @@ ko:{
  staffMgmtBtn:"직원 관리", staffMgmtTitle:"직원 관리", staffNameLabel:"이름", staffPinLabel:"PIN", staffGenPinBtn:"PIN 생성", staffRegisterBtn:"등록", staffSaveBtn:"저장", staffCancelEditBtn:"취소",
  colStaffName:"이름", colStaffPin:"PIN", colStaffRegDt:"등록일", editBtn:"수정", regenPinBtn:"PIN 재생성", otpSetupBtn:"OTP 설정",
  toastStaffNameRequired:"이름을 입력하세요.", toastStaffDuplicate:"이미 등록된 이름입니다.", toastStaffRegistered:"직원이 등록되었습니다.", toastStaffUpdated:"직원 정보가 수정되었습니다.",
- toastStaffDeleted:"직원이 삭제되었습니다.", toastPinRegenerated:"PIN이 재발급되었습니다.", toastStaffMinOne:"최소 1명의 직원은 있어야 합니다.", toastStaffSyncFailed:"서버에 저장하지 못했습니다. 연결을 확인하고 다시 시도해주세요.", toastAuthSessionFailed:"인증 세션 설정에 실패했습니다. 저장 등 일부 기능이 안 될 수 있으니 새로고침 후 다시 로그인해주세요.", toastLoginOffline:"서버에 연결할 수 없어 로그인 정보를 확인하지 못했습니다. 연결을 확인하고 다시 시도해주세요.",
+ toastStaffDeleted:"직원이 삭제되었습니다.", toastPinRegenerated:"PIN이 재발급되었습니다.", toastStaffMinOne:"최소 1명의 직원은 있어야 합니다.", toastStaffSyncFailed:"서버에 저장하지 못했습니다. 연결을 확인하고 다시 시도해주세요.", toastAuthSessionFailed:"인증 세션 설정에 실패했습니다. 저장 등 일부 기능이 안 될 수 있으니 새로고침 후 다시 로그인해주세요.", toastLoginOffline:"서버에 연결할 수 없어 로그인 정보를 확인하지 못했습니다. 연결을 확인하고 다시 시도해주세요.", toastDuplicateLogin:"다른 기기에서 로그인되어 이 세션은 로그아웃되었습니다.",
  loginStaffLabel:"근무자", loginPinLabel:"비밀번호(PIN)", loginErrorMsg:"비밀번호가 일치하지 않습니다.", loginBtn:"로그인", loginSyncHint:"직원 정보를 동기화하는 중입니다. 잠시만 기다려주세요.", loginOfflineWarning:"⚠ 서버 연결에 실패했습니다. Wi-Fi/데이터 연결을 확인하고 새로고침 후 다시 시도해주세요.", loginRetryBtn:"다시 시도",
  masterPwLabel:"마스터 비밀번호", masterLoginBtn:"마스터 로그인", masterBackBtn:"뒤로", masterTotpSetupBtn:"마스터 OTP 설정 / 재설정",
  loginOtpDesc:"Authenticator 앱에 표시된 6자리 인증 코드를 입력하세요.", loginOtpLabel:"인증코드(Authenticator)", loginOtpErrorMsg:"인증 코드가 일치하지 않습니다.",
@@ -5243,7 +5903,7 @@ ko:{
  cageCombinedTitle:"케이지 합산금액", cageCombinedRollingLabel:"케이지 합산금액 (롤링)", cageCombinedCashLabel:"케이지 합산금액 (캐시)", diffLabel2:"차액", balancingCheckBtn:"밸런싱 확인", toastBalancingChecked:"밸런싱이 확인되었습니다.", toastBalancingNotZero:"롤링과 캐시 차액이 모두 0이어야 밸런싱을 확인할 수 있습니다.",
  initialSetupBtn:"초기 세팅", initialSetupHint:"처음 세팅 등으로 실제 보유 현금·롤링칩과 시스템 계산값이 달라 차액이 발생했다면, 이 버튼으로 현재 차액을 기준점으로 반영해 0으로 맞출 수 있습니다.", toastInitialSetupApplied:"초기 세팅 값이 반영되어 차액이 0이 되었습니다.", toastNoDiffToSetup:"반영할 차액이 없습니다.", initialSetupLogNote:"초기 세팅 반영", balancingConfirmLogNote:"밸런싱 확인",
  ledgerListBtn:"목록", ledgerListTitle:"입출금 내역", searchByDateLabel:"날짜로 검색", periodStartLabel:"시작일", periodEndLabel:"종료일",
- mainCageTitle:"메인 케이지", mainCageTypeLabel:"구분", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
+ mainCageTitle:"메인 케이지", mainCageTypeLabel:"구분", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem", mainCageCashout:"Cash-out",
  mainCageProcessBtn:"처리", toastMainCageProcessed:"메인 케이지 거래가 처리되었습니다.", notifMainCage:"메인 케이지 거래",
  mainCageListBtn:"기록", mainCageListTitle:"메인 케이지 거래 기록", cutoffListBtn:"기록", cutoffListTitle:"일일 정산 기록", balancingCheckListBtn:"기록", balancingCheckListTitle:"밸런싱 확인 기록",
  branchTransferTitle:"지점간 이체", branchTransferListBtn:"기록", branchTransferListTitle:"지점간 이체 기록", branchTransferTo:"받을 지점", branchTransferFrom:"보낸 지점", branchTransferProcessBtn:"이체 처리",
@@ -5301,7 +5961,7 @@ ko:{
  toastEventInactive:"먼저 이벤트를 활성화하세요.", toastEventPaid:"이벤트 커미션이 지급되었습니다.", notifEvent:"이벤트 커미션 지급",
  colPointsChange:"증감", colPointsBalance:"잔여 포인트", pointsEarn:"적립", pointsUse:"사용",
  notifTitle:"알림", notifMarkAll:"모두 읽음", notifEmpty:"새 알림이 없습니다.",
- avatarReqTitle:"아바타 요청 확인", toastNoAvatarReq:"대기중인 아바타 요청이 없습니다.", toastAvatarReqChecked:"아바타 요청을 확인했습니다.", avatarIdLabel:"아바타 ID", toastAvatarReqCancelled:"아바타 요청이 취소되었습니다.",
+ avatarReqTitle:"아바타 요청 확인", toastNoAvatarReq:"대기중인 아바타 요청이 없습니다.", toastAvatarReqChecked:"아바타 요청을 확인했습니다.", avatarIdLabel:"아바타 ID", toastAvatarReqCancelled:"아바타 요청이 취소되었습니다.", themeToggleTitle:"다크모드/라이트모드 전환",
  notifDeposit:"입금 처리", notifWithdraw:"출금 처리", notifTransferT:"이체 완료", notifGameStart:"게임 시작", notifGameSettle:"정산 완료",
  notifBlock:"어카운트 차단", notifRegister:"신규 어카운트 등록", notifHotel:"호텔 예약", notifCar:"차량 예약", notifAero:"아로 서비스 요청", notifPoints:"포인트 사용",
  branch:"지점", close:"닫기", moreLabel:"더보기",
@@ -5351,6 +6011,7 @@ en:{
  tableLabel:"Table", gameType:"Game Type", avatarId:"Avatar ID", buyinTotal:"Buy-in Total", startBtn:"Start Game",
  inGameTitle:"Games In Progress", gameIdLabel:"Game ID",
  ongoingGamesTitle:"Rolling", dailyLabel:"Daily", cumulativeLabel:"Cumulative", ongoingCountLabel:"In Progress",
+ avatarSpeedOngoingTitle:"Avatar/Speed Table Management", shoeNoLabel:"Shoe No.", betLimitLabel:"Bet Limit", tableStatusOpen:"Active", tableStatusClosed:"Closed", tableOpenBtn:"Open Table", tableCloseBtn:"Close Table", toastTableStatusChanged:"Table status updated.", expandBtn:"Expand", collapseBtn:"Collapse",
  colTime:"Time", colReqMember:"Requested By", colKind:"Kind", colPrevRolling:"Prev. Rolling", colRollingSub:"Rolling Cumulative", colRollingTotal:"Rolling Total",
  settlePageTitle:"Rolling Commission Settlement", gameTypeFld:"Game Type", rollingComm:"Rolling Commission", fbDiscount:"F&B Discount", resultLabel:"Settlement Amount", settleBtn:"Confirm Settlement",
  receiptTitle:"Settlement Receipt", receiptEmptyHint:"Select a game and confirm settlement to see the receipt.", receiptGameNo:"Game No.", receiptAccNo:"Account No.", receiptDate:"Date",
@@ -5360,7 +6021,7 @@ en:{
  staffMgmtBtn:"Staff Management", staffMgmtTitle:"Staff Management", staffNameLabel:"Name", staffPinLabel:"PIN", staffGenPinBtn:"Generate PIN", staffRegisterBtn:"Register", staffSaveBtn:"Save", staffCancelEditBtn:"Cancel",
  colStaffName:"Name", colStaffPin:"PIN", colStaffRegDt:"Registered", editBtn:"Edit", regenPinBtn:"Regenerate PIN", otpSetupBtn:"OTP Setup",
  toastStaffNameRequired:"Enter a name.", toastStaffDuplicate:"This name is already registered.", toastStaffRegistered:"Staff registered.", toastStaffUpdated:"Staff updated.",
- toastStaffDeleted:"Staff deleted.", toastPinRegenerated:"PIN regenerated.", toastStaffMinOne:"At least one staff member is required.", toastStaffSyncFailed:"Could not save to the server. Check your connection and try again.", toastAuthSessionFailed:"Could not establish an authenticated session. Some features (like saving) may not work - please refresh and log in again.", toastLoginOffline:"Could not reach the server to verify your login. Check your connection and try again.",
+ toastStaffDeleted:"Staff deleted.", toastPinRegenerated:"PIN regenerated.", toastStaffMinOne:"At least one staff member is required.", toastStaffSyncFailed:"Could not save to the server. Check your connection and try again.", toastAuthSessionFailed:"Could not establish an authenticated session. Some features (like saving) may not work - please refresh and log in again.", toastLoginOffline:"Could not reach the server to verify your login. Check your connection and try again.", toastDuplicateLogin:"This account was signed in on another device, so this session was logged out.",
  loginStaffLabel:"Staff", loginPinLabel:"Password (PIN)", loginErrorMsg:"Incorrect password.", loginBtn:"Log In", loginSyncHint:"Syncing staff data - please wait a moment.", loginOfflineWarning:"⚠ Could not reach the server. Check your Wi-Fi/data connection and refresh to try again.", loginRetryBtn:"Retry",
  masterPwLabel:"Master Password", masterLoginBtn:"Master Login", masterBackBtn:"Back", masterTotpSetupBtn:"Master OTP Setup / Reset",
  loginOtpDesc:"Enter the 6-digit code shown in your Authenticator app.", loginOtpLabel:"Auth Code (Authenticator)", loginOtpErrorMsg:"Incorrect authentication code.",
@@ -5380,7 +6041,7 @@ en:{
  cageCombinedTitle:"Cage Combined Amount", cageCombinedRollingLabel:"Cage Combined (Rolling)", cageCombinedCashLabel:"Cage Combined (Cash)", diffLabel2:"Difference", balancingCheckBtn:"Confirm Balancing", toastBalancingChecked:"Balancing confirmed.", toastBalancingNotZero:"Both the rolling and cash difference must be 0 to confirm balancing.",
  initialSetupBtn:"Initial Setup", initialSetupHint:"If the actual cash/rolling chips on hand differ from the system's calculated value (e.g. from initial setup), use this to apply the current difference as the new baseline so it reads 0.", toastInitialSetupApplied:"Initial setup applied - the difference is now 0.", toastNoDiffToSetup:"No difference to apply.", initialSetupLogNote:"Initial Setup Applied", balancingConfirmLogNote:"Balancing Confirmed",
  ledgerListBtn:"List", ledgerListTitle:"Transaction History", searchByDateLabel:"Search by Date", periodStartLabel:"Start Date", periodEndLabel:"End Date",
- mainCageTitle:"Main Cage", mainCageTypeLabel:"Type", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
+ mainCageTitle:"Main Cage", mainCageTypeLabel:"Type", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem", mainCageCashout:"Cash-out",
  mainCageProcessBtn:"Process", toastMainCageProcessed:"Main cage transaction processed.", notifMainCage:"Main Cage Transaction",
  mainCageListBtn:"Records", mainCageListTitle:"Main Cage Transaction Records", cutoffListBtn:"Records", cutoffListTitle:"Daily Settlement Records", balancingCheckListBtn:"Records", balancingCheckListTitle:"Balancing Confirmation Records",
  branchTransferTitle:"Inter-Branch Transfer", branchTransferListBtn:"Records", branchTransferListTitle:"Inter-Branch Transfer Records", branchTransferTo:"To Branch", branchTransferFrom:"From Branch", branchTransferProcessBtn:"Process Transfer",
@@ -5438,7 +6099,7 @@ en:{
  toastEventInactive:"Activate the event first.", toastEventPaid:"Event commission paid.", notifEvent:"Event Commission Paid",
  colPointsChange:"Change", colPointsBalance:"Balance", pointsEarn:"Earned", pointsUse:"Used",
  notifTitle:"Notifications", notifMarkAll:"Mark all read", notifEmpty:"No new notifications.",
- avatarReqTitle:"Check Avatar Request", toastNoAvatarReq:"No pending avatar requests.", toastAvatarReqChecked:"Avatar request checked.", avatarIdLabel:"Avatar ID", toastAvatarReqCancelled:"Avatar request cancelled.",
+ avatarReqTitle:"Check Avatar Request", toastNoAvatarReq:"No pending avatar requests.", toastAvatarReqChecked:"Avatar request checked.", avatarIdLabel:"Avatar ID", toastAvatarReqCancelled:"Avatar request cancelled.", themeToggleTitle:"Toggle dark/light mode",
  notifDeposit:"Deposit Processed", notifWithdraw:"Withdrawal Processed", notifTransferT:"Transfer Completed", notifGameStart:"Game Started", notifGameSettle:"Settlement Completed",
  notifBlock:"Account Blocked", notifRegister:"New Account Registered", notifHotel:"Hotel Booked", notifCar:"Car Reserved", notifAero:"ARO Service Requested", notifPoints:"Points Used",
  branch:"Branch", close:"Close", moreLabel:"More",
@@ -5489,6 +6150,7 @@ en:{
  tableLabel:"賭桌", gameType:"局別", avatarId:"分身編號", buyinTotal:"買入總額", startBtn:"開始遊戲",
  inGameTitle:"進行中賽局", gameIdLabel:"局號",
  ongoingGamesTitle:"轉碼", dailyLabel:"當日", cumulativeLabel:"累計", ongoingCountLabel:"進行局數",
+ avatarSpeedOngoingTitle:"電投·快速電投 桌台管理", shoeNoLabel:"靴號", betLimitLabel:"投注限額", tableStatusOpen:"啟用中", tableStatusClosed:"結束", tableOpenBtn:"開始營業", tableCloseBtn:"結束營業", toastTableStatusChanged:"桌台狀態已更新。", expandBtn:"展開", collapseBtn:"收合",
  colTime:"時間", colReqMember:"申請會員", colKind:"類別", colPrevRolling:"先前轉碼", colRollingSub:"轉碼累計", colRollingTotal:"轉碼合計",
  settlePageTitle:"轉碼佣金結算", gameTypeFld:"局別", rollingComm:"轉碼佣金", fbDiscount:"F&B 折讓", resultLabel:"結算金額", settleBtn:"確認結算",
  receiptTitle:"結算收據", receiptEmptyHint:"選擇遊戲並確認結算後將顯示收據。", receiptGameNo:"局號", receiptAccNo:"帳號", receiptDate:"日期",
@@ -5498,7 +6160,7 @@ en:{
  staffMgmtBtn:"員工管理", staffMgmtTitle:"員工管理", staffNameLabel:"姓名", staffPinLabel:"PIN", staffGenPinBtn:"產生PIN", staffRegisterBtn:"新增", staffSaveBtn:"儲存", staffCancelEditBtn:"取消",
  colStaffName:"姓名", colStaffPin:"PIN", colStaffRegDt:"登記日期", editBtn:"編輯", regenPinBtn:"重新產生PIN", otpSetupBtn:"OTP 設定",
  toastStaffNameRequired:"請輸入姓名。", toastStaffDuplicate:"此姓名已被登記。", toastStaffRegistered:"員工已新增。", toastStaffUpdated:"員工資料已更新。",
- toastStaffDeleted:"員工已刪除。", toastPinRegenerated:"PIN已重新產生。", toastStaffMinOne:"至少需保留一名員工。", toastStaffSyncFailed:"無法儲存到伺服器，請檢查連線後重試。", toastAuthSessionFailed:"無法建立驗證工作階段。部分功能（如儲存）可能無法使用，請重新整理並重新登入。", toastLoginOffline:"無法連接伺服器以驗證登入資訊。請檢查連線後重試。",
+ toastStaffDeleted:"員工已刪除。", toastPinRegenerated:"PIN已重新產生。", toastStaffMinOne:"至少需保留一名員工。", toastStaffSyncFailed:"無法儲存到伺服器，請檢查連線後重試。", toastAuthSessionFailed:"無法建立驗證工作階段。部分功能（如儲存）可能無法使用，請重新整理並重新登入。", toastLoginOffline:"無法連接伺服器以驗證登入資訊。請檢查連線後重試。", toastDuplicateLogin:"此帳號已在其他裝置登入，此工作階段已登出。",
  loginStaffLabel:"人員", loginPinLabel:"密碼(PIN)", loginErrorMsg:"密碼不正確。", loginBtn:"登入", loginSyncHint:"正在同步員工資料，請稍候。", loginOfflineWarning:"⚠ 無法連接伺服器。請檢查Wi-Fi/行動數據連線後重新整理再試一次。", loginRetryBtn:"重試",
  masterPwLabel:"主管密碼", masterLoginBtn:"主管登入", masterBackBtn:"返回", masterTotpSetupBtn:"主管 OTP 設定／重設",
  loginOtpDesc:"請輸入 Authenticator 應用程式顯示的 6 位數驗證碼。", loginOtpLabel:"驗證碼(Authenticator)", loginOtpErrorMsg:"驗證碼不正確。",
@@ -5518,7 +6180,7 @@ en:{
  cageCombinedTitle:"碼房合計金額", cageCombinedRollingLabel:"碼房合計金額（轉碼）", cageCombinedCashLabel:"碼房合計金額（現金）", diffLabel2:"差額", balancingCheckBtn:"確認結餘", toastBalancingChecked:"結餘已確認。", toastBalancingNotZero:"轉碼與現金差額必須皆為0才能確認結餘。",
  initialSetupBtn:"初始設定", initialSetupHint:"若因初始設定等原因，實際持有現金／轉碼籌碼與系統計算值不同而產生差額，可用此按鈕將目前差額反映為新的基準點，使其歸零。", toastInitialSetupApplied:"初始設定已套用，差額已歸零。", toastNoDiffToSetup:"沒有可套用的差額。", initialSetupLogNote:"初始設定套用", balancingConfirmLogNote:"結餘確認",
  ledgerListBtn:"清單", ledgerListTitle:"收付紀錄", searchByDateLabel:"依日期搜尋", periodStartLabel:"開始日期", periodEndLabel:"結束日期",
- mainCageTitle:"主碼房", mainCageTypeLabel:"類型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
+ mainCageTitle:"主碼房", mainCageTypeLabel:"類型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem", mainCageCashout:"Cash-out",
  mainCageProcessBtn:"處理", toastMainCageProcessed:"主碼房交易已處理。", notifMainCage:"主碼房交易",
  mainCageListBtn:"紀錄", mainCageListTitle:"主碼房交易紀錄", cutoffListBtn:"紀錄", cutoffListTitle:"每日結算紀錄", balancingCheckListBtn:"紀錄", balancingCheckListTitle:"結餘確認紀錄",
  branchTransferTitle:"分店間轉帳", branchTransferListBtn:"紀錄", branchTransferListTitle:"分店間轉帳紀錄", branchTransferTo:"轉入分店", branchTransferFrom:"轉出分店", branchTransferProcessBtn:"處理轉帳",
@@ -5576,7 +6238,7 @@ en:{
  toastEventInactive:"請先啟用活動。", toastEventPaid:"活動佣金已發放。", notifEvent:"活動佣金發放",
  colPointsChange:"變動", colPointsBalance:"餘額", pointsEarn:"累積", pointsUse:"使用",
  notifTitle:"通知", notifMarkAll:"全部已讀", notifEmpty:"目前沒有新通知。",
- avatarReqTitle:"確認阿凡達請求", toastNoAvatarReq:"目前沒有待處理的阿凡達請求。", toastAvatarReqChecked:"已確認阿凡達請求。", avatarIdLabel:"阿凡達 ID", toastAvatarReqCancelled:"阿凡達請求已取消。",
+ avatarReqTitle:"確認阿凡達請求", toastNoAvatarReq:"目前沒有待處理的阿凡達請求。", toastAvatarReqChecked:"已確認阿凡達請求。", avatarIdLabel:"阿凡達 ID", toastAvatarReqCancelled:"阿凡達請求已取消。", themeToggleTitle:"切換深色/淺色模式",
  notifDeposit:"存款已處理", notifWithdraw:"提款已處理", notifTransferT:"轉帳已完成", notifGameStart:"賽局已開始", notifGameSettle:"結算已完成",
  notifBlock:"帳戶已封鎖", notifRegister:"新帳戶已登記", notifHotel:"飯店已預訂", notifCar:"車輛已預約", notifAero:"ARO服務已申請", notifPoints:"積分已使用",
  branch:"分店", close:"關閉", moreLabel:"更多",
@@ -5627,6 +6289,7 @@ en:{
  tableLabel:"赌桌", gameType:"局别", avatarId:"分身编号", buyinTotal:"买入总额", startBtn:"开始游戏",
  inGameTitle:"进行中赛局", gameIdLabel:"局号",
  ongoingGamesTitle:"转码", dailyLabel:"当日", cumulativeLabel:"累计", ongoingCountLabel:"进行局数",
+ avatarSpeedOngoingTitle:"电投·快速电投 桌台管理", shoeNoLabel:"靴号", betLimitLabel:"投注限额", tableStatusOpen:"启用中", tableStatusClosed:"结束", tableOpenBtn:"开始营业", tableCloseBtn:"结束营业", toastTableStatusChanged:"桌台状态已更新。", expandBtn:"展开", collapseBtn:"收起",
  colTime:"时间", colReqMember:"申请会员", colKind:"类别", colPrevRolling:"先前转码", colRollingSub:"转码累计", colRollingTotal:"转码合计",
  settlePageTitle:"转码佣金结算", gameTypeFld:"局别", rollingComm:"转码佣金", fbDiscount:"F&B 折让", resultLabel:"结算金额", settleBtn:"确认结算",
  receiptTitle:"结算收据", receiptEmptyHint:"选择游戏并确认结算后将显示收据。", receiptGameNo:"局号", receiptAccNo:"账号", receiptDate:"日期",
@@ -5636,7 +6299,7 @@ en:{
  staffMgmtBtn:"员工管理", staffMgmtTitle:"员工管理", staffNameLabel:"姓名", staffPinLabel:"PIN", staffGenPinBtn:"生成PIN", staffRegisterBtn:"新增", staffSaveBtn:"保存", staffCancelEditBtn:"取消",
  colStaffName:"姓名", colStaffPin:"PIN", colStaffRegDt:"登记日期", editBtn:"编辑", regenPinBtn:"重新生成PIN", otpSetupBtn:"OTP 设置",
  toastStaffNameRequired:"请输入姓名。", toastStaffDuplicate:"此姓名已被登记。", toastStaffRegistered:"员工已新增。", toastStaffUpdated:"员工资料已更新。",
- toastStaffDeleted:"员工已删除。", toastPinRegenerated:"PIN已重新生成。", toastStaffMinOne:"至少需保留一名员工。", toastStaffSyncFailed:"无法保存到服务器，请检查连接后重试。", toastAuthSessionFailed:"无法建立身份验证会话。部分功能（如保存）可能无法使用，请刷新并重新登录。", toastLoginOffline:"无法连接服务器以验证登录信息。请检查连接后重试。",
+ toastStaffDeleted:"员工已删除。", toastPinRegenerated:"PIN已重新生成。", toastStaffMinOne:"至少需保留一名员工。", toastStaffSyncFailed:"无法保存到服务器，请检查连接后重试。", toastAuthSessionFailed:"无法建立身份验证会话。部分功能（如保存）可能无法使用，请刷新并重新登录。", toastLoginOffline:"无法连接服务器以验证登录信息。请检查连接后重试。", toastDuplicateLogin:"此账号已在其他设备登录，此会话已登出。",
  loginStaffLabel:"人员", loginPinLabel:"密码(PIN)", loginErrorMsg:"密码不正确。", loginBtn:"登录", loginSyncHint:"正在同步员工数据，请稍候。", loginOfflineWarning:"⚠ 无法连接服务器。请检查Wi-Fi/移动数据连接后刷新重试。", loginRetryBtn:"重试",
  masterPwLabel:"主管密码", masterLoginBtn:"主管登录", masterBackBtn:"返回", masterTotpSetupBtn:"主管 OTP 设置／重置",
  loginOtpDesc:"请输入 Authenticator 应用中显示的 6 位验证码。", loginOtpLabel:"验证码(Authenticator)", loginOtpErrorMsg:"验证码不正确。",
@@ -5656,7 +6319,7 @@ en:{
  cageCombinedTitle:"码房合计金额", cageCombinedRollingLabel:"码房合计金额（转码）", cageCombinedCashLabel:"码房合计金额（现金）", diffLabel2:"差额", balancingCheckBtn:"确认结余", toastBalancingChecked:"结余已确认。", toastBalancingNotZero:"转码与现金差额必须均为0才能确认结余。",
  initialSetupBtn:"初始设定", initialSetupHint:"若因初始设定等原因，实际持有现金／转码筹码与系统计算值不同而产生差额，可用此按钮将当前差额反映为新的基准点，使其归零。", toastInitialSetupApplied:"初始设定已套用，差额已归零。", toastNoDiffToSetup:"没有可套用的差额。", initialSetupLogNote:"初始设定套用", balancingConfirmLogNote:"结余确认",
  ledgerListBtn:"清单", ledgerListTitle:"收付记录", searchByDateLabel:"按日期搜索", periodStartLabel:"开始日期", periodEndLabel:"结束日期",
- mainCageTitle:"主码房", mainCageTypeLabel:"类型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
+ mainCageTitle:"主码房", mainCageTypeLabel:"类型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem", mainCageCashout:"Cash-out",
  mainCageProcessBtn:"处理", toastMainCageProcessed:"主码房交易已处理。", notifMainCage:"主码房交易",
  mainCageListBtn:"记录", mainCageListTitle:"主码房交易记录", cutoffListBtn:"记录", cutoffListTitle:"每日结算记录", balancingCheckListBtn:"记录", balancingCheckListTitle:"结余确认记录",
  branchTransferTitle:"分店间转账", branchTransferListBtn:"记录", branchTransferListTitle:"分店间转账记录", branchTransferTo:"转入分店", branchTransferFrom:"转出分店", branchTransferProcessBtn:"处理转账",
@@ -5714,7 +6377,7 @@ en:{
  toastEventInactive:"请先启用活动。", toastEventPaid:"活动佣金已发放。", notifEvent:"活动佣金发放",
  colPointsChange:"变动", colPointsBalance:"余额", pointsEarn:"累积", pointsUse:"使用",
  notifTitle:"通知", notifMarkAll:"全部已读", notifEmpty:"暂无新通知。",
- avatarReqTitle:"确认阿凡达请求", toastNoAvatarReq:"目前没有待处理的阿凡达请求。", toastAvatarReqChecked:"已确认阿凡达请求。", avatarIdLabel:"阿凡达 ID", toastAvatarReqCancelled:"阿凡达请求已取消。",
+ avatarReqTitle:"确认阿凡达请求", toastNoAvatarReq:"目前没有待处理的阿凡达请求。", toastAvatarReqChecked:"已确认阿凡达请求。", avatarIdLabel:"阿凡达 ID", toastAvatarReqCancelled:"阿凡达请求已取消。", themeToggleTitle:"切换深色/浅色模式",
  notifDeposit:"存款已处理", notifWithdraw:"取款已处理", notifTransferT:"转账已完成", notifGameStart:"赛局已开始", notifGameSettle:"结算已完成",
  notifBlock:"账户已封锁", notifRegister:"新账户已登记", notifHotel:"酒店已预订", notifCar:"车辆已预约", notifAero:"ARO服务已申请", notifPoints:"积分已使用",
  branch:"分店", close:"关闭", moreLabel:"更多",
@@ -5832,6 +6495,16 @@ function esc(s){
    STATE
    ============================================================ */
 let LANG = 'ko';
+// data-theme is absent for dark (the original, default look) and "light" for light - matching the
+// early inline <script> in <head> (see its comment: that one runs before <style> is parsed so the
+// very first paint already has the right theme, this one just needs to agree with it on what
+// "no attribute" means).
+function toggleTheme(){
+ const next = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+ try{ localStorage.setItem('cage-admin-theme', next); }catch(e){}
+ if(next==='light') document.documentElement.setAttribute('data-theme','light');
+ else document.documentElement.removeAttribute('data-theme');
+}
 let DB = null;
 
 function seedDB(){
@@ -5900,11 +6573,9 @@ function seedDB(){
     lastBalancingDt:null, lastCutoffDt:null, lastMonthSettleDt:null,
     settleGameOutBaseline:0, settleEndedRollingBaseline:0, settleLedgerNetBaseline:0, rollingDailyTotalBaseline:0,
     cashCarryBaseline:0, rollingCarryBaseline:0,
-    nextWalkinSeq:1,
    },
   },
   notifications:[],
-  nextGameSeq:1,
   currentAccount:null,
   ioType:"deposit",
   staff:[
@@ -6057,6 +6728,12 @@ function applyI18n(){
  document.querySelectorAll('[data-i18n-title]').forEach(el=>{ el.title = t(el.dataset.i18nTitle); });
  document.querySelectorAll('.lang-switch button').forEach(b=>b.classList.toggle('active', b.dataset.lang===LANG));
  renderAll();
+ // renderAll() covers the avatar-request bell/badge but not the modal's own row list (same reason
+ // switchBranch() re-renders it explicitly too) - without this a language switch while the modal
+ // is open leaves its rows/cancel-button text in the previous language until the next unrelated
+ // Firestore snapshot happens to fire.
+ const avatarReqModal = document.getElementById('modal-avatar-request');
+ if(avatarReqModal && avatarReqModal.classList.contains('open')) renderAvatarReqList();
 }
 
 function toast(msg){
@@ -6344,6 +7021,7 @@ function saveAccountEdit(){
  const s = sigPads['editSigPad'];
  if(s && s.ctx) acc.signaturePhoto = s.ctx.canvas.toDataURL();
  saveDB(); renderMemberCard();
+ syncAccountToCloud(id);
  closeModal('modal-edit-account');
  toast(t('toastAccountUpdated'));
 }
@@ -6374,6 +7052,7 @@ async function _doWithdrawAccount(id){
  });
  closeModal('modal-edit-account');
  delete DB.accounts[id];
+ deleteAccountFromCloud(id);
  if(fbDb){
   try{
    const snap = await fbDb.collection('ledger').where('accountId','==',id).get();
@@ -6384,13 +7063,28 @@ async function _doWithdrawAccount(id){
  } else {
   delete DB.ledger[id];
  }
- DB.pointsByAccount = DB.pointsByAccount||{};
- delete DB.pointsByAccount[id];
- DB.pointsHistory = (DB.pointsHistory||[]).filter(h=>h.account!==id);
- DB.eventHistory = (DB.eventHistory||[]).filter(h=>h.account!==id);
- DB.hotels = (DB.hotels||[]).filter(b=>b.account!==id);
- DB.cars = (DB.cars||[]).filter(c=>c.account!==id);
- DB.aero = (DB.aero||[]).filter(a=>a.account!==id);
+ if(fbDb){
+  try{
+   const batch = fbDb.batch();
+   const snaps = await Promise.all([
+    fbDb.collection('pointsHistory').where('account','==',id).get(),
+    fbDb.collection('hotels').where('account','==',id).get(),
+    fbDb.collection('cars').where('account','==',id).get(),
+    fbDb.collection('aero').where('account','==',id).get(),
+    fbDb.collection('eventHistory').where('account','==',id).get(),
+   ]);
+   snaps.forEach(snap=>snap.forEach(d=>batch.delete(d.ref)));
+   await batch.commit();
+  }catch(e){}
+ } else {
+  DB.pointsByAccount = DB.pointsByAccount||{};
+  delete DB.pointsByAccount[id];
+  DB.pointsHistory = (DB.pointsHistory||[]).filter(h=>h.account!==id);
+  DB.hotels = (DB.hotels||[]).filter(b=>b.account!==id);
+  DB.cars = (DB.cars||[]).filter(c=>c.account!==id);
+  DB.aero = (DB.aero||[]).filter(a=>a.account!==id);
+  DB.eventHistory = (DB.eventHistory||[]).filter(h=>h.account!==id);
+ }
  saveDB();
  renderMemberCard(); renderAccountList(); renderLedger(); renderPoints(); renderEventHistory(); renderTotalDeposit();
  if(typeof renderHotels==='function') renderHotels();
@@ -6455,7 +7149,7 @@ function openTelegramLink(overrideId){
    knownCount = links.length;
   }
   const acc = DB.accounts[id];
-  if(acc){ acc.telegramLinks = links; saveDB(); }
+  if(acc){ acc.telegramLinks = links; saveDB(); syncAccountToCloud(id); }
   if(tgLinkTargetId===id && document.getElementById('modal-telegram-manage').classList.contains('open')) renderTelegramManage();
  };
  poll();
@@ -6484,7 +7178,7 @@ async function openTelegramManage(overrideId){
  const links = await fetchTelegramLinks(id);
  if(links !== null){
   const acc = DB.accounts[id];
-  if(acc){ acc.telegramLinks = links; saveDB(); }
+  if(acc){ acc.telegramLinks = links; saveDB(); syncAccountToCloud(id); }
   if(tgLinkTargetId===id) renderTelegramManage();
  }
  openModal('modal-telegram-manage');
@@ -6504,6 +7198,7 @@ async function deleteTelegramLink(idx){
  const chatId = acc.telegramLinks[idx].chatId;
  acc.telegramLinks.splice(idx,1);
  saveDB(); renderTelegramManage();
+ syncAccountToCloud(id);
  toast(t('toastTelegramDeleted'));
  if(chatId){
   try{
@@ -6528,14 +7223,18 @@ function branchLabel(){ return currentBranch(); }
 function last3Digits(id){ return String(id||'').slice(-3); }
 function sendCageNotification(accountId, lines){
  const acc = DB.accounts[accountId];
- const links = acc && acc.telegramLinks;
- if(!links || !links.length || !links[0].chatId) return;
+ const links = ((acc && acc.telegramLinks) || []).filter(l=>l.chatId);
+ if(!links.length) return;
  const text = lines.filter(l=>l!==null).join('\n');
- fetch(`${TG_FUNCTIONS_BASE}/sendTelegramMessage`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'X-App-Secret': TG_APP_API_SECRET },
-  body: JSON.stringify({ account: accountId, chatId: links[0].chatId, text }),
- }).catch(()=>{});
+ // A guest can link more than one Telegram account (modal-telegram-manage lists/removes each
+ // one individually) - notify every linked chat, not just the first one on file.
+ links.forEach(link=>{
+  fetch(`${TG_FUNCTIONS_BASE}/sendTelegramMessage`, {
+   method: 'POST',
+   headers: { 'Content-Type': 'application/json', 'X-App-Secret': TG_APP_API_SECRET },
+   body: JSON.stringify({ account: accountId, chatId: link.chatId, text }),
+  }).catch(()=>{});
+ });
 }
 
 function setIoType(type){
@@ -6573,22 +7272,22 @@ async function sendWithdrawPwTelegram(){
  const id = pendingAuthAccount || DB.currentAccount;
  if(!id){ toast(t('toastNoAcc')); return; }
  const acc = DB.accounts[id];
- const links = (acc && acc.telegramLinks) || [];
+ const links = ((acc && acc.telegramLinks) || []).filter(l=>l.chatId);
  if(!links.length){ toast(t('toastNoTelegram')); return; }
  if(!document.getElementById('wdAuthLinkVal').value) genWithdrawPwLink();
  const link = document.getElementById('wdAuthLinkVal').value;
- const chatId = links[0].chatId;
- try{
-  const resp = await fetch(`${TG_FUNCTIONS_BASE}/sendTelegramMessage`, {
+ const text = `[${id}] 출금 인증 요청 / Withdrawal authentication request\n${link}`;
+ // Send to every linked Telegram account, not just the first - report success if at least one
+ // goes through, so one recipient's blocked bot/deleted chat doesn't hide the others succeeding.
+ const results = await Promise.all(links.map(l=>
+  fetch(`${TG_FUNCTIONS_BASE}/sendTelegramMessage`, {
    method: 'POST',
    headers: { 'Content-Type': 'application/json', 'X-App-Secret': TG_APP_API_SECRET },
-   body: JSON.stringify({ account: id, chatId, text: `[${id}] 출금 인증 요청 / Withdrawal authentication request\n${link}` }),
-  });
-  if(!resp.ok) throw new Error('send failed');
-  toast(t('toastTelegramSent'));
- }catch(e){
-  toast(t('toastTelegramSendFailed'));
- }
+   body: JSON.stringify({ account: id, chatId: l.chatId, text }),
+  }).then(r=>r.ok).catch(()=>false)
+ ));
+ if(results.some(ok=>ok)) toast(t('toastTelegramSent'));
+ else toast(t('toastTelegramSendFailed'));
 }
 function confirmWithdrawPw(){
  const acc = DB.accounts[pendingAuthAccount];
@@ -6899,11 +7598,54 @@ function renderLedgerList(){
 /* ============================================================
    GAME
    ============================================================ */
+// Auto game IDs and walk-in labels used to come from DB.nextGameSeq/branchData[branch].nextWalkinSeq,
+// purely local counters that were never synced - two terminals starting a game/walk-in at the same
+// moment could each independently compute the same next number from their own stale local counter,
+// so two different games could land in Firestore under the same gameId (games/settled both use
+// gameId as their doc id - a real collision there silently merges two customers' games into one
+// doc) or two walk-ins could collide on the same "W3" label. Deriving the next number from the
+// already-synced games/endedGames/settled instead removes the divergence entirely: every terminal
+// computes it from the same shared, real-time data, so there's no separate counter to drift.
+// (Narrow, accepted tradeoff: a cancelled game's id/label can now be reused by a later game, since
+// cancelGame() removes it from every pool this scans - the old counter never reused ids after a
+// cancel, but a cancelled game leaves no financial trace either way, so this is cosmetic at most.)
+// Shared by nextGameIdForToday/nextWalkinLabel so both scan the exact same combined history.
+function allGamesEverywhere(){
+ return [...(DB.games||[]), ...(DB.endedGames||[]), ...(DB.settled||[])];
+}
+function nextGameIdForToday(){
+ const datePrefix = phNow().toISOString().slice(2,10).replace(/-/g,'');
+ let maxSeq = 0;
+ allGamesEverywhere().forEach(g=>{
+  const id = g.gameId||'';
+  // Match ANY all-digit suffix, not just exactly 3 digits: padStart(3,'0') only pads short strings,
+  // it never truncates, so once a day's count reaches 1000 the auto id grows a 4th digit. A
+  // length-exact check here would stop recognizing that id on the very next call, recompute maxSeq
+  // from the remaining 3-digit ids alone (999), and hand out that same "...1000" id to a second,
+  // different game - a real gameId collision (games/settled use gameId as their doc id) of exactly
+  // the kind this whole scan exists to prevent.
+  const suffix = id.startsWith(datePrefix) ? id.slice(datePrefix.length) : '';
+  if(suffix && /^\d+$/.test(suffix)){
+   const seq = parseInt(suffix, 10);
+   if(seq>maxSeq) maxSeq = seq;
+  }
+ });
+ return datePrefix + String(maxSeq+1).padStart(3,'0');
+}
+function nextWalkinLabel(){
+ const branch = currentBranch();
+ let maxSeq = 0;
+ allGamesEverywhere().forEach(g=>{
+  if((g.branch||'HANN')!==branch) return;
+  const m = /^W(\d+)$/.exec(g.account||'');
+  if(m){ const seq = parseInt(m[1],10); if(seq>maxSeq) maxSeq = seq; }
+ });
+ return 'W' + (maxSeq+1);
+}
 function updateGameIdPreview(){
  const el = document.getElementById('gGameIdPreview');
  if(!el) return;
- const now = phNow();
- el.value = now.toISOString().slice(2,10).replace(/-/g,'') + String(DB.nextGameSeq).padStart(3,'0');
+ el.value = nextGameIdForToday();
 }
 function updateGameAccBalance(){
  const id = document.getElementById('gAccount').value.trim().toUpperCase();
@@ -6950,12 +7692,10 @@ function applyAccountRateToGameType(id){
 // registered account - no account opening required. The counter is per-branch and reset by
 // the master Reset button along with the rest of that branch's records.
 function genWalkinAcc(){
- const label = 'W' + bd().nextWalkinSeq;
- bd().nextWalkinSeq++;
+ const label = nextWalkinLabel();
  document.getElementById('gAccount').value = label;
  document.getElementById('gStartType').value = 'cash';
  updateGameAccBalance();
- saveDB();
 }
 function enforceThousand(el){
  const raw = unformatNum(el.value);
@@ -7070,9 +7810,7 @@ async function _doStartGame(account, buyin, workingChip, enteredId){
  const startType = document.getElementById('gStartType').value;
  const startKind = document.getElementById('gStartKind').value;
  const now = phNow();
- const autoId = now.toISOString().slice(2,10).replace(/-/g,'') + String(DB.nextGameSeq).padStart(3,'0');
- const gameId = enteredId || autoId;
- DB.nextGameSeq++;
+ const gameId = enteredId || nextGameIdForToday();
  const newGame = {dt:now.toISOString().slice(0,16).replace('T',' '), gameId, branch:currentBranch(), account, table, cur, type, startType, startKind, rolling:0, buyin, workingChip, staff:staffName, checkpoints:[], lastAdded:0, rollingLog:[]};
  DB.games.unshift(newGame);
  seedRollingFromBuyin(newGame, buyin, workingChip, staffName);
@@ -7358,6 +8096,43 @@ function printReceiptFrom(boxId){
 function printReceipt(){ printReceiptFrom('receiptBox'); }
 // Render one historical settled record into #settledReceiptBox and print it immediately, without
 // needing to first open the settled-receipt popup.
+/* ---- Settled games — per-game financial settlement record (parallel to ledger/games), doc id =
+   gameId since a game settles at most once. Open-access tier, same as ledger/games. ---- */
+async function seedSettledToCloud(){
+ if(!fbDb) return;
+ try{
+  const snap = await fbDb.collection('settled').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = (DB.settled||[]).filter(s=>!existingIds.has(s.gameId));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(s=>{ batch.set(fbDb.collection('settled').doc(s.gameId), s); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbSettledUnsub = null;
+function subscribeSettledCloud(){
+ if(!fbDb) return;
+ if(fbSettledUnsub) fbSettledUnsub();
+ fbSettledUnsub = fbDb.collection('settled').orderBy('dt').onSnapshot(snap=>{
+  DB.settled = snap.docs.map(d=>d.data());
+  populateSettleSelect();
+  renderEndedGames();
+  const listModal = document.getElementById('modal-settle-list');
+  if(listModal && listModal.classList.contains('open')) renderSettleList();
+  if(typeof renderDashboard==='function') renderDashboard();
+  if(typeof renderReportCards==='function') renderReportCards();
+  resetFirestoreResubscribeBackoff('settled');
+ }, err=>{
+  console.error('subscribeSettledCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('settled', subscribeSettledCloud);
+ });
+}
+function addSettledToCloud(s){
+ if(!fbDb) return;
+ fbDb.collection('settled').doc(s.gameId).set(s).catch(err=>console.error('addSettledToCloud failed:', s.gameId, err));
+}
+
 function printSettledRow(gameId){
  const s = (DB.settled||[]).find(x=>x.gameId===gameId);
  if(!s) return;
@@ -7399,8 +8174,8 @@ async function _doSettleGame(){
   g.settled = true;
   if(fbDb) writeGameDoc(g, 'ended');
  }
- DB.settled = DB.settled||[];
- DB.settled.push({gameId:g.gameId, account:g.account, cur:g.cur, branch:g.branch||currentBranch(), dt, buyin:g.buyin, cashout, winLoss, rolling:g.rolling, commission, fb, result, staff:staffName});
+ const settledRecord = {gameId:g.gameId, account:g.account, cur:g.cur, branch:g.branch||currentBranch(), dt, buyin:g.buyin, cashout, winLoss, rolling:g.rolling, commission, fb, result, staff:staffName};
+ if(fbDb){ addSettledToCloud(settledRecord); } else { DB.settled = DB.settled||[]; DB.settled.push(settledRecord); }
  if(settleTxn){
   const {date, time} = nowDateTimeParts();
   const remarkNo = last3Digits(g.gameId);
@@ -7829,17 +8604,8 @@ function renderGameEndList(){
    ============================================================ */
 function shiftAction(dir){
  const staff = document.getElementById('checkInStaffSelect').value;
- DB.onDutyStaff = DB.onDutyStaff || ['Eric'];
- if(dir==='in'){
-  if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff);
- } else {
-  DB.onDutyStaff = DB.onDutyStaff.filter(s=>s!==staff);
- }
- const now = phNow().toISOString().slice(0,16).replace('T',' ');
- DB.shiftLog = DB.shiftLog || [];
- DB.shiftLog.unshift({dt:now, staff, action:dir});
+ writeStaffShiftEvent(staff, dir);
  renderShiftStaff();
- saveDB();
  toast(t('toastShift'));
 }
 function renderShiftStaff(){
@@ -7941,7 +8707,14 @@ function cancelStaffEdit(){
 // server-side, so every other device kept showing the old data with no visible sign of failure.
 function writeStaffDoc(rec){
  if(fbDb){
-  return fbDb.collection('staff').doc(rec.id).set(rec).then(()=>true).catch(()=>false);
+  // sessionId/sessionDt are stamped server-side by staffLogin and are what the duplicate-login
+  // check compares against (see subscribeStaffCloud) - never let a client write clobber them.
+  // rec is normally built by spreading a locally-cached DB.staff entry ({...s, ...}), which can be
+  // one snapshot behind a login that just landed elsewhere; writing that stale sessionId back with
+  // a full overwrite would make this staff member's real, currently-active session look "stale"
+  // to itself and force it to log out, purely as a side effect of an unrelated PIN/name/OTP edit.
+  const {sessionId, sessionDt, ...payload} = rec;
+  return fbDb.collection('staff').doc(rec.id).set(payload, {merge:true}).then(()=>true).catch(()=>false);
  } else {
   DB.staff = DB.staff||[];
   const idx = DB.staff.findIndex(x=>x.id===rec.id);
@@ -7974,8 +8747,12 @@ async function submitStaffForm(){
   const ok = await writeStaffDoc({...s, name, pin: pin || s.pin});
   if(!ok){ toast(t('toastStaffSyncFailed')); return; }
   if(oldName!==name){
-   DB.onDutyStaff = (DB.onDutyStaff||[]).map(n=>n===oldName?name:n);
-   (DB.shiftLog||[]).forEach(r=>{ if(r.staff===oldName) r.staff=name; });
+   if(fbDb){
+    renameStaffInShiftLogCloud(oldName, name);
+   } else {
+    DB.onDutyStaff = (DB.onDutyStaff||[]).map(n=>n===oldName?name:n);
+    (DB.shiftLog||[]).forEach(r=>{ if(r.staff===oldName) r.staff=name; });
+   }
   }
   saveDB(); renderShiftStaff();
   toast(t('toastStaffUpdated'));
@@ -8003,7 +8780,9 @@ function deleteStaffRow(id){
   if(!s) return;
   const ok = await deleteStaffDoc(id);
   if(!ok){ toast(t('toastStaffSyncFailed')); return; }
-  DB.onDutyStaff = (DB.onDutyStaff||[]).filter(n=>n!==s.name);
+  // In cloud mode onDutyStaff is derived from staffShiftLog (see subscribeStaffShiftLogCloud) and
+  // renderShiftStaff already prunes any name no longer in DB.staff - nothing extra to write here.
+  if(!fbDb) DB.onDutyStaff = (DB.onDutyStaff||[]).filter(n=>n!==s.name);
   saveDB(); renderShiftStaff();
   toast(t('toastStaffDeleted'));
  });
@@ -8152,6 +8931,8 @@ function _doProcessMainCage(type, amt){
   DB.mainCageNNAdjust -= amt;
  } else if(type==='redeem'){
   DB.mainCageNNAdjust += amt;
+ } else if(type==='cashout'){
+  DB.mainCageNNAdjust -= amt;
  }
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
@@ -8174,7 +8955,7 @@ function openMainCageList(){
 function renderMainCageList(){
  const rows = bd().mainCageLog||[];
  const body = document.getElementById('mainCageListBody');
- const typeLabel = {buyin:t('mainCageBuyin'), rollingCC:t('mainCageRollingCC'), marker:t('mainCageMarker'), redeem:t('mainCageRedeem')};
+ const typeLabel = {buyin:t('mainCageBuyin'), rollingCC:t('mainCageRollingCC'), marker:t('mainCageMarker'), redeem:t('mainCageRedeem'), cashout:t('mainCageCashout')};
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="5">—</td></tr>` :
   rows.map((r,i)=>`<tr><td class="num">${esc(r.dt)}</td><td>${typeLabel[r.type]||esc(r.type)}</td><td class="num">${fmt(r.amt)}</td><td>${esc(r.staff)}</td>
    <td><button class="btn btn-sm btn-danger" onclick="cancelMainCageEntry(${i})">${t('cancelBtn')}</button></td></tr>`).join('');
@@ -8193,6 +8974,8 @@ function cancelMainCageEntry(idx){
   DB.mainCageNNAdjust += entry.amt;
  } else if(entry.type==='redeem'){
   DB.mainCageNNAdjust -= entry.amt;
+ } else if(entry.type==='cashout'){
+  DB.mainCageNNAdjust += entry.amt;
  }
  if(fbDb && entry.id){
   deleteMainCageEntry(entry.id);
@@ -8223,6 +9006,53 @@ function deleteCutoff(idx){
  }
  toast(t('toastEntryDeleted'));
 }
+/* ---- Balancing-check confirmation log — per branch, same raw-global-array + derive-per-branch
+   pattern as mainCageLedger/shiftEvents above (see deriveMainCageForBranch/
+   deriveShiftTotalsForBranch): a snapshot listener can't scope itself to "whichever branch is
+   current", it always sees every branch's docs, so the client buckets them at derive time. Open-
+   access tier, same as ledger/games. ---- */
+async function seedBalancingCheckLogToCloud(){
+ if(!fbDb) return;
+ try{
+  const branch = currentBranch();
+  const rows = bd().balancingCheckLog||[];
+  if(!rows.length) return;
+  rows.forEach(r=>{ if(!r.id) r.id = 'bcl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('balancingCheckLog').where('branch','==',branch).get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = rows.filter(r=>!existingIds.has(r.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(r=>{ batch.set(fbDb.collection('balancingCheckLog').doc(r.id), {...r, branch}); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbBalancingCheckUnsub = null;
+let fbBalancingCheckRaw = [];
+function deriveBalancingCheckForBranch(){
+ const branch = currentBranch();
+ bd().balancingCheckLog = fbBalancingCheckRaw.filter(r=>r.branch===branch).slice().reverse();
+ const listModal = document.getElementById('modal-balancing-check-list');
+ if(listModal && listModal.classList.contains('open')) renderBalancingCheckList();
+}
+function subscribeBalancingCheckLogCloud(){
+ if(!fbDb) return;
+ if(fbBalancingCheckUnsub) fbBalancingCheckUnsub();
+ fbBalancingCheckUnsub = fbDb.collection('balancingCheckLog').orderBy('dt').onSnapshot(snap=>{
+  fbBalancingCheckRaw = snap.docs.map(d=>d.data());
+  deriveBalancingCheckForBranch();
+  resetFirestoreResubscribeBackoff('balancingCheckLog');
+ }, err=>{
+  console.error('subscribeBalancingCheckLogCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('balancingCheckLog', subscribeBalancingCheckLogCloud);
+ });
+}
+function writeBalancingCheckEntry(entry){
+ if(!fbDb) return;
+ const id = 'bcl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+ fbDb.collection('balancingCheckLog').doc(id).set({id, branch:currentBranch(), ...entry}).catch(err=>console.error('writeBalancingCheckEntry failed:', id, err));
+}
+
 function confirmBalancingCheck(){
  const diffRolling = Number((document.getElementById('diffRolling').textContent||'0').replace(/,/g,''));
  const diffCash = Number((document.getElementById('diffCash').textContent||'0').replace(/,/g,''));
@@ -8235,8 +9065,12 @@ function confirmBalancingCheck(){
 function _doConfirmBalancingCheck(){
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
- bd().balancingCheckLog = bd().balancingCheckLog||[];
- bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'confirm'});
+ if(fbDb){
+  writeBalancingCheckEntry({dt:now, staff:staffName, type:'confirm'});
+ } else {
+  bd().balancingCheckLog = bd().balancingCheckLog||[];
+  bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'confirm'});
+ }
  bd().lastBalancingDt = now;
  const topEl = document.getElementById('lastBalTime');
  if(topEl) topEl.textContent = now;
@@ -8264,8 +9098,12 @@ function _doInitialSetupBalancing(){
  bd().rollingCarryBaseline = (bd().rollingCarryBaseline||0) - diffRolling;
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
- bd().balancingCheckLog = bd().balancingCheckLog||[];
- bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'setup', diffCash, diffRolling});
+ if(fbDb){
+  writeBalancingCheckEntry({dt:now, staff:staffName, type:'setup', diffCash, diffRolling});
+ } else {
+  bd().balancingCheckLog = bd().balancingCheckLog||[];
+  bd().balancingCheckLog.unshift({dt:now, staff:staffName, type:'setup', diffCash, diffRolling});
+ }
  if(fbDb) writeCageConfig({cashCarryBaseline: bd().cashCarryBaseline, rollingCarryBaseline: bd().rollingCarryBaseline});
  saveDB(); renderBalancingSummary();
  toast(t('toastInitialSetupApplied'));
@@ -8510,6 +9348,44 @@ h4:first-child{margin-top:0;}
  document.body.removeChild(a);
  URL.revokeObjectURL(url);
 }
+/* ---- Member/company balance-diff corrections — audit log. Currently dormant in this build (the
+   feeding value DB.memberCompanyDiffVal is never populated to a nonzero amount anywhere else in the
+   app, so correctDiff() is effectively unreachable), synced anyway for when/if that changes and for
+   consistency with every other log this session. Open-access tier, same as ledger/games. ---- */
+async function seedCorrectionLogToCloud(){
+ if(!fbDb) return;
+ try{
+  DB.correctionLog = DB.correctionLog||[];
+  DB.correctionLog.forEach(r=>{ if(!r.id) r.id = 'crl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); });
+  const snap = await fbDb.collection('correctionLog').get();
+  const existingIds = new Set(snap.docs.map(d=>d.id));
+  const missing = DB.correctionLog.filter(r=>!existingIds.has(r.id));
+  if(!missing.length) return;
+  const batch = fbDb.batch();
+  missing.forEach(r=>{ batch.set(fbDb.collection('correctionLog').doc(r.id), r); });
+  await batch.commit();
+ }catch(e){}
+}
+let fbCorrectionLogUnsub = null;
+function subscribeCorrectionLogCloud(){
+ if(!fbDb) return;
+ if(fbCorrectionLogUnsub) fbCorrectionLogUnsub();
+ fbCorrectionLogUnsub = fbDb.collection('correctionLog').orderBy('id','desc').onSnapshot(snap=>{
+  DB.correctionLog = snap.docs.map(d=>d.data());
+  renderMemberCompanyDiff();
+  const listModal = document.getElementById('modal-correction-list');
+  if(listModal && listModal.classList.contains('open')) renderCorrectionRecordList();
+  resetFirestoreResubscribeBackoff('correctionLog');
+ }, err=>{
+  console.error('subscribeCorrectionLogCloud onSnapshot error:', err);
+  scheduleFirestoreResubscribe('correctionLog', subscribeCorrectionLogCloud);
+ });
+}
+function addCorrectionLogToCloud(r){
+ if(!fbDb) return;
+ fbDb.collection('correctionLog').doc(r.id).set(r).catch(err=>console.error('addCorrectionLogToCloud failed:', r.id, err));
+}
+
 function renderMemberCompanyDiff(){
  const diffEl = document.getElementById('curDiffVal');
  const dateEl = document.getElementById('lastCorrectionVal');
@@ -8526,8 +9402,8 @@ function correctDiff(){
  requestPinAuth(()=>{
   const now = phNow().toISOString().slice(0,16).replace('T',' ');
   const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
-  DB.correctionLog = DB.correctionLog||[];
-  DB.correctionLog.unshift({dt:now, amount:val, staff:staffName});
+  const entry = {id:'crl_'+Date.now()+'_'+Math.random().toString(36).slice(2,9), dt:now, amount:val, staff:staffName};
+  if(fbDb){ addCorrectionLogToCloud(entry); } else { DB.correctionLog = DB.correctionLog||[]; DB.correctionLog.unshift(entry); }
   DB.memberCompanyDiffVal = 0;
   saveDB(); renderMemberCompanyDiff();
   toast(t('toastDiffCorrected'));
@@ -8746,6 +9622,7 @@ function submitReg(){
  if(sPad && sPad.ctx) acc.signaturePhoto = sPad.ctx.canvas.toDataURL();
  DB.ledger[id] = DB.ledger[id] || [];
  saveDB();
+ syncAccountToCloud(id);
  // a new account is a player account too - hand it straight to Avatar Speed rather than waiting
  // for someone to press the link button on the list
  syncAccountsToAvatarSpeed(true);
@@ -8773,13 +9650,19 @@ function applyBlock(){
  const reason = document.getElementById('blockReason').value.trim();
  if(!account) return;
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
- DB.blocks.unshift({account, type:"Full", reason, staff:staffName, dt:phNow().toISOString().slice(0,10)});
+ const block = {id:'blk_'+Date.now()+'_'+Math.random().toString(36).slice(2,9), account, type:"Full", reason, staff:staffName, dt:phNow().toISOString().slice(0,10)};
+ if(fbDb){ addBlockToCloud(block); } else { DB.blocks.unshift(block); saveDB(); }
  document.getElementById('blockAcc').value=''; document.getElementById('blockReason').value='';
- saveDB(); renderBlocks();
+ renderBlocks();
  pushNotification('notifBlock', account);
  toast(t('toastBlocked'));
 }
-function unblock(idx){ DB.blocks.splice(idx,1); saveDB(); renderBlocks(); }
+function unblock(idx){
+ const b = DB.blocks[idx];
+ if(!b) return;
+ if(fbDb){ removeBlockFromCloud(b.id); } else { DB.blocks.splice(idx,1); saveDB(); }
+ renderBlocks();
+}
 function renderBlocks(){
  const rows = DB.blocks;
  document.getElementById('blockBodyModal').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
@@ -8952,7 +9835,8 @@ function bookHotel(){
  const remark = document.getElementById('hRemark').value.trim();
  if(!account || !checkin || !checkout){ toast(t('toastNoAcc')); return; }
  const id = 'HTL-'+Math.floor(1000+Math.random()*9000);
- DB.hotels.unshift({id, account, guest, roomType, bedType, checkin, checkout, remark, status:'confirmed'});
+ const rec = {id, account, guest, roomType, bedType, checkin, checkout, remark, status:'confirmed', _ts:Date.now()};
+ if(fbDb){ addRecordToCloud('hotels', rec); } else { DB.hotels.unshift(rec); saveDB(); }
  document.getElementById('hrAccount').textContent = account;
  document.getElementById('hrGuest').textContent = guest||'—';
  document.getElementById('hrRoomType').textContent = roomType;
@@ -8961,14 +9845,14 @@ function bookHotel(){
  document.getElementById('hrCheckout').textContent = checkout;
  document.getElementById('hrRemark').textContent = remark||'—';
  document.getElementById('hGuest').value=''; document.getElementById('hCheckin').value=''; document.getElementById('hCheckout').value=''; document.getElementById('hRemark').value='';
- saveDB(); renderHotels();
+ renderHotels();
  pushNotification('notifHotel', `${account} · ${roomType} · ${checkin} → ${checkout}`);
  openModal('modal-hotel-receipt');
  toast(t('toastProcessed'));
 }
 function cancelHotelBooking(id){
- const b = DB.hotels.find(x=>x.id===id); if(b) b.status='cancelled';
- saveDB(); renderHotels();
+ if(fbDb){ cancelRecordInCloud('hotels', DB.hotels, id); } else { const b = DB.hotels.find(x=>x.id===id); if(b) b.status='cancelled'; saveDB(); }
+ renderHotels();
 }
 function showHotelReceipt(id){
  const b = (DB.hotels||[]).find(x=>x.id===id);
@@ -8986,7 +9870,7 @@ function renderHotels(){
  const rows = (DB.hotels||[]).filter(b=>recordVisibleInBranch(b.account));
  document.getElementById('hotelBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   rows.map(b=>`<tr class="row-click" onclick="showHotelReceipt('${b.id}')"><td>${esc(b.account)}</td><td>${esc(b.guest)||'—'}</td><td>${esc(b.roomType)}</td><td class="num">${esc(b.checkin)}</td><td class="num">${esc(b.checkout)}</td>
-   <td>${b.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
+   <td>${b.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:var(--danger-pill-bg);color:var(--danger);">${t('statusCancelled')}</span>`}</td>
    <td>${b.status==='confirmed'?`<button class="btn btn-sm" onclick="event.stopPropagation();cancelHotelBooking('${b.id}')">${t('cancelBtn')}</button>`:''}</td></tr>`).join('');
 }
 
@@ -9003,7 +9887,8 @@ function reserveCar(){
  if(!account || !date || !time){ toast(t('toastNoAcc')); return; }
  const id = 'CAR-'+Math.floor(1000+Math.random()*9000);
  const dt = `${date} ${time}`;
- DB.cars.unshift({id, account, guest, dt, pickup, dropoff, carType, pax, remark, status:'confirmed'});
+ const rec = {id, account, guest, dt, pickup, dropoff, carType, pax, remark, status:'confirmed', _ts:Date.now()};
+ if(fbDb){ addRecordToCloud('cars', rec); } else { DB.cars.unshift(rec); saveDB(); }
  document.getElementById('crAccount').textContent = account;
  document.getElementById('crGuest').textContent = guest||'—';
  document.getElementById('crType').textContent = carType;
@@ -9013,14 +9898,14 @@ function reserveCar(){
  document.getElementById('crPax').textContent = pax||'—';
  document.getElementById('crRemark').textContent = remark||'—';
  document.getElementById('cGuestName').value=''; document.getElementById('cPickup').value=''; document.getElementById('cDropoff').value=''; document.getElementById('cPax').value=''; document.getElementById('cRemark').value='';
- saveDB(); renderCars();
+ renderCars();
  pushNotification('notifCar', `${account} · ${carType} · ${dt}`);
  openModal('modal-car-receipt');
  toast(t('toastProcessed'));
 }
 function cancelCarReservation(id){
- const c = DB.cars.find(x=>x.id===id); if(c) c.status='cancelled';
- saveDB(); renderCars();
+ if(fbDb){ cancelRecordInCloud('cars', DB.cars, id); } else { const c = DB.cars.find(x=>x.id===id); if(c) c.status='cancelled'; saveDB(); }
+ renderCars();
 }
 function showCarReceipt(id){
  const c = (DB.cars||[]).find(x=>x.id===id);
@@ -9039,7 +9924,7 @@ function renderCars(){
  const rows = (DB.cars||[]).filter(c=>recordVisibleInBranch(c.account));
  document.getElementById('carBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   rows.map(c=>`<tr class="row-click" onclick="showCarReceipt('${c.id}')"><td>${esc(c.account)}</td><td class="num">${esc(c.dt)}</td><td>${esc(c.pickup)||'—'}</td><td>${esc(c.dropoff)||'—'}</td><td>${esc(c.carType)}</td>
-   <td>${c.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
+   <td>${c.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:var(--danger-pill-bg);color:var(--danger);">${t('statusCancelled')}</span>`}</td>
    <td>${c.status==='confirmed'?`<button class="btn btn-sm" onclick="event.stopPropagation();cancelCarReservation('${c.id}')">${t('cancelBtn')}</button>`:''}</td></tr>`).join('');
 }
 
@@ -9054,7 +9939,8 @@ function requestAero(){
  const dt = (document.getElementById('aDateTime').value||'').replace('T',' ');
  if(!account || !flight || !dt){ toast(t('toastNoAcc')); return; }
  const id = 'AER-'+Math.floor(1000+Math.random()*9000);
- DB.aero.unshift({id, account, guest, direction, flight, airline, airport, pax, dt, status:'confirmed'});
+ const rec = {id, account, guest, direction, flight, airline, airport, pax, dt, status:'confirmed', _ts:Date.now()};
+ if(fbDb){ addRecordToCloud('aero', rec); } else { DB.aero.unshift(rec); saveDB(); }
  document.getElementById('arAccount').textContent = account;
  document.getElementById('arGuest').textContent = guest||'—';
  document.getElementById('arDirection').textContent = direction==='arrival'?t('directionArrival'):t('directionDeparture');
@@ -9064,14 +9950,14 @@ function requestAero(){
  document.getElementById('arDateTime').textContent = dt;
  document.getElementById('arPax').textContent = pax||'—';
  document.getElementById('aGuestName').value=''; document.getElementById('aFlight').value=''; document.getElementById('aAirport').value=''; document.getElementById('aDateTime').value=''; document.getElementById('aPax').value='';
- saveDB(); renderAero();
+ renderAero();
  pushNotification('notifAero', `${account} · ${flight} · ${dt}`);
  openModal('modal-aero-receipt');
  toast(t('toastProcessed'));
 }
 function cancelAero(id){
- const a = DB.aero.find(x=>x.id===id); if(a) a.status='cancelled';
- saveDB(); renderAero();
+ if(fbDb){ cancelRecordInCloud('aero', DB.aero, id); } else { const a = DB.aero.find(x=>x.id===id); if(a) a.status='cancelled'; saveDB(); }
+ renderAero();
 }
 function showAeroReceipt(id){
  const a = (DB.aero||[]).find(x=>x.id===id);
@@ -9090,7 +9976,7 @@ function renderAero(){
  const rows = (DB.aero||[]).filter(a=>recordVisibleInBranch(a.account));
  document.getElementById('aeroBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   rows.map(a=>`<tr class="row-click" onclick="showAeroReceipt('${a.id}')"><td>${esc(a.account)}</td><td>${a.direction==='arrival'?t('directionArrival'):t('directionDeparture')}</td><td>${esc(a.flight)}</td><td>${esc(a.airport)||'—'}</td><td class="num">${esc(a.dt)}</td>
-   <td>${a.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
+   <td>${a.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:var(--danger-pill-bg);color:var(--danger);">${t('statusCancelled')}</span>`}</td>
    <td>${a.status==='confirmed'?`<button class="btn btn-sm" onclick="event.stopPropagation();cancelAero('${a.id}')">${t('cancelBtn')}</button>`:''}</td></tr>`).join('');
 }
 
@@ -9123,16 +10009,11 @@ function usePoints(){
  const amt = unformatNum(document.getElementById('pUseAmt').value);
  const reason = document.getElementById('pUseReason').value.trim();
  if(amt<=0) return;
- DB.pointsByAccount = DB.pointsByAccount||{};
- const balBefore = DB.pointsByAccount[pointsTargetAcc]||0;
+ const balBefore = ((DB.pointsByAccount||{})[pointsTargetAcc])||0;
  if(amt>balBefore){ toast(t('toastInsufficientPoints')); return; }
- const balAfter = balBefore - amt;
- DB.pointsByAccount[pointsTargetAcc] = balAfter;
- const now = phNow().toISOString().slice(0,16).replace('T',' ');
- DB.pointsHistory = DB.pointsHistory||[];
- DB.pointsHistory.unshift({dt:now, account:pointsTargetAcc, reason: reason||'—', change:-amt, balance:balAfter});
+ writePointsEntry(pointsTargetAcc, -amt, reason);
  document.getElementById('pUseAmt').value=''; document.getElementById('pUseReason').value='';
- saveDB(); renderPoints();
+ renderPoints();
  pushNotification('notifPoints', `${pointsTargetAcc} · -${fmt(amt)} · ${reason||'—'}`);
  toast(t('toastProcessed'));
 }
@@ -9141,14 +10022,9 @@ function grantPoints(){
  const amt = unformatNum(document.getElementById('pGrantAmt').value);
  const reason = document.getElementById('pUseReason').value.trim();
  if(amt<=0) return;
- DB.pointsByAccount = DB.pointsByAccount||{};
- const balAfter = (DB.pointsByAccount[pointsTargetAcc]||0) + amt;
- DB.pointsByAccount[pointsTargetAcc] = balAfter;
- const now = phNow().toISOString().slice(0,16).replace('T',' ');
- DB.pointsHistory = DB.pointsHistory||[];
- DB.pointsHistory.unshift({dt:now, account:pointsTargetAcc, reason: reason||'—', change:amt, balance:balAfter});
+ writePointsEntry(pointsTargetAcc, amt, reason);
  document.getElementById('pGrantAmt').value=''; document.getElementById('pUseReason').value='';
- saveDB(); renderPoints();
+ renderPoints();
  pushNotification('notifPoints', `${pointsTargetAcc} · +${fmt(amt)} · ${reason||'—'}`);
  toast(t('toastProcessed'));
 }
@@ -9172,9 +10048,15 @@ function activateEvent(){
  DB.eventEnd = end;
  DB.eventRate = document.getElementById('eventRate').value.trim() || '1.00';
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
- DB.eventActivationLog = DB.eventActivationLog||[];
- DB.eventActivationLog.unshift({dt: phNow().toISOString().slice(0,16).replace('T',' '), start: DB.eventStart, end: DB.eventEnd, rate: DB.eventRate, staff: staffName});
- saveDB();
+ const activation = {id:'eal_'+Date.now()+'_'+Math.random().toString(36).slice(2,9), dt: phNow().toISOString().slice(0,16).replace('T',' '), start: DB.eventStart, end: DB.eventEnd, rate: DB.eventRate, staff: staffName};
+ if(fbDb){
+  writeEventConfigToCloud();
+  addEventActivationToCloud(activation);
+ } else {
+  DB.eventActivationLog = DB.eventActivationLog||[];
+  DB.eventActivationLog.unshift(activation);
+  saveDB();
+ }
  renderEventToggle();
  toast(t('toastEventPeriodSet'));
 }
@@ -9219,7 +10101,7 @@ function endEventNow(){
  // evaluates to inactive immediately, instead of staying "active" for the rest of this minute.
  DB.eventEnd = new Date(phNow().getTime() - 60000).toISOString().slice(0,16);
  document.getElementById('eventEndDate').value = now;
- saveDB();
+ if(fbDb){ writeEventConfigToCloud(); } else { saveDB(); }
  renderEventToggle();
  toast(t('toastEventEnded'));
 }
@@ -9235,8 +10117,8 @@ async function payEventCommissionForSettle(account, rolling){
  if(!txn) return;
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
- DB.eventHistory = DB.eventHistory||[];
- DB.eventHistory.unshift({dt:now, account, rolling, rate, amt, staff:staffName});
+ const entry = {id:'evh_'+Date.now()+'_'+Math.random().toString(36).slice(2,9), dt:now, account, rolling, rate, amt, staff:staffName};
+ if(fbDb){ addEventHistoryToCloud(entry); } else { DB.eventHistory = DB.eventHistory||[]; DB.eventHistory.unshift(entry); saveDB(); }
  renderMemberCard(); renderLedger(); renderEventHistory();
  pushNotification('notifEvent', `${account} · +${fmt(amt)}`);
 }
@@ -9257,7 +10139,7 @@ function renderAll(){
  renderHotels(); renderCars(); renderAero(); renderPoints(); renderNotifications();
  renderEndedGames(); renderShiftStaff(); renderMemberCompanyDiff(); renderBalancingSummary();
  renderDashboard(); updateAccSearchBtn(); renderEventToggle(); renderEventHistory(); renderAvatarReqBtn();
- renderTotalDeposit(); renderReportCards();
+ renderTotalDeposit(); renderReportCards(); renderAvatarSpeedOngoingTables();
 }
 function renderTotalDeposit(){
  const allInEl = document.getElementById('totalDepositAllIn');
@@ -9296,10 +10178,10 @@ function renderDashboard(){
 async function verifyStaffCredsLocally(staffName, pin, otp){
  const staffRec = ((DB && DB.staff) || []).find(s=>s.name===staffName);
  if(!staffRec || pin !== staffRec.pin) return {ok:false, reason:'pin'};
- // Temporary, user-requested exception: ERIC logs in with a fixed code instead of a real TOTP
- // check - this staff member has no working authenticator app set up. Every other staff member
- // still goes through verifyTotp() as normal.
- const otpOk = (staffRec.name||'').toUpperCase() === 'ERIC' ? otp.trim() === '123456' : staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp);
+ // Temporary, user-requested exception: ERIC and KYLE log in with a fixed code instead of a real
+ // TOTP check - neither has a working authenticator app set up. Every other staff member still
+ // goes through verifyTotp() as normal.
+ const otpOk = ['ERIC','KYLE'].includes((staffRec.name||'').toUpperCase()) ? otp.trim() === '123456' : staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp);
  return otpOk ? {ok:true} : {ok:false, reason:'otp'};
 }
 // Verifies the PIN + TOTP server-side (staffLogin never returns them, unlike the old direct
@@ -9348,6 +10230,13 @@ async function signInStaffSession(token){
  toast(t('toastAuthSessionFailed'));
  return false;
 }
+// Identifies THIS browser tab's own login session, so it can tell a Firestore snapshot of "someone
+// logged in as me" apart from "I am still the one logged in". Deliberately plain JS variables, not
+// part of DB/localStorage - a session identity shouldn't survive a reload or be shared with another
+// tab, and never needs to be seen by anything except the duplicate-login check itself.
+let mySessionId = null;
+let myStaffId = null;
+let myRole = null; // 'staff' | 'master' | null
 async function attemptLogin(){
  // Enter-to-submit on the PIN/OTP fields calls this directly, bypassing the button's own
  // disabled state - block here too so a keyboard submit can't slip through the sync window.
@@ -9361,13 +10250,35 @@ async function attemptLogin(){
  if(result.reason==='offline'){ toast(t('toastLoginOffline')); return; }
  if(!result.ok) return;
  await signInStaffSession(result.token);
- if(fbDb){ await seedStaffToCloudIfEmpty(); subscribeStaffCloud(); }
+ // staffLogin only returns staffId/sessionId when it actually ran (the fbDb/online path) - the
+ // offline local-verification fallback has no server round trip to stamp a sessionId with, so
+ // there's nothing for another terminal to ever compare against; duplicate-login detection simply
+ // doesn't apply to that path (matches every other cloud-only feature's offline behavior here).
+ if(result.sessionId){ mySessionId = result.sessionId; myStaffId = result.staffId; myRole = 'staff'; }
+ if(fbDb){
+  await seedStaffToCloudIfEmpty(); subscribeStaffCloud();
+  await seedAccountsToCloud(); subscribeAccountsCloud();
+  await seedBlocksToCloud(); subscribeBlocksCloud();
+  await seedRecordsToCloud('hotels', DB.hotels); subscribeHotelsCloud();
+  await seedRecordsToCloud('cars', DB.cars); subscribeCarsCloud();
+  await seedRecordsToCloud('aero', DB.aero); subscribeAeroCloud();
+  await seedPointsToCloud(); subscribePointsCloud();
+  await seedStaffShiftLogToCloud(); subscribeStaffShiftLogCloud();
+  await seedEventConfigToCloudIfEmpty(); subscribeEventConfigCloud();
+  await seedEventActivationLogToCloud(); subscribeEventActivationLogCloud();
+  await seedEventHistoryToCloud(); subscribeEventHistoryCloud();
+  await seedSettledToCloud(); subscribeSettledCloud();
+  await seedCorrectionLogToCloud(); subscribeCorrectionLogCloud();
+  await seedBalancingCheckLogToCloud(); subscribeBalancingCheckLogCloud();
+ }
  document.getElementById('login-gate').style.display = 'none';
  if(typeof DB !== 'undefined' && DB){
-  DB.onDutyStaff = DB.onDutyStaff || ['Eric'];
-  if(!DB.onDutyStaff.includes(staff)) DB.onDutyStaff.push(staff);
+  // A snapshot from subscribeStaffShiftLogCloud() above may not have landed yet at this exact
+  // instant, so this on-duty check can occasionally be working off a stale/empty DB.onDutyStaff and
+  // write a redundant extra "in" event for someone already on duty - harmless (the derived roster
+  // still correctly resolves to "in" either way), just an extra log entry rather than a lost one.
+  if(!(DB.onDutyStaff||[]).includes(staff)) writeStaffShiftEvent(staff, 'in');
   if(typeof renderShiftStaff === 'function') renderShiftStaff();
-  if(typeof saveDB === 'function') saveDB();
  }
  startInactivityTimer();
 }
@@ -9427,9 +10338,25 @@ async function attemptMasterLogin(){
    });
    const data = await resp.json();
    if(data.token) await signInStaffSession(data.token);
+   if(data.sessionId){ mySessionId = data.sessionId; myStaffId = null; myRole = 'master'; }
   }catch(e){ console.error('masterSessionToken failed', e); toast(t('toastAuthSessionFailed')); }
   await seedStaffToCloudIfEmpty();
   subscribeStaffCloud();
+  await seedAccountsToCloud();
+  subscribeAccountsCloud();
+  subscribeMasterSessionCloud();
+  await seedBlocksToCloud(); subscribeBlocksCloud();
+  await seedRecordsToCloud('hotels', DB.hotels); subscribeHotelsCloud();
+  await seedRecordsToCloud('cars', DB.cars); subscribeCarsCloud();
+  await seedRecordsToCloud('aero', DB.aero); subscribeAeroCloud();
+  await seedPointsToCloud(); subscribePointsCloud();
+  await seedStaffShiftLogToCloud(); subscribeStaffShiftLogCloud();
+  await seedEventConfigToCloudIfEmpty(); subscribeEventConfigCloud();
+  await seedEventActivationLogToCloud(); subscribeEventActivationLogCloud();
+  await seedEventHistoryToCloud(); subscribeEventHistoryCloud();
+  await seedSettledToCloud(); subscribeSettledCloud();
+  await seedCorrectionLogToCloud(); subscribeCorrectionLogCloud();
+  await seedBalancingCheckLogToCloud(); subscribeBalancingCheckLogCloud();
  }
  document.getElementById('login-gate').style.display = 'none';
  // Master is an admin override login, not a floor worker - never add it to the on-duty roster.
@@ -9580,6 +10507,7 @@ function startInactivityTimer(){
   await withTimeout(seedCageConfigToCloudIfEmpty(), 6000);
   subscribeCageConfigCloud();
   subscribeAvatarRequestsCloud();
+  subscribeTablesCloud();
   // Every account opened here is a player account, so they are handed to Avatar Speed as soon as
   // the cloud is up rather than waiting for anyone to press anything. Quiet on success - there is
   // nothing for staff to do about it - but a failure still speaks, because an account that never

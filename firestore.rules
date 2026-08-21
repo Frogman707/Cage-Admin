@@ -10,6 +10,24 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // Guest/member accounts carry a plaintext withdrawal password and login password plus
+    // passport/site/signature photos - same sensitivity class as staff, same protection: no
+    // access without a signed-in client. Unlike staff there is no server-gated Cloud Function
+    // path to this collection (yet) - it's read/written directly by the client once
+    // signInWithCustomToken() has completed post-login, exactly like every other authenticated
+    // collection below.
+    match /accounts/{accountId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Single doc (masterSession/current) holding the sessionId stamped by masterSessionToken on
+    // every master login - master clients watch it to detect a newer login elsewhere and log
+    // themselves out (see subscribeMasterSessionCloud in index.html). Not secret data itself, but
+    // gated the same as staff/accounts for consistency and so only a signed-in client can churn it.
+    match /masterSession/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
     // Every other top-level collection keeps the app's current behavior (no auth system covers
     // these yet - see the project engineering review, Track B) - unrestricted, matching what was
     // already effectively the case before this file existed (no rules file meant Firestore's
@@ -21,8 +39,13 @@ service cloud.firestore {
     // to a fixed depth, and rejects every collection-level onSnapshot()/query() with "Variable is
     // not bound in path template" even though plain get-by-id reads work fine. Every collection
     // this app uses is top-level (no subcollections), so this bounded form covers all of them.
+    //
+    // A path matching both a specific match block above and this one is granted access if EITHER
+    // evaluates to true (Firestore ORs all matching rules) - so every collection with its own
+    // specific match block above needs to be explicitly excluded here too, or this catch-all
+    // would silently reopen it.
     match /{collection}/{docId} {
-      allow read, write: if collection != 'staff';
+      allow read, write: if collection != 'staff' && collection != 'accounts' && collection != 'masterSession';
     }
   }
 }

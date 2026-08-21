@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cage Admin</title>
+<script>
+// Runs synchronously before <style> is parsed, so the very first paint already has the right
+// theme - applying this any later (e.g. from the main script after the DOM loads) would flash
+// the default dark theme first on every page load for anyone who picked light.
+(function(){ try{ if(localStorage.getItem('cage-admin-theme')==='light') document.documentElement.setAttribute('data-theme','light'); }catch(e){} })();
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
@@ -22,11 +28,45 @@
   --line:#1E3555;
   --danger:#D9695A;
   --danger-dim:#8C392C;
+  --pos-text:#7FCBA8;
+  --cc-text:#6FE0C4;
+  --out-text:#E8998C;
+  /* Solid button/toast fills paired with a hardcoded dark label color (#071120/#0d1a15) - these
+     stay the same bright brand swatch in both themes (a primary CTA's own color isn't usually
+     something a light/dark toggle should change), unlike --brass/--jade themselves, which DO need
+     to darken in light mode to stay legible as plain text on a light background. */
+  --brass-fill:#D9B26A;
+  --jade-fill:#2FA98C;
+  --danger-pill-bg:#3a2418;
+  --glow:#14315A;
   --radius:6px;
   --serif:var(--sans);
   --sans:'Noto Sans','Noto Sans KR','Noto Sans TC','Noto Sans SC',-apple-system,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,monospace;
   --grad-gold:linear-gradient(135deg,#F0DBA8 0%,#D9B26A 38%,#B8863A 78%,#9C7530 100%);
+  color-scheme:dark;
+}
+[data-theme="light"]{
+  --void:#F7F3E7;
+  --panel:#FFFFFF;
+  --panel-raised:#F1EAD6;
+  --panel-hi:#E6DBBB;
+  --brass:#8A6A34;
+  --brass-dim:#C9A45C;
+  --jade:#1C7A62;
+  --jade-dim:#1C6E5A;
+  --ink:#241F13;
+  --ink-dim:#6B6248;
+  --ink-faint:#8C8468;
+  --line:#E2D8BE;
+  --danger:#B8402F;
+  --danger-dim:#8C392C;
+  --pos-text:#1C7A62;
+  --cc-text:#177A63;
+  --out-text:#A8402F;
+  --danger-pill-bg:#F5DEDA;
+  --glow:#FFFDF3;
+  color-scheme:light;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;height:100%;color:var(--ink);font-family:var(--sans);}
@@ -34,7 +74,7 @@ body{
   display:flex;flex-direction:column;overflow:hidden;background-color:var(--void);
   background-image:
     repeating-linear-gradient(135deg, rgba(217,178,106,.028) 0px, rgba(217,178,106,.028) 1px, transparent 1px, transparent 7px),
-    radial-gradient(ellipse 1500px 900px at 50% -8%, #14315A 0%, var(--void) 55%);
+    radial-gradient(ellipse 1500px 900px at 50% -8%, var(--glow) 0%, var(--void) 55%);
 }
 @media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms !important;transition-duration:.001ms !important;} }
 ::-webkit-scrollbar{width:8px;height:8px;}
@@ -71,7 +111,13 @@ input,select,textarea{font-family:var(--sans);}
   background:transparent;border:none;color:var(--ink-faint);font-size:11px;font-weight:600;
   padding:5px 9px;border-radius:2px;transition:.15s;
 }
-.lang-switch button.active{background:var(--brass);color:#071120;}
+.lang-switch button.active{background:var(--brass-fill);color:#071120;}
+/* Icon shown = what clicking switches TO (sun while dark = "go light", moon while light = "go
+   dark") - pure CSS, keyed off the same [data-theme] attribute the app already toggles for colors,
+   so there's no separate JS-driven icon state that could ever drift out of sync with it. */
+.theme-toggle-btn .icon-moon{display:none;}
+[data-theme="light"] .theme-toggle-btn .icon-sun{display:none;}
+[data-theme="light"] .theme-toggle-btn .icon-moon{display:block;}
 
 /* ===== Shell ===== */
 .shell{flex:1;display:flex;min-height:0;}
@@ -126,7 +172,6 @@ h2.page-title{font-family:var(--serif);font-weight:800;font-size:25px;color:var(
   width:100%;background:var(--void);border:1px solid var(--line);color:var(--ink);
   padding:8px 10px;border-radius:var(--radius);font-size:13px;
   transition:border-color .15s ease, box-shadow .15s ease;
-  color-scheme:dark;
 }
 .field textarea{resize:vertical;min-height:56px;}
 input[type="datetime-local"]{min-width:150px;}
@@ -145,9 +190,9 @@ input[type="datetime-local"]{min-width:150px;}
 }
 .btn:hover{border-color:var(--brass-dim);transform:translateY(-1px);box-shadow:0 4px 14px -6px rgba(0,0,0,.45);}
 .btn:active{transform:translateY(0);box-shadow:none;}
-.btn-gold{background:var(--brass);border-color:var(--brass);color:#071120;}
+.btn-gold{background:var(--brass-fill);border-color:var(--brass-fill);color:#071120;}
 .btn-gold:hover{background:linear-gradient(135deg,#F5E4BC,#E3C583,#C89A4E,#AC7F3A);box-shadow:0 6px 22px -6px rgba(217,178,106,.6);transform:translateY(-1px);}
-.btn-jade{background:var(--jade);border-color:var(--jade);color:#0d1a15;}
+.btn-jade{background:var(--jade-fill);border-color:var(--jade-fill);color:#0d1a15;}
 .btn-jade:hover{box-shadow:0 6px 18px -6px rgba(47,169,140,.55);}
 .btn-danger{background:transparent;border-color:var(--danger-dim);color:var(--danger);}
 .btn-danger:hover{background:rgba(217,105,90,.1);border-color:var(--danger);}
@@ -192,17 +237,17 @@ th{
   text-align:left;color:var(--ink-faint);font-weight:600;font-size:10.5px;text-transform:uppercase;
   letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;
 }
-td{padding:8px 10px;border-bottom:1px solid #24251A;color:var(--ink);white-space:nowrap;transition:background .12s ease;}
+td{padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink);white-space:nowrap;transition:background .12s ease;}
 .table-compact th,.table-compact td{padding:7px 6px;font-size:11.5px;}
 tbody tr:nth-child(even) td{background:rgba(255,255,255,.012);}
 tr:hover td{background:var(--panel-raised);}
 .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);}
-.pos{color:#7FCBA8;}
+.pos{color:var(--pos-text);}
 .neg{color:var(--danger);}
 .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
-.pill.cc{background:rgba(47,169,140,.18);color:#6FE0C4;}
+.pill.cc{background:rgba(47,169,140,.18);color:var(--cc-text);}
 .pill.nn{background:rgba(217,105,90,.18);color:var(--danger);}
-.pill.out{background:rgba(217,105,90,.18);color:#E8998C;}
+.pill.out{background:rgba(217,105,90,.18);color:var(--out-text);}
 
 .tabs-mini{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px;}
 .tabs-mini button{background:none;border:none;color:var(--ink-faint);padding:8px 14px;font-size:12px;font-weight:600;border-bottom:2px solid transparent;}
@@ -221,7 +266,7 @@ tr:hover td{background:var(--panel-raised);}
 .modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
 .hint{font-size:11px;color:var(--ink-faint);margin-top:4px;line-height:1.5;}
 .checkbox-row{display:flex;align-items:center;gap:8px;font-size:12px;}
-.stat-line{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid #26271b;}
+.stat-line{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line);}
 .stat-line b{font-family:var(--mono);}
 .sig-pad{background:var(--void);border:1px solid var(--line);border-radius:4px;touch-action:none;width:100%;height:220px;}
 @media (min-width:1300px){ #sigPad{height:340px;} }
@@ -293,7 +338,7 @@ tr:hover td{background:var(--panel-raised);}
 .receipt .rapproved{margin-top:12px;font-size:10.5px;font-weight:600;}
 .receipt .rsign-row{display:flex;justify-content:flex-end;margin-top:14px;gap:24px;}
 .receipt .rsign-row div{flex:0 0 50%;text-align:center;border-top:1px solid #1a1a1a;padding-top:5px;font-size:10.5px;}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--brass);color:#071120;
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--brass-fill);color:#071120;
   padding:9px 18px;border-radius:20px;font-size:12.5px;font-weight:700;z-index:300;opacity:0;transition:.25s;pointer-events:none;}
 .toast.show{opacity:1;bottom:30px;}
 .empty-row td{text-align:center;color:var(--ink-faint);padding:20px;}
@@ -311,7 +356,7 @@ tr:hover td{background:var(--panel-raised);}
 .notif-dropdown{display:none;position:absolute;top:calc(100% + 10px);right:0;width:320px;max-height:440px;overflow-y:auto;background:var(--panel);border:1px solid var(--brass-dim);border-radius:6px;z-index:250;box-shadow:0 14px 34px rgba(0,0,0,.55);}
 .notif-dropdown.open{display:block;}
 .notif-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:11.5px;position:sticky;top:0;background:var(--panel);}
-.notif-item{padding:10px 14px;border-bottom:1px solid #24251A;font-size:12px;cursor:pointer;}
+.notif-item{padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px;cursor:pointer;}
 .notif-item:hover{background:var(--panel-raised);}
 .notif-item.unread{background:rgba(198,149,47,.08);}
 .notif-item .ni-title{font-weight:700;color:var(--ink);margin-bottom:2px;display:flex;align-items:center;gap:6px;}
@@ -324,7 +369,7 @@ tr:hover td{background:var(--panel-raised);}
   background:var(--panel);border:1px solid var(--brass-dim);border-radius:8px;
   max-height:220px;overflow-y:auto;box-shadow:0 14px 30px -10px rgba(0,0,0,.65);
 }
-.transfer-acc-item{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;font-size:12.5px;cursor:pointer;border-bottom:1px solid #1c2c48;}
+.transfer-acc-item{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--line);}
 .transfer-acc-item:last-child{border-bottom:none;}
 .transfer-acc-item:hover{background:var(--panel-raised);}
 .transfer-acc-item b{color:var(--brass);font-family:var(--mono);font-weight:700;}
@@ -365,7 +410,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .chip-section .row > .field{flex:1 1 100px;min-width:100px;margin-bottom:8px;}
 .chip-section-title{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--brass);margin-bottom:8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
 .chip-section-title.nn{color:var(--danger);}
-.chip-section-title.cc{color:#6FE0C4;}
+.chip-section-title.cc{color:var(--cc-text);}
 .chip-section-title .hint{font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint);margin:0;}
 .tg-modal{text-align:center;}
 .tg-modal h3{margin:0 0 14px;}
@@ -387,7 +432,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 @keyframes tgPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(1.35);}}
 .tg-divider{border-top:1px solid var(--brass-dim);opacity:.28;margin:18px 0 14px;}
 .tg-manage-btn{font-size:12.5px;padding:9px;opacity:.82;}
-.tg-manage-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #24251A;font-size:12.5px;}
+.tg-manage-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);font-size:12.5px;}
 .breakdown-card{display:flex;flex-direction:column;}
 .breakdown-card .stat-line{margin-top:auto;padding-top:12px;}
 .eq-card{display:flex;flex-direction:column;}
@@ -423,7 +468,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .dash-asset-box .delta.neg{color:var(--danger);}
 #login-gate{
   position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(ellipse 1500px 900px at 50% -8%, #14315A 0%, var(--void) 55%);
+  background:radial-gradient(ellipse 1500px 900px at 50% -8%, var(--glow) 0%, var(--void) 55%);
 }
 #login-gate::before{
   content:'';position:absolute;inset:0;
@@ -676,6 +721,10 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <button data-lang="zh-TW">繁體</button>
     <button data-lang="zh-CN">简体</button>
   </div>
+  <button class="notif-bell theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" data-i18n-title="themeToggleTitle">
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+  </button>
   <button class="notif-bell" id="avatarReqBtn" onclick="checkAvatarRequest()" data-i18n-title="avatarReqTitle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><span class="notif-badge" id="avatarReqBadge" style="display:none;">!</span></button>
   <div class="notif-wrap">
     <button class="notif-bell" id="notifBell" onclick="toggleNotif()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13 6 9z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg><span class="notif-badge" id="notifBadge" style="display:none;">0</span></button>
@@ -5890,7 +5939,7 @@ ko:{
  toastEventInactive:"먼저 이벤트를 활성화하세요.", toastEventPaid:"이벤트 커미션이 지급되었습니다.", notifEvent:"이벤트 커미션 지급",
  colPointsChange:"증감", colPointsBalance:"잔여 포인트", pointsEarn:"적립", pointsUse:"사용",
  notifTitle:"알림", notifMarkAll:"모두 읽음", notifEmpty:"새 알림이 없습니다.",
- avatarReqTitle:"아바타 요청 확인", toastNoAvatarReq:"대기중인 아바타 요청이 없습니다.", toastAvatarReqChecked:"아바타 요청을 확인했습니다.", avatarIdLabel:"아바타 ID", toastAvatarReqCancelled:"아바타 요청이 취소되었습니다.",
+ avatarReqTitle:"아바타 요청 확인", toastNoAvatarReq:"대기중인 아바타 요청이 없습니다.", toastAvatarReqChecked:"아바타 요청을 확인했습니다.", avatarIdLabel:"아바타 ID", toastAvatarReqCancelled:"아바타 요청이 취소되었습니다.", themeToggleTitle:"다크모드/라이트모드 전환",
  notifDeposit:"입금 처리", notifWithdraw:"출금 처리", notifTransferT:"이체 완료", notifGameStart:"게임 시작", notifGameSettle:"정산 완료",
  notifBlock:"어카운트 차단", notifRegister:"신규 어카운트 등록", notifHotel:"호텔 예약", notifCar:"차량 예약", notifAero:"아로 서비스 요청", notifPoints:"포인트 사용",
  branch:"지점", close:"닫기", moreLabel:"더보기",
@@ -6028,7 +6077,7 @@ en:{
  toastEventInactive:"Activate the event first.", toastEventPaid:"Event commission paid.", notifEvent:"Event Commission Paid",
  colPointsChange:"Change", colPointsBalance:"Balance", pointsEarn:"Earned", pointsUse:"Used",
  notifTitle:"Notifications", notifMarkAll:"Mark all read", notifEmpty:"No new notifications.",
- avatarReqTitle:"Check Avatar Request", toastNoAvatarReq:"No pending avatar requests.", toastAvatarReqChecked:"Avatar request checked.", avatarIdLabel:"Avatar ID", toastAvatarReqCancelled:"Avatar request cancelled.",
+ avatarReqTitle:"Check Avatar Request", toastNoAvatarReq:"No pending avatar requests.", toastAvatarReqChecked:"Avatar request checked.", avatarIdLabel:"Avatar ID", toastAvatarReqCancelled:"Avatar request cancelled.", themeToggleTitle:"Toggle dark/light mode",
  notifDeposit:"Deposit Processed", notifWithdraw:"Withdrawal Processed", notifTransferT:"Transfer Completed", notifGameStart:"Game Started", notifGameSettle:"Settlement Completed",
  notifBlock:"Account Blocked", notifRegister:"New Account Registered", notifHotel:"Hotel Booked", notifCar:"Car Reserved", notifAero:"ARO Service Requested", notifPoints:"Points Used",
  branch:"Branch", close:"Close", moreLabel:"More",
@@ -6167,7 +6216,7 @@ en:{
  toastEventInactive:"請先啟用活動。", toastEventPaid:"活動佣金已發放。", notifEvent:"活動佣金發放",
  colPointsChange:"變動", colPointsBalance:"餘額", pointsEarn:"累積", pointsUse:"使用",
  notifTitle:"通知", notifMarkAll:"全部已讀", notifEmpty:"目前沒有新通知。",
- avatarReqTitle:"確認阿凡達請求", toastNoAvatarReq:"目前沒有待處理的阿凡達請求。", toastAvatarReqChecked:"已確認阿凡達請求。", avatarIdLabel:"阿凡達 ID", toastAvatarReqCancelled:"阿凡達請求已取消。",
+ avatarReqTitle:"確認阿凡達請求", toastNoAvatarReq:"目前沒有待處理的阿凡達請求。", toastAvatarReqChecked:"已確認阿凡達請求。", avatarIdLabel:"阿凡達 ID", toastAvatarReqCancelled:"阿凡達請求已取消。", themeToggleTitle:"切換深色/淺色模式",
  notifDeposit:"存款已處理", notifWithdraw:"提款已處理", notifTransferT:"轉帳已完成", notifGameStart:"賽局已開始", notifGameSettle:"結算已完成",
  notifBlock:"帳戶已封鎖", notifRegister:"新帳戶已登記", notifHotel:"飯店已預訂", notifCar:"車輛已預約", notifAero:"ARO服務已申請", notifPoints:"積分已使用",
  branch:"分店", close:"關閉", moreLabel:"更多",
@@ -6306,7 +6355,7 @@ en:{
  toastEventInactive:"请先启用活动。", toastEventPaid:"活动佣金已发放。", notifEvent:"活动佣金发放",
  colPointsChange:"变动", colPointsBalance:"余额", pointsEarn:"累积", pointsUse:"使用",
  notifTitle:"通知", notifMarkAll:"全部已读", notifEmpty:"暂无新通知。",
- avatarReqTitle:"确认阿凡达请求", toastNoAvatarReq:"目前没有待处理的阿凡达请求。", toastAvatarReqChecked:"已确认阿凡达请求。", avatarIdLabel:"阿凡达 ID", toastAvatarReqCancelled:"阿凡达请求已取消。",
+ avatarReqTitle:"确认阿凡达请求", toastNoAvatarReq:"目前没有待处理的阿凡达请求。", toastAvatarReqChecked:"已确认阿凡达请求。", avatarIdLabel:"阿凡达 ID", toastAvatarReqCancelled:"阿凡达请求已取消。", themeToggleTitle:"切换深色/浅色模式",
  notifDeposit:"存款已处理", notifWithdraw:"取款已处理", notifTransferT:"转账已完成", notifGameStart:"赛局已开始", notifGameSettle:"结算已完成",
  notifBlock:"账户已封锁", notifRegister:"新账户已登记", notifHotel:"酒店已预订", notifCar:"车辆已预约", notifAero:"ARO服务已申请", notifPoints:"积分已使用",
  branch:"分店", close:"关闭", moreLabel:"更多",
@@ -6424,6 +6473,16 @@ function esc(s){
    STATE
    ============================================================ */
 let LANG = 'ko';
+// data-theme is absent for dark (the original, default look) and "light" for light - matching the
+// early inline <script> in <head> (see its comment: that one runs before <style> is parsed so the
+// very first paint already has the right theme, this one just needs to agree with it on what
+// "no attribute" means).
+function toggleTheme(){
+ const next = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+ try{ localStorage.setItem('cage-admin-theme', next); }catch(e){}
+ if(next==='light') document.documentElement.setAttribute('data-theme','light');
+ else document.documentElement.removeAttribute('data-theme');
+}
 let DB = null;
 
 function seedDB(){
@@ -9789,7 +9848,7 @@ function renderHotels(){
  const rows = (DB.hotels||[]).filter(b=>recordVisibleInBranch(b.account));
  document.getElementById('hotelBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   rows.map(b=>`<tr class="row-click" onclick="showHotelReceipt('${b.id}')"><td>${esc(b.account)}</td><td>${esc(b.guest)||'—'}</td><td>${esc(b.roomType)}</td><td class="num">${esc(b.checkin)}</td><td class="num">${esc(b.checkout)}</td>
-   <td>${b.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
+   <td>${b.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:var(--danger-pill-bg);color:var(--danger);">${t('statusCancelled')}</span>`}</td>
    <td>${b.status==='confirmed'?`<button class="btn btn-sm" onclick="event.stopPropagation();cancelHotelBooking('${b.id}')">${t('cancelBtn')}</button>`:''}</td></tr>`).join('');
 }
 
@@ -9843,7 +9902,7 @@ function renderCars(){
  const rows = (DB.cars||[]).filter(c=>recordVisibleInBranch(c.account));
  document.getElementById('carBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   rows.map(c=>`<tr class="row-click" onclick="showCarReceipt('${c.id}')"><td>${esc(c.account)}</td><td class="num">${esc(c.dt)}</td><td>${esc(c.pickup)||'—'}</td><td>${esc(c.dropoff)||'—'}</td><td>${esc(c.carType)}</td>
-   <td>${c.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
+   <td>${c.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:var(--danger-pill-bg);color:var(--danger);">${t('statusCancelled')}</span>`}</td>
    <td>${c.status==='confirmed'?`<button class="btn btn-sm" onclick="event.stopPropagation();cancelCarReservation('${c.id}')">${t('cancelBtn')}</button>`:''}</td></tr>`).join('');
 }
 
@@ -9895,7 +9954,7 @@ function renderAero(){
  const rows = (DB.aero||[]).filter(a=>recordVisibleInBranch(a.account));
  document.getElementById('aeroBody').innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   rows.map(a=>`<tr class="row-click" onclick="showAeroReceipt('${a.id}')"><td>${esc(a.account)}</td><td>${a.direction==='arrival'?t('directionArrival'):t('directionDeparture')}</td><td>${esc(a.flight)}</td><td>${esc(a.airport)||'—'}</td><td class="num">${esc(a.dt)}</td>
-   <td>${a.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:#3a2418;color:var(--danger);">${t('statusCancelled')}</span>`}</td>
+   <td>${a.status==='confirmed'?`<span class="pill nn">${t('statusConfirmed')}</span>`:`<span class="pill" style="background:var(--danger-pill-bg);color:var(--danger);">${t('statusCancelled')}</span>`}</td>
    <td>${a.status==='confirmed'?`<button class="btn btn-sm" onclick="event.stopPropagation();cancelAero('${a.id}')">${t('cancelBtn')}</button>`:''}</td></tr>`).join('');
 }
 

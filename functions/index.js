@@ -157,8 +157,9 @@ exports.staffLogin = onRequest({}, async (req, res) => {
     return;
   }
   // Temporary, user-requested exception mirrored from the client (see attemptLogin in index.html):
-  // ERIC has no working authenticator app set up, so a fixed code stands in for a real TOTP check.
-  const otpOk = String(name).toUpperCase() === "ERIC"
+  // ERIC and KYLE have no working authenticator app set up, so a fixed code stands in for a real
+  // TOTP check for them.
+  const otpOk = ["ERIC", "KYLE"].includes(String(name).toUpperCase())
     ? String(otp).trim() === "123456"
     : staffData.totpSecret && verifyTotp(staffData.totpSecret, otp);
   if (!otpOk) {

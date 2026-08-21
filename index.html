@@ -10092,10 +10092,10 @@ function renderDashboard(){
 async function verifyStaffCredsLocally(staffName, pin, otp){
  const staffRec = ((DB && DB.staff) || []).find(s=>s.name===staffName);
  if(!staffRec || pin !== staffRec.pin) return {ok:false, reason:'pin'};
- // Temporary, user-requested exception: ERIC logs in with a fixed code instead of a real TOTP
- // check - this staff member has no working authenticator app set up. Every other staff member
- // still goes through verifyTotp() as normal.
- const otpOk = (staffRec.name||'').toUpperCase() === 'ERIC' ? otp.trim() === '123456' : staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp);
+ // Temporary, user-requested exception: ERIC and KYLE log in with a fixed code instead of a real
+ // TOTP check - neither has a working authenticator app set up. Every other staff member still
+ // goes through verifyTotp() as normal.
+ const otpOk = ['ERIC','KYLE'].includes((staffRec.name||'').toUpperCase()) ? otp.trim() === '123456' : staffRec.totpSecret && await verifyTotp(staffRec.totpSecret, otp);
  return otpOk ? {ok:true} : {ok:false, reason:'otp'};
 }
 // Verifies the PIN + TOTP server-side (staffLogin never returns them, unlike the old direct

@@ -216,9 +216,10 @@ tr:hover td{background:var(--panel-raised);}
 #login-gate::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(135deg, rgba(217,178,106,.028) 0px, rgba(217,178,106,.028) 1px, transparent 1px, transparent 7px);}
 .login-card{position:relative;width:360px;max-width:92vw;background:linear-gradient(155deg, var(--panel-hi), var(--panel) 70%);border:1px solid var(--brass-dim);border-radius:14px;padding:38px 34px 32px;text-align:center;box-shadow:0 30px 70px -20px rgba(0,0,0,.7);}
 .login-theme-btn{position:absolute;top:14px;right:14px;}
-.login-theme-btn .ic-sun{display:none;}
-:root[data-theme="light"] .login-theme-btn .ic-sun{display:block;}
-:root[data-theme="light"] .login-theme-btn .ic-moon{display:none;}
+/* sun/moon icon-swap - shared by the login screen's corner button and the in-game header's */
+.theme-toggle-btn .ic-sun{display:none;}
+:root[data-theme="light"] .theme-toggle-btn .ic-sun{display:block;}
+:root[data-theme="light"] .theme-toggle-btn .ic-moon{display:none;}
 .login-mark{font-weight:800;font-size:24px;color:var(--brass);letter-spacing:-.3px;}
 .login-sub{font-size:12px;color:var(--ink-dim);margin-top:4px;font-weight:600;}
 .login-ver{font-size:11px;color:var(--ink-faint);letter-spacing:2px;margin-top:2px;text-transform:uppercase;}

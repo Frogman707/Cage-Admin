@@ -379,8 +379,11 @@
 .sd-stage-icons button.muted .icon-on,.sd-stage-icons button:not(.muted) .icon-off{display:none;}
 .timer-ring-wrap{position:absolute;bottom:16px;right:16px;width:64px;height:64px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.5));}
 .timer-ring-wrap svg{transform:rotate(-90deg);}
-.timer-ring-wrap .txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:18px;color:var(--jade);}
-.timer-ring-wrap.urgent .txt{color:var(--danger);}
+/* the ring sits over a live video/felt photo, so the number needs its own contrast backing
+   rather than relying on whatever colors happen to be behind it at that moment */
+.timer-ring-wrap::before{content:'';position:absolute;inset:7px;border-radius:50%;background:rgba(4,10,20,.72);}
+.timer-ring-wrap .txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:23px;letter-spacing:-.5px;color:#fff;text-shadow:0 0 10px rgba(47,169,140,.8);}
+.timer-ring-wrap.urgent .txt{color:#fff;text-shadow:0 0 10px rgba(217,105,90,.9);}
 .timer-ring-wrap.urgent{animation:timerPulse 1s ease-in-out infinite;}
 @keyframes timerPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.07);}}
 .phase-banner{
@@ -1203,9 +1206,7 @@
 .sd-live.is-fs .sd-type-badge{font-size:12.5px;padding:6px 17px;}
 .sd-live.is-fs .timer-ring-wrap{
   top:50%;bottom:auto;right:34px;transform:translateY(-50%) scale(1.3);
-  background:radial-gradient(circle at 50% 50%, #000 0 84%, transparent 84%);
 }
-.sd-live.is-fs .timer-ring-wrap .txt{color:#fff;}
 .sd-live.is-fs .timer-ring-wrap.urgent{animation:none;}
 .sd-live.is-fs .sd-stage .phase-banner{top:74px;bottom:auto;font-size:21px;padding:10px 30px;border-radius:6px;}
 /* The still goes in whole. Filling the screen with it (background-size:cover) crops it to the

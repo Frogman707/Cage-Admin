@@ -195,22 +195,18 @@ document.addEventListener('fullscreenchange', ()=>{
   const fs = document.fullscreenElement;
   document.querySelectorAll('.speed-detail-wrap').forEach(w=>w.classList.toggle('is-fs', w === fs));
   adoptFsFollowers(fsFollowHost());
-  if (SPEED.detailTableId){
-    renderBetBoard(SPEED.detailTableId);   // the page's board and the felt are not the same board
-    paintSpeedFsBars(SPEED.detailTableId);
-    renderSpeedDetailRoad(SPEED.detailTableId);
-  }
+  if (SPEED.detailTableId) renderSpeedDetailRoad(SPEED.detailTableId);
 });
-/* the round, the shoe and the balance the fullscreen bars carry - by class, because the head and
-   the foot both carry them and only one of the two is on the screen at a time */
-function paintSpeedFsBars(tableId){
-  const s = SPEED.tstate[tableId];
-  if (!s) return;
-  const set = (cls, v)=>document.querySelectorAll('.' + cls).forEach(el=>{ el.textContent = v; });
-  set('fs-round', s.roundNo || 1);
-  set('fs-shoe', s.shoe ? s.shoe.no : (SPEED.tables[tableId]?.shoeNo || 1));
-  const hdr = document.getElementById('hdrBalance');
-  set('fs-bal', hdr ? hdr.textContent : fmtNum(STATE.balance));
+/* the round, the shoe and my stake on the currently open Speed table - shown in its status
+   card now, the same spot Avatar shows the assigned-avatar/tip readout */
+function updateSpeedDetailStatusPanel(tableId){
+  const el = document.getElementById('speedDetailStatusGrid'); if (!el) return;
+  const s = SPEED.tstate[tableId]; if (!s) return;
+  el.innerHTML = `
+    <span>${t('roundLabel')}</span><b>#${s.roundNo || 1}</b>
+    <span>${t('shoeLabel')}</span><b>#${s.shoe ? s.shoe.no : (SPEED.tables[tableId]?.shoeNo || 1)}</b>
+    <span>${t('myBetLabel')}</span><b class="num">${fmtNum(speedBetsTotal(s.bets))}</b>
+  `;
 }
 
 /* ---------------- game history bottom sheet (mobile-style, grouped by day) ---------------- */
@@ -535,7 +531,9 @@ async function submitAvatarRequest(){
   const betSide = document.getElementById('reqSide').value;
   const betAmount = rawNum(document.getElementById('reqAmount').value);
   if (!buyin || !betAmount){ toast(t('suErrRequired'), true); return; }
-  const tbl = AVATAR.lobbyData.tables.find(x=>x.id===AVATAR_PENDING_TABLE);
+  // opened from a Speed table's own "아바타 신청" button, AVATAR.lobbyData may never have been
+  // loaded (the player never visited the Avatar lobby this session) - fall back to SPEED.tables
+  const tbl = AVATAR.lobbyData?.tables.find(x=>x.id===AVATAR_PENDING_TABLE) || SPEED.tables[AVATAR_PENDING_TABLE];
   await db.collection('avatarRequests').doc(uuidv4()).set({
     memberId: PLAYER.id, tableId: AVATAR_PENDING_TABLE, casino: tbl?.casino || PLAYER.casino,
     buyin, betSide, betAmount, status:'대기', avatarStaffId:null,
@@ -1032,6 +1030,15 @@ async function sendAvatarChat(){
   input.value = '';
   await db.collection('chatMessages').doc(uuidv4()).set({tableId:AVATAR.table.id, memberId:PLAYER.id, nickname:PLAYER.nickname, text, dt:new Date().toISOString()});
 }
+// same chat, ported to the Speed detail screen - keyed off the currently open table instead of
+// AVATAR.table, since a Speed table has no avatar session backing it
+async function sendSpeedChat(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || !SPEED.detailTableId) return;
+  input.value = '';
+  await db.collection('chatMessages').doc(uuidv4()).set({tableId:SPEED.detailTableId, memberId:PLAYER.id, nickname:PLAYER.nickname, text, dt:new Date().toISOString()});
+}
 
 /* ============================================================
    SPEED MODE — several tables running simultaneously, self-service
@@ -1278,9 +1285,6 @@ function clearAllSpeedBets(){
   Object.entries(SPEED.tstate || {}).forEach(([tableId,s])=>{
     if (s.phase !== 'betting') return;
     s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
-    ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
-      if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${k}`)?.classList.remove('selected');
-    });
     markSpeedBetsUnconfirmed(tableId);
     renderSpeedTileBets(tableId);
   });
@@ -1347,28 +1351,8 @@ function renderSpeedTileBets(tableId){
     if (tile) tile.textContent = amt;
     const spot = document.getElementById(`tilespot-${tableId}-${k}`);
     if (spot) spot.classList.toggle('staked', !!s.bets[k]);
-    if (SPEED.detailTableId===tableId){
-      const el = document.getElementById(`mybet-detail-${k}`);
-      if (el) el.textContent = amt;
-    }
   });
-  if (SPEED.detailTableId===tableId) paintBetBoardReadings(tableId);
-}
-/* The four readings on a spot. There is one player's money on this table, so what is on a spot
-   is what this player put there, one head where there is anything at all, and the share is that
-   spot's part of everything riding on the round - which is what the percentage on a live board
-   means, and is worth reading even with a single player on it. */
-function paintBetBoardReadings(tableId){
-  const s = SPEED.tstate[tableId];
-  if (!s) return;
-  const total = speedBetsTotal(s.bets);
-  BET_SPOTS.forEach(({key})=>{
-    const amt = s.bets[key] || 0;
-    const set = (id, v)=>{ const el = document.getElementById(id); if (el) el.textContent = v; };
-    set(`pct-detail-${key}`, (total ? Math.round(amt / total * 100) : 0) + '%');
-    set(`heads-detail-${key}`, amt ? 1 : 0);
-    set(`pool-detail-${key}`, fmtNum(amt));
-  });
+  if (SPEED.detailTableId===tableId) updateSpeedDetailStatusPanel(tableId);
 }
 /* the tile's spots take and release the same lock the open table's do, so a round that has gone
    to the cards cannot be bet into from the list either */
@@ -1421,7 +1405,6 @@ function placeSpeedBet(tableId, type){
   s.bets[type] += stake;
   if (stake < STATE.selectedChip && stake === free) toast(t('allInStaked', {amount: fmtNum(stake)}));
   markSpeedBetsUnconfirmed(tableId);
-  if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${type}`)?.classList.add('selected');
   renderSpeedTileBets(tableId);
   renderSpeedStakedTotal();
   projectSpeedBalance();
@@ -1440,125 +1423,12 @@ function paintScreen(el, html){
   return el;
 }
 
-/* ---------------- the fullscreen bars ----------------
-   In fullscreen the page header is off the screen, so what it carried gets bars of its own: the
-   casino's mark, which round and which shoe, who is playing and for how much, and the way out.
-   The phone shows both bars - the round and the shoe at the head, the player and the balance at
-   the foot. The desktop shows only the foot, which carries the round, the shoe, the chips and
-   the two round buttons, and keeps the ✕ over the video where the reference has it.
-   Both bars carry the same readings, so they are written once and painted by class. */
-const FS_BAR_ICONS = {
-  history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>',
-  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
-};
-function fsBarHtml(tb, where){
-  const mark = `<span class="fs-mark">${CASINO_MARK_SRC[tb.casino] ? `<img src="${CASINO_MARK_SRC[tb.casino]}" alt="">` : ''}<b>${escapeHtml(tb.casino || '')}</b></span>`;
-  const stats = `
-    <span class="fs-stat"><i>${t('roundLabel')}</i><b class="fs-round">1</b></span>
-    <span class="fs-stat shoe"><i>${t('shoeLabel')}</i><b class="fs-shoe">1</b></span>`;
-  if (where === 'top'){
-    return `<div class="sd-fs-bar sd-fs-top">${mark}${stats}
-      <button class="fs-x" onclick="exitStageFullscreen()" data-i18n-title="fullscreen" title="전체화면">✕</button>
-    </div>`;
-  }
-  return `<div class="sd-fs-bar sd-fs-bottom">
-    ${mark}${stats}
-    <span class="fs-who"><em><i>👤</i>${escapeHtml(PLAYER?.nickname || PLAYER?.id || '')}</em><b>₱ <span class="fs-bal">0</span></b></span>
-    <span class="fs-sp"></span>
-    <button class="fs-ico" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록">${FS_BAR_ICONS.history}</button>
-    <button class="fs-ico" onclick="toggleSpeedMultiPanel()" data-i18n-title="multiBet" title="멀티 베팅">${FS_BAR_ICONS.menu}</button>
-  </div>`;
-}
-
-/* ---------------- the betting board ----------------
-   There are two of them, and which one is drawn is whether the table is fullscreen.
-
-   On the page it is the board this screen has always had: the two pairs and 타이 across the top
-   of the card, 플레이어 and 뱅커 under them, flat cells divided by hairlines on the dark green.
-
-   In fullscreen it is the felt itself: 플레이어 페어 and 뱅커 페어 across the top, 플레이어 and
-   뱅커 across the bottom in half the board each, and 타이 as a green arch standing between them
-   - a column through the top row that ends in a semicircle over the line where 플레이어 meets
-   뱅커. Every spot carries the four readings a live board carries: the share of the round's
-   money on it, how many are on it, what is on it, and what it pays. They face inwards - the
-   player side reads from the outer edge, the banker side mirrors it - so the two names sit
-   either side of the arch rather than at the far ends of the board.
-
-   Both carry the same ids, so everything that paints a spot paints either of them. */
-function betBoardHtml(tableId){
-  return document.fullscreenElement ? feltBoardHtml(tableId) : classicBoardHtml(tableId);
-}
-/* the screen is not rebuilt when fullscreen is entered or left, so the board is swapped in place */
-function renderBetBoard(tableId){
-  const host = document.querySelector('#viewSpeedTable .sd-bets');
-  if (!host) return;
-  const old = host.querySelector('.bet-board, .bb-classic');
-  if (old) old.outerHTML = betBoardHtml(tableId);
-  applyI18n?.(host);
-  renderSpeedTileBets(tableId);
-  const s = SPEED.tstate[tableId];
-  if (s) ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
-    const spot = document.getElementById(`spot-detail-${k}`);
-    if (spot){ spot.classList.toggle('selected', s.bets[k]>0); spot.classList.toggle('locked', s.phase!=='betting'); }
-  });
-}
-function classicBoardHtml(tableId){
-  const cell = (key, cls, i18n, ko, odds) =>
-    `<div class="bet-spot ${cls}" id="spot-detail-${key}" onclick="placeSpeedBet('${tableId}','${key}')">
-      <div class="label" data-i18n="${i18n}">${ko}</div>
-      <div class="meta-row"><span>👤 <b id="heads-detail-${key}">0</b></span><span>₱ <b id="pool-detail-${key}">0</b></span></div>
-      <div class="odds">${odds}</div>
-      <div class="my-bet" id="mybet-detail-${key}"></div>
-    </div>`;
-  return `<div class="bb-classic">
-    <div class="pair-row">
-      ${cell('playerPair','pair player','playerPair','플레이어 페어','11:1')}
-      ${cell('tie','tie','tie','타이','8:1')}
-      ${cell('bankerPair','pair banker','bankerPair','뱅커 페어','11:1')}
-    </div>
-    <div class="bet-rail two-up" style="margin-top:0;">
-      ${cell('player','player','player','플레이어','1:1')}
-      ${cell('banker','banker','banker','뱅커','0.95:1')}
-    </div>
-  </div>`;
-}
-const BET_SPOTS = [
-  {key:'playerPair', cls:'bb-pp', side:'player', i18n:'playerPair', ko:'플레이어 페어', odds:'11:1'},
-  {key:'bankerPair', cls:'bb-bp', side:'banker', i18n:'bankerPair', ko:'뱅커 페어',     odds:'11:1'},
-  {key:'player',     cls:'bb-pl', side:'player', i18n:'player',     ko:'플레이어',      odds:'1:1'},
-  {key:'banker',     cls:'bb-bk', side:'banker', i18n:'banker',     ko:'뱅커',          odds:'0.95:1'},
-  {key:'tie',        cls:'bb-tie',side:'tie',    i18n:'tie',        ko:'타이',          odds:'8:1'},
-];
-function betSpotHtml(tableId, s){
-  return `<div class="bet-spot ${s.cls} ${s.side}" id="spot-detail-${s.key}" onclick="placeSpeedBet('${tableId}','${s.key}')">
-    <div class="bb-meta">
-      <span class="bb-pct" id="pct-detail-${s.key}">0%</span>
-      <span class="bb-stats"><i>👤 <b id="heads-detail-${s.key}">0</b></i><i>₱ <b id="pool-detail-${s.key}">0</b></i></span>
-    </div>
-    <div class="bb-name">
-      <span class="bb-label" data-i18n="${s.i18n}">${s.ko}</span>
-      <span class="bb-odds">${s.odds}</span>
-    </div>
-    <div class="my-bet" id="mybet-detail-${s.key}"></div>
-  </div>`;
-}
-function feltBoardHtml(tableId){
-  const spot = key => betSpotHtml(tableId, BET_SPOTS.find(s=>s.key===key));
-  return `<div class="bet-board">
-    <div class="bb-row bb-top">
-      ${spot('playerPair')}
-      <div class="bb-arch-gap"></div>
-      ${spot('bankerPair')}
-    </div>
-    <div class="bb-row bb-main">
-      ${spot('player')}
-      ${spot('banker')}
-    </div>
-    ${spot('tie')}
-  </div>`;
-}
-
-/* ---------------- speed single-table detail screen (opened from a tile) ---------------- */
+/* ---------------- speed single-table detail screen (opened from a tile) ----------------
+   Ported wholesale from Avatar's detail screen (avatarTableShellHtml) rather than the old
+   fullscreen-video treatment (sd-live's fsBar/betBoard/chip-tray) - the two screens now share
+   one layout, chrome and all. Placing a bet on a Speed table happens through the multi-bet
+   panel instead (toggleSpeedMultiPanel, opened from this screen's status card), which already
+   carries its own spots/chip-tray/confirm and covers the currently-open table too. */
 function openSpeedTableDetail(tableId, preserveScroll){
   const s = SPEED.tstate[tableId], tb = SPEED.tables[tableId];
   if (!s || !tb) return;
@@ -1568,7 +1438,7 @@ function openSpeedTableDetail(tableId, preserveScroll){
   paintScreen(document.getElementById('viewSpeedTable'), speedDetailShellHtml(tableId));
   renderSpeedTileBets(tableId);
   renderSpeedDetailRoad(tableId);
-  paintSpeedFsBars(tableId);
+  mountAvatarChat(tableId);
   // the screen is rebuilt from scratch on every open, so one opened while already fullscreen
   // needs the class - and the loans - put back on the new wrapper
   if (document.fullscreenElement){
@@ -1577,26 +1447,20 @@ function openSpeedTableDetail(tableId, preserveScroll){
   }
   setSpeedTilePhaseText(tableId, s.phase==='betting'?t('phaseBetting'):s.phase==='dealing'?t('phaseDealing'):'');
   setSpeedTileTimer(tableId, Math.max(0, s.secondsLeft));
-  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
-    const spot = document.getElementById(`spot-detail-${k}`);
-    if (spot){ spot.classList.toggle('selected', s.bets[k]>0); spot.classList.toggle('locked', s.phase!=='betting'); }
-  });
   if (s.phase==='result' && s._sim) revealSpeedDetailCards(s._sim, true);
 }
 function closeSpeedTableDetail(){
   SPEED.detailTableId = null;
   if (document.fullscreenElement) document.exitFullscreen?.();
   releaseFsFollowers();
+  if (AVATAR.chatUnsub){ AVATAR.chatUnsub(); AVATAR.chatUnsub = null; }
   document.getElementById('viewSpeedTable').innerHTML = '';
   showView('viewSpeedLobby');
 }
 function speedDetailShellHtml(tableId){
   const tb = SPEED.tables[tableId];
   return `
-  <div class="speed-detail-wrap sd-live">
-    <!-- the two bars belong to the fullscreen screen and are drawn nowhere else. The phone gets
-         both; the desktop gets only the foot, where the round, the shoe and the chips live. -->
-    ${fsBarHtml(tb, 'top')}
+  <div class="speed-detail-wrap">
     <div class="speed-detail-grid">
       <div class="sd-stage">
         <button class="icon-btn speed-detail-close" onclick="closeSpeedTableDetail()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
@@ -1622,30 +1486,25 @@ function speedDetailShellHtml(tableId){
             <div class="hand banker"><div class="cards" id="bankerCardsDetail"></div><div class="score" id="bankerScoreDetail"></div></div>
           </div>
         </div>
-        <div class="timer-ring-wrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-detail">15</div></div>
+        <div class="timer-ring-wrap" id="timerRingWrapDetail"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArcDetail" cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-detail">15</div></div>
       </div>
-      <!-- The board and the betting spots share one wrapper. It is display:contents everywhere
-           except a desktop fullscreen, so on the ordinary screen it is not there at all and its
-           children land on the table grid exactly as they did; in fullscreen it becomes the
-           strip over the foot of the video and puts them on three columns of its own. -->
-      <div class="sd-underbar">
       ${avatarScoreboardHtml('detail')}
-      <div class="sd-bets">
-        ${betBoardHtml(tableId)}
-        <div class="sd-chip-tray">
-          <button class="btn btn-sm" onclick="clearSpeedDetailBets('${tableId}')" data-i18n="cancelBet">취소</button>
-          ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
-          <span class="spacer"></span>
-          <button class="btn btn-sm btn-gold" id="speedConfirmBtn" onclick="confirmSpeedBetDetail('${tableId}')" data-i18n="betComplete">베팅완료</button>
-          <button class="btn btn-sm" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n="repeatBet">반복</button>
-          <button class="btn btn-sm sd-multi-btn" id="speedMultiBtn" onclick="toggleSpeedMultiPanel()">
-            <span data-i18n="multiBet">멀티 베팅</span><b class="sm-count" id="speedMultiCount"></b>
-          </button>
+      <div class="sd-bets avatar-side">
+        <div class="card avatar-status-card">
+          <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('speedStatusTitle')}</h3>
+          <div class="kv-grid" id="speedDetailStatusGrid"></div>
+          <div class="row" style="gap:8px;margin-top:14px;">
+            <button class="btn btn-gold btn-sm" onclick="openAvatarRequestModal('${tableId}')">${t('btnRequestAvatar')}</button>
+            <button class="btn btn-sm" id="speedMultiBtn" onclick="toggleSpeedMultiPanel()">${t('multiBet')}<b class="sm-count" id="speedMultiCount"></b></button>
+          </div>
+        </div>
+        <div class="card chat-panel">
+          <h3>${t('chat')}</h3>
+          <div class="chat-log" id="chatLog"></div>
+          <div class="chat-input-row"><input id="chatInput" placeholder="${t('chatPh')}" onkeydown="if(event.key==='Enter')sendSpeedChat()"><button class="btn btn-sm btn-gold" onclick="sendSpeedChat()">${t('send')}</button></div>
         </div>
       </div>
-      </div>
     </div>
-    ${fsBarHtml(tb, 'bottom')}
     <!-- the multi-bet sheet lives outside the grid: it floats over the screen rather than
          sitting in the layout, so opening it moves nothing else on the page -->
     <div class="speed-multi" id="speedMultiPanel"></div>
@@ -1667,17 +1526,6 @@ async function revealSpeedDetailCards(sim, instant){
   }
   document.getElementById('playerScoreDetail').textContent = sim.player.score;
   document.getElementById('bankerScoreDetail').textContent = sim.banker.score;
-}
-function clearSpeedDetailBets(tableId){
-  const s = SPEED.tstate[tableId]; if (!s || s.phase!=='betting') return;
-  s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
-  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
-    document.getElementById(`spot-detail-${k}`)?.classList.remove('selected');
-  });
-  markSpeedBetsUnconfirmed(tableId);
-  renderSpeedTileBets(tableId);
-  renderSpeedStakedTotal();
-  projectSpeedBalance();
 }
 /* ---------------- nothing rides until 베팅완료 ----------------
    What is on the spots is only an intention. A table plays the amounts the player confirmed and
@@ -1701,7 +1549,6 @@ function confirmSpeedBets(tableId, quiet){
   if (!quiet) toast(t('betCompleteToast'));
   return true;
 }
-function confirmSpeedBetDetail(tableId){ confirmSpeedBets(tableId); }
 /* the sheet stakes several tables at once, so its button confirms every one of them */
 function confirmAllSpeedBets(){
   let n = 0;
@@ -1719,21 +1566,6 @@ function paintSpeedConfirmState(tableId){
     if (btn) btn.classList.toggle('pending', pending);
   }
   document.getElementById(`smrow-${tableId}`)?.classList.toggle('pending', pending);
-}
-function repeatLastSpeedBetDetail(tableId){
-  const s = SPEED.tstate[tableId]; if (!s || s.phase!=='betting') return;
-  if (!s.lastBets || !Object.values(s.lastBets).some(v=>v>0)){ toast(t('repeatNoPrev'), true); return; }
-  const need = Object.values(s.lastBets).reduce((a,b)=>a+b,0);
-  if (STATE.balance - speedLockedTotal() < need){ toast(t('insufficientBalance'), true); return; }
-  const max = tableBetMax(tableId);
-  if (Object.entries(s.lastBets).some(([k,v]) => v > 0 && (s.bets[k]||0) + v > max)){
-    toast(t('aboveTableMax', {max: fmtNum(max)}), true); return;
-  }
-  Object.entries(s.lastBets).forEach(([k,v])=>{ if (v>0){ s.bets[k] = (s.bets[k]||0) + v; document.getElementById(`spot-detail-${k}`)?.classList.add('selected'); } });
-  markSpeedBetsUnconfirmed(tableId);
-  renderSpeedTileBets(tableId);
-  renderSpeedStakedTotal();
-  projectSpeedBalance();
 }
 function projectSpeedBalance(){
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance - speedLockedTotal());
@@ -1784,14 +1616,28 @@ function setSpeedTileTimer(tableId, v){
   const el = document.getElementById('timer-'+tableId); if (el) el.textContent = v;
   if (SPEED.detailTableId===tableId){
     const d = document.getElementById('timer-detail'); if (d) d.textContent = v;
-    paintSpeedFsBars(tableId);   // the fullscreen bars carry the round, the shoe and the balance
+    const s = SPEED.tstate[tableId];
+    updateSpeedTimerRing(v, s && s.phase==='result' ? SPEED_RESULT_SECONDS : SPEED_BETTING_SECONDS);
+    updateSpeedDetailStatusPanel(tableId);
   }
   paintSpeedMultiRow(tableId);   // the multi-bet panel counts its neighbours down too
 }
-// The list no longer captions the phase - only the open table does.
+// the ring - same id pattern and math as Avatar's timer-avatar ring (updateAvatarTimerRing)
+function updateSpeedTimerRing(secLeft, secTotal){
+  const arc = document.getElementById('timerArcDetail');
+  if (arc){ const c = 169.6; arc.style.strokeDashoffset = c * (1 - secLeft/secTotal); }
+  const wrap = document.getElementById('timerRingWrapDetail');
+  if (wrap) wrap.classList.toggle('urgent', secLeft <= 5 && secLeft > 0);
+}
+// The list no longer captions the phase - only the open table does. Also resets the ring to
+// full for the phase that just started, mirroring Avatar's setAvatarPhaseBanner.
 function setSpeedTilePhaseText(tableId, txt){
   if (SPEED.detailTableId!==tableId || !txt) return;
   const d = document.getElementById('phase-detail'); if (d) d.textContent = txt;
+}
+function setSpeedDetailPhaseBanner(tableId, txt, secs){
+  setSpeedTilePhaseText(tableId, txt);
+  if (SPEED.detailTableId===tableId) updateSpeedTimerRing(secs, secs);
 }
 function beginSpeedBetting(tableId){
   const s = SPEED.tstate[tableId];
@@ -1803,9 +1649,6 @@ function beginSpeedBetting(tableId){
   // the hand belongs to the round that just ended; clearing it is what lets "no hand, no result"
   // in beginSpeedResult mean this round's hand rather than possibly the last one's
   s._sim = null;
-  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
-    if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${k}`)?.classList.remove('selected','locked');
-  });
   setSpeedTileBetsLocked(tableId, false);
   renderSpeedTileBets(tableId);
   renderSpeedStakedTotal();
@@ -1814,7 +1657,7 @@ function beginSpeedBetting(tableId){
   // happens when a bet fails to reach the cage: the table recovers to a clean round, but the
   // balance display never did
   projectSpeedBalance();
-  setSpeedTilePhaseText(tableId, t('phaseBetting'));
+  setSpeedDetailPhaseBanner(tableId, t('phaseBetting'), SPEED_BETTING_SECONDS);
   const scoreEl = document.getElementById('score-'+tableId); if (scoreEl) scoreEl.textContent = '';
   if (SPEED.detailTableId===tableId) clearSpeedDetailCards();
 }
@@ -1823,11 +1666,8 @@ async function beginSpeedDealing(tableId){
   s.phase = 'dealing'; s.secondsLeft = SPEED_DEALING_SECONDS;
   // still counts as locked until the balance actually moves below - see speedLockedTotal
   s.settling = true;
-  if (SPEED.detailTableId===tableId){
-    ['player','tie','banker','playerPair','bankerPair'].forEach(k=> document.getElementById(`spot-detail-${k}`)?.classList.add('locked'));
-  }
   setSpeedTileBetsLocked(tableId, true);
-  setSpeedTilePhaseText(tableId, t('phaseDealing'));
+  setSpeedDetailPhaseBanner(tableId, t('phaseDealing'), SPEED_DEALING_SECONDS);
   returnUnderMinSpeedBets(tableId);   // a short bet never reaches the felt
   // Only what was confirmed rides. Chips left on a spot without pressing 베팅완료 are pushed
   // back untouched - they were never actually placed.
@@ -1889,7 +1729,7 @@ async function beginSpeedResult(tableId){
   s.phase = 'result'; s.secondsLeft = SPEED_RESULT_SECONDS;
   const sim = s._sim;
   const tb = SPEED.tables[tableId];
-  setSpeedTilePhaseText(tableId, sim.result==='player' ? 'PLAYER WIN' : sim.result==='banker' ? 'BANKER WIN' : 'TIE');
+  setSpeedDetailPhaseBanner(tableId, sim.result==='player' ? 'PLAYER WIN' : sim.result==='banker' ? 'BANKER WIN' : 'TIE', SPEED_RESULT_SECONDS);
   const scoreEl = document.getElementById('score-'+tableId);
   if (scoreEl) scoreEl.textContent = `P${sim.player.score} : B${sim.banker.score}`;
   // kept on the state, not just painted, so the multi-bet panel still shows it when reopened

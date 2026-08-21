@@ -206,6 +206,8 @@ const I18N_DICT = {
   betNotConfirmed:{ko:'베팅완료를 누르지 않아 {amount} 이 반환되었습니다',zhHans:'未按下注完成，已退还 {amount}',zhHant:'未按下注完成，已退還 {amount}',en:'{amount} returned — never confirmed',ja:'ベット完了を押さなかったため {amount} が返却されました',vi:'Đã hoàn {amount} — chưa xác nhận'},
   nothingToConfirm:{ko:'베팅할 금액이 없습니다',zhHans:'没有可确认的投注',zhHant:'沒有可確認的投注',en:'Nothing staked to confirm',ja:'確定するベットがありません',vi:'Chưa có cược nào để xác nhận'},
   betConfirmedCount:{ko:'{n}개 테이블 베팅이 확정되었습니다',zhHans:'{n} 张桌台的投注已确认',zhHant:'{n} 張桌臺的投注已確認',en:'Bets confirmed on {n} tables',ja:'{n}卓のベットが確定しました',vi:'Đã xác nhận cược trên {n} bàn'},
+  speedStatusTitle:{ko:'테이블 현황',zhHans:'桌台状况',zhHant:'桌臺狀況',en:'Table Status',ja:'テーブル状況',vi:'Trạng thái bàn'},
+  myBetLabel:{ko:'내 베팅액',zhHans:'我的投注额',zhHant:'我的投注額',en:'My bet',ja:'私のベット額',vi:'Cược của tôi'},
 };
 
 function t(key, vars){

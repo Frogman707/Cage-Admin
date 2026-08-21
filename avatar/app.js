@@ -808,6 +808,16 @@ function avatarTableShellHtml(){
           <button class="btn btn-sm" onclick="openAvatarRequestModal('${tb.id}')">${t('btnRequestAvatar')}</button>
           <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
         </div>
+        <div class="card avatar-bet-summary">
+          <div class="row" style="justify-content:space-between;align-items:center;">
+            <span class="hint" style="margin:0;">${t('betPlacedLabel')}</span>
+            <b style="font-family:var(--mono);color:var(--brass);">${betLabel(AVATAR.request.betSide)} ${fmtNum(AVATAR.request.betAmount)}</b>
+          </div>
+          <div class="row" style="justify-content:space-between;align-items:center;margin-top:8px;">
+            <span class="hint" style="margin:0;">${t('chipUsedLabel')}</span>
+            <div class="chip-stack" style="height:auto;">${chipStackHtml(AVATAR.request.betAmount)}</div>
+          </div>
+        </div>
         <div class="card avatar-status-card">
           <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
           <div class="kv-grid" id="avatarStatusGrid"></div>

@@ -118,6 +118,8 @@ const I18N_DICT = {
   statusWaiting:{ko:'승인 대기중',zhHans:'等待批准',zhHant:'等待批准',en:'Awaiting approval',ja:'承認待ち',vi:'Đang chờ duyệt'},
   statusActive:{ko:'베팅 진행중',zhHans:'投注进行中',zhHant:'投注進行中',en:'Betting in progress',ja:'ベット進行中',vi:'Đang cược'},
   statusEnded:{ko:'종료됨',zhHans:'已结束',zhHant:'已結束',en:'Ended',ja:'終了しました',vi:'Đã kết thúc'},
+  betPlacedLabel:{ko:'배팅함',zhHans:'已下注',zhHant:'已下注',en:'Bet placed',ja:'ベット済み',vi:'Đã đặt cược'},
+  chipUsedLabel:{ko:'칩 선택',zhHans:'筹码',zhHant:'籌碼',en:'Chip',ja:'チップ',vi:'Phỉnh'},
   assignedAvatar:{ko:'담당 아바타',zhHans:'负责代打',zhHant:'負責代打',en:'Assigned Avatar',ja:'担当アバター',vi:'Avatar phụ trách'},
   unassigned:{ko:'배정 대기중',zhHans:'待分配',zhHant:'待分配',en:'Not yet assigned',ja:'割当待ち',vi:'Chưa được gán'},
   myInstruction:{ko:'내 베팅 지시',zhHans:'我的投注指示',zhHant:'我的投注指示',en:'My instruction',ja:'私のベット指示',vi:'Hướng dẫn của tôi'},

@@ -217,7 +217,21 @@ function setLang(lang){
   I18N_LANG = lang;
   localStorage.setItem('cageLang', lang);
   applyI18n();
+  refreshLangButtons();
   if (typeof onLangChange === 'function') onLangChange();
+}
+/* the flag+name on every .lang-current button (there can be more than one - login screen,
+   in-game header) isn't marked up with data-i18n, since it shows the CHOSEN language's own
+   name rather than a translation of anything - so applyI18n() never touched it and it was
+   left showing whatever was picked when the button was first drawn. Updated in place rather
+   than re-rendering the whole switcher, since its .lang-drop now lives under <body> (see
+   toggleLangDrop) and a fresh render would leave that orphaned instead of replacing it. */
+function refreshLangButtons(){
+  document.querySelectorAll('.lang-current').forEach(btn=>{
+    const spans = btn.querySelectorAll('span');
+    if (spans[0]) spans[0].textContent = I18N_FLAG[I18N_LANG];
+    if (spans[1]) spans[1].textContent = I18N_NATIVE[I18N_LANG];
+  });
 }
 function applyI18n(root){
   root = root || document;

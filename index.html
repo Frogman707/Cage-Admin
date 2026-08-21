@@ -118,18 +118,45 @@ input,select,textarea{font-family:var(--sans);}
 .theme-toggle-btn .icon-moon{display:none;}
 [data-theme="light"] .theme-toggle-btn .icon-sun{display:none;}
 [data-theme="light"] .theme-toggle-btn .icon-moon{display:block;}
-/* The topbar's own toggle sits underneath #login-gate (z-index:500) pre-login, so it's neither
-   visible nor clickable there - this one is a second button, not a moved one, positioned inside
-   the overlay itself so switching theme doesn't require logging in first.
-   Two classes (not one) so this beats .notif-bell's own position:relative despite coming earlier
-   in the file - equal-specificity rules resolve by source order otherwise, and .notif-bell's
-   definition sits well after this one. */
-.notif-bell.login-theme-toggle-btn{position:absolute;top:20px;right:20px;}
-/* Same reasoning as the theme toggle above - the topbar's own .lang-switch sits underneath
-   #login-gate pre-login, so this is a second, corner-pinned copy rather than a moved one. No
-   .lang-switch rule sets its own `position`, so this doesn't need the extra specificity trick
-   .login-theme-toggle-btn did against .notif-bell. */
-.login-lang-switch{position:absolute;top:20px;left:20px;}
+/* The topbar's own theme toggle and language switch both sit underneath #login-gate (z-index:500)
+   pre-login, so neither is visible or clickable there - login-theme-toggle-btn/login-lang-picker
+   below are second, purpose-built copies (not moved originals) living inside .login-card itself,
+   matching the reference layout: a circular icon button in the card's own corner, and a single
+   flag button that opens a language dropdown, rather than the topbar's always-visible pill row. */
+.login-theme-toggle-btn{
+ position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:50%;
+ background:var(--void);border:1px solid var(--brass-dim);color:var(--ink-dim);
+ display:flex;align-items:center;justify-content:center;transition:border-color .15s ease,color .15s ease;
+}
+.login-theme-toggle-btn:hover{border-color:var(--brass);color:var(--ink);}
+.login-theme-toggle-btn svg{width:17px;height:17px;}
+.login-lang-picker{position:relative;display:flex;justify-content:center;margin:18px 0 6px;}
+.login-lang-flag-btn{
+ width:46px;height:46px;border-radius:50%;background:var(--void);border:1px solid var(--brass-dim);
+ font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;
+ transition:border-color .15s ease;
+}
+.login-lang-flag-btn:hover{border-color:var(--brass);}
+/* Every rule below is scoped through .login-lang-picker so it unambiguously outranks the plain
+   .lang-switch/.lang-switch button/.lang-switch button.active rules (each only 1-2 classes) that
+   would otherwise apply too, since .login-lang-dropdown carries the .lang-switch class itself (see
+   the block comment on that element for why: reusing it is what lets the existing click-to-select
+   wiring - which just does document.querySelectorAll('.lang-switch button') once at load - pick
+   these buttons up for free, with no separate handler to write or keep in sync). */
+.login-lang-picker .login-lang-dropdown.lang-switch{
+ display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);
+ flex-direction:column;align-items:stretch;gap:2px;background:var(--panel);
+ border:1px solid var(--brass-dim);border-radius:8px;box-shadow:0 14px 34px -14px rgba(0,0,0,.6);
+ padding:6px;min-width:180px;z-index:10;
+}
+.login-lang-picker .login-lang-dropdown.lang-switch.open{display:flex;}
+.login-lang-picker .login-lang-dropdown.lang-switch button{
+ display:flex;align-items:center;gap:10px;background:none;border:none;color:var(--ink);
+ padding:9px 12px;border-radius:6px;font-size:13px;font-weight:500;text-align:left;width:100%;
+}
+.login-lang-picker .login-lang-dropdown.lang-switch button:hover{background:var(--panel-raised);}
+.login-lang-picker .login-lang-dropdown.lang-switch button.active{background:var(--panel-raised);color:var(--brass);font-weight:700;}
+.login-lang-picker .login-lang-dropdown .flag{font-size:16px;}
 
 /* ===== Shell ===== */
 .shell{flex:1;display:flex;min-height:0;}
@@ -665,19 +692,23 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <body>
 
 <div id="login-gate">
-  <div class="lang-switch login-lang-switch">
-    <button data-lang="ko">한국어</button>
-    <button data-lang="en">EN</button>
-    <button data-lang="zh-TW">繁體</button>
-    <button data-lang="zh-CN">简体</button>
-  </div>
-  <button class="notif-bell theme-toggle-btn login-theme-toggle-btn" id="themeToggleBtnLogin" onclick="toggleTheme()" data-i18n-title="themeToggleTitle">
-    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
-    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
-  </button>
   <div class="login-card">
+    <button class="theme-toggle-btn login-theme-toggle-btn" id="themeToggleBtnLogin" onclick="toggleTheme()" data-i18n-title="themeToggleTitle">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+    </button>
     <div class="login-mark">CAGE ADMIN</div>
     <div class="login-ver" id="loginVerToggle" onclick="toggleMasterLogin()" style="cursor:pointer;">v5.0</div>
+
+    <div class="login-lang-picker">
+      <button class="login-lang-flag-btn" id="loginLangBtn" onclick="toggleLoginLangMenu()">🇰🇷</button>
+      <div class="login-lang-dropdown lang-switch" id="loginLangDropdown">
+        <button data-lang="ko"><span class="flag">🇰🇷</span><span>한국어</span></button>
+        <button data-lang="en"><span class="flag">🇬🇧</span><span>English</span></button>
+        <button data-lang="zh-TW"><span class="flag">🇹🇼</span><span>繁體中文</span></button>
+        <button data-lang="zh-CN"><span class="flag">🇨🇳</span><span>简体中文</span></button>
+      </div>
+    </div>
 
     <div id="login-step1">
       <div class="field"><label data-i18n="loginStaffLabel"></label>
@@ -6727,6 +6758,17 @@ function applyI18n(){
  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.placeholder = t(el.dataset.i18nPh); });
  document.querySelectorAll('[data-i18n-title]').forEach(el=>{ el.title = t(el.dataset.i18nTitle); });
  document.querySelectorAll('.lang-switch button').forEach(b=>b.classList.toggle('active', b.dataset.lang===LANG));
+ // The login screen's single flag button (unlike the topbar's always-visible 4-button row) needs
+ // its own displayed flag kept in sync with whatever LANG actually is, from any trigger - not just
+ // a click on one of its own dropdown rows (e.g. this also runs on the very first applyI18n() call
+ // at page load, before anything has been clicked at all).
+ const loginLangBtn = document.getElementById('loginLangBtn');
+ if(loginLangBtn){
+  const flags = {ko:'🇰🇷', en:'🇬🇧', 'zh-TW':'🇹🇼', 'zh-CN':'🇨🇳'};
+  loginLangBtn.textContent = flags[LANG] || '🇰🇷';
+ }
+ const loginLangDropdown = document.getElementById('loginLangDropdown');
+ if(loginLangDropdown) loginLangDropdown.classList.remove('open');
  renderAll();
  // renderAll() covers the avatar-request bell/badge but not the modal's own row list (same reason
  // switchBranch() re-renders it explicitly too) - without this a language switch while the modal
@@ -9750,6 +9792,11 @@ function toggleNotif(){ document.getElementById('notifDropdown').classList.toggl
 document.addEventListener('click', e=>{
  const wrap = document.querySelector('.notif-wrap');
  if(wrap && !wrap.contains(e.target)) document.getElementById('notifDropdown').classList.remove('open');
+});
+function toggleLoginLangMenu(){ document.getElementById('loginLangDropdown').classList.toggle('open'); }
+document.addEventListener('click', e=>{
+ const picker = document.querySelector('.login-lang-picker');
+ if(picker && !picker.contains(e.target)) document.getElementById('loginLangDropdown').classList.remove('open');
 });
 
 /* ============================================================

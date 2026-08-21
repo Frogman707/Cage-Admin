@@ -1084,6 +1084,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
               <option value="rollingCC" data-i18n="mainCageRollingCC"></option>
               <option value="marker" data-i18n="mainCageMarker"></option>
               <option value="redeem" data-i18n="mainCageRedeem"></option>
+              <option value="cashout" data-i18n="mainCageCashout"></option>
             </select></div>
           <div class="field"><label data-i18n="amount"></label><input id="mainCageAmt" type="text" inputmode="numeric" class="fmt-num" placeholder="0" oninput="formatNumInput(this)"></div>
           <button class="btn btn-gold btn-block" style="margin-top:auto;" onclick="processMainCage()" data-i18n="mainCageProcessBtn"></button>
@@ -5451,7 +5452,7 @@ function switchBranch(branch){
 
 /* ---- Main Cage Ledger (바인/롤링CC/마커/리딤) — append-only per branch, rollingGrandTotal is derived ---- */
 function mainCageSignedEffect(type, amt){
- return type==='redeem' ? -amt : amt;
+ return (type==='redeem' || type==='cashout') ? -amt : amt;
 }
 async function seedMainCageLedgerToCloudIfEmpty(){
  if(!fbDb) return;
@@ -5831,7 +5832,7 @@ ko:{
  cageCombinedTitle:"케이지 합산금액", cageCombinedRollingLabel:"케이지 합산금액 (롤링)", cageCombinedCashLabel:"케이지 합산금액 (캐시)", diffLabel2:"차액", balancingCheckBtn:"밸런싱 확인", toastBalancingChecked:"밸런싱이 확인되었습니다.", toastBalancingNotZero:"롤링과 캐시 차액이 모두 0이어야 밸런싱을 확인할 수 있습니다.",
  initialSetupBtn:"초기 세팅", initialSetupHint:"처음 세팅 등으로 실제 보유 현금·롤링칩과 시스템 계산값이 달라 차액이 발생했다면, 이 버튼으로 현재 차액을 기준점으로 반영해 0으로 맞출 수 있습니다.", toastInitialSetupApplied:"초기 세팅 값이 반영되어 차액이 0이 되었습니다.", toastNoDiffToSetup:"반영할 차액이 없습니다.", initialSetupLogNote:"초기 세팅 반영", balancingConfirmLogNote:"밸런싱 확인",
  ledgerListBtn:"목록", ledgerListTitle:"입출금 내역", searchByDateLabel:"날짜로 검색", periodStartLabel:"시작일", periodEndLabel:"종료일",
- mainCageTitle:"메인 케이지", mainCageTypeLabel:"구분", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
+ mainCageTitle:"메인 케이지", mainCageTypeLabel:"구분", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem", mainCageCashout:"캐쉬아웃",
  mainCageProcessBtn:"처리", toastMainCageProcessed:"메인 케이지 거래가 처리되었습니다.", notifMainCage:"메인 케이지 거래",
  mainCageListBtn:"기록", mainCageListTitle:"메인 케이지 거래 기록", cutoffListBtn:"기록", cutoffListTitle:"일일 정산 기록", balancingCheckListBtn:"기록", balancingCheckListTitle:"밸런싱 확인 기록",
  branchTransferTitle:"지점간 이체", branchTransferListBtn:"기록", branchTransferListTitle:"지점간 이체 기록", branchTransferTo:"받을 지점", branchTransferFrom:"보낸 지점", branchTransferProcessBtn:"이체 처리",
@@ -5969,7 +5970,7 @@ en:{
  cageCombinedTitle:"Cage Combined Amount", cageCombinedRollingLabel:"Cage Combined (Rolling)", cageCombinedCashLabel:"Cage Combined (Cash)", diffLabel2:"Difference", balancingCheckBtn:"Confirm Balancing", toastBalancingChecked:"Balancing confirmed.", toastBalancingNotZero:"Both the rolling and cash difference must be 0 to confirm balancing.",
  initialSetupBtn:"Initial Setup", initialSetupHint:"If the actual cash/rolling chips on hand differ from the system's calculated value (e.g. from initial setup), use this to apply the current difference as the new baseline so it reads 0.", toastInitialSetupApplied:"Initial setup applied - the difference is now 0.", toastNoDiffToSetup:"No difference to apply.", initialSetupLogNote:"Initial Setup Applied", balancingConfirmLogNote:"Balancing Confirmed",
  ledgerListBtn:"List", ledgerListTitle:"Transaction History", searchByDateLabel:"Search by Date", periodStartLabel:"Start Date", periodEndLabel:"End Date",
- mainCageTitle:"Main Cage", mainCageTypeLabel:"Type", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
+ mainCageTitle:"Main Cage", mainCageTypeLabel:"Type", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem", mainCageCashout:"Cashout",
  mainCageProcessBtn:"Process", toastMainCageProcessed:"Main cage transaction processed.", notifMainCage:"Main Cage Transaction",
  mainCageListBtn:"Records", mainCageListTitle:"Main Cage Transaction Records", cutoffListBtn:"Records", cutoffListTitle:"Daily Settlement Records", balancingCheckListBtn:"Records", balancingCheckListTitle:"Balancing Confirmation Records",
  branchTransferTitle:"Inter-Branch Transfer", branchTransferListBtn:"Records", branchTransferListTitle:"Inter-Branch Transfer Records", branchTransferTo:"To Branch", branchTransferFrom:"From Branch", branchTransferProcessBtn:"Process Transfer",
@@ -6108,7 +6109,7 @@ en:{
  cageCombinedTitle:"碼房合計金額", cageCombinedRollingLabel:"碼房合計金額（轉碼）", cageCombinedCashLabel:"碼房合計金額（現金）", diffLabel2:"差額", balancingCheckBtn:"確認結餘", toastBalancingChecked:"結餘已確認。", toastBalancingNotZero:"轉碼與現金差額必須皆為0才能確認結餘。",
  initialSetupBtn:"初始設定", initialSetupHint:"若因初始設定等原因，實際持有現金／轉碼籌碼與系統計算值不同而產生差額，可用此按鈕將目前差額反映為新的基準點，使其歸零。", toastInitialSetupApplied:"初始設定已套用，差額已歸零。", toastNoDiffToSetup:"沒有可套用的差額。", initialSetupLogNote:"初始設定套用", balancingConfirmLogNote:"結餘確認",
  ledgerListBtn:"清單", ledgerListTitle:"收付紀錄", searchByDateLabel:"依日期搜尋", periodStartLabel:"開始日期", periodEndLabel:"結束日期",
- mainCageTitle:"主碼房", mainCageTypeLabel:"類型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
+ mainCageTitle:"主碼房", mainCageTypeLabel:"類型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem", mainCageCashout:"兌現",
  mainCageProcessBtn:"處理", toastMainCageProcessed:"主碼房交易已處理。", notifMainCage:"主碼房交易",
  mainCageListBtn:"紀錄", mainCageListTitle:"主碼房交易紀錄", cutoffListBtn:"紀錄", cutoffListTitle:"每日結算紀錄", balancingCheckListBtn:"紀錄", balancingCheckListTitle:"結餘確認紀錄",
  branchTransferTitle:"分店間轉帳", branchTransferListBtn:"紀錄", branchTransferListTitle:"分店間轉帳紀錄", branchTransferTo:"轉入分店", branchTransferFrom:"轉出分店", branchTransferProcessBtn:"處理轉帳",
@@ -6247,7 +6248,7 @@ en:{
  cageCombinedTitle:"码房合计金额", cageCombinedRollingLabel:"码房合计金额（转码）", cageCombinedCashLabel:"码房合计金额（现金）", diffLabel2:"差额", balancingCheckBtn:"确认结余", toastBalancingChecked:"结余已确认。", toastBalancingNotZero:"转码与现金差额必须均为0才能确认结余。",
  initialSetupBtn:"初始设定", initialSetupHint:"若因初始设定等原因，实际持有现金／转码筹码与系统计算值不同而产生差额，可用此按钮将当前差额反映为新的基准点，使其归零。", toastInitialSetupApplied:"初始设定已套用，差额已归零。", toastNoDiffToSetup:"没有可套用的差额。", initialSetupLogNote:"初始设定套用", balancingConfirmLogNote:"结余确认",
  ledgerListBtn:"清单", ledgerListTitle:"收付记录", searchByDateLabel:"按日期搜索", periodStartLabel:"开始日期", periodEndLabel:"结束日期",
- mainCageTitle:"主码房", mainCageTypeLabel:"类型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem",
+ mainCageTitle:"主码房", mainCageTypeLabel:"类型", mainCageBuyin:"Buy-in", mainCageRollingCC:"Rolling(CC)", mainCageMarker:"Marker", mainCageRedeem:"Redeem", mainCageCashout:"兑现",
  mainCageProcessBtn:"处理", toastMainCageProcessed:"主码房交易已处理。", notifMainCage:"主码房交易",
  mainCageListBtn:"记录", mainCageListTitle:"主码房交易记录", cutoffListBtn:"记录", cutoffListTitle:"每日结算记录", balancingCheckListBtn:"记录", balancingCheckListTitle:"结余确认记录",
  branchTransferTitle:"分店间转账", branchTransferListBtn:"记录", branchTransferListTitle:"分店间转账记录", branchTransferTo:"转入分店", branchTransferFrom:"转出分店", branchTransferProcessBtn:"处理转账",
@@ -8849,6 +8850,8 @@ function _doProcessMainCage(type, amt){
   DB.mainCageNNAdjust -= amt;
  } else if(type==='redeem'){
   DB.mainCageNNAdjust += amt;
+ } else if(type==='cashout'){
+  DB.mainCageNNAdjust -= amt;
  }
  const now = phNow().toISOString().slice(0,16).replace('T',' ');
  const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
@@ -8871,7 +8874,7 @@ function openMainCageList(){
 function renderMainCageList(){
  const rows = bd().mainCageLog||[];
  const body = document.getElementById('mainCageListBody');
- const typeLabel = {buyin:t('mainCageBuyin'), rollingCC:t('mainCageRollingCC'), marker:t('mainCageMarker'), redeem:t('mainCageRedeem')};
+ const typeLabel = {buyin:t('mainCageBuyin'), rollingCC:t('mainCageRollingCC'), marker:t('mainCageMarker'), redeem:t('mainCageRedeem'), cashout:t('mainCageCashout')};
  body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="5">—</td></tr>` :
   rows.map((r,i)=>`<tr><td class="num">${esc(r.dt)}</td><td>${typeLabel[r.type]||esc(r.type)}</td><td class="num">${fmt(r.amt)}</td><td>${esc(r.staff)}</td>
    <td><button class="btn btn-sm btn-danger" onclick="cancelMainCageEntry(${i})">${t('cancelBtn')}</button></td></tr>`).join('');
@@ -8890,6 +8893,8 @@ function cancelMainCageEntry(idx){
   DB.mainCageNNAdjust += entry.amt;
  } else if(entry.type==='redeem'){
   DB.mainCageNNAdjust -= entry.amt;
+ } else if(entry.type==='cashout'){
+  DB.mainCageNNAdjust += entry.amt;
  }
  if(fbDb && entry.id){
   deleteMainCageEntry(entry.id);

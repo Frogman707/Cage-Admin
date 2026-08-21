@@ -227,12 +227,36 @@ function applyI18n(root){
 }
 function langSwitcherHtml(id){
   return `<div class="lang-switcher" id="${id}">
-    <button type="button" class="lang-current" onclick="document.getElementById('${id}-drop').classList.toggle('open')">
+    <button type="button" class="lang-current" onclick="toggleLangDrop('${id}')">
       <span>${I18N_FLAG[I18N_LANG]}</span><span>${I18N_NATIVE[I18N_LANG]}</span>
     </button>
     <div class="lang-drop" id="${id}-drop">
       ${Object.keys(I18N_NATIVE).map(code=>`<div class="lang-opt" onclick="setLang('${code}');document.getElementById('${id}-drop').classList.remove('open')"><span>${I18N_FLAG[code]}</span><span>${I18N_NATIVE[code]}</span></div>`).join('')}
     </div>
   </div>`;
+}
+/* .lang-drop is position:fixed (see shared/game-ui.css), but that alone isn't enough: the
+   header it usually opens from sets backdrop-filter, which makes the header itself the
+   containing block for any position:fixed descendant (per spec) - so the drop was still
+   getting clipped by the header's own overflow-y:hidden (its horizontal-scroll safety net on
+   narrow screens) even after switching off position:absolute. Moving the drop out to be a
+   direct child of <body> on first open sidesteps that entirely; it stays there afterward
+   (toggling 'open' just shows/hides it) since the button it belongs to never moves, so a
+   later open can still find it by id and re-measure the button's rect. */
+function toggleLangDrop(id){
+  const drop = document.getElementById(id + '-drop');
+  if (!drop) return;
+  const opening = !drop.classList.contains('open');
+  drop.classList.toggle('open', opening);
+  if (!opening) return;
+  if (drop.parentElement !== document.body) document.body.appendChild(drop);
+  const btn = document.querySelector(`#${id} .lang-current`);
+  const r = btn.getBoundingClientRect();
+  const w = drop.offsetWidth || 130;
+  let left = r.right - w;
+  if (left < 6) left = 6;
+  if (left + w > window.innerWidth - 6) left = window.innerWidth - 6 - w;
+  drop.style.left = left + 'px';
+  drop.style.top = (r.bottom + 6) + 'px';
 }
 document.addEventListener('DOMContentLoaded', ()=> applyI18n());

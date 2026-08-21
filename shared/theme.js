@@ -17,4 +17,8 @@ function setTheme(v){
 function syncDisplayToggleUI(){
   document.querySelectorAll('#themeToggle .seg-btn').forEach(b=> b.classList.toggle('active', b.dataset.v===THEME));
 }
+function toggleLoginTheme(){
+  setTheme(THEME === 'dark' ? 'light' : 'dark');
+  syncDisplayToggleUI();
+}
 applyDisplaySettings();

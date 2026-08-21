@@ -118,6 +118,13 @@ input,select,textarea{font-family:var(--sans);}
 .theme-toggle-btn .icon-moon{display:none;}
 [data-theme="light"] .theme-toggle-btn .icon-sun{display:none;}
 [data-theme="light"] .theme-toggle-btn .icon-moon{display:block;}
+/* The topbar's own toggle sits underneath #login-gate (z-index:500) pre-login, so it's neither
+   visible nor clickable there - this one is a second button, not a moved one, positioned inside
+   the overlay itself so switching theme doesn't require logging in first.
+   Two classes (not one) so this beats .notif-bell's own position:relative despite coming earlier
+   in the file - equal-specificity rules resolve by source order otherwise, and .notif-bell's
+   definition sits well after this one. */
+.notif-bell.login-theme-toggle-btn{position:absolute;top:20px;right:20px;}
 
 /* ===== Shell ===== */
 .shell{flex:1;display:flex;min-height:0;}
@@ -653,6 +660,10 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 <body>
 
 <div id="login-gate">
+  <button class="notif-bell theme-toggle-btn login-theme-toggle-btn" id="themeToggleBtnLogin" onclick="toggleTheme()" data-i18n-title="themeToggleTitle">
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+  </button>
   <div class="login-card">
     <div class="login-mark">CAGE ADMIN</div>
     <div class="login-ver" id="loginVerToggle" onclick="toggleMasterLogin()" style="cursor:pointer;">v5.0</div>

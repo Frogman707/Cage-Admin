@@ -58,6 +58,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('loginLangRow').innerHTML = langSwitcherHtml('loginLangSwitch');
   setInterval(()=>{ document.getElementById('clockTxt').textContent = fmtDt(new Date()); }, 1000);
   ensureDefaultStaff();
+  document.getElementById('loginId').addEventListener('input', e=>{ e.target.value = e.target.value.toUpperCase(); });
   document.getElementById('loginPw').addEventListener('keydown', e=>{ if (e.key==='Enter') doLogin(); });
   clearLoginInputs();
   setTimeout(clearLoginInputs, 350);
@@ -77,28 +78,40 @@ async function ensureDefaultStaff(){
   try{
     const snap = await db.collection('agentStaff').limit(1).get();
     if (snap.empty){
-      await db.collection('agentStaff').doc('agent').set({id:'agent', pw:'0000', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent', createdAt: new Date().toISOString()});
+      await db.collection('agentStaff').doc('ADMIN').set({id:'ADMIN', pw:'0000', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent', createdAt: new Date().toISOString()});
     } else {
-      // One-time self-heal: a site loaded before the SEVIP88 -> VIP88 rename shipped would
-      // have already created this doc under the old code, and the emptiness check above only
-      // ever fires once - so a stale doc would otherwise never pick up the rename on its own.
-      const doc = await db.collection('agentStaff').doc('agent').get();
-      if (doc.exists && doc.data().agentCode === 'SEVIP88'){
-        await db.collection('agentStaff').doc('agent').set({agentCode:'VIP88', name:'VIP88 에이전트'}, {merge:true});
+      // One-time self-heal / migration: a site loaded before the ADMIN-doc-id change shipped
+      // would have already created the demo staff doc under the old id 'agent' (possibly still
+      // carrying the even older SEVIP88 code) - and the emptiness check above only ever fires
+      // once, so a stale doc would otherwise never pick this up on its own.
+      const legacyDoc = await db.collection('agentStaff').doc('agent').get();
+      if (legacyDoc.exists){
+        const data = legacyDoc.data();
+        await db.collection('agentStaff').doc('ADMIN').set({
+          ...data, id:'ADMIN',
+          agentCode: data.agentCode === 'SEVIP88' ? 'VIP88' : data.agentCode,
+          name: data.agentCode === 'SEVIP88' ? 'VIP88 에이전트' : data.name,
+        }, {merge:true});
+        await db.collection('agentStaff').doc('agent').delete();
+      } else {
+        const doc = await db.collection('agentStaff').doc('ADMIN').get();
+        if (doc.exists && doc.data().agentCode === 'SEVIP88'){
+          await db.collection('agentStaff').doc('ADMIN').set({agentCode:'VIP88', name:'VIP88 에이전트'}, {merge:true});
+        }
       }
     }
   }catch(e){ /* offline first load — fine, login falls back to local default below */ }
 }
 
 async function doLogin(){
-  const id = document.getElementById('loginId').value.trim() || 'agent';
+  const id = document.getElementById('loginId').value.trim().toUpperCase() || 'ADMIN';
   const pw = document.getElementById('loginPw').value.trim() || '0000';
   let staff = null;
   try{
     const doc = await db.collection('agentStaff').doc(id).get();
     if (doc.exists) staff = doc.data();
   }catch(e){}
-  if (!staff && id==='agent' && pw==='0000') staff = {id:'agent', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent'};
+  if (!staff && id==='ADMIN' && pw==='0000') staff = {id:'ADMIN', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent'};
   if (!staff || String(staff.pw ?? '0000') !== pw){
     document.getElementById('loginErr').style.display='block';
     return;
@@ -275,8 +288,12 @@ async function renderAccount(){
   const members = await getMembers(true);
   const balances = await getBalances(true);
   window.__acctRows = members;
+  const myBal = balances[myAgentCode()]?.balance || 0;
   return `
     ${pageHead(t('accountTitle'), t('accountSub'))}
+    <div class="grid grid-4" style="margin-bottom:16px;">
+      <div class="stat-card"><div class="lbl">${t('myAccountBalance')}</div><div class="val">${fmtNum(myBal)}</div></div>
+    </div>
     <div class="card">
       <div class="toolbar">
         <div class="field search-box"><input id="acctSearch" placeholder="${t('searchIdNickPh')}" oninput="filterAcctTable(this.value)"></div>
@@ -384,11 +401,20 @@ function openBalanceModal(memberId, mode, label){
   document.getElementById('balanceModalSub').textContent = `${t('targetMemberLabel')} ${memberId}`;
   document.getElementById('balanceAmt').value = '';
   document.getElementById('balanceMemo').value = '';
+  document.getElementById('balanceWithdrawPw').value = '';
+  document.getElementById('balanceWithdrawPwField').style.display = mode==='withdraw' ? '' : 'none';
   openModal('modal-balance');
 }
 async function submitBalanceAdjust(){
   const amt = rawNum(document.getElementById('balanceAmt').value);
   if (!amt){ toast(t('amountRequiredErr'), true); return; }
+  if (BALANCE_CTX.mode==='withdraw'){
+    const enteredPw = document.getElementById('balanceWithdrawPw').value.trim();
+    const members = await getMembers();
+    const target = members.find(m=>m.id===BALANCE_CTX.memberId);
+    const actualPw = target ? String(target.withdrawPw ?? '0000') : '0000';
+    if (!enteredPw || enteredPw !== actualPw){ toast(t('withdrawPwErr'), true); return; }
+  }
   const memo = document.getElementById('balanceMemo').value;
   const signed = BALANCE_CTX.mode==='withdraw' ? -Math.abs(amt) : Math.abs(amt);
   await db.collection('memberLedger').doc(uuidv4()).set({
@@ -671,8 +697,8 @@ async function seedDemoData(){
       if (affectsBalance) bal += data.amount;
       set('memberLedger', uuidv4(), {memberId:mid, casino, beforeBalance, afterBalance:bal, createdAt: randDateWithin(30), clientCreatedAt: randDateWithin(30), ...data});
     };
-    for (let i=0;i<randInt(1,3);i++) pushEntry({amount: randInt(5,50)*10000, category:'deposit', memo:'자금 이체', staff:CURRENT_STAFF?.id||'agent'});
-    for (let i=0;i<randInt(0,2);i++) pushEntry({amount: -randInt(3,30)*10000, category:'withdraw', memo:'자금 회수', staff:CURRENT_STAFF?.id||'agent'});
+    for (let i=0;i<randInt(1,3);i++) pushEntry({amount: randInt(5,50)*10000, category:'deposit', memo:'자금 이체', staff:CURRENT_STAFF?.id||'ADMIN'});
+    for (let i=0;i<randInt(0,2);i++) pushEntry({amount: -randInt(3,30)*10000, category:'withdraw', memo:'자금 회수', staff:CURRENT_STAFF?.id||'ADMIN'});
     for (let i=0;i<randInt(2,6);i++){
       const gameType = randPick(gameTypes);
       const betMarket = randPick(betMarkets);
@@ -687,6 +713,24 @@ async function seedDemoData(){
       }
     }
   });
+
+  // agent's own account wallet — keyed by agentCode itself, aggregated by the
+  // same unscoped getBalances() used for downline balances, so 계정관리's
+  // "로그인 계정 잔액" card has non-zero demo data.
+  {
+    let myBal = randInt(50,300)*10000;
+    for (let i=0;i<randInt(2,4);i++){
+      const amt = randInt(10,80)*10000;
+      const before = myBal; myBal += amt;
+      set('memberLedger', uuidv4(), {memberId:agentCode, amount:amt, category:'deposit', memo:'본사 지급', staff:CURRENT_STAFF?.id||'ADMIN', beforeBalance:before, afterBalance:myBal, createdAt: randDateWithin(30), clientCreatedAt: randDateWithin(30)});
+    }
+    for (let i=0;i<randInt(1,3);i++){
+      const amt = -randInt(5,40)*10000;
+      const before = myBal; myBal += amt;
+      set('memberLedger', uuidv4(), {memberId:agentCode, amount:amt, category:'withdraw', memo:'본사 회수', staff:CURRENT_STAFF?.id||'ADMIN', beforeBalance:before, afterBalance:myBal, createdAt: randDateWithin(30), clientCreatedAt: randDateWithin(30)});
+    }
+  }
+
   await flush();
   toast(t('seedDone'));
   invalidateCaches();

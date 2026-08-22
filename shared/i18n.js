@@ -255,6 +255,8 @@ const I18N_DICT = {
   initialPwLabel:{ko:'초기 비밀번호',zhHans:'初始密码',zhHant:'初始密碼',en:'Initial Password',ja:'初期パスワード',vi:'Mật khẩu ban đầu'},
   subMemberCreated:{ko:'하부회원(게임용 아이디)이 생성되었습니다',zhHans:'下属会员（游戏账号）已生成',zhHant:'下屬會員（遊戲帳號）已生成',en:'Sub-member (game ID) created',ja:'下位会員（ゲーム用ID）が作成されました',vi:'Đã tạo hội viên tuyến dưới (ID game)'},
   enterIdErr:{ko:'ID를 입력하세요',zhHans:'请输入账号',zhHant:'請輸入帳號',en:'Please enter an ID',ja:'IDを入力してください',vi:'Vui lòng nhập ID'},
+  idFormatErr:{ko:'ID는 영문/숫자만 입력할 수 있습니다',zhHans:'账号只能输入英文字母和数字',zhHant:'帳號只能輸入英文字母和數字',en:'ID may only contain letters and numbers',ja:'IDは英数字のみ入力できます',vi:'ID chỉ được chứa chữ cái và số'},
+  idDuplicateErr:{ko:'이미 존재하는 ID입니다',zhHans:'该账号已存在',zhHant:'該帳號已存在',en:'This ID already exists',ja:'既に存在するIDです',vi:'ID này đã tồn tại'},
 
   // ---- Agent Admin — 계정관리 ----
   accountTitle:{ko:'계정관리',zhHans:'账户管理',zhHant:'帳戶管理',en:'Account Management',ja:'アカウント管理',vi:'Quản lý tài khoản'},

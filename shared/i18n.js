@@ -35,6 +35,7 @@ const I18N_DICT = {
   loginErrNotfound:{ko:'존재하지 않는 계정입니다.',zhHans:'账号不存在。',zhHant:'帳號不存在。',en:'Account not found.',ja:'アカウントが存在しません。',vi:'Không tìm thấy tài khoản.'},
   loginErrBlocked:{ko:'이용이 제한된 계정입니다.',zhHans:'该账号已被限制使用。',zhHant:'該帳號已被限制使用。',en:'This account has been restricted.',ja:'このアカウントは利用制限されています。',vi:'Tài khoản này đã bị hạn chế.'},
   loginErrBadPw:{ko:'비밀번호가 일치하지 않습니다.',zhHans:'密码不正确。',zhHant:'密碼不正確。',en:'Incorrect password.',ja:'パスワードが一致しません。',vi:'Mật khẩu không đúng.'},
+  loginErrDuplicate:{ko:'다른 기기에서 이미 로그인 중입니다.',zhHans:'该账号已在其他设备登录。',zhHant:'該帳號已在其他裝置登入。',en:'This account is already logged in on another device.',ja:'このアカウントは他の端末でログイン中です。',vi:'Tài khoản này đang đăng nhập trên thiết bị khác.'},
   loginErrRequired:{ko:'ID/비밀번호를 입력하세요.',zhHans:'请输入账号和密码。',zhHant:'請輸入帳號和密碼。',en:'Please enter your ID and password.',ja:'IDとパスワードを入力してください。',vi:'Vui lòng nhập ID và mật khẩu.'},
 
   suGenId:{ko:'신규 ID 생성',zhHans:'生成新账号',zhHant:'生成新帳號',en:'Generate ID',ja:'新規ID発行',vi:'Tạo ID mới'},

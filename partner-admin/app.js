@@ -687,7 +687,7 @@ async function renderUserList(){
     title:'유저리스트', sub:'전체 회원 목록',
     coll:'members', casinoField:'casino', search:true, searchFields:['id','nickname','phone'], searchPh:'ID/닉네임/전화번호 검색',
     filters:[
-      {key:'parentAgent', label:'에이전트', options:['SEVIP88','nustarms']},
+      {key:'parentAgent', label:'에이전트', options:['VIP88','nustarms']},
       {key:'memberType', label:'회원유형', options:['정회원','준회원','관리회원','멀티회원']},
       {key:'status', label:'로그인상태', options:['정상','정지','블랙리스트']},
     ],
@@ -728,7 +728,7 @@ function openCreateMemberForm(){
   document.getElementById('formModalBody').innerHTML = `
     <div class="row"><div class="field"><label>ID</label><input id="nfId"></div><div class="field"><label>닉네임</label><input id="nfNick"></div></div>
     <div class="row"><div class="field"><label>전화번호</label><input id="nfPhone"></div><div class="field"><label>카지노</label><select id="nfCasino">${CASINOS.map(c=>`<option>${c}</option>`).join('')}</select></div></div>
-    <div class="row"><div class="field"><label>상위에이전트</label><input id="nfAgent" value="SEVIP88"></div><div class="field"><label>회원유형</label><select id="nfType"><option>정회원</option><option>준회원</option><option>관리회원</option><option>멀티회원</option></select></div></div>
+    <div class="row"><div class="field"><label>상위에이전트</label><input id="nfAgent" value="VIP88"></div><div class="field"><label>회원유형</label><select id="nfType"><option>정회원</option><option>준회원</option><option>관리회원</option><option>멀티회원</option></select></div></div>
   `;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     const id = document.getElementById('nfId').value.trim().toUpperCase();
@@ -1731,8 +1731,8 @@ async function seedDemoData(){
   // partners hierarchy
   const partners = [
     {id:'MAIN', name:'본사', parentCode:null, level:0, shareRate:0},
-    {id:'SEVIP88', name:'SEVIP88 파트너', parentCode:'MAIN', level:1, shareRate:0.8},
-    {id:'SEA0904', name:'SEA0904 서브', parentCode:'SEVIP88', level:2, shareRate:0.4},
+    {id:'VIP88', name:'VIP88 파트너', parentCode:'MAIN', level:1, shareRate:0.8},
+    {id:'SEA0904', name:'SEA0904 서브', parentCode:'VIP88', level:2, shareRate:0.4},
     {id:'NUSTARMS', name:'nustarms 파트너', parentCode:'MAIN', level:1, shareRate:0.6},
     {id:'HANNVIP', name:'HANN VIP 파트너', parentCode:'MAIN', level:1, shareRate:0.5},
   ];
@@ -1751,13 +1751,13 @@ async function seedDemoData(){
   tableDefs.forEach(t => set('tables', t.id, {...t, status:'open', betMin:5000, betMax:3000000, shoeNo: randInt(1,8)}));
 
   // members
-  const agents = ['SEVIP88','SEA0904','NUSTARMS','HANNVIP'];
+  const agents = ['VIP88','SEA0904','NUSTARMS','HANNVIP'];
   const types = ['정회원','정회원','정회원','정회원','정회원','준회원','관리회원','멀티회원'];
   const nicknames = ['용용용','Eeyeyete','홈미르크','두산에너빌리티','아꼬케이','GDragon','레오123','HANYING','Danny','메이드킹','뽀삐','우주최강','달빛소년','골드핑거','실버베어','청춘예찬','바다사랑','들꽃향기','새벽별','황금돼지'];
   const memberIds = [];
   for (let i=1;i<=40;i++){
     const casino = randPick(CASINOS);
-    const id = `SE${casino[0]}${String(1000+i)}`;
+    const id = `PL${String(1000+i)}`;
     memberIds.push(id);
     let status = '정상';
     if (i%17===0) status = '블랙리스트'; else if (i%11===0) status = '정지';
@@ -1835,7 +1835,7 @@ async function seedDemoData(){
 
   // logs
   for (let i=0;i<25;i++) set('memberActionLogs', uuidv4(), {memberId:randPick(memberIds), action: randPick(['보유금 지급 100,000','보유금 차감 50,000','상태변경 → 정상','비밀번호 초기화','소속이동']), staff:'admin', dt: randDateWithin(15)});
-  for (let i=0;i<25;i++) set('adminLogs', uuidv4(), {staff: randPick(['admin','Eric','Jena']), action: randPick(['로그인','테이블설정 변경','쉐어율 변경 SEVIP88','공지사항 등록','회원 생성']), target: randPick(memberIds), dt: randDateWithin(15)});
+  for (let i=0;i<25;i++) set('adminLogs', uuidv4(), {staff: randPick(['admin','Eric','Jena']), action: randPick(['로그인','테이블설정 변경','쉐어율 변경 VIP88','공지사항 등록','회원 생성']), target: randPick(memberIds), dt: randDateWithin(15)});
 
   // deposit / payment requests
   for (let i=0;i<10;i++) set('depositRequests', uuidv4(), {memberId:randPick(memberIds), amount: randInt(5,50)*10000, method:'계좌이체', status: i<3?'대기':randPick(['승인','거절']), dt: randDateWithin(7)});

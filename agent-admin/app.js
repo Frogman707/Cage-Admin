@@ -108,8 +108,11 @@ async function doLogin(){
   const pw = document.getElementById('loginPw').value.trim() || '0000';
   let staff = null;
   try{
-    const doc = await db.collection('agentStaff').doc(id).get();
-    if (doc.exists) staff = doc.data();
+    // case-insensitive match: don't rely on the Firestore doc id's exact
+    // casing, compare every staff doc's id against the (uppercased) input.
+    const snap = await db.collection('agentStaff').get();
+    const found = snap.docs.find(d => String(d.id).toUpperCase() === id);
+    if (found) staff = found.data();
   }catch(e){}
   if (!staff && id==='ADMIN' && pw==='0000') staff = {id:'ADMIN', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent'};
   if (!staff || String(staff.pw ?? '0000') !== pw){
@@ -459,7 +462,7 @@ async function renderBetHistory(){
     <div id="bhStats" class="grid grid-4" style="margin-bottom:16px;"></div>
     <div class="card">
       <div class="table-wrap"><table><thead><tr>
-        <th>${t('colDatetime')}</th><th>${t('colId')}</th><th>${t('colGameType')}</th><th>${t('colBetMarket')}</th><th>${t('colCategory')}</th><th>${t('colBeforeAmount')}</th><th>${t('colAmount')}</th><th>${t('colAfterAmount')}</th><th>${t('colMemo')}</th>
+        <th>${t('colDatetime')}</th><th>${t('colId')}</th><th>${t('colGameType')}</th><th>${t('colBetMarket')}</th><th>${t('colCategory')}</th><th>${t('colAmount')}</th><th>${t('colBeforeAmount')}</th><th>${t('colAfterAmount')}</th><th>${t('colMemo')}</th>
       </tr></thead><tbody id="bhBody"></tbody></table></div>
     </div>
   `;
@@ -486,8 +489,8 @@ function applyBetHistoryFilter(){
     <td>${fmtDt(l.clientCreatedAt||l.dt)}</td><td>${escapeHtml(l.memberId)}</td>
     <td>${escapeHtml(l.gameType||'—')}</td><td>${escapeHtml(l.betMarket||'—')}</td>
     <td>${ledgerCategoryLabel(l.category)}</td>
-    <td><span class="num">${l.beforeBalance!=null?fmtNum(l.beforeBalance):'—'}</span></td>
     <td><span class="num ${Number(l.amount)<0?'neg':'pos'}">${fmtNum(l.amount)}</span></td>
+    <td><span class="num">${l.beforeBalance!=null?fmtNum(l.beforeBalance):'—'}</span></td>
     <td><span class="num">${l.afterBalance!=null?fmtNum(l.afterBalance):'—'}</span></td>
     <td>${escapeHtml(l.memo||'—')}</td>
   </tr>`).join('') || `<tr class="empty-row"><td colspan="9">${t('noDataMsg')}</td></tr>`;

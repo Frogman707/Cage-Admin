@@ -240,10 +240,15 @@ async function renderMember(){
     </div>
   `;
 }
+// Account = synced in from a physical cage-opened account (Cage Admin's "Sync Accounts
+// to Avatar/Speed"); Game ID = a plain avatar/speed game login, whether this agent
+// created it directly or the member self-signed-up online. Source, not the member's
+// own memberType value (정회원/VIP/준회원/...), is what actually distinguishes the two.
+function memberTypeLabel(m){ return m.source==='cage' ? 'Account' : 'Game ID'; }
 function memberRowsHtml(rows, balances){
   return rows.map(m=>`<tr>
     <td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td><td>${maskPhone(m.phone)}</td>
-    <td>${escapeHtml(m.casino||'—')}</td><td>${escapeHtml(m.memberType||'—')}</td>
+    <td>${escapeHtml(m.casino||'—')}</td><td>${memberTypeLabel(m)}</td>
     <td><span class="num">${fmtNum(balances[m.id]?.balance||0)}</span></td>
     <td>${fmtDate(m.createdAt)}</td><td>${m.lastLoginAt?fmtDt(m.lastLoginAt):'—'}</td><td>${pill(m.status,{정상:'ok',정지:'bad',블랙리스트:'bad'})}</td>
   </tr>`).join('') || `<tr class="empty-row"><td colspan="9">${t('noSubMembers')}</td></tr>`;
@@ -262,8 +267,7 @@ function openCreateSubMemberForm(){
     <p class="hint" style="margin:-4px 0 12px;">${t('createSubMemberHint')}</p>
     <div class="row"><div class="field"><label>${t('gameIdLabel')}</label><input id="nfId" placeholder="영문/숫자"></div><div class="field"><label>${t('initialPwLabel')}</label><input id="nfPw" value="0000"></div></div>
     <div class="row"><div class="field"><label>${t('colNick')}</label><input id="nfNick"></div><div class="field"><label>${t('colPhone')}</label><input id="nfPhone"></div></div>
-    <div class="row"><div class="field"><label>${t('colCasino')}</label><select id="nfCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select></div>
-      <div class="field"><label>${t('colMemberType')}</label><select id="nfType"><option>아바타아이디</option><option>스피드아이디</option></select></div></div>
+    <div class="field"><label>${t('colCasino')}</label><select id="nfCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select></div>
   `;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     const id = document.getElementById('nfId').value.trim().toUpperCase();
@@ -273,7 +277,7 @@ function openCreateSubMemberForm(){
     await db.collection('members').doc(id).set({
       id, loginId:id, nickname: document.getElementById('nfNick').value, phone: document.getElementById('nfPhone').value,
       casino: document.getElementById('nfCasino').value, parentAgent: myAgentCode(), agentCode: myAgentCode(),
-      memberType: document.getElementById('nfType').value, status:'정상', betMax:1000000, betMin:5000,
+      memberType: 'Game ID', source: 'agent', status:'정상', betMax:1000000, betMin:5000,
       pw: document.getElementById('nfPw').value || '0000', withdrawPw:'0000',
       createdAt: new Date().toISOString(), lastLoginAt: null,
     });
@@ -582,7 +586,7 @@ async function renderRealtime(){
     <div class="card"><h3>${t('onlineMembersTitle')}</h3>
       <div class="table-wrap"><table><thead><tr><th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colCasino')}</th><th>${t('colLocation')}</th><th>${t('colMemberType')}</th><th>${t('colLastLogin')}</th><th>${t('colStatus')}</th></tr></thead><tbody>
       ${online.length ? online.sort((a,b)=>new Date(b.lastLoginAt)-new Date(a.lastLoginAt)).map(m=>`
-        <tr><td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td><td>${escapeHtml(m.casino)}</td><td>${escapeHtml(m.currentTable||'—')}</td><td>${escapeHtml(m.memberType)}</td><td>${fmtDt(m.lastLoginAt)}</td><td><span class="badge-dot"></span> ${t('onlineLabel')}</td></tr>
+        <tr><td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td><td>${escapeHtml(m.casino)}</td><td>${escapeHtml(m.currentTable||'—')}</td><td>${memberTypeLabel(m)}</td><td>${fmtDt(m.lastLoginAt)}</td><td><span class="badge-dot"></span> ${t('onlineLabel')}</td></tr>
       `).join('') : `<tr class="empty-row"><td colspan="7">${t('noOnlineMembers')}</td></tr>`}
       </tbody></table></div>
     </div>
@@ -677,16 +681,22 @@ async function seedDemoData(){
   const nicknames = ['용용용','Eeyeyete','홈미르크','두산에너빌리티','아꼬케이','GDragon','레오123','HANYING','Danny','메이드킹'];
   const casinos = ['NUSTAR','HANN','ONLINE'];
   const casinoPrefix = {NUSTAR:'NU', HANN:'HN', ONLINE:'ON'};
-  const types = ['어카운트','아바타아이디','스피드아이디'];
   const memberIds = [];
   for (let i=1;i<=12;i++){
     const casino = randPick(casinos);
     const id = `${agentCode.slice(0,3).toUpperCase()}${String(1000+i)}`;
     memberIds.push(id);
     const lastLoginAt = Math.random()>.4 ? randDateWithin(1) : null;
+    // every 4th member simulates one synced in from the physical cage (Cage Admin's
+    // "Sync Accounts to Avatar/Speed") rather than one this agent created directly -
+    // memberTypeLabel() classifies those as Account, everything else as Game ID.
+    const fromCage = i % 4 === 0;
     set('members', id, {
       id, loginId:id, pw:'0000', nickname: randPick(nicknames)+i, phone:`010${randInt(1000,9999)}${randInt(1000,9999)}`,
-      casino, agentCode, parentAgent: agentCode, memberType: randPick(types), status: i%9===0?'정지':'정상',
+      casino, agentCode, parentAgent: agentCode,
+      memberType: fromCage ? randPick(['정회원','VIP']) : 'Game ID',
+      source: fromCage ? 'cage' : 'agent',
+      status: i%9===0?'정지':'정상',
       accessBlocked: i%9===0, agentRate: randPick([0.8,1.0,1.2,1.45]),
       betMax: randPick([500000,1000000,3000000]), betMin: 5000, withdrawPw:'0000',
       createdAt: randDateWithin(180), lastLoginAt,

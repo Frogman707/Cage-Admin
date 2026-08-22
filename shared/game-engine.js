@@ -120,15 +120,32 @@ function dealSequence(sim){
 
 /* ---------------- member session (lite auth against `members`) ---------------- */
 let PLAYER = null;
+// A member already active on another device within this window can't be signed in
+// on a second device until that session ends (logout) or the window lapses - the
+// same 6h "online" window the admin panels already use to call a member online.
+const SESSION_STALE_MS = 1000*60*60*6;
 async function playerLogin(db, id, pw){
-  const doc = await db.collection('members').doc(id.toUpperCase()).get();
+  const ref = db.collection('members').doc(id.toUpperCase());
+  const doc = await ref.get();
   if (!doc.exists) return {ok:false, reason:'notfound'};
   const m = doc.data();
   if (String(m.pw ?? '0000') !== pw) return {ok:false, reason:'badpw'};
   if (m.status !== '정상') return {ok:false, reason:'blocked'};
-  await db.collection('members').doc(id.toUpperCase()).set({lastLoginAt:new Date().toISOString()}, {merge:true});
-  PLAYER = m;
-  return {ok:true, member:m};
+  const myDevice = getDeviceId();
+  if (m.activeDeviceId && m.activeDeviceId !== myDevice && m.lastLoginAt && (Date.now() - new Date(m.lastLoginAt).getTime()) < SESSION_STALE_MS){
+    return {ok:false, reason:'duplicate'};
+  }
+  const lastLoginAt = new Date().toISOString();
+  await ref.set({lastLoginAt, activeDeviceId: myDevice}, {merge:true});
+  PLAYER = {...m, lastLoginAt, activeDeviceId: myDevice};
+  return {ok:true, member:PLAYER};
+}
+async function playerLogout(db){
+  const id = PLAYER?.id;
+  PLAYER = null;
+  if (id && db){
+    try{ await db.collection('members').doc(id).set({activeDeviceId: firebase.firestore.FieldValue.delete()}, {merge:true}); }catch(e){}
+  }
 }
 async function playerSignup(db, data){
   const id = data.id.toUpperCase();
@@ -137,7 +154,7 @@ async function playerSignup(db, data){
     casino:data.casino, agentCode:data.agentCode||'DIRECT', parentAgent:data.agentCode||'DIRECT',
     memberType:'준회원', status:'정상', vip:false, betMax:1000000, betMin:5000,
     withdrawPw:data.pw, smsVerified:!!data.smsVerified, source:'online',
-    createdAt:new Date().toISOString(), lastLoginAt:new Date().toISOString(),
+    createdAt:new Date().toISOString(), lastLoginAt:new Date().toISOString(), activeDeviceId: getDeviceId(),
   };
   // Claiming the id (checking it doesn't exist, then creating it) has to happen in one transaction,
   // not a separate get() then set() - otherwise two concurrent signups for the same id can both pass

@@ -52,7 +52,7 @@ async function onLogin(){
   if (!id || !pw){ err.textContent = t('loginErrRequired'); err.style.display='block'; return; }
   const res = await playerLogin(db, id, pw);
   if (!res.ok){
-    err.textContent = res.reason==='notfound' ? t('loginErrNotfound') : res.reason==='blocked' ? t('loginErrBlocked') : t('loginErrBadPw');
+    err.textContent = res.reason==='notfound' ? t('loginErrNotfound') : res.reason==='blocked' ? t('loginErrBlocked') : res.reason==='duplicate' ? t('loginErrDuplicate') : t('loginErrBadPw');
     err.style.display='block';
     return;
   }
@@ -108,7 +108,7 @@ async function onSignup(){
 
 function onLogout(){
   stopAllLoops();
-  PLAYER = null;
+  playerLogout(db); // clears the active-session marker in the background; UI resets immediately
   MODE = null;
   MY_BET_LOG = [];
   document.getElementById('app').style.display = 'none';

@@ -44,7 +44,7 @@ module.exports = [
     },
   },
   {
-    files: ["avatar/**/*.js", "partner-admin/**/*.js", "shared/**/*.js"],
+    files: ["avatar/**/*.js", "partner-admin/**/*.js", "agent-admin/**/*.js", "shared/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "script",

@@ -62,11 +62,11 @@
     <div class="login-mark">AGENT ADMIN</div>
     <div class="login-ver">v5.0</div>
     <div class="login-lang-row" id="loginLangRow"></div>
-    <div class="field" style="margin-top:22px;"><label data-i18n="agentIdLabel">에이전트 ID</label><input id="loginId" placeholder="agent" autocomplete="off"></div>
+    <div class="field" style="margin-top:22px;"><label data-i18n="agentIdLabel">에이전트 ID</label><input id="loginId" placeholder="ADMIN" autocomplete="off" style="text-transform:uppercase;"></div>
     <div class="field"><label data-i18n="loginPw">비밀번호</label><input id="loginPw" type="password" placeholder="••••" autocomplete="new-password"></div>
     <p class="login-error" id="loginErr" data-i18n="agentLoginErr" style="display:none;">아이디 또는 비밀번호가 올바르지 않습니다.</p>
     <button class="btn btn-gold btn-block" onclick="doLogin()" data-i18n="loginBtn">로그인</button>
-    <p class="login-hint"><span data-i18n="demoAccountLabel">데모 계정</span>: <b style="color:var(--ink-dim);">agent / 0000</b></p>
+    <p class="login-hint"><span data-i18n="demoAccountLabel">데모 계정</span>: <b style="color:var(--ink-dim);">ADMIN / 0000</b></p>
     <p class="login-hint" id="seedHint" data-i18n="agentSeedHint">최초 실행 시 데모 데이터가 없으면 로그인 후 좌측 하단 "데모 데이터 생성"을 눌러주세요.</p>
   </div>
 </div>
@@ -102,6 +102,7 @@
   <h3 id="balanceModalTitle">자금 이체</h3>
   <p class="hint" id="balanceModalSub"></p>
   <div class="field"><label data-i18n="amountLabel">금액</label><input id="balanceAmt" type="text" inputmode="numeric" placeholder="0" oninput="formatNumInput(this)"></div>
+  <div class="field" id="balanceWithdrawPwField" style="display:none;"><label data-i18n="withdrawPwLabel">출금 비밀번호</label><input id="balanceWithdrawPw" type="password" autocomplete="off"></div>
   <div class="field"><label data-i18n="memoLabel">메모</label><textarea id="balanceMemo" data-i18n-ph="memoPh" placeholder="사유를 입력하세요"></textarea></div>
   <div class="modal-foot">
     <button class="btn" onclick="closeModal('modal-balance')" data-i18n="cancelBtn">취소</button>

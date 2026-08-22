@@ -17,6 +17,38 @@
 .limit-table th,.limit-table td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;}
 .limit-table td:first-child,.limit-table th:first-child{text-align:left;}
 .rate-badge{font-family:var(--mono);color:var(--brass);font-weight:700;}
+
+/* ---- phone layout — same markup, no separate mobile build ----
+   Below 860px the desktop shape (fixed 210px sidebar + a topbar that
+   assumes plenty of horizontal room) stops fitting: topbar-meta text
+   was wrapping one Hangul syllable per line (CJK text has no spaces,
+   so a too-narrow flex item breaks between every character rather
+   than overflowing as a word would), and the sidebar alone was eating
+   over half of a typical 390px phone width. Nav collapses to a
+   horizontal scrollable strip (6 flat items, no nested groups, so
+   this doesn't need the accordion partner-admin's nav would). */
+@media (max-width:860px){
+  .shell{flex-direction:column;}
+  .nav{width:100%;flex-direction:row;align-items:center;overflow-x:auto;overflow-y:hidden;padding:4px 6px;border-right:none;border-bottom:1px solid var(--line);}
+  .nav-single{flex:0 0 auto;white-space:nowrap;padding:9px 12px;border-left:none;border-bottom:3px solid transparent;}
+  .nav-single.active{border-left-color:transparent;border-bottom-color:var(--brass);}
+  .nav-foot{margin-top:0;margin-left:auto;padding:0 6px 0 10px;border-top:none;flex:0 0 auto;display:flex;align-items:center;gap:8px;white-space:nowrap;}
+  .nav-foot br{display:none;}
+  .nav-foot-btns{flex-direction:row;margin-top:0;}
+  .main{padding:14px 12px 40px;}
+
+  .topbar{flex-wrap:wrap;row-gap:8px;padding:8px 12px;}
+  .topbar-meta{flex-wrap:wrap;row-gap:6px;}
+  .topbar-meta span,.topbar-meta b{white-space:nowrap;}
+  .brand .ver{display:none;}
+}
+@media (max-width:640px){
+  .grid-3,.grid-4,.grid-5,.grid-6,.grid-7{grid-template-columns:repeat(2,1fr);}
+  .stat-card{padding:12px 14px;}
+  .stat-card .val{font-size:20px;margin-top:6px;}
+  #clockTxt{display:none;}
+  .modal{padding:18px 16px;}
+}
 </style>
 </head>
 <body>

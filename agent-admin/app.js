@@ -474,11 +474,14 @@ async function renderRealtime(){
   const members = await getMembers(true);
   const now = Date.now();
   const online = members.filter(m => m.lastLoginAt && (now - new Date(m.lastLoginAt).getTime()) < 1000*60*60*6 && !m.accessBlocked);
+  const casinos = ['NUSTAR','HANN','ONLINE'];
+  const byCasino = {};
+  casinos.forEach(c=>{ byCasino[c] = online.filter(m=>m.casino===c).length; });
   return `
     ${pageHead(t('realtimeTitle'), t('realtimeSub'))}
-    <div class="grid grid-2" style="margin-bottom:16px;">
+    <div class="grid grid-4" style="margin-bottom:16px;">
       <div class="stat-card"><div class="lbl">${t('statOnlineTotal')}</div><div class="val">${online.length}</div></div>
-      <div class="stat-card"><div class="lbl">${t('statTotalDownline')}</div><div class="val">${members.length}</div></div>
+      ${casinos.map(c=>`<div class="stat-card"><div class="lbl">${c}</div><div class="val">${byCasino[c]}</div></div>`).join('')}
     </div>
     <div class="card"><h3>${t('onlineMembersTitle')}</h3>
       <div class="table-wrap"><table><thead><tr><th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colCasino')}</th><th>${t('colMemberType')}</th><th>${t('colLastLogin')}</th><th>${t('colStatus')}</th></tr></thead><tbody>
@@ -519,9 +522,10 @@ async function renderMyInfo(){
         <button class="btn btn-gold" onclick="changeMyPw()">${t('changeBtn')}</button>
       </div>
     </div>
-    <div class="grid grid-2" style="margin-top:16px;">
+    <div class="grid grid-3" style="margin-top:16px;">
       <div class="stat-card"><div class="lbl">${t('statTotalDownline')}</div><div class="val">${members.length}</div></div>
       <div class="stat-card"><div class="lbl">${t('totalDownlineBalance')}</div><div class="val">${fmtNum(totalBal)}</div></div>
+      <div class="stat-card"><div class="lbl">${t('avgBalance')}</div><div class="val">${fmtNum(members.length ? Math.round(totalBal/members.length) : 0)}</div></div>
     </div>
     <div class="card" style="margin-top:16px;"><h3>${t('recentFundMovement')}</h3>
       <div class="table-wrap"><table><thead><tr><th>${t('colDatetime')}</th><th>${t('colId')}</th><th>${t('colCategory')}</th><th>${t('colAmount')}</th></tr></thead><tbody>

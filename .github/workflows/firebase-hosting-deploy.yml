@@ -11,6 +11,7 @@ on:
       - ".firebaserc"
       - "firestore.rules"
       - "partner-admin/**"
+      - "agent-admin/**"
       - "avatar/**"
       - "speed/**"
       - "shared/**"

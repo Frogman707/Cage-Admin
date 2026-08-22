@@ -1,8 +1,10 @@
 /* ============================================================
    CAGE ADMIN 5.0 — shared 6-language i18n. ko/en/zhHant/zhHans/ja/vi.
    Covers the player-facing Avatar/Speed site and Agent Admin (an
-   agent's own staff may not all read Korean). Partner Admin and the
-   Cage app stay Korean-only internal tools and are not covered here.
+   agent's own staff may not all read Korean). Partner Admin only uses
+   this for its login screen (language switcher + display-settings
+   toggle) - the rest of Partner Admin and the Cage app stay
+   Korean-only internal tools and are not covered here.
 
    Chinese is two languages here, not one. It was a single 中文 written
    in simplified characters, which is the mainland's script and is not
@@ -218,6 +220,7 @@ const I18N_DICT = {
 
   // ---- Agent Admin — login / topbar ----
   agentIdLabel:{ko:'에이전트 ID',zhHans:'代理商 ID',zhHant:'代理商 ID',en:'Agent ID',ja:'エージェントID',vi:'ID đại lý'},
+  partnerIdLabel:{ko:'파트너 ID',zhHans:'合作伙伴 ID',zhHant:'合作夥伴 ID',en:'Partner ID',ja:'パートナーID',vi:'ID đối tác'},
   agentLoginErr:{ko:'아이디 또는 비밀번호가 올바르지 않습니다.',zhHans:'账号或密码不正确。',zhHant:'帳號或密碼不正確。',en:'Incorrect ID or password.',ja:'IDまたはパスワードが正しくありません。',vi:'ID hoặc mật khẩu không đúng.'},
   demoAccountLabel:{ko:'데모 계정',zhHans:'演示账号',zhHant:'演示帳號',en:'Demo account',ja:'デモアカウント',vi:'Tài khoản demo'},
   agentSeedHint:{ko:'최초 실행 시 데모 데이터가 없으면 로그인 후 좌측 하단 "데모 데이터 생성"을 눌러주세요.',zhHans:'首次运行如无演示数据，请登录后点击左下角"生成演示数据"。',zhHant:'首次執行如無演示資料，請登入後點選左下角"生成演示資料"。',en:'On first run, log in and click "Generate Demo Data" in the bottom-left if there\'s no data yet.',ja:'初回実行時にデモデータがない場合、ログイン後に左下の「デモデータ生成」を押してください。',vi:'Lần chạy đầu nếu chưa có dữ liệu, hãy đăng nhập rồi nhấn "Tạo dữ liệu demo" ở góc dưới bên trái.'},

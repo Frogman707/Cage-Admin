@@ -149,6 +149,7 @@ function setActiveNav(viewId){
 window.addEventListener('DOMContentLoaded', ()=>{
   db = cageInitFirebase();
   buildNav();
+  document.getElementById('loginLangRow').innerHTML = langSwitcherHtml('loginLangSwitch');
   setInterval(()=>{ document.getElementById('clockTxt').textContent = fmtDt(new Date()); }, 1000);
   ensureDefaultStaff();
   document.getElementById('loginPw').addEventListener('keydown', e=>{ if (e.key==='Enter') doLogin(); });
@@ -179,10 +180,13 @@ async function doLogin(){
   const pw = document.getElementById('loginPw').value.trim() || '0000';
   let staff = null;
   try{
-    const doc = await db.collection('partnerStaff').doc(id).get();
-    if (doc.exists) staff = doc.data();
+    // case-insensitive match: don't rely on the Firestore doc id's exact
+    // casing, compare every staff doc's id against the (uppercased) input.
+    const snap = await db.collection('partnerStaff').get();
+    const found = snap.docs.find(d => String(d.id).toUpperCase() === id.toUpperCase());
+    if (found) staff = found.data();
   }catch(e){}
-  if (!staff && id==='admin' && pw==='0000') staff = {id:'admin', name:'Eric', role:'master'};
+  if (!staff && id.toUpperCase()==='ADMIN' && pw==='0000') staff = {id:'admin', name:'Eric', role:'master'};
   if (!staff || String(staff.pw ?? '0000') !== pw){
     document.getElementById('loginErr').style.display='block';
     return;

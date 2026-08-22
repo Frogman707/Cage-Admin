@@ -58,7 +58,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('loginLangRow').innerHTML = langSwitcherHtml('loginLangSwitch');
   setInterval(()=>{ document.getElementById('clockTxt').textContent = fmtDt(new Date()); }, 1000);
   ensureDefaultStaff();
-  document.getElementById('loginId').addEventListener('input', e=>{ e.target.value = e.target.value.toUpperCase(); });
   document.getElementById('loginPw').addEventListener('keydown', e=>{ if (e.key==='Enter') doLogin(); });
   clearLoginInputs();
   setTimeout(clearLoginInputs, 350);
@@ -78,25 +77,29 @@ async function ensureDefaultStaff(){
   try{
     const snap = await db.collection('agentStaff').limit(1).get();
     if (snap.empty){
-      await db.collection('agentStaff').doc('ADMIN').set({id:'ADMIN', pw:'0000', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent', createdAt: new Date().toISOString()});
+      await db.collection('agentStaff').doc('Admin').set({id:'Admin', pw:'0000', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent', createdAt: new Date().toISOString()});
     } else {
-      // One-time self-heal / migration: a site loaded before the ADMIN-doc-id change shipped
-      // would have already created the demo staff doc under the old id 'agent' (possibly still
-      // carrying the even older SEVIP88 code) - and the emptiness check above only ever fires
-      // once, so a stale doc would otherwise never pick this up on its own.
-      const legacyDoc = await db.collection('agentStaff').doc('agent').get();
-      if (legacyDoc.exists){
+      // One-time self-heal / migration: a site loaded before the current doc-id convention
+      // shipped would have already created the demo staff doc under an older id ('agent' or
+      // 'ADMIN', possibly still carrying the even older SEVIP88 code) - and the emptiness check
+      // above only ever fires once, so a stale doc would otherwise never pick this up on its own.
+      let legacyDoc = null, legacyId = null;
+      for (const lid of ['agent','ADMIN']){
+        const d = await db.collection('agentStaff').doc(lid).get();
+        if (d.exists){ legacyDoc = d; legacyId = lid; break; }
+      }
+      if (legacyDoc){
         const data = legacyDoc.data();
-        await db.collection('agentStaff').doc('ADMIN').set({
-          ...data, id:'ADMIN',
+        await db.collection('agentStaff').doc('Admin').set({
+          ...data, id:'Admin',
           agentCode: data.agentCode === 'SEVIP88' ? 'VIP88' : data.agentCode,
           name: data.agentCode === 'SEVIP88' ? 'VIP88 에이전트' : data.name,
         }, {merge:true});
-        await db.collection('agentStaff').doc('agent').delete();
+        await db.collection('agentStaff').doc(legacyId).delete();
       } else {
-        const doc = await db.collection('agentStaff').doc('ADMIN').get();
+        const doc = await db.collection('agentStaff').doc('Admin').get();
         if (doc.exists && doc.data().agentCode === 'SEVIP88'){
-          await db.collection('agentStaff').doc('ADMIN').set({agentCode:'VIP88', name:'VIP88 에이전트'}, {merge:true});
+          await db.collection('agentStaff').doc('Admin').set({agentCode:'VIP88', name:'VIP88 에이전트'}, {merge:true});
         }
       }
     }
@@ -114,7 +117,7 @@ async function doLogin(){
     const found = snap.docs.find(d => String(d.id).toUpperCase() === id);
     if (found) staff = found.data();
   }catch(e){}
-  if (!staff && id==='ADMIN' && pw==='0000') staff = {id:'ADMIN', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent'};
+  if (!staff && id==='ADMIN' && pw==='0000') staff = {id:'Admin', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent'};
   if (!staff || String(staff.pw ?? '0000') !== pw){
     document.getElementById('loginErr').style.display='block';
     return;
@@ -700,8 +703,8 @@ async function seedDemoData(){
       if (affectsBalance) bal += data.amount;
       set('memberLedger', uuidv4(), {memberId:mid, casino, beforeBalance, afterBalance:bal, createdAt: randDateWithin(30), clientCreatedAt: randDateWithin(30), ...data});
     };
-    for (let i=0;i<randInt(1,3);i++) pushEntry({amount: randInt(5,50)*10000, category:'deposit', memo:'자금 이체', staff:CURRENT_STAFF?.id||'ADMIN'});
-    for (let i=0;i<randInt(0,2);i++) pushEntry({amount: -randInt(3,30)*10000, category:'withdraw', memo:'자금 회수', staff:CURRENT_STAFF?.id||'ADMIN'});
+    for (let i=0;i<randInt(1,3);i++) pushEntry({amount: randInt(5,50)*10000, category:'deposit', memo:'자금 이체', staff:CURRENT_STAFF?.id||'Admin'});
+    for (let i=0;i<randInt(0,2);i++) pushEntry({amount: -randInt(3,30)*10000, category:'withdraw', memo:'자금 회수', staff:CURRENT_STAFF?.id||'Admin'});
     for (let i=0;i<randInt(2,6);i++){
       const gameType = randPick(gameTypes);
       const betMarket = randPick(betMarkets);
@@ -725,12 +728,12 @@ async function seedDemoData(){
     for (let i=0;i<randInt(2,4);i++){
       const amt = randInt(10,80)*10000;
       const before = myBal; myBal += amt;
-      set('memberLedger', uuidv4(), {memberId:agentCode, amount:amt, category:'deposit', memo:'본사 지급', staff:CURRENT_STAFF?.id||'ADMIN', beforeBalance:before, afterBalance:myBal, createdAt: randDateWithin(30), clientCreatedAt: randDateWithin(30)});
+      set('memberLedger', uuidv4(), {memberId:agentCode, amount:amt, category:'deposit', memo:'본사 지급', staff:CURRENT_STAFF?.id||'Admin', beforeBalance:before, afterBalance:myBal, createdAt: randDateWithin(30), clientCreatedAt: randDateWithin(30)});
     }
     for (let i=0;i<randInt(1,3);i++){
       const amt = -randInt(5,40)*10000;
       const before = myBal; myBal += amt;
-      set('memberLedger', uuidv4(), {memberId:agentCode, amount:amt, category:'withdraw', memo:'본사 회수', staff:CURRENT_STAFF?.id||'ADMIN', beforeBalance:before, afterBalance:myBal, createdAt: randDateWithin(30), clientCreatedAt: randDateWithin(30)});
+      set('memberLedger', uuidv4(), {memberId:agentCode, amount:amt, category:'withdraw', memo:'본사 회수', staff:CURRENT_STAFF?.id||'Admin', beforeBalance:before, afterBalance:myBal, createdAt: randDateWithin(30), clientCreatedAt: randDateWithin(30)});
     }
   }
 

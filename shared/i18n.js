@@ -350,6 +350,7 @@ const I18N_DICT = {
   currentPwLabel:{ko:'현재 비밀번호',zhHans:'当前密码',zhHant:'目前密碼',en:'Current Password',ja:'現在のパスワード',vi:'Mật khẩu hiện tại'},
   newPw2Label:{ko:'새 비밀번호 확인',zhHans:'确认新密码',zhHant:'確認新密碼',en:'Confirm New Password',ja:'新しいパスワード確認',vi:'Xác nhận mật khẩu mới'},
   totalDownlineBalance:{ko:'하부 보유금 합계',zhHans:'下属余额合计',zhHant:'下屬餘額合計',en:'Downline Balance Total',ja:'下位保有金合計',vi:'Tổng số dư tuyến dưới'},
+  avgBalance:{ko:'평균 보유금',zhHans:'平均余额',zhHant:'平均餘額',en:'Average Balance',ja:'平均保有金',vi:'Số dư trung bình'},
   recentFundMovement:{ko:'최근 자금 이동 내역',zhHans:'近期资金变动记录',zhHant:'近期資金變動記錄',en:'Recent Fund Movements',ja:'最近の資金移動履歴',vi:'Lịch sử chuyển quỹ gần đây'},
   savedToast:{ko:'저장되었습니다',zhHans:'已保存',zhHant:'已儲存',en:'Saved',ja:'保存されました',vi:'Đã lưu'},
   pwMismatchErr:{ko:'현재 비밀번호가 일치하지 않습니다',zhHans:'当前密码不正确',zhHant:'目前密碼不正確',en:'Current password does not match',ja:'現在のパスワードが一致しません',vi:'Mật khẩu hiện tại không đúng'},

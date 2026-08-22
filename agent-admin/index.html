@@ -37,13 +37,13 @@
     </button>
     <div class="login-mark">AGENT ADMIN</div>
     <div class="login-ver">v5.0</div>
-    <div class="field" style="margin-top:26px;"><label data-i18n="agentIdLabel">에이전트 ID</label><input id="loginId" placeholder="agent" autocomplete="off"></div>
+    <div class="login-lang-row" id="loginLangRow"></div>
+    <div class="field" style="margin-top:22px;"><label data-i18n="agentIdLabel">에이전트 ID</label><input id="loginId" placeholder="agent" autocomplete="off"></div>
     <div class="field"><label data-i18n="loginPw">비밀번호</label><input id="loginPw" type="password" placeholder="••••" autocomplete="new-password"></div>
     <p class="login-error" id="loginErr" data-i18n="agentLoginErr" style="display:none;">아이디 또는 비밀번호가 올바르지 않습니다.</p>
     <button class="btn btn-gold btn-block" onclick="doLogin()" data-i18n="loginBtn">로그인</button>
     <p class="login-hint"><span data-i18n="demoAccountLabel">데모 계정</span>: <b style="color:var(--ink-dim);">agent / 0000</b></p>
     <p class="login-hint" id="seedHint" data-i18n="agentSeedHint">최초 실행 시 데모 데이터가 없으면 로그인 후 좌측 하단 "데모 데이터 생성"을 눌러주세요.</p>
-    <div class="login-lang-row" id="loginLangRow"></div>
   </div>
 </div>
 

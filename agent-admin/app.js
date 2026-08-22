@@ -408,8 +408,18 @@ async function submitBalanceAdjust(){
    베팅내역
    ============================================================ */
 let BETHIST_RAW = [];
+const BET_ROUND_CATEGORIES = ['bet','payout','winloss','rolling'];
+function ledgerCategoryLabel(cat){
+  if (cat==='bet') return t('categoryBet');
+  if (cat==='payout') return t('categoryPayout');
+  if (cat==='winloss') return t('statWinLoss');
+  if (cat==='rolling') return t('colRolling');
+  if (cat==='deposit') return t('statDeposit');
+  if (cat==='withdraw') return t('statWithdraw');
+  return cat;
+}
 async function renderBetHistory(){
-  BETHIST_RAW = (await myLedger(true)).filter(l=>l.category==='bet' || l.category==='payout');
+  BETHIST_RAW = (await myLedger(true)).filter(l=>BET_ROUND_CATEGORIES.includes(l.category));
   const today = new Date(), monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate()-30);
   const html = `
     ${pageHead(t('betHistoryTitle'), t('betHistorySub'))}
@@ -422,7 +432,9 @@ async function renderBetHistory(){
     </div>
     <div id="bhStats" class="grid grid-4" style="margin-bottom:16px;"></div>
     <div class="card">
-      <div class="table-wrap"><table><thead><tr><th>${t('colDatetime')}</th><th>${t('colId')}</th><th>${t('colCategory')}</th><th>${t('colAmount')}</th><th>${t('colMemo')}</th></tr></thead><tbody id="bhBody"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr>
+        <th>${t('colDatetime')}</th><th>${t('colId')}</th><th>${t('colGameType')}</th><th>${t('colBetMarket')}</th><th>${t('colCategory')}</th><th>${t('colBeforeAmount')}</th><th>${t('colAmount')}</th><th>${t('colAfterAmount')}</th><th>${t('colMemo')}</th>
+      </tr></thead><tbody id="bhBody"></tbody></table></div>
     </div>
   `;
   setTimeout(applyBetHistoryFilter, 0);
@@ -430,20 +442,29 @@ async function renderBetHistory(){
 }
 function applyBetHistoryFilter(){
   const ledger = BETHIST_RAW.filter(inRangeFilter('bhStart','bhEnd'));
-  const bets = ledger.filter(l=>l.category==='bet');
-  const payouts = ledger.filter(l=>l.category==='payout');
-  const userCount = new Set(bets.map(l=>l.memberId)).size;
-  const totalBet = bets.reduce((s,l)=>s+Math.abs(Number(l.amount)||0),0);
-  const totalPayout = payouts.reduce((s,l)=>s+(Number(l.amount)||0),0);
-  const winLoss = totalPayout - totalBet;
+  const rounds = ledger.filter(l=>l.category==='bet' || l.category==='winloss');
+  const userCount = new Set(rounds.map(l=>l.memberId)).size;
+  const totalRolling = ledger.filter(l=>l.category==='rolling').reduce((s,l)=>s+Math.abs(Number(l.amount)||0),0)
+    + ledger.filter(l=>l.category==='bet').reduce((s,l)=>s+Math.abs(Number(l.amount)||0),0);
+  const totalWinLoss = ledger.filter(l=>l.category==='winloss').reduce((s,l)=>s+(Number(l.amount)||0),0)
+    + ledger.filter(l=>l.category==='payout').reduce((s,l)=>s+(Number(l.amount)||0),0)
+    - ledger.filter(l=>l.category==='bet').reduce((s,l)=>s+Math.abs(Number(l.amount)||0),0);
   document.getElementById('bhStats').innerHTML = `
     <div class="stat-card"><div class="lbl">${t('statBetUsers')}</div><div class="val">${userCount}</div></div>
-    <div class="stat-card"><div class="lbl">${t('statBetCount')}</div><div class="val">${bets.length}</div></div>
-    <div class="stat-card"><div class="lbl">${t('colRolling')}</div><div class="val">${fmtNum(totalBet)}</div></div>
-    <div class="stat-card${winLoss<0?' danger':''}"><div class="lbl">${t('statWinLoss')}</div><div class="val">${fmtSigned(winLoss)}</div></div>
+    <div class="stat-card"><div class="lbl">${t('statBetCount')}</div><div class="val">${rounds.length}</div></div>
+    <div class="stat-card"><div class="lbl">${t('colRolling')}</div><div class="val">${fmtNum(totalRolling)}</div></div>
+    <div class="stat-card${totalWinLoss<0?' danger':''}"><div class="lbl">${t('statWinLoss')}</div><div class="val">${fmtSigned(totalWinLoss)}</div></div>
   `;
   const rows = ledger.slice().sort((a,b)=>ledgerDate(b)-ledgerDate(a));
-  document.getElementById('bhBody').innerHTML = rows.slice(0,200).map(l=>`<tr><td>${fmtDt(l.clientCreatedAt||l.dt)}</td><td>${escapeHtml(l.memberId)}</td><td>${l.category==='bet'?t('categoryBet'):t('categoryPayout')}</td><td><span class="num ${Number(l.amount)<0?'neg':'pos'}">${fmtNum(l.amount)}</span></td><td>${escapeHtml(l.memo||'—')}</td></tr>`).join('') || `<tr class="empty-row"><td colspan="5">${t('noDataMsg')}</td></tr>`;
+  document.getElementById('bhBody').innerHTML = rows.slice(0,200).map(l=>`<tr>
+    <td>${fmtDt(l.clientCreatedAt||l.dt)}</td><td>${escapeHtml(l.memberId)}</td>
+    <td>${escapeHtml(l.gameType||'—')}</td><td>${escapeHtml(l.betMarket||'—')}</td>
+    <td>${ledgerCategoryLabel(l.category)}</td>
+    <td><span class="num">${l.beforeBalance!=null?fmtNum(l.beforeBalance):'—'}</span></td>
+    <td><span class="num ${Number(l.amount)<0?'neg':'pos'}">${fmtNum(l.amount)}</span></td>
+    <td><span class="num">${l.afterBalance!=null?fmtNum(l.afterBalance):'—'}</span></td>
+    <td>${escapeHtml(l.memo||'—')}</td>
+  </tr>`).join('') || `<tr class="empty-row"><td colspan="9">${t('noDataMsg')}</td></tr>`;
 }
 
 /* ============================================================
@@ -476,20 +497,23 @@ function applySettlementFilter(){
   const { members, ledger } = SETTLEMENT_RAW;
   const filtered = ledger.filter(inRangeFilter('stlStart','stlEnd'));
   const byMember = {};
-  members.forEach(m=>{ byMember[m.id] = {m, deposit:0, withdraw:0, bet:0, payout:0}; });
+  members.forEach(m=>{ byMember[m.id] = {m, deposit:0, withdraw:0, rolling:0, winloss:0}; });
   filtered.forEach(l=>{
     const row = byMember[l.memberId]; if (!row) return;
-    if (l.category==='deposit') row.deposit += Number(l.amount)||0;
-    if (l.category==='withdraw') row.withdraw += Number(l.amount)||0;
-    if (l.category==='bet') row.bet += Math.abs(Number(l.amount)||0);
-    if (l.category==='payout') row.payout += Number(l.amount)||0;
+    const amt = Number(l.amount)||0;
+    if (l.category==='deposit') row.deposit += amt;
+    if (l.category==='withdraw') row.withdraw += amt;
+    if (l.category==='bet'){ row.rolling += Math.abs(amt); row.winloss -= Math.abs(amt); }
+    if (l.category==='payout') row.winloss += amt;
+    if (l.category==='rolling') row.rolling += Math.abs(amt);
+    if (l.category==='winloss') row.winloss += amt;
   });
-  const rows = Object.values(byMember).filter(r=>r.deposit||r.withdraw||r.bet||r.payout);
+  const rows = Object.values(byMember).filter(r=>r.deposit||r.withdraw||r.rolling||r.winloss);
   const totalDeposit = rows.reduce((s,r)=>s+r.deposit,0);
   const totalWithdraw = rows.reduce((s,r)=>s+Math.abs(r.withdraw),0);
-  const totalWinLoss = rows.reduce((s,r)=>s+(r.payout-r.bet),0);
-  const totalRolling = rows.reduce((s,r)=>s+r.bet,0);
-  const totalComm = rows.reduce((s,r)=>s+r.bet*((r.m.agentRate||0)/100),0);
+  const totalWinLoss = rows.reduce((s,r)=>s+r.winloss,0);
+  const totalRolling = rows.reduce((s,r)=>s+r.rolling,0);
+  const totalComm = rows.reduce((s,r)=>s+r.rolling*((r.m.agentRate||0)/100),0);
   document.getElementById('stlStats').innerHTML = `
     <div class="stat-card"><div class="lbl">${t('statDeposit')}</div><div class="val">${fmtNum(totalDeposit)}</div></div>
     <div class="stat-card"><div class="lbl">${t('statWithdraw')}</div><div class="val">${fmtNum(totalWithdraw)}</div></div>
@@ -500,10 +524,10 @@ function applySettlementFilter(){
   document.getElementById('stlBody').innerHTML = rows.map(r=>`<tr>
     <td>${escapeHtml(r.m.id)}</td><td>${escapeHtml(r.m.nickname||'—')}</td><td>${escapeHtml(r.m.parentAgent||'—')}</td>
     <td><span class="num pos">${fmtNum(r.deposit)}</span></td><td><span class="num neg">${fmtNum(Math.abs(r.withdraw))}</span></td>
-    <td><span class="num">${fmtNum(r.bet)}</span></td>
-    <td><span class="num ${(r.payout-r.bet)<0?'neg':'pos'}">${fmtSigned(r.payout-r.bet)}</span></td>
+    <td><span class="num">${fmtNum(r.rolling)}</span></td>
+    <td><span class="num ${r.winloss<0?'neg':'pos'}">${fmtSigned(r.winloss)}</span></td>
     <td>${fmtRate(r.m.agentRate)}%</td>
-    <td><span class="num">${fmtNum(r.bet*((r.m.agentRate||0)/100))}</span></td>
+    <td><span class="num">${fmtNum(r.rolling*((r.m.agentRate||0)/100))}</span></td>
   </tr>`).join('') || `<tr class="empty-row"><td colspan="9">${t('noSettlementData')}</td></tr>`;
 }
 
@@ -569,7 +593,7 @@ async function renderMyInfo(){
     </div>
     <div class="card" style="margin-top:16px;"><h3>${t('recentFundMovement')}</h3>
       <div class="table-wrap"><table><thead><tr><th>${t('colDatetime')}</th><th>${t('colId')}</th><th>${t('colCategory')}</th><th>${t('colAmount')}</th></tr></thead><tbody>
-      ${ledger.slice(0,15).map(l=>`<tr><td>${fmtDt(l.clientCreatedAt||l.dt)}</td><td>${escapeHtml(l.memberId)}</td><td>${l.category==='bet'?t('categoryBet'):l.category==='payout'?t('categoryPayout'):l.category==='deposit'?t('statDeposit'):l.category==='withdraw'?t('statWithdraw'):l.category}</td><td><span class="num ${Number(l.amount)<0?'neg':'pos'}">${fmtNum(l.amount)}</span></td></tr>`).join('') || `<tr class="empty-row"><td colspan="4">${t('noDataMsg')}</td></tr>`}
+      ${ledger.slice(0,15).map(l=>`<tr><td>${fmtDt(l.clientCreatedAt||l.dt)}</td><td>${escapeHtml(l.memberId)}</td><td>${ledgerCategoryLabel(l.category)}</td><td><span class="num ${Number(l.amount)<0?'neg':'pos'}">${fmtNum(l.amount)}</span></td></tr>`).join('') || `<tr class="empty-row"><td colspan="4">${t('noDataMsg')}</td></tr>`}
       </tbody></table></div>
     </div>
   `;
@@ -637,14 +661,30 @@ async function seedDemoData(){
       currentTable: lastLoginAt ? `${casinoPrefix[casino]}-${randPick(['A','S'])}0${randInt(1,4)}` : null,
     });
   }
+  const gameTypes = ['라이브','아바타','스피드'];
+  const betMarkets = ['뱅커','플레이어','타이','뱅커페어','플레이어페어'];
   memberIds.forEach(mid=>{
     const casino = randPick(casinos);
-    for (let i=0;i<randInt(1,3);i++) set('memberLedger', uuidv4(), {memberId:mid, casino, amount: randInt(5,50)*10000, category:'deposit', memo:'자금 이체', staff:CURRENT_STAFF?.id||'agent', createdAt: randDateWithin(30), clientCreatedAt: randDateWithin(30)});
-    for (let i=0;i<randInt(0,2);i++) set('memberLedger', uuidv4(), {memberId:mid, casino, amount: -randInt(3,30)*10000, category:'withdraw', memo:'자금 회수', staff:CURRENT_STAFF?.id||'agent', createdAt: randDateWithin(30), clientCreatedAt: randDateWithin(30)});
+    let bal = randInt(0,500)*1000;
+    const pushEntry = (data, affectsBalance=true) => {
+      const beforeBalance = bal;
+      if (affectsBalance) bal += data.amount;
+      set('memberLedger', uuidv4(), {memberId:mid, casino, beforeBalance, afterBalance:bal, createdAt: randDateWithin(30), clientCreatedAt: randDateWithin(30), ...data});
+    };
+    for (let i=0;i<randInt(1,3);i++) pushEntry({amount: randInt(5,50)*10000, category:'deposit', memo:'자금 이체', staff:CURRENT_STAFF?.id||'agent'});
+    for (let i=0;i<randInt(0,2);i++) pushEntry({amount: -randInt(3,30)*10000, category:'withdraw', memo:'자금 회수', staff:CURRENT_STAFF?.id||'agent'});
     for (let i=0;i<randInt(2,6);i++){
+      const gameType = randPick(gameTypes);
+      const betMarket = randPick(betMarkets);
       const betAmt = randInt(5,80)*1000;
-      set('memberLedger', uuidv4(), {memberId:mid, casino, amount:-betAmt, category:'bet', createdAt: randDateWithin(10), clientCreatedAt: randDateWithin(10)});
-      if (Math.random()>.45) set('memberLedger', uuidv4(), {memberId:mid, casino, amount: Math.round(betAmt*randPick([0,1.95,2.9])), category:'payout', createdAt: randDateWithin(10), clientCreatedAt: randDateWithin(10)});
+      if (gameType==='라이브'){
+        const winLoss = Math.round(betAmt*(randPick([0,1.95,2.9])-1));
+        pushEntry({amount: winLoss, category:'winloss', gameType, betMarket});
+        pushEntry({amount: betAmt, category:'rolling', gameType, betMarket}, false);
+      } else {
+        pushEntry({amount:-betAmt, category:'bet', gameType, betMarket});
+        if (Math.random()>.45) pushEntry({amount: Math.round(betAmt*randPick([0,1.95,2.9])), category:'payout', gameType, betMarket});
+      }
     }
   });
   await flush();

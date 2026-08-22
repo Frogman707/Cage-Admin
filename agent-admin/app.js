@@ -118,6 +118,20 @@ async function doLogin(){
     if (found) staff = found.data();
   }catch(e){}
   if (!staff && id==='ADMIN' && pw==='0000') staff = {id:'Admin', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent'};
+  if (!staff){
+    // Account-type members (opened at the physical cage, synced in via Cage Admin's "Sync
+    // Accounts to Avatar/Speed") double as sub-agents who manage their own downline here -
+    // their member id/pw signs them in too, scoped to parentAgent === their own member id.
+    try{
+      const doc = await db.collection('members').doc(id).get();
+      if (doc.exists){
+        const m = doc.data();
+        if (memberTypeLabel(m)==='Account' && m.status==='정상'){
+          staff = {id: m.id, name: m.nickname || m.id, agentCode: m.id, role:'agent', pw: m.pw, authSource:'member'};
+        }
+      }
+    }catch(e){}
+  }
   if (!staff || String(staff.pw ?? '0000') !== pw){
     document.getElementById('loginErr').style.display='block';
     return;
@@ -637,7 +651,10 @@ async function renderMyInfo(){
 async function saveMyInfo(){
   const name = document.getElementById('myName').value.trim();
   if (!name) return;
-  await db.collection('agentStaff').doc(CURRENT_STAFF.id).set({name}, {merge:true});
+  // Account-type logins authenticate against `members`, not `agentStaff` - a member's
+  // display name lives in its nickname field there.
+  if (CURRENT_STAFF.authSource==='member') await db.collection('members').doc(CURRENT_STAFF.id).set({nickname:name}, {merge:true});
+  else await db.collection('agentStaff').doc(CURRENT_STAFF.id).set({name}, {merge:true});
   CURRENT_STAFF.name = name;
   document.getElementById('staffNameTxt').textContent = `${name} (${CURRENT_STAFF.agentCode})`;
   toast(t('savedToast'));
@@ -646,7 +663,8 @@ async function changeMyPw(){
   const cur = document.getElementById('curPw').value, n1 = document.getElementById('newPw').value, n2 = document.getElementById('newPw2').value;
   if (String(CURRENT_STAFF.pw ?? '0000') !== cur){ toast(t('pwMismatchErr'), true); return; }
   if (!n1 || n1 !== n2){ toast(t('pwConfirmErr'), true); return; }
-  await db.collection('agentStaff').doc(CURRENT_STAFF.id).set({pw:n1}, {merge:true});
+  if (CURRENT_STAFF.authSource==='member') await db.collection('members').doc(CURRENT_STAFF.id).set({pw:n1}, {merge:true});
+  else await db.collection('agentStaff').doc(CURRENT_STAFF.id).set({pw:n1}, {merge:true});
   CURRENT_STAFF.pw = n1;
   toast(t('pwChangedToast'));
 }

@@ -23,25 +23,25 @@ function ic(name){ return `<span class="ic">${ICONS[name]||ICONS.doc}</span>`; }
 
 /* ---------------- nav structure — exactly the 6 requested sections ---------------- */
 const NAV_GROUPS = [
-  {id:'member', label:'회원관리', icon:'users', single:true},
-  {id:'account', label:'계정관리', icon:'wallet', single:true},
-  {id:'betHistory', label:'베팅내역', icon:'pulse', single:true},
-  {id:'settlementReport', label:'정산리포트', icon:'doc', single:true},
-  {id:'realtime', label:'실시간접속자', icon:'dashboard', single:true},
-  {id:'myinfo', label:'내정보 변경', icon:'user', single:true},
+  {id:'member', labelKey:'navMember', icon:'users', single:true},
+  {id:'account', labelKey:'navAccount', icon:'wallet', single:true},
+  {id:'betHistory', labelKey:'navBetHistory', icon:'pulse', single:true},
+  {id:'settlementReport', labelKey:'navSettlement', icon:'doc', single:true},
+  {id:'realtime', labelKey:'navRealtime', icon:'dashboard', single:true},
+  {id:'myinfo', labelKey:'navMyInfo', icon:'user', single:true},
 ];
 
 function buildNav(){
   const nav = document.getElementById('navBar');
   let html = '';
   NAV_GROUPS.forEach(g=>{
-    html += `<button class="nav-single" id="navbtn-${g.id}" onclick="switchView('${g.id}')">${ic(g.icon)}<span>${g.label}</span></button>`;
+    html += `<button class="nav-single" id="navbtn-${g.id}" onclick="switchView('${g.id}')">${ic(g.icon)}<span data-i18n="${g.labelKey}">${t(g.labelKey)}</span></button>`;
   });
   nav.innerHTML = html + `
     <div class="nav-foot">
       Agent Ops<br>CAGE ADMIN 5.0
       <div class="nav-foot-btns">
-        <button onclick="confirmSeed()">데모 데이터 생성</button>
+        <button onclick="confirmSeed()" data-i18n="seedDemoData">${t('seedDemoData')}</button>
       </div>
     </div>`;
 }
@@ -55,12 +55,17 @@ function setActiveNav(viewId){
 window.addEventListener('DOMContentLoaded', ()=>{
   db = cageInitFirebase();
   buildNav();
+  document.getElementById('loginLangRow').innerHTML = langSwitcherHtml('loginLangSwitch');
   setInterval(()=>{ document.getElementById('clockTxt').textContent = fmtDt(new Date()); }, 1000);
   ensureDefaultStaff();
   document.getElementById('loginPw').addEventListener('keydown', e=>{ if (e.key==='Enter') doLogin(); });
   clearLoginInputs();
   setTimeout(clearLoginInputs, 350);
 });
+function onLangChange(){
+  buildNav();
+  if (CURRENT_STAFF){ setActiveNav(CURRENT_VIEW); switchView(CURRENT_VIEW); }
+}
 window.addEventListener('pageshow', clearLoginInputs);
 function clearLoginInputs(){
   document.getElementById('loginId').value = '';
@@ -96,6 +101,7 @@ async function doLogin(){
   document.getElementById('topbar').style.display='flex';
   document.getElementById('shell').style.display='flex';
   document.getElementById('staffNameTxt').textContent = `${staff.name || staff.id} (${staff.agentCode})`;
+  document.getElementById('hdrLangRow').innerHTML = langSwitcherHtml('hdrLangSwitch');
   switchView('member');
 }
 function doLogout(){
@@ -113,12 +119,12 @@ async function switchView(viewId){
   const main = document.getElementById('mainArea');
   main.innerHTML = `<div class="loading-wrap"><div class="spin"></div></div>`;
   try{
-    const fn = VIEW_RENDERERS[viewId] || (()=>`<div class="card"><h3>준비 중</h3></div>`);
+    const fn = VIEW_RENDERERS[viewId] || (()=>`<div class="card"><h3>${t('comingSoon')}</h3></div>`);
     const html = await fn();
     main.innerHTML = html;
   }catch(e){
     console.error(e);
-    main.innerHTML = `<div class="card"><h3>오류</h3><p style="color:var(--danger);">${escapeHtml(e.message||String(e))}</p></div>`;
+    main.innerHTML = `<div class="card"><h3>${t('errorLabel')}</h3><p style="color:var(--danger);">${escapeHtml(e.message||String(e))}</p></div>`;
   }
 }
 function pageHead(title, sub){
@@ -175,20 +181,20 @@ async function renderMember(){
   const members = await getMembers(true);
   const balances = await getBalances(true);
   return `
-    ${pageHead('회원관리', '하부 회원 리스트 · 게임용(아바타/스피드) 아이디는 이 화면 또는 케이지에서 생성할 수 있습니다.')}
+    ${pageHead(t('memberTitle'), t('memberSub'))}
     <div class="grid grid-4" style="margin-bottom:16px;">
-      <div class="stat-card"><div class="lbl">총 하부회원</div><div class="val">${members.length}</div></div>
-      <div class="stat-card"><div class="lbl">정상</div><div class="val">${members.filter(m=>m.status==='정상').length}</div></div>
-      <div class="stat-card"><div class="lbl">정지</div><div class="val">${members.filter(m=>m.status==='정지').length}</div></div>
-      <div class="stat-card"><div class="lbl">보유금 합계</div><div class="val">${fmtNum(Object.entries(balances).filter(([id])=>members.some(m=>m.id===id)).reduce((s,[,b])=>s+b.balance,0))}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statTotalDownline')}</div><div class="val">${members.length}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statActive')}</div><div class="val">${members.filter(m=>m.status==='정상').length}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statSuspended')}</div><div class="val">${members.filter(m=>m.status==='정지').length}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statBalanceSum')}</div><div class="val">${fmtNum(Object.entries(balances).filter(([id])=>members.some(m=>m.id===id)).reduce((s,[,b])=>s+b.balance,0))}</div></div>
     </div>
     <div class="card">
       <div class="toolbar">
-        <div class="field search-box"><input id="memberSearch" placeholder="ID/닉네임 검색" oninput="filterMemberTable(this.value)"></div>
-        <div class="toolbar-right"><button class="btn btn-gold btn-sm" onclick="openCreateSubMemberForm()">+ 하부회원 생성</button></div>
+        <div class="field search-box"><input id="memberSearch" placeholder="${t('searchIdNickPh')}" oninput="filterMemberTable(this.value)"></div>
+        <div class="toolbar-right"><button class="btn btn-gold btn-sm" onclick="openCreateSubMemberForm()">${t('createSubMemberBtn')}</button></div>
       </div>
       <div class="table-wrap"><table><thead><tr>
-        <th>ID</th><th>닉네임</th><th>전화번호</th><th>카지노</th><th>회원유형</th><th>보유금</th><th>가입일</th><th>상태</th>
+        <th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colPhone')}</th><th>${t('colCasino')}</th><th>${t('colMemberType')}</th><th>${t('colBalance')}</th><th>${t('colJoined')}</th><th>${t('colStatus')}</th>
       </tr></thead><tbody id="memberBody">
       ${memberRowsHtml(members, balances)}
       </tbody></table></div>
@@ -201,7 +207,7 @@ function memberRowsHtml(rows, balances){
     <td>${escapeHtml(m.casino||'—')}</td><td>${escapeHtml(m.memberType||'—')}</td>
     <td><span class="num">${fmtNum(balances[m.id]?.balance||0)}</span></td>
     <td>${fmtDate(m.createdAt)}</td><td>${pill(m.status,{정상:'ok',정지:'bad',블랙리스트:'bad'})}</td>
-  </tr>`).join('') || `<tr class="empty-row"><td colspan="8">하부회원이 없습니다</td></tr>`;
+  </tr>`).join('') || `<tr class="empty-row"><td colspan="8">${t('noSubMembers')}</td></tr>`;
 }
 function filterMemberTable(q){
   q = q.toLowerCase();
@@ -212,17 +218,17 @@ function filterMemberTable(q){
   });
 }
 function openCreateSubMemberForm(){
-  document.getElementById('formModalTitle').textContent = '하부회원 생성 (게임용 아바타/스피드 아이디)';
+  document.getElementById('formModalTitle').textContent = t('createSubMemberTitle');
   document.getElementById('formModalBody').innerHTML = `
-    <p class="hint" style="margin:-4px 0 12px;">신규 접수는 플로어를 통해 현장에서 받고 상위 계정 생성·변경은 케이지에서 처리합니다. 이 화면에서는 하부 게임용 로그인(아바타/스피드 공용)만 생성합니다.</p>
-    <div class="row"><div class="field"><label>게임용 ID</label><input id="nfId" placeholder="영문/숫자"></div><div class="field"><label>초기 비밀번호</label><input id="nfPw" value="0000"></div></div>
-    <div class="row"><div class="field"><label>닉네임</label><input id="nfNick"></div><div class="field"><label>전화번호</label><input id="nfPhone"></div></div>
-    <div class="row"><div class="field"><label>카지노</label><select id="nfCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select></div>
-      <div class="field"><label>회원유형</label><select id="nfType"><option>정회원</option><option>준회원</option></select></div></div>
+    <p class="hint" style="margin:-4px 0 12px;">${t('createSubMemberHint')}</p>
+    <div class="row"><div class="field"><label>${t('gameIdLabel')}</label><input id="nfId" placeholder="영문/숫자"></div><div class="field"><label>${t('initialPwLabel')}</label><input id="nfPw" value="0000"></div></div>
+    <div class="row"><div class="field"><label>${t('colNick')}</label><input id="nfNick"></div><div class="field"><label>${t('colPhone')}</label><input id="nfPhone"></div></div>
+    <div class="row"><div class="field"><label>${t('colCasino')}</label><select id="nfCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select></div>
+      <div class="field"><label>${t('colMemberType')}</label><select id="nfType"><option>정회원</option><option>준회원</option></select></div></div>
   `;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     const id = document.getElementById('nfId').value.trim().toUpperCase();
-    if (!id){ toast('ID를 입력하세요', true); return; }
+    if (!id){ toast(t('enterIdErr'), true); return; }
     await db.collection('members').doc(id).set({
       id, loginId:id, nickname: document.getElementById('nfNick').value, phone: document.getElementById('nfPhone').value,
       casino: document.getElementById('nfCasino').value, parentAgent: myAgentCode(), agentCode: myAgentCode(),
@@ -231,7 +237,7 @@ function openCreateSubMemberForm(){
       createdAt: new Date().toISOString(), lastLoginAt: null,
     });
     await logAction(id, '하부회원 생성 (에이전트 어드민)');
-    closeModal('modal-form'); toast('하부회원(게임용 아이디)이 생성되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
+    closeModal('modal-form'); toast(t('subMemberCreated')); invalidateCaches(); switchView(CURRENT_VIEW);
   };
   openModal('modal-form');
 }
@@ -248,13 +254,13 @@ async function renderAccount(){
   const balances = await getBalances(true);
   window.__acctRows = members;
   return `
-    ${pageHead('계정관리', '하부 계정의 자금·요율·베팅한도·접속·비밀번호를 관리합니다.')}
+    ${pageHead(t('accountTitle'), t('accountSub'))}
     <div class="card">
       <div class="toolbar">
-        <div class="field search-box"><input id="acctSearch" placeholder="ID/닉네임 검색" oninput="filterAcctTable(this.value)"></div>
+        <div class="field search-box"><input id="acctSearch" placeholder="${t('searchIdNickPh')}" oninput="filterAcctTable(this.value)"></div>
       </div>
       <div class="table-wrap"><table><thead><tr>
-        <th>아이디</th><th>닉네임</th><th>보유금액</th><th>자금관리</th><th>요율</th><th>배팅한도</th><th>접속상태</th><th>비밀번호</th>
+        <th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colBalance')}</th><th>${t('colFundMgmt')}</th><th>${t('colRate')}</th><th>${t('colBetLimit')}</th><th>${t('colAccessStatus')}</th><th>${t('colPassword')}</th>
       </tr></thead><tbody id="acctBody">
       ${rows2Html(members, balances)}
       </tbody></table></div>
@@ -263,7 +269,7 @@ async function renderAccount(){
   function rows2Html(){ return acctRowsHtml(members, balances); }
 }
 function acctRowsHtml(rows, balances){
-  return rows.map(m=>acctRowHtml(m, balances[m.id]?.balance||0)).join('') || `<tr class="empty-row"><td colspan="8">하부회원이 없습니다</td></tr>`;
+  return rows.map(m=>acctRowHtml(m, balances[m.id]?.balance||0)).join('') || `<tr class="empty-row"><td colspan="8">${t('noSubMembers')}</td></tr>`;
 }
 function acctRowHtml(m, bal){
   const blocked = m.accessBlocked === true;
@@ -271,13 +277,13 @@ function acctRowHtml(m, bal){
     <td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td>
     <td><span class="num ${bal<0?'neg':bal>0?'pos':''}">${fmtNum(bal)}</span></td>
     <td>
-      <button class="btn btn-xs btn-jade" onclick="openBalanceModal('${m.id}','deposit','자금 이체')">이체</button>
-      <button class="btn btn-xs btn-danger" onclick="openBalanceModal('${m.id}','withdraw','자금 회수')">회수</button>
+      <button class="btn btn-xs btn-jade" onclick="openBalanceModal('${m.id}','deposit',t('fundTransferTitle'))">${t('transferBtn')}</button>
+      <button class="btn btn-xs btn-danger" onclick="openBalanceModal('${m.id}','withdraw',t('fundRecallTitle'))">${t('recallBtn')}</button>
     </td>
-    <td><span class="rate-badge">${fmtRate(m.agentRate)}%</span> <button class="btn btn-xs" onclick="editAgentRate('${m.id}',${Number(m.agentRate)||0})">수정</button></td>
-    <td><span class="num">${fmtNum(m.betMin||0)}~${fmtNum(m.betMax||0)}</span> <button class="btn btn-xs" onclick="editBetLimit('${m.id}',${Number(m.betMin)||0},${Number(m.betMax)||0})">수정</button></td>
-    <td>${blocked?`<span class="pill bad">차단</span> <button class="btn btn-xs btn-jade" onclick="toggleAccess('${m.id}',false)">허용</button>`:`<span class="pill ok">허용</span> <button class="btn btn-xs btn-danger" onclick="toggleAccess('${m.id}',true)">차단</button>`}</td>
-    <td><button class="btn btn-xs" onclick="openChangeMemberPw('${m.id}')">변경</button></td>
+    <td><span class="rate-badge">${fmtRate(m.agentRate)}%</span> <button class="btn btn-xs" onclick="editAgentRate('${m.id}',${Number(m.agentRate)||0})">${t('editBtn')}</button></td>
+    <td><span class="num">${fmtNum(m.betMin||0)}~${fmtNum(m.betMax||0)}</span> <button class="btn btn-xs" onclick="editBetLimit('${m.id}',${Number(m.betMin)||0},${Number(m.betMax)||0})">${t('editBtn')}</button></td>
+    <td>${blocked?`<span class="pill bad">${t('statusBlocked')}</span> <button class="btn btn-xs btn-jade" onclick="toggleAccess('${m.id}',false)">${t('allowBtn')}</button>`:`<span class="pill ok">${t('statusAllowed')}</span> <button class="btn btn-xs btn-danger" onclick="toggleAccess('${m.id}',true)">${t('blockBtn')}</button>`}</td>
+    <td><button class="btn btn-xs" onclick="openChangeMemberPw('${m.id}')">${t('changeBtn')}</button></td>
   </tr>`;
 }
 function fmtRate(r){ const n = Number(r)||0; return n.toFixed(2).replace(/\.?0+$/,'')||'0'; }
@@ -290,12 +296,12 @@ function filterAcctTable(q){
   });
 }
 function editAgentRate(id, cur){
-  document.getElementById('formModalTitle').textContent = `하부 요율 변경 · ${id}`;
-  document.getElementById('formModalBody').innerHTML = `<div class="field"><label>요율(%)</label><input id="arInput" value="${cur}"></div>`;
+  document.getElementById('formModalTitle').textContent = t('editRateTitle',{id});
+  document.getElementById('formModalBody').innerHTML = `<div class="field"><label>${t('rateLabel')}</label><input id="arInput" value="${cur}"></div>`;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     await db.collection('members').doc(id).set({agentRate:Number(document.getElementById('arInput').value)||0}, {merge:true});
     await logAction(id, '하부 요율 변경');
-    closeModal('modal-form'); toast('요율이 변경되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
+    closeModal('modal-form'); toast(t('rateChanged')); invalidateCaches(); switchView(CURRENT_VIEW);
   };
   openModal('modal-form');
 }
@@ -305,45 +311,45 @@ const BET_LIMIT_PRESETS = [
   {label:'Tier 3', min:5000, max:1000000},
 ];
 function editBetLimit(id, curMin, curMax){
-  document.getElementById('formModalTitle').textContent = `베팅한도 변경 · ${id}`;
+  document.getElementById('formModalTitle').textContent = t('editBetLimitTitle',{id});
   document.getElementById('formModalBody').innerHTML = `
-    <div class="table-wrap"><table class="limit-table"><thead><tr><th>선택</th><th>최소</th><th>최대</th></tr></thead><tbody>
+    <div class="table-wrap"><table class="limit-table"><thead><tr><th>${t('colSelect')}</th><th>${t('colMin')}</th><th>${t('colMax')}</th></tr></thead><tbody>
       ${BET_LIMIT_PRESETS.map((p,i)=>`<tr><td><input type="radio" name="blPreset" value="${i}" ${curMax===p.max&&curMin===p.min?'checked':''}></td><td>${fmtNum(p.min)}</td><td>${fmtNum(p.max)}</td></tr>`).join('')}
       <tr><td><input type="radio" name="blPreset" value="custom" ${!BET_LIMIT_PRESETS.some(p=>p.max===curMax&&p.min===curMin)?'checked':''}></td>
         <td><input id="blMin" value="${curMin}" style="width:90px;"></td><td><input id="blMax" value="${curMax}" style="width:90px;"></td></tr>
     </tbody></table></div>
-    <p class="hint" style="margin-top:8px;">선택 값 1건만 적용됩니다.</p>
+    <p class="hint" style="margin-top:8px;">${t('betLimitHint')}</p>
   `;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     const sel = document.querySelector('input[name="blPreset"]:checked')?.value;
     let min = curMin, max = curMax;
     if (sel==='custom' || sel===undefined){ min = rawNum(document.getElementById('blMin').value); max = rawNum(document.getElementById('blMax').value); }
     else { const p = BET_LIMIT_PRESETS[Number(sel)]; min = p.min; max = p.max; }
-    if (!max || max<min){ toast('한도 값을 확인하세요', true); return; }
+    if (!max || max<min){ toast(t('betLimitInvalidErr'), true); return; }
     await db.collection('members').doc(id).set({betMin:min, betMax:max}, {merge:true});
     await logAction(id, `베팅한도 변경 → ${fmtNum(min)}~${fmtNum(max)}`);
-    closeModal('modal-form'); toast('베팅한도가 변경되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
+    closeModal('modal-form'); toast(t('betLimitChanged')); invalidateCaches(); switchView(CURRENT_VIEW);
   };
   openModal('modal-form');
 }
 async function toggleAccess(id, block){
   await db.collection('members').doc(id).set({accessBlocked:block, status: block?'정지':'정상'}, {merge:true});
   await logAction(id, block?'접속 차단':'접속 허용');
-  toast(block?'접속이 차단되었습니다':'접속이 허용되었습니다');
+  toast(block?t('accessBlockedToast'):t('accessAllowedToast'));
   invalidateCaches(); switchView(CURRENT_VIEW);
 }
 function openChangeMemberPw(id){
-  document.getElementById('formModalTitle').textContent = `비밀번호 변경 · ${id}`;
+  document.getElementById('formModalTitle').textContent = t('changePwTitle',{id});
   document.getElementById('formModalBody').innerHTML = `
-    <div class="field"><label>새 비밀번호</label><input id="mpwInput" placeholder="8-16자 영문/숫자/특수문자"></div>
-    <p class="hint">8-16자, 영문·숫자·특수문자를 포함해 입력하세요.</p>
+    <div class="field"><label>${t('newPwLabel')}</label><input id="mpwInput" placeholder="${t('newPwPh')}"></div>
+    <p class="hint">${t('newPwHint')}</p>
   `;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     const pw = document.getElementById('mpwInput').value.trim();
-    if (pw.length<4){ toast('비밀번호를 확인하세요', true); return; }
+    if (pw.length<4){ toast(t('pwCheckErr'), true); return; }
     await db.collection('members').doc(id).set({pw}, {merge:true});
     await logAction(id, '비밀번호 변경 (에이전트)');
-    closeModal('modal-form'); toast('비밀번호가 변경되었습니다'); invalidateCaches();
+    closeModal('modal-form'); toast(t('pwChangedToast')); invalidateCaches();
   };
   openModal('modal-form');
 }
@@ -352,15 +358,15 @@ function openChangeMemberPw(id){
 let BALANCE_CTX = null;
 function openBalanceModal(memberId, mode, label){
   BALANCE_CTX = {memberId, mode};
-  document.getElementById('balanceModalTitle').textContent = label || (mode==='deposit' ? '자금 이체' : '자금 회수');
-  document.getElementById('balanceModalSub').textContent = `대상 회원: ${memberId}`;
+  document.getElementById('balanceModalTitle').textContent = label || (mode==='deposit' ? t('fundTransferTitle') : t('fundRecallTitle'));
+  document.getElementById('balanceModalSub').textContent = `${t('targetMemberLabel')} ${memberId}`;
   document.getElementById('balanceAmt').value = '';
   document.getElementById('balanceMemo').value = '';
   openModal('modal-balance');
 }
 async function submitBalanceAdjust(){
   const amt = rawNum(document.getElementById('balanceAmt').value);
-  if (!amt){ toast('금액을 입력하세요', true); return; }
+  if (!amt){ toast(t('amountRequiredErr'), true); return; }
   const memo = document.getElementById('balanceMemo').value;
   const signed = BALANCE_CTX.mode==='withdraw' ? -Math.abs(amt) : Math.abs(amt);
   await db.collection('memberLedger').doc(uuidv4()).set({
@@ -371,7 +377,7 @@ async function submitBalanceAdjust(){
   });
   await logAction(BALANCE_CTX.memberId, `${BALANCE_CTX.mode==='withdraw'?'자금 회수':'자금 이체'} ${fmtNum(amt)}`);
   closeModal('modal-balance');
-  toast('처리되었습니다');
+  toast(t('processedToast'));
   invalidateCaches();
   switchView(CURRENT_VIEW);
 }
@@ -389,16 +395,16 @@ async function renderBetHistory(){
   const winLoss = totalPayout - totalBet;
   const rows = ledger.sort((a,b)=>new Date(b.createdAt&&b.createdAt.toDate?b.createdAt.toDate():b.clientCreatedAt||b.createdAt)-new Date(a.createdAt&&a.createdAt.toDate?a.createdAt.toDate():a.clientCreatedAt||a.createdAt));
   return `
-    ${pageHead('베팅내역', '하부 회원의 베팅/페이아웃 내역')}
+    ${pageHead(t('betHistoryTitle'), t('betHistorySub'))}
     <div class="grid grid-4" style="margin-bottom:16px;">
-      <div class="stat-card"><div class="lbl">배팅유저수</div><div class="val">${userCount}</div></div>
-      <div class="stat-card"><div class="lbl">배팅건수</div><div class="val">${bets.length}</div></div>
-      <div class="stat-card"><div class="lbl">총 배팅금액</div><div class="val">${fmtNum(totalBet)}</div></div>
-      <div class="stat-card${winLoss<0?' danger':''}"><div class="lbl">윈로스</div><div class="val">${fmtSigned(winLoss)}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statBetUsers')}</div><div class="val">${userCount}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statBetCount')}</div><div class="val">${bets.length}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statTotalBetAmount')}</div><div class="val">${fmtNum(totalBet)}</div></div>
+      <div class="stat-card${winLoss<0?' danger':''}"><div class="lbl">${t('statWinLoss')}</div><div class="val">${fmtSigned(winLoss)}</div></div>
     </div>
     <div class="card">
-      <div class="table-wrap"><table><thead><tr><th>일시</th><th>ID</th><th>구분</th><th>금액</th><th>메모</th></tr></thead><tbody>
-      ${rows.slice(0,200).map(l=>`<tr><td>${fmtDt(l.clientCreatedAt||l.dt)}</td><td>${escapeHtml(l.memberId)}</td><td>${l.category==='bet'?'배팅':'페이아웃'}</td><td><span class="num ${Number(l.amount)<0?'neg':'pos'}">${fmtNum(l.amount)}</span></td><td>${escapeHtml(l.memo||'—')}</td></tr>`).join('') || `<tr class="empty-row"><td colspan="5">데이터가 없습니다</td></tr>`}
+      <div class="table-wrap"><table><thead><tr><th>${t('colDatetime')}</th><th>${t('colId')}</th><th>${t('colCategory')}</th><th>${t('colAmount')}</th><th>${t('colMemo')}</th></tr></thead><tbody>
+      ${rows.slice(0,200).map(l=>`<tr><td>${fmtDt(l.clientCreatedAt||l.dt)}</td><td>${escapeHtml(l.memberId)}</td><td>${l.category==='bet'?t('categoryBet'):t('categoryPayout')}</td><td><span class="num ${Number(l.amount)<0?'neg':'pos'}">${fmtNum(l.amount)}</span></td><td>${escapeHtml(l.memo||'—')}</td></tr>`).join('') || `<tr class="empty-row"><td colspan="5">${t('noDataMsg')}</td></tr>`}
       </tbody></table></div>
     </div>
   `;
@@ -426,16 +432,16 @@ async function renderSettlementReport(){
   const totalRolling = rows.reduce((s,r)=>s+r.bet,0);
   const totalComm = rows.reduce((s,r)=>s+r.bet*((r.m.agentRate||0)/100),0);
   return `
-    ${pageHead('정산리포트', '하부 회원 입출금/윈로스/롤링 정산 현황')}
+    ${pageHead(t('settlementTitle'), t('settlementSub'))}
     <div class="grid grid-4" style="margin-bottom:16px;">
-      <div class="stat-card"><div class="lbl">입금</div><div class="val">${fmtNum(totalDeposit)}</div></div>
-      <div class="stat-card"><div class="lbl">출금</div><div class="val">${fmtNum(totalWithdraw)}</div></div>
-      <div class="stat-card${totalWinLoss<0?' danger':''}"><div class="lbl">윈로스</div><div class="val">${fmtSigned(totalWinLoss)}</div></div>
-      <div class="stat-card"><div class="lbl">롤링커미션</div><div class="val">${fmtNum(totalComm)}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statDeposit')}</div><div class="val">${fmtNum(totalDeposit)}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statWithdraw')}</div><div class="val">${fmtNum(totalWithdraw)}</div></div>
+      <div class="stat-card${totalWinLoss<0?' danger':''}"><div class="lbl">${t('statWinLoss')}</div><div class="val">${fmtSigned(totalWinLoss)}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statRollingComm')}</div><div class="val">${fmtNum(totalComm)}</div></div>
     </div>
     <div class="card">
       <div class="table-wrap"><table><thead><tr>
-        <th>ID</th><th>닉네임</th><th>상위어카운트</th><th>입금</th><th>출금</th><th>롤링</th><th>윈로스</th><th>요율</th><th>내수익금</th>
+        <th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colParentAccount')}</th><th>${t('statDeposit')}</th><th>${t('statWithdraw')}</th><th>${t('colRolling')}</th><th>${t('statWinLoss')}</th><th>${t('colRate')}</th><th>${t('colMyRevenue')}</th>
       </tr></thead><tbody>
       ${rows.map(r=>`<tr>
         <td>${escapeHtml(r.m.id)}</td><td>${escapeHtml(r.m.nickname||'—')}</td><td>${escapeHtml(r.m.parentAgent||'—')}</td>
@@ -444,7 +450,7 @@ async function renderSettlementReport(){
         <td><span class="num ${(r.payout-r.bet)<0?'neg':'pos'}">${fmtSigned(r.payout-r.bet)}</span></td>
         <td>${fmtRate(r.m.agentRate)}%</td>
         <td><span class="num">${fmtNum(r.bet*((r.m.agentRate||0)/100))}</span></td>
-      </tr>`).join('') || `<tr class="empty-row"><td colspan="9">정산 데이터가 없습니다</td></tr>`}
+      </tr>`).join('') || `<tr class="empty-row"><td colspan="9">${t('noSettlementData')}</td></tr>`}
       </tbody></table></div>
     </div>
   `;
@@ -458,16 +464,16 @@ async function renderRealtime(){
   const now = Date.now();
   const online = members.filter(m => m.lastLoginAt && (now - new Date(m.lastLoginAt).getTime()) < 1000*60*60*6 && !m.accessBlocked);
   return `
-    ${pageHead('실시간접속자', '최근 6시간 이내 로그인 기준 (데모)')}
+    ${pageHead(t('realtimeTitle'), t('realtimeSub'))}
     <div class="grid grid-2" style="margin-bottom:16px;">
-      <div class="stat-card"><div class="lbl">총 접속자</div><div class="val">${online.length}</div></div>
-      <div class="stat-card"><div class="lbl">총 하부회원</div><div class="val">${members.length}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statOnlineTotal')}</div><div class="val">${online.length}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statTotalDownline')}</div><div class="val">${members.length}</div></div>
     </div>
-    <div class="card"><h3>접속중 회원</h3>
-      <div class="table-wrap"><table><thead><tr><th>ID</th><th>닉네임</th><th>카지노</th><th>회원유형</th><th>최근접속</th><th>상태</th></tr></thead><tbody>
+    <div class="card"><h3>${t('onlineMembersTitle')}</h3>
+      <div class="table-wrap"><table><thead><tr><th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colCasino')}</th><th>${t('colMemberType')}</th><th>${t('colLastLogin')}</th><th>${t('colStatus')}</th></tr></thead><tbody>
       ${online.length ? online.sort((a,b)=>new Date(b.lastLoginAt)-new Date(a.lastLoginAt)).map(m=>`
-        <tr><td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td><td>${escapeHtml(m.casino)}</td><td>${escapeHtml(m.memberType)}</td><td>${fmtDt(m.lastLoginAt)}</td><td><span class="badge-dot"></span> 온라인</td></tr>
-      `).join('') : `<tr class="empty-row"><td colspan="6">접속 중인 회원이 없습니다</td></tr>`}
+        <tr><td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td><td>${escapeHtml(m.casino)}</td><td>${escapeHtml(m.memberType)}</td><td>${fmtDt(m.lastLoginAt)}</td><td><span class="badge-dot"></span> ${t('onlineLabel')}</td></tr>
+      `).join('') : `<tr class="empty-row"><td colspan="6">${t('noOnlineMembers')}</td></tr>`}
       </tbody></table></div>
     </div>
   `;
@@ -485,30 +491,30 @@ async function renderMyInfo(){
   const totalBal = members.reduce((sum,m)=>sum+(balances[m.id]?.balance||0),0);
   const ledger = (await myLedger(true)).slice().sort((a,b)=>new Date(b.clientCreatedAt||b.dt)-new Date(a.clientCreatedAt||a.dt));
   return `
-    ${pageHead('내정보 변경')}
+    ${pageHead(t('myInfoTitle'))}
     <div class="grid grid-2">
-      <div class="card"><h3>계정 정보</h3>
-        <div class="field"><label>ID</label><input value="${escapeHtml(s.id||'')}" disabled></div>
-        <div class="field"><label>이름</label><input id="myName" value="${escapeHtml(s.name||'')}"></div>
-        <div class="field"><label>에이전트 코드</label><input value="${escapeHtml(s.agentCode||'')}" disabled></div>
-        <div class="field"><label>상위어카운트</label><input value="${escapeHtml(myPartner.parentCode||'—')}" disabled></div>
-        <div class="field"><label>쉐어율</label><input value="${myPartner.shareRate!=null?myPartner.shareRate+'%':'—'}" disabled></div>
-        <button class="btn btn-gold" onclick="saveMyInfo()">저장</button>
+      <div class="card"><h3>${t('accountInfoCard')}</h3>
+        <div class="field"><label>${t('colId')}</label><input value="${escapeHtml(s.id||'')}" disabled></div>
+        <div class="field"><label>${t('nameLabel')}</label><input id="myName" value="${escapeHtml(s.name||'')}"></div>
+        <div class="field"><label>${t('agentCodeLabel')}</label><input value="${escapeHtml(s.agentCode||'')}" disabled></div>
+        <div class="field"><label>${t('parentAccountLabel')}</label><input value="${escapeHtml(myPartner.parentCode||'—')}" disabled></div>
+        <div class="field"><label>${t('shareRateLabel')}</label><input value="${myPartner.shareRate!=null?myPartner.shareRate+'%':'—'}" disabled></div>
+        <button class="btn btn-gold" onclick="saveMyInfo()">${t('saveBtn')}</button>
       </div>
-      <div class="card"><h3>비밀번호 변경</h3>
-        <div class="field"><label>현재 비밀번호</label><input type="password" id="curPw"></div>
-        <div class="field"><label>새 비밀번호</label><input type="password" id="newPw"></div>
-        <div class="field"><label>새 비밀번호 확인</label><input type="password" id="newPw2"></div>
-        <button class="btn btn-gold" onclick="changeMyPw()">변경</button>
+      <div class="card"><h3>${t('pwChangeCard')}</h3>
+        <div class="field"><label>${t('currentPwLabel')}</label><input type="password" id="curPw"></div>
+        <div class="field"><label>${t('newPwLabel')}</label><input type="password" id="newPw"></div>
+        <div class="field"><label>${t('newPw2Label')}</label><input type="password" id="newPw2"></div>
+        <button class="btn btn-gold" onclick="changeMyPw()">${t('changeBtn')}</button>
       </div>
     </div>
     <div class="grid grid-2" style="margin-top:16px;">
-      <div class="stat-card"><div class="lbl">총 하부회원</div><div class="val">${members.length}</div></div>
-      <div class="stat-card"><div class="lbl">하부 보유금 합계</div><div class="val">${fmtNum(totalBal)}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statTotalDownline')}</div><div class="val">${members.length}</div></div>
+      <div class="stat-card"><div class="lbl">${t('totalDownlineBalance')}</div><div class="val">${fmtNum(totalBal)}</div></div>
     </div>
-    <div class="card" style="margin-top:16px;"><h3>최근 자금 이동 내역</h3>
-      <div class="table-wrap"><table><thead><tr><th>일시</th><th>ID</th><th>구분</th><th>금액</th></tr></thead><tbody>
-      ${ledger.slice(0,15).map(l=>`<tr><td>${fmtDt(l.clientCreatedAt||l.dt)}</td><td>${escapeHtml(l.memberId)}</td><td>${l.category}</td><td><span class="num ${Number(l.amount)<0?'neg':'pos'}">${fmtNum(l.amount)}</span></td></tr>`).join('') || `<tr class="empty-row"><td colspan="4">데이터가 없습니다</td></tr>`}
+    <div class="card" style="margin-top:16px;"><h3>${t('recentFundMovement')}</h3>
+      <div class="table-wrap"><table><thead><tr><th>${t('colDatetime')}</th><th>${t('colId')}</th><th>${t('colCategory')}</th><th>${t('colAmount')}</th></tr></thead><tbody>
+      ${ledger.slice(0,15).map(l=>`<tr><td>${fmtDt(l.clientCreatedAt||l.dt)}</td><td>${escapeHtml(l.memberId)}</td><td>${l.category==='bet'?t('categoryBet'):l.category==='payout'?t('categoryPayout'):l.category==='deposit'?t('statDeposit'):l.category==='withdraw'?t('statWithdraw'):l.category}</td><td><span class="num ${Number(l.amount)<0?'neg':'pos'}">${fmtNum(l.amount)}</span></td></tr>`).join('') || `<tr class="empty-row"><td colspan="4">${t('noDataMsg')}</td></tr>`}
       </tbody></table></div>
     </div>
   `;
@@ -519,15 +525,15 @@ async function saveMyInfo(){
   await db.collection('agentStaff').doc(CURRENT_STAFF.id).set({name}, {merge:true});
   CURRENT_STAFF.name = name;
   document.getElementById('staffNameTxt').textContent = `${name} (${CURRENT_STAFF.agentCode})`;
-  toast('저장되었습니다');
+  toast(t('savedToast'));
 }
 async function changeMyPw(){
   const cur = document.getElementById('curPw').value, n1 = document.getElementById('newPw').value, n2 = document.getElementById('newPw2').value;
-  if (String(CURRENT_STAFF.pw ?? '0000') !== cur){ toast('현재 비밀번호가 일치하지 않습니다', true); return; }
-  if (!n1 || n1 !== n2){ toast('새 비밀번호를 확인해주세요', true); return; }
+  if (String(CURRENT_STAFF.pw ?? '0000') !== cur){ toast(t('pwMismatchErr'), true); return; }
+  if (!n1 || n1 !== n2){ toast(t('pwConfirmErr'), true); return; }
   await db.collection('agentStaff').doc(CURRENT_STAFF.id).set({pw:n1}, {merge:true});
   CURRENT_STAFF.pw = n1;
-  toast('비밀번호가 변경되었습니다');
+  toast(t('pwChangedToast'));
 }
 
 const VIEW_RENDERERS = {
@@ -544,13 +550,13 @@ function askConfirm(title, body, onOk){
   openModal('modal-confirm');
 }
 function confirmSeed(){
-  askConfirm('데모 데이터 생성', `${myAgentCode()} 소속 하부회원 데모 데이터를 Firestore에 생성합니다. 계속할까요?`, seedDemoData);
+  askConfirm(t('seedConfirmTitle'), t('seedConfirmBody',{agent:myAgentCode()}), seedDemoData);
 }
 function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
 function randPick(arr){ return arr[randInt(0, arr.length-1)]; }
 function randDateWithin(daysAgoMax){ const d = new Date(); d.setDate(d.getDate() - randInt(0,daysAgoMax)); d.setHours(randInt(0,23), randInt(0,59)); return d.toISOString(); }
 async function seedDemoData(){
-  toast('데모 데이터 생성 중...');
+  toast(t('seedingInProgress'));
   const agentCode = myAgentCode();
   let batch = db.batch();
   let ops = 0;
@@ -584,7 +590,7 @@ async function seedDemoData(){
     }
   });
   await flush();
-  toast('데모 데이터가 생성되었습니다');
+  toast(t('seedDone'));
   invalidateCaches();
   switchView(CURRENT_VIEW);
 }

@@ -280,7 +280,7 @@ const I18N_DICT = {
   amountLabel:{ko:'금액',zhHans:'金额',zhHant:'金額',en:'Amount',ja:'金額',vi:'Số tiền'},
   withdrawPwLabel:{ko:'출금 비밀번호',zhHans:'提款密码',zhHant:'提款密碼',en:'Withdrawal Password',ja:'出金パスワード',vi:'Mật khẩu rút tiền'},
   withdrawPwErr:{ko:'출금 비밀번호가 일치하지 않습니다',zhHans:'提款密码不匹配',zhHant:'提款密碼不相符',en:'Withdrawal password does not match',ja:'出金パスワードが一致しません',vi:'Mật khẩu rút tiền không khớp'},
-  myAccountBalance:{ko:'로그인 계정 잔액',zhHans:'登录账户余额',zhHant:'登入帳戶餘額',en:'My Account Balance',ja:'ログイン口座残高',vi:'Số dư tài khoản đăng nhập'},
+  myAccountBalance:{ko:'계정 잔액',zhHans:'账户余额',zhHant:'帳戶餘額',en:'Account Balance',ja:'口座残高',vi:'Số dư tài khoản'},
   memoLabel:{ko:'메모',zhHans:'备注',zhHant:'備註',en:'Memo',ja:'メモ',vi:'Ghi chú'},
   memoPh:{ko:'사유를 입력하세요',zhHans:'请输入原因',zhHant:'請輸入原因',en:'Enter a reason',ja:'理由を入力してください',vi:'Nhập lý do'},
   cancelBtn:{ko:'취소',zhHans:'取消',zhHant:'取消',en:'Cancel',ja:'キャンセル',vi:'Hủy'},

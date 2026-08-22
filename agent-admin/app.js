@@ -77,7 +77,7 @@ async function ensureDefaultStaff(){
   try{
     const snap = await db.collection('agentStaff').limit(1).get();
     if (snap.empty){
-      await db.collection('agentStaff').doc('agent').set({id:'agent', pw:'0000', name:'SEVIP88 에이전트', agentCode:'SEVIP88', role:'agent', createdAt: new Date().toISOString()});
+      await db.collection('agentStaff').doc('agent').set({id:'agent', pw:'0000', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent', createdAt: new Date().toISOString()});
     }
   }catch(e){ /* offline first load — fine, login falls back to local default below */ }
 }
@@ -90,7 +90,7 @@ async function doLogin(){
     const doc = await db.collection('agentStaff').doc(id).get();
     if (doc.exists) staff = doc.data();
   }catch(e){}
-  if (!staff && id==='agent' && pw==='0000') staff = {id:'agent', name:'SEVIP88 에이전트', agentCode:'SEVIP88', role:'agent'};
+  if (!staff && id==='agent' && pw==='0000') staff = {id:'agent', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent'};
   if (!staff || String(staff.pw ?? '0000') !== pw){
     document.getElementById('loginErr').style.display='block';
     return;

@@ -336,6 +336,10 @@ const I18N_DICT = {
   statOnlineTotal:{ko:'총 접속자',zhHans:'在线总数',zhHant:'在線總數',en:'Total online',ja:'総接続者数',vi:'Tổng số đang online'},
   onlineMembersTitle:{ko:'접속중 회원',zhHans:'在线会员',zhHant:'在線會員',en:'Online Members',ja:'接続中の会員',vi:'Hội viên đang online'},
   colLastLogin:{ko:'최근접속',zhHans:'最近登录',zhHant:'最近登入',en:'Last Login',ja:'最終接続',vi:'Đăng nhập gần nhất'},
+  colLocation:{ko:'현재위치',zhHans:'当前位置',zhHant:'目前位置',en:'Location',ja:'現在地',vi:'Vị trí hiện tại'},
+  startDateLabel:{ko:'시작일',zhHans:'开始日期',zhHant:'開始日期',en:'Start Date',ja:'開始日',vi:'Ngày bắt đầu'},
+  endDateLabel:{ko:'종료일',zhHans:'结束日期',zhHant:'結束日期',en:'End Date',ja:'終了日',vi:'Ngày kết thúc'},
+  searchBtn:{ko:'검색',zhHans:'搜索',zhHant:'搜尋',en:'Search',ja:'検索',vi:'Tìm kiếm'},
   onlineLabel:{ko:'온라인',zhHans:'在线',zhHant:'線上',en:'Online',ja:'オンライン',vi:'Trực tuyến'},
   noOnlineMembers:{ko:'접속 중인 회원이 없습니다',zhHans:'目前无在线会员',zhHant:'目前無在線會員',en:'No members currently online',ja:'接続中の会員がいません',vi:'Không có hội viên nào đang online'},
 

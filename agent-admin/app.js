@@ -179,6 +179,18 @@ async function myLedger(force){
   const memberIds = new Set((await getMembers(force)).map(m=>m.id));
   return (await getLedger(force)).filter(r=>memberIds.has(r.memberId));
 }
+function ledgerDate(l){
+  const raw = l.clientCreatedAt || l.dt || (l.createdAt && l.createdAt.toDate ? l.createdAt.toDate() : l.createdAt);
+  return new Date(raw);
+}
+function dateInputStr(d){ return d.toISOString().slice(0,10); }
+function inRangeFilter(startId, endId){
+  const start = document.getElementById(startId).value;
+  const end = document.getElementById(endId).value;
+  const startD = start ? new Date(start+'T00:00:00') : null;
+  const endD = end ? new Date(end+'T23:59:59.999') : null;
+  return l => { const d = ledgerDate(l); return (!startD || d>=startD) && (!endD || d<=endD); };
+}
 
 /* ============================================================
    회원관리 — 하부 회원 리스트 + 하부회원 생성
@@ -202,7 +214,7 @@ async function renderMember(){
         <div class="toolbar-right"><button class="btn btn-gold btn-sm" onclick="openCreateSubMemberForm()">${t('createSubMemberBtn')}</button></div>
       </div>
       <div class="table-wrap"><table><thead><tr>
-        <th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colPhone')}</th><th>${t('colCasino')}</th><th>${t('colMemberType')}</th><th>${t('colBalance')}</th><th>${t('colJoined')}</th><th>${t('colStatus')}</th>
+        <th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colPhone')}</th><th>${t('colCasino')}</th><th>${t('colMemberType')}</th><th>${t('colBalance')}</th><th>${t('colJoined')}</th><th>${t('colLastLogin')}</th><th>${t('colStatus')}</th>
       </tr></thead><tbody id="memberBody">
       ${memberRowsHtml(members, balances)}
       </tbody></table></div>
@@ -214,8 +226,8 @@ function memberRowsHtml(rows, balances){
     <td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td><td>${maskPhone(m.phone)}</td>
     <td>${escapeHtml(m.casino||'—')}</td><td>${escapeHtml(m.memberType||'—')}</td>
     <td><span class="num">${fmtNum(balances[m.id]?.balance||0)}</span></td>
-    <td>${fmtDate(m.createdAt)}</td><td>${pill(m.status,{정상:'ok',정지:'bad',블랙리스트:'bad'})}</td>
-  </tr>`).join('') || `<tr class="empty-row"><td colspan="8">${t('noSubMembers')}</td></tr>`;
+    <td>${fmtDate(m.createdAt)}</td><td>${m.lastLoginAt?fmtDt(m.lastLoginAt):'—'}</td><td>${pill(m.status,{정상:'ok',정지:'bad',블랙리스트:'bad'})}</td>
+  </tr>`).join('') || `<tr class="empty-row"><td colspan="9">${t('noSubMembers')}</td></tr>`;
 }
 function filterMemberTable(q){
   q = q.toLowerCase();
@@ -232,7 +244,7 @@ function openCreateSubMemberForm(){
     <div class="row"><div class="field"><label>${t('gameIdLabel')}</label><input id="nfId" placeholder="영문/숫자"></div><div class="field"><label>${t('initialPwLabel')}</label><input id="nfPw" value="0000"></div></div>
     <div class="row"><div class="field"><label>${t('colNick')}</label><input id="nfNick"></div><div class="field"><label>${t('colPhone')}</label><input id="nfPhone"></div></div>
     <div class="row"><div class="field"><label>${t('colCasino')}</label><select id="nfCasino"><option>NUSTAR</option><option>HANN</option><option>ONLINE</option></select></div>
-      <div class="field"><label>${t('colMemberType')}</label><select id="nfType"><option>정회원</option><option>준회원</option></select></div></div>
+      <div class="field"><label>${t('colMemberType')}</label><select id="nfType"><option>아바타아이디</option><option>스피드아이디</option></select></div></div>
   `;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     const id = document.getElementById('nfId').value.trim().toUpperCase();
@@ -395,40 +407,77 @@ async function submitBalanceAdjust(){
 /* ============================================================
    베팅내역
    ============================================================ */
+let BETHIST_RAW = [];
 async function renderBetHistory(){
-  const ledger = (await myLedger(true)).filter(l=>l.category==='bet' || l.category==='payout');
+  BETHIST_RAW = (await myLedger(true)).filter(l=>l.category==='bet' || l.category==='payout');
+  const today = new Date(), monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate()-30);
+  const html = `
+    ${pageHead(t('betHistoryTitle'), t('betHistorySub'))}
+    <div class="card" style="margin-bottom:16px;">
+      <div class="toolbar">
+        <div class="field"><label>${t('startDateLabel')}</label><input type="date" id="bhStart" value="${dateInputStr(monthAgo)}"></div>
+        <div class="field"><label>${t('endDateLabel')}</label><input type="date" id="bhEnd" value="${dateInputStr(today)}"></div>
+        <div class="toolbar-right"><button class="btn btn-gold btn-sm" onclick="applyBetHistoryFilter()">${t('searchBtn')}</button></div>
+      </div>
+    </div>
+    <div id="bhStats" class="grid grid-4" style="margin-bottom:16px;"></div>
+    <div class="card">
+      <div class="table-wrap"><table><thead><tr><th>${t('colDatetime')}</th><th>${t('colId')}</th><th>${t('colCategory')}</th><th>${t('colAmount')}</th><th>${t('colMemo')}</th></tr></thead><tbody id="bhBody"></tbody></table></div>
+    </div>
+  `;
+  setTimeout(applyBetHistoryFilter, 0);
+  return html;
+}
+function applyBetHistoryFilter(){
+  const ledger = BETHIST_RAW.filter(inRangeFilter('bhStart','bhEnd'));
   const bets = ledger.filter(l=>l.category==='bet');
   const payouts = ledger.filter(l=>l.category==='payout');
   const userCount = new Set(bets.map(l=>l.memberId)).size;
   const totalBet = bets.reduce((s,l)=>s+Math.abs(Number(l.amount)||0),0);
   const totalPayout = payouts.reduce((s,l)=>s+(Number(l.amount)||0),0);
   const winLoss = totalPayout - totalBet;
-  const rows = ledger.sort((a,b)=>new Date(b.createdAt&&b.createdAt.toDate?b.createdAt.toDate():b.clientCreatedAt||b.createdAt)-new Date(a.createdAt&&a.createdAt.toDate?a.createdAt.toDate():a.clientCreatedAt||a.createdAt));
-  return `
-    ${pageHead(t('betHistoryTitle'), t('betHistorySub'))}
-    <div class="grid grid-4" style="margin-bottom:16px;">
-      <div class="stat-card"><div class="lbl">${t('statBetUsers')}</div><div class="val">${userCount}</div></div>
-      <div class="stat-card"><div class="lbl">${t('statBetCount')}</div><div class="val">${bets.length}</div></div>
-      <div class="stat-card"><div class="lbl">${t('statTotalBetAmount')}</div><div class="val">${fmtNum(totalBet)}</div></div>
-      <div class="stat-card${winLoss<0?' danger':''}"><div class="lbl">${t('statWinLoss')}</div><div class="val">${fmtSigned(winLoss)}</div></div>
-    </div>
-    <div class="card">
-      <div class="table-wrap"><table><thead><tr><th>${t('colDatetime')}</th><th>${t('colId')}</th><th>${t('colCategory')}</th><th>${t('colAmount')}</th><th>${t('colMemo')}</th></tr></thead><tbody>
-      ${rows.slice(0,200).map(l=>`<tr><td>${fmtDt(l.clientCreatedAt||l.dt)}</td><td>${escapeHtml(l.memberId)}</td><td>${l.category==='bet'?t('categoryBet'):t('categoryPayout')}</td><td><span class="num ${Number(l.amount)<0?'neg':'pos'}">${fmtNum(l.amount)}</span></td><td>${escapeHtml(l.memo||'—')}</td></tr>`).join('') || `<tr class="empty-row"><td colspan="5">${t('noDataMsg')}</td></tr>`}
-      </tbody></table></div>
-    </div>
+  document.getElementById('bhStats').innerHTML = `
+    <div class="stat-card"><div class="lbl">${t('statBetUsers')}</div><div class="val">${userCount}</div></div>
+    <div class="stat-card"><div class="lbl">${t('statBetCount')}</div><div class="val">${bets.length}</div></div>
+    <div class="stat-card"><div class="lbl">${t('colRolling')}</div><div class="val">${fmtNum(totalBet)}</div></div>
+    <div class="stat-card${winLoss<0?' danger':''}"><div class="lbl">${t('statWinLoss')}</div><div class="val">${fmtSigned(winLoss)}</div></div>
   `;
+  const rows = ledger.slice().sort((a,b)=>ledgerDate(b)-ledgerDate(a));
+  document.getElementById('bhBody').innerHTML = rows.slice(0,200).map(l=>`<tr><td>${fmtDt(l.clientCreatedAt||l.dt)}</td><td>${escapeHtml(l.memberId)}</td><td>${l.category==='bet'?t('categoryBet'):t('categoryPayout')}</td><td><span class="num ${Number(l.amount)<0?'neg':'pos'}">${fmtNum(l.amount)}</span></td><td>${escapeHtml(l.memo||'—')}</td></tr>`).join('') || `<tr class="empty-row"><td colspan="5">${t('noDataMsg')}</td></tr>`;
 }
 
 /* ============================================================
    정산리포트
    ============================================================ */
+let SETTLEMENT_RAW = {members:[], ledger:[]};
 async function renderSettlementReport(){
-  const members = await getMembers(true);
-  const ledger = await myLedger(true);
+  SETTLEMENT_RAW = { members: await getMembers(true), ledger: await myLedger(true) };
+  const today = new Date(), monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate()-30);
+  const html = `
+    ${pageHead(t('settlementTitle'), t('settlementSub'))}
+    <div class="card" style="margin-bottom:16px;">
+      <div class="toolbar">
+        <div class="field"><label>${t('startDateLabel')}</label><input type="date" id="stlStart" value="${dateInputStr(monthAgo)}"></div>
+        <div class="field"><label>${t('endDateLabel')}</label><input type="date" id="stlEnd" value="${dateInputStr(today)}"></div>
+        <div class="toolbar-right"><button class="btn btn-gold btn-sm" onclick="applySettlementFilter()">${t('searchBtn')}</button></div>
+      </div>
+    </div>
+    <div id="stlStats" class="grid grid-5" style="margin-bottom:16px;"></div>
+    <div class="card">
+      <div class="table-wrap"><table><thead><tr>
+        <th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colParentAccount')}</th><th>${t('statDeposit')}</th><th>${t('statWithdraw')}</th><th>${t('colRolling')}</th><th>${t('statWinLoss')}</th><th>${t('colRate')}</th><th>${t('colMyRevenue')}</th>
+      </tr></thead><tbody id="stlBody"></tbody></table></div>
+    </div>
+  `;
+  setTimeout(applySettlementFilter, 0);
+  return html;
+}
+function applySettlementFilter(){
+  const { members, ledger } = SETTLEMENT_RAW;
+  const filtered = ledger.filter(inRangeFilter('stlStart','stlEnd'));
   const byMember = {};
   members.forEach(m=>{ byMember[m.id] = {m, deposit:0, withdraw:0, bet:0, payout:0}; });
-  ledger.forEach(l=>{
+  filtered.forEach(l=>{
     const row = byMember[l.memberId]; if (!row) return;
     if (l.category==='deposit') row.deposit += Number(l.amount)||0;
     if (l.category==='withdraw') row.withdraw += Number(l.amount)||0;
@@ -441,30 +490,21 @@ async function renderSettlementReport(){
   const totalWinLoss = rows.reduce((s,r)=>s+(r.payout-r.bet),0);
   const totalRolling = rows.reduce((s,r)=>s+r.bet,0);
   const totalComm = rows.reduce((s,r)=>s+r.bet*((r.m.agentRate||0)/100),0);
-  return `
-    ${pageHead(t('settlementTitle'), t('settlementSub'))}
-    <div class="grid grid-5" style="margin-bottom:16px;">
-      <div class="stat-card"><div class="lbl">${t('statDeposit')}</div><div class="val">${fmtNum(totalDeposit)}</div></div>
-      <div class="stat-card"><div class="lbl">${t('statWithdraw')}</div><div class="val">${fmtNum(totalWithdraw)}</div></div>
-      <div class="stat-card${totalWinLoss<0?' danger':''}"><div class="lbl">${t('statWinLoss')}</div><div class="val">${fmtSigned(totalWinLoss)}</div></div>
-      <div class="stat-card"><div class="lbl">${t('colRolling')}</div><div class="val">${fmtNum(totalRolling)}</div></div>
-      <div class="stat-card"><div class="lbl">${t('statRollingComm')}</div><div class="val">${fmtNum(totalComm)}</div></div>
-    </div>
-    <div class="card">
-      <div class="table-wrap"><table><thead><tr>
-        <th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colParentAccount')}</th><th>${t('statDeposit')}</th><th>${t('statWithdraw')}</th><th>${t('colRolling')}</th><th>${t('statWinLoss')}</th><th>${t('colRate')}</th><th>${t('colMyRevenue')}</th>
-      </tr></thead><tbody>
-      ${rows.map(r=>`<tr>
-        <td>${escapeHtml(r.m.id)}</td><td>${escapeHtml(r.m.nickname||'—')}</td><td>${escapeHtml(r.m.parentAgent||'—')}</td>
-        <td><span class="num pos">${fmtNum(r.deposit)}</span></td><td><span class="num neg">${fmtNum(Math.abs(r.withdraw))}</span></td>
-        <td><span class="num">${fmtNum(r.bet)}</span></td>
-        <td><span class="num ${(r.payout-r.bet)<0?'neg':'pos'}">${fmtSigned(r.payout-r.bet)}</span></td>
-        <td>${fmtRate(r.m.agentRate)}%</td>
-        <td><span class="num">${fmtNum(r.bet*((r.m.agentRate||0)/100))}</span></td>
-      </tr>`).join('') || `<tr class="empty-row"><td colspan="9">${t('noSettlementData')}</td></tr>`}
-      </tbody></table></div>
-    </div>
+  document.getElementById('stlStats').innerHTML = `
+    <div class="stat-card"><div class="lbl">${t('statDeposit')}</div><div class="val">${fmtNum(totalDeposit)}</div></div>
+    <div class="stat-card"><div class="lbl">${t('statWithdraw')}</div><div class="val">${fmtNum(totalWithdraw)}</div></div>
+    <div class="stat-card${totalWinLoss<0?' danger':''}"><div class="lbl">${t('statWinLoss')}</div><div class="val">${fmtSigned(totalWinLoss)}</div></div>
+    <div class="stat-card"><div class="lbl">${t('colRolling')}</div><div class="val">${fmtNum(totalRolling)}</div></div>
+    <div class="stat-card"><div class="lbl">${t('statRollingComm')}</div><div class="val">${fmtNum(totalComm)}</div></div>
   `;
+  document.getElementById('stlBody').innerHTML = rows.map(r=>`<tr>
+    <td>${escapeHtml(r.m.id)}</td><td>${escapeHtml(r.m.nickname||'—')}</td><td>${escapeHtml(r.m.parentAgent||'—')}</td>
+    <td><span class="num pos">${fmtNum(r.deposit)}</span></td><td><span class="num neg">${fmtNum(Math.abs(r.withdraw))}</span></td>
+    <td><span class="num">${fmtNum(r.bet)}</span></td>
+    <td><span class="num ${(r.payout-r.bet)<0?'neg':'pos'}">${fmtSigned(r.payout-r.bet)}</span></td>
+    <td>${fmtRate(r.m.agentRate)}%</td>
+    <td><span class="num">${fmtNum(r.bet*((r.m.agentRate||0)/100))}</span></td>
+  </tr>`).join('') || `<tr class="empty-row"><td colspan="9">${t('noSettlementData')}</td></tr>`;
 }
 
 /* ============================================================
@@ -484,10 +524,10 @@ async function renderRealtime(){
       ${casinos.map(c=>`<div class="stat-card"><div class="lbl">${c}</div><div class="val">${byCasino[c]}</div></div>`).join('')}
     </div>
     <div class="card"><h3>${t('onlineMembersTitle')}</h3>
-      <div class="table-wrap"><table><thead><tr><th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colCasino')}</th><th>${t('colMemberType')}</th><th>${t('colLastLogin')}</th><th>${t('colStatus')}</th></tr></thead><tbody>
+      <div class="table-wrap"><table><thead><tr><th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colCasino')}</th><th>${t('colLocation')}</th><th>${t('colMemberType')}</th><th>${t('colLastLogin')}</th><th>${t('colStatus')}</th></tr></thead><tbody>
       ${online.length ? online.sort((a,b)=>new Date(b.lastLoginAt)-new Date(a.lastLoginAt)).map(m=>`
-        <tr><td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td><td>${escapeHtml(m.casino)}</td><td>${escapeHtml(m.memberType)}</td><td>${fmtDt(m.lastLoginAt)}</td><td><span class="badge-dot"></span> ${t('onlineLabel')}</td></tr>
-      `).join('') : `<tr class="empty-row"><td colspan="6">${t('noOnlineMembers')}</td></tr>`}
+        <tr><td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td><td>${escapeHtml(m.casino)}</td><td>${escapeHtml(m.currentTable||'—')}</td><td>${escapeHtml(m.memberType)}</td><td>${fmtDt(m.lastLoginAt)}</td><td><span class="badge-dot"></span> ${t('onlineLabel')}</td></tr>
+      `).join('') : `<tr class="empty-row"><td colspan="7">${t('noOnlineMembers')}</td></tr>`}
       </tbody></table></div>
     </div>
   `;
@@ -580,18 +620,21 @@ async function seedDemoData(){
 
   const nicknames = ['용용용','Eeyeyete','홈미르크','두산에너빌리티','아꼬케이','GDragon','레오123','HANYING','Danny','메이드킹'];
   const casinos = ['NUSTAR','HANN','ONLINE'];
-  const types = ['정회원','정회원','정회원','준회원'];
+  const casinoPrefix = {NUSTAR:'NU', HANN:'HN', ONLINE:'ON'};
+  const types = ['어카운트','아바타아이디','스피드아이디'];
   const memberIds = [];
   for (let i=1;i<=12;i++){
     const casino = randPick(casinos);
     const id = `${agentCode.slice(0,3).toUpperCase()}${String(1000+i)}`;
     memberIds.push(id);
+    const lastLoginAt = Math.random()>.4 ? randDateWithin(1) : null;
     set('members', id, {
       id, loginId:id, pw:'0000', nickname: randPick(nicknames)+i, phone:`010${randInt(1000,9999)}${randInt(1000,9999)}`,
       casino, agentCode, parentAgent: agentCode, memberType: randPick(types), status: i%9===0?'정지':'정상',
       accessBlocked: i%9===0, agentRate: randPick([0.8,1.0,1.2,1.45]),
       betMax: randPick([500000,1000000,3000000]), betMin: 5000, withdrawPw:'0000',
-      createdAt: randDateWithin(180), lastLoginAt: Math.random()>.4 ? randDateWithin(1) : null,
+      createdAt: randDateWithin(180), lastLoginAt,
+      currentTable: lastLoginAt ? `${casinoPrefix[casino]}-${randPick(['A','S'])}0${randInt(1,4)}` : null,
     });
   }
   memberIds.forEach(mid=>{

@@ -78,6 +78,14 @@ async function ensureDefaultStaff(){
     const snap = await db.collection('agentStaff').limit(1).get();
     if (snap.empty){
       await db.collection('agentStaff').doc('agent').set({id:'agent', pw:'0000', name:'VIP88 에이전트', agentCode:'VIP88', role:'agent', createdAt: new Date().toISOString()});
+    } else {
+      // One-time self-heal: a site loaded before the SEVIP88 -> VIP88 rename shipped would
+      // have already created this doc under the old code, and the emptiness check above only
+      // ever fires once - so a stale doc would otherwise never pick up the rename on its own.
+      const doc = await db.collection('agentStaff').doc('agent').get();
+      if (doc.exists && doc.data().agentCode === 'SEVIP88'){
+        await db.collection('agentStaff').doc('agent').set({agentCode:'VIP88', name:'VIP88 에이전트'}, {merge:true});
+      }
     }
   }catch(e){ /* offline first load — fine, login falls back to local default below */ }
 }

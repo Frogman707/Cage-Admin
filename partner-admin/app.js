@@ -687,7 +687,7 @@ async function renderUserList(){
     title:'유저리스트', sub:'전체 회원 목록',
     coll:'members', casinoField:'casino', search:true, searchFields:['id','nickname','phone'], searchPh:'ID/닉네임/전화번호 검색',
     filters:[
-      {key:'parentAgent', label:'에이전트', options:['VIP88','nustarms']},
+      {key:'parentAgent', label:'에이전트', options:['VIP88','NUSTARMS']},
       {key:'memberType', label:'회원유형', options:['정회원','준회원','관리회원','멀티회원']},
       {key:'status', label:'로그인상태', options:['정상','정지','블랙리스트']},
     ],

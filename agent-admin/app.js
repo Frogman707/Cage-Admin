@@ -8,7 +8,7 @@
 
 let db = null;
 let CURRENT_STAFF = null; // {id, pw, name, agentCode, role:'agent'}
-let CURRENT_VIEW = 'dashboard';
+let CURRENT_VIEW = 'member';
 
 /* ---------------- icons ---------------- */
 const ICONS = {
@@ -237,6 +237,8 @@ function openCreateSubMemberForm(){
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     const id = document.getElementById('nfId').value.trim().toUpperCase();
     if (!id){ toast(t('enterIdErr'), true); return; }
+    if (!/^[A-Z0-9]+$/.test(id)){ toast(t('idFormatErr'), true); return; }
+    if ((await db.collection('members').doc(id).get()).exists){ toast(t('idDuplicateErr'), true); return; }
     await db.collection('members').doc(id).set({
       id, loginId:id, nickname: document.getElementById('nfNick').value, phone: document.getElementById('nfPhone').value,
       casino: document.getElementById('nfCasino').value, parentAgent: myAgentCode(), agentCode: myAgentCode(),
@@ -441,10 +443,11 @@ async function renderSettlementReport(){
   const totalComm = rows.reduce((s,r)=>s+r.bet*((r.m.agentRate||0)/100),0);
   return `
     ${pageHead(t('settlementTitle'), t('settlementSub'))}
-    <div class="grid grid-4" style="margin-bottom:16px;">
+    <div class="grid grid-5" style="margin-bottom:16px;">
       <div class="stat-card"><div class="lbl">${t('statDeposit')}</div><div class="val">${fmtNum(totalDeposit)}</div></div>
       <div class="stat-card"><div class="lbl">${t('statWithdraw')}</div><div class="val">${fmtNum(totalWithdraw)}</div></div>
       <div class="stat-card${totalWinLoss<0?' danger':''}"><div class="lbl">${t('statWinLoss')}</div><div class="val">${fmtSigned(totalWinLoss)}</div></div>
+      <div class="stat-card"><div class="lbl">${t('colRolling')}</div><div class="val">${fmtNum(totalRolling)}</div></div>
       <div class="stat-card"><div class="lbl">${t('statRollingComm')}</div><div class="val">${fmtNum(totalComm)}</div></div>
     </div>
     <div class="card">

@@ -1626,6 +1626,7 @@ function feltBoardHtml(tableId){
     </div>
     <div class="bb-row bb-main">
       ${spot('player')}
+      <div class="bb-arch-gap"></div>
       ${spot('banker')}
     </div>
     ${spot('tie')}
@@ -1683,6 +1684,7 @@ function avatarFeltBoardHtml(){
     </div>
     <div class="bb-row bb-main">
       ${spot('player')}
+      <div class="bb-arch-gap"></div>
       ${spot('banker')}
     </div>
     ${spot('tie')}

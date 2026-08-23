@@ -163,7 +163,19 @@ input,select,textarea{font-family:var(--sans);}
 }
 .login-lang-switcher .login-lang-dropdown.lang-switch button:hover{background:var(--panel-raised);color:var(--ink);}
 .login-lang-switcher .login-lang-dropdown.lang-switch button.active{background:var(--panel-raised);color:var(--brass);font-weight:700;}
-.login-lang-switcher .login-lang-dropdown .flag{font-size:14px;}
+/* ---- language flags ----
+   Drawn, not typed. These were the flag emoji (🇰🇷 and friends), which are a pair of regional
+   indicator letters the font is meant to ligature into a flag - and Windows ships no flag glyphs
+   at all, so every one of them fell back to printing the two letters ("KR", "GB", ...). Drawing
+   them as images instead means the same flag on every machine. */
+.flag{display:inline-block;width:18px;height:12px;flex-shrink:0;border-radius:2px;
+  background-size:cover;background-position:center;box-shadow:0 0 0 1px rgba(0,0,0,.28);}
+.flag-ko{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2016%27%3E%3Crect%20width%3D%2724%27%20height%3D%2716%27%20fill%3D%27%23fff%27%2F%3E%3Cg%20transform%3D%27rotate%28-33.69%2012%208%29%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%278%27%20r%3D%274.2%27%20fill%3D%27%23C60C30%27%2F%3E%3Cpath%20d%3D%27M7.8%208A4.2%204.2%200%200%200%2016.2%208A2.1%202.1%200%200%201%2012%208A2.1%202.1%200%200%200%207.8%208Z%27%20fill%3D%27%23003478%27%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%27%23111%27%3E%3Cg%20transform%3D%27rotate%28-56.31%204.6%203.6%29%27%3E%3Crect%20x%3D%272.80%27%20y%3D%272.48%27%20width%3D%273.6%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%272.80%27%20y%3D%273.33%27%20width%3D%273.6%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%272.80%27%20y%3D%274.17%27%20width%3D%273.6%27%20height%3D%270.55%27%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%27rotate%2856.31%2019.4%203.6%29%27%3E%3Crect%20x%3D%2717.60%27%20y%3D%272.48%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%2719.75%27%20y%3D%272.48%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%2717.60%27%20y%3D%273.33%27%20width%3D%273.6%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%2717.60%27%20y%3D%274.17%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%2719.75%27%20y%3D%274.17%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%27rotate%2856.31%204.6%2012.4%29%27%3E%3Crect%20x%3D%272.80%27%20y%3D%2711.28%27%20width%3D%273.6%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%272.80%27%20y%3D%2712.12%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%274.95%27%20y%3D%2712.12%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%272.80%27%20y%3D%2712.97%27%20width%3D%273.6%27%20height%3D%270.55%27%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%27rotate%28-56.31%2019.4%2012.4%29%27%3E%3Crect%20x%3D%2717.60%27%20y%3D%2711.28%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%2719.75%27%20y%3D%2711.28%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%2717.60%27%20y%3D%2712.12%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%2719.75%27%20y%3D%2712.12%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%2717.60%27%20y%3D%2712.97%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3Crect%20x%3D%2719.75%27%20y%3D%2712.97%27%20width%3D%271.45%27%20height%3D%270.55%27%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E");}
+.flag-en{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2016%27%3E%3Crect%20width%3D%2724%27%20height%3D%2716%27%20fill%3D%27%23012169%27%2F%3E%3Cpath%20d%3D%27M0%200L24%2016M24%200L0%2016%27%20stroke%3D%27%23fff%27%20stroke-width%3D%273.4%27%2F%3E%3Cpath%20d%3D%27M0%200L24%2016M24%200L0%2016%27%20stroke%3D%27%23C8102E%27%20stroke-width%3D%271.9%27%2F%3E%3Cpath%20d%3D%27M12%200V16M0%208H24%27%20stroke%3D%27%23fff%27%20stroke-width%3D%275.4%27%2F%3E%3Cpath%20d%3D%27M12%200V16M0%208H24%27%20stroke%3D%27%23C8102E%27%20stroke-width%3D%273.2%27%2F%3E%3C%2Fsvg%3E");}
+.flag-tw{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2016%27%3E%3Crect%20width%3D%2724%27%20height%3D%2716%27%20fill%3D%27%23FE0000%27%2F%3E%3Crect%20width%3D%2712%27%20height%3D%278%27%20fill%3D%27%23000095%27%2F%3E%3Cpath%20d%3D%27M6%204L9.08%203.62L9.08%204.38Z%27%20fill%3D%27%23fff%27%2F%3E%3Cpath%20d%3D%27M6%204L8.85%205.21L8.48%205.87Z%27%20fill%3D%27%23fff%27%2F%3E%3Cpath%20d%3D%27M6%204L7.87%206.48L7.21%206.85Z%27%20fill%3D%27%23fff%27%2F%3E%3Cpath%20d%3D%27M6%204L6.38%207.08L5.62%207.08Z%27%20fill%3D%27%23fff%27%2F%3E%3Cpath%20d%3D%27M6%204L4.79%206.85L4.13%206.48Z%27%20fill%3D%27%23fff%27%2F%3E%3Cpath%20d%3D%27M6%204L3.52%205.87L3.15%205.21Z%27%20fill%3D%27%23fff%27%2F%3E%3Cpath%20d%3D%27M6%204L2.92%204.38L2.92%203.62Z%27%20fill%3D%27%23fff%27%2F%3E%3Cpath%20d%3D%27M6%204L3.15%202.79L3.52%202.13Z%27%20fill%3D%27%23fff%27%2F%3E%3Cpath%20d%3D%27M6%204L4.13%201.52L4.79%201.15Z%27%20fill%3D%27%23fff%27%2F%3E%3Cpath%20d%3D%27M6%204L5.62%200.92L6.38%200.92Z%27%20fill%3D%27%23fff%27%2F%3E%3Cpath%20d%3D%27M6%204L7.21%201.15L7.87%201.52Z%27%20fill%3D%27%23fff%27%2F%3E%3Cpath%20d%3D%27M6%204L8.48%202.13L8.85%202.79Z%27%20fill%3D%27%23fff%27%2F%3E%3Ccircle%20cx%3D%276%27%20cy%3D%274%27%20r%3D%271.85%27%20fill%3D%27%23fff%27%2F%3E%3Ccircle%20cx%3D%276%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%23000095%27%2F%3E%3Ccircle%20cx%3D%276%27%20cy%3D%274%27%20r%3D%271.15%27%20fill%3D%27%23fff%27%2F%3E%3C%2Fsvg%3E");}
+.flag-cn{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2016%27%3E%3Crect%20width%3D%2724%27%20height%3D%2716%27%20fill%3D%27%23DE2910%27%2F%3E%3Cpath%20d%3D%27M4.60%201.50L5.27%203.57L7.45%203.57L5.69%204.85L6.36%206.93L4.60%205.65L2.84%206.93L3.51%204.85L1.75%203.57L3.93%203.57Z%27%20fill%3D%27%23FFDE00%27%2F%3E%3Cpath%20d%3D%27M8.57%201.29L9.21%201.55L9.66%201.02L9.61%201.71L10.25%201.97L9.58%202.13L9.53%202.82L9.16%202.24L8.49%202.40L8.94%201.87Z%27%20fill%3D%27%23FFDE00%27%2F%3E%3Cpath%20d%3D%27M10.31%203.38L11.00%203.40L11.23%202.75L11.42%203.41L12.11%203.44L11.54%203.82L11.73%204.49L11.19%204.06L10.62%204.45L10.85%203.80Z%27%20fill%3D%27%23FFDE00%27%2F%3E%3Cpath%20d%3D%27M10.31%206.62L10.85%206.20L10.62%205.55L11.19%205.94L11.73%205.51L11.54%206.18L12.11%206.56L11.42%206.59L11.23%207.25L11.00%206.60Z%27%20fill%3D%27%23FFDE00%27%2F%3E%3Cpath%20d%3D%27M8.57%208.71L8.94%208.13L8.49%207.60L9.16%207.76L9.53%207.18L9.58%207.87L10.25%208.03L9.61%208.29L9.66%208.98L9.21%208.45Z%27%20fill%3D%27%23FFDE00%27%2F%3E%3C%2Fsvg%3E");}
+.flag-jp{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2016%27%3E%3Crect%20width%3D%2724%27%20height%3D%2716%27%20fill%3D%27%23fff%27%2F%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%278%27%20r%3D%274.8%27%20fill%3D%27%23BC002D%27%2F%3E%3C%2Fsvg%3E");}
+.flag-vn{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2016%27%3E%3Crect%20width%3D%2724%27%20height%3D%2716%27%20fill%3D%27%23DA251D%27%2F%3E%3Cpath%20d%3D%27M12.00%203.40L13.03%206.58L16.37%206.58L13.67%208.54L14.70%2011.72L12.00%209.76L9.30%2011.72L10.33%208.54L7.63%206.58L10.97%206.58Z%27%20fill%3D%27%23FFFF00%27%2F%3E%3C%2Fsvg%3E");}
 
 /* ===== Shell ===== */
 .shell{flex:1;display:flex;min-height:0;}
@@ -710,13 +722,13 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     <div class="login-lang-picker">
       <div class="login-lang-switcher">
         <button type="button" class="login-lang-flag-btn" id="loginLangBtn" onclick="toggleLoginLangMenu()">
-          <span id="loginLangFlag">🇰🇷</span><span id="loginLangName">한국어</span>
+          <span id="loginLangFlag"><i class="flag flag-ko"></i></span><span id="loginLangName">한국어</span>
         </button>
         <div class="login-lang-dropdown lang-switch" id="loginLangDropdown">
-          <button data-lang="ko"><span class="flag">🇰🇷</span><span>한국어</span></button>
-          <button data-lang="en"><span class="flag">🇬🇧</span><span>English</span></button>
-          <button data-lang="zh-TW"><span class="flag">🇹🇼</span><span>繁體中文</span></button>
-          <button data-lang="zh-CN"><span class="flag">🇨🇳</span><span>简体中文</span></button>
+          <button data-lang="ko"><i class="flag flag-ko"></i><span>한국어</span></button>
+          <button data-lang="en"><i class="flag flag-en"></i><span>English</span></button>
+          <button data-lang="zh-TW"><i class="flag flag-tw"></i><span>繁體中文</span></button>
+          <button data-lang="zh-CN"><i class="flag flag-cn"></i><span>简体中文</span></button>
         </div>
       </div>
     </div>
@@ -6776,9 +6788,9 @@ function applyI18n(){
  const loginLangFlag = document.getElementById('loginLangFlag');
  const loginLangName = document.getElementById('loginLangName');
  if(loginLangFlag || loginLangName){
-  const flags = {ko:'🇰🇷', en:'🇬🇧', 'zh-TW':'🇹🇼', 'zh-CN':'🇨🇳'};
+  const flags = {ko:'ko', en:'en', 'zh-TW':'tw', 'zh-CN':'cn'};
   const names = {ko:'한국어', en:'English', 'zh-TW':'繁體中文', 'zh-CN':'简体中文'};
-  if(loginLangFlag) loginLangFlag.textContent = flags[LANG] || '🇰🇷';
+  if(loginLangFlag) loginLangFlag.innerHTML = `<i class="flag flag-${flags[LANG] || 'ko'}"></i>`;
   if(loginLangName) loginLangName.textContent = names[LANG] || '한국어';
  }
  const loginLangDropdown = document.getElementById('loginLangDropdown');

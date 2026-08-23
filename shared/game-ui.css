@@ -1228,6 +1228,15 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .sd-live.is-fs .sd-road{grid-row:1;grid-column:3;box-shadow:0 10px 26px -10px rgba(0,0,0,.8);}
 /* the felt stands proud of the two paper panels beside it and breaks the top of the strip */
 .sd-live.is-fs .sd-bets{align-self:end;height:calc(var(--sd-board) + 34px);}
+/* The felt keeps the board's own proportions instead of stretching to whatever the middle column
+   happens to be. Its depth is fixed, so every extra inch of screen went into its length alone -
+   on a wide monitor it had drawn out to half again the width of the board it is taken from. The
+   width follows the depth now and it centres in the column, the room either side left to the
+   video behind it. */
+.sd-live.is-fs .bet-board{
+  width:min(100%, calc((var(--sd-board) + 34px) * 1.85));
+  margin-inline:auto;
+}
 /* the still's own furniture: the ✕ is a plain ring at the top left, the countdown a filled disc
    halfway down the right edge, and the caption sits across the top where the table calls the
    bet. The rail loses its history button - the bar at the foot carries that now. */

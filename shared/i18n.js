@@ -13,7 +13,12 @@
    ============================================================ */
 
 /* The order here is the order of the picker. */
-const I18N_FLAG = {ko:'🇰🇷', en:'🇬🇧', zhHant:'🇹🇼', zhHans:'🇨🇳', ja:'🇯🇵', vi:'🇻🇳'};
+/* The flags are drawn (see the .flag-* rules in shared/cage-ui.css), not set as the flag emoji
+   they used to be: those are a pair of regional indicator letters a font is meant to ligature
+   into a flag, and Windows ships none of them - so every flag on the picker printed as its two
+   letters instead ("KR", "GB", "TW", ...). */
+const I18N_FLAG_CLASS = {ko:'ko', en:'en', zhHant:'tw', zhHans:'cn', ja:'jp', vi:'vn'};
+function flagHtml(code){ return `<i class="flag flag-${I18N_FLAG_CLASS[code] || 'ko'}"></i>`; }
 const I18N_NATIVE = {ko:'한국어', en:'English', zhHant:'繁體中文', zhHans:'简体中文', ja:'日本語', vi:'Tiếng Việt'};
 
 /* Anyone already reading the site in Chinese chose it when there was only one of them, and the
@@ -394,7 +399,7 @@ function setLang(lang){
 function refreshLangButtons(){
   document.querySelectorAll('.lang-current').forEach(btn=>{
     const spans = btn.querySelectorAll('span');
-    if (spans[0]) spans[0].textContent = I18N_FLAG[I18N_LANG];
+    if (spans[0]) spans[0].innerHTML = flagHtml(I18N_LANG);
     if (spans[1]) spans[1].textContent = I18N_NATIVE[I18N_LANG];
   });
 }
@@ -407,10 +412,10 @@ function applyI18n(root){
 function langSwitcherHtml(id){
   return `<div class="lang-switcher" id="${id}">
     <button type="button" class="lang-current" onclick="toggleLangDrop('${id}')">
-      <span>${I18N_FLAG[I18N_LANG]}</span><span>${I18N_NATIVE[I18N_LANG]}</span>
+      <span>${flagHtml(I18N_LANG)}</span><span>${I18N_NATIVE[I18N_LANG]}</span>
     </button>
     <div class="lang-drop" id="${id}-drop">
-      ${Object.keys(I18N_NATIVE).map(code=>`<div class="lang-opt" onclick="setLang('${code}');document.getElementById('${id}-drop').classList.remove('open')"><span>${I18N_FLAG[code]}</span><span>${I18N_NATIVE[code]}</span></div>`).join('')}
+      ${Object.keys(I18N_NATIVE).map(code=>`<div class="lang-opt" onclick="setLang('${code}');document.getElementById('${id}-drop').classList.remove('open')"><span>${flagHtml(code)}</span><span>${I18N_NATIVE[code]}</span></div>`).join('')}
     </div>
   </div>`;
 }

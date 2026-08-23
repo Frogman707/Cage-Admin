@@ -1203,7 +1203,23 @@ function speedMultiPanelHtml(){
       <button class="btn btn-sm" onclick="clearAllSpeedBets()">${t('cancelBet')}</button>
       <button class="icon-btn sm-close" onclick="toggleSpeedMultiPanel(false)" title="${t('backToList')}">✕</button>
     </div>
-    <div class="sm-list">${rows || `<p class="hint">${t('noSpeedTables')}</p>`}</div>`;
+    <div class="sm-list">${rows || `<p class="hint">${t('noSpeedTables')}</p>`}</div>
+    <div class="sm-scrollbar" id="speedMultiScrollbar"><div class="sm-scrollbar-thumb" id="speedMultiScrollbarThumb"></div></div>`;
+}
+/* Slides the thumb to match the rail's own scrollLeft - the rail's native scrollbar is hidden,
+   so without this there's no on-screen cue that swiping left/right reaches more tables. */
+function updateSpeedMultiScrollbar(){
+  const list = document.querySelector('#speedMultiPanel .sm-list');
+  const bar = document.getElementById('speedMultiScrollbar');
+  const thumb = document.getElementById('speedMultiScrollbarThumb');
+  if (!list || !bar || !thumb) return;
+  const scrollable = list.scrollWidth - list.clientWidth;
+  if (scrollable <= 4){ bar.classList.remove('visible'); return; }
+  bar.classList.add('visible');
+  const barWidth = bar.clientWidth;
+  const thumbWidth = Math.max(30, barWidth * (list.clientWidth / list.scrollWidth));
+  thumb.style.width = thumbWidth + 'px';
+  thumb.style.left = ((list.scrollLeft / scrollable) * (barWidth - thumbWidth)) + 'px';
 }
 function toggleSpeedMultiPanel(open){
   const el = document.getElementById('speedMultiPanel');
@@ -1220,6 +1236,11 @@ function toggleSpeedMultiPanel(open){
     });
     renderSpeedStakedTotal();
     watchSpeedMultiRoads();
+    const list = el.querySelector('.sm-list');
+    if (list){
+      list.addEventListener('scroll', updateSpeedMultiScrollbar);
+      requestAnimationFrame(updateSpeedMultiScrollbar);
+    }
   } else {
     unwatchSpeedMultiRoads();
   }

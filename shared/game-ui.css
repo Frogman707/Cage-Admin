@@ -25,6 +25,11 @@
   border-bottom:1px solid var(--brass-dim);flex-shrink:0;position:relative;z-index:20;
   box-shadow:0 2px 18px -4px rgba(0,0,0,.5);
 }
+/* The navy gradient above is the dark-theme table-felt look; in light mode the header
+   switches to a plain white bar like the rest of the light surfaces, instead of staying navy. */
+:root[data-theme="light"] .game-header{
+  background:var(--void);
+}
 /* The wordmark reads the same as the Partner Admin one: full-size on a single line with
    its tag set small alongside, rather than shrunk and stacked over a second line. */
 .game-header .brand{flex-shrink:0;align-items:baseline;gap:9px;}

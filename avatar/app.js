@@ -168,13 +168,46 @@ function toggleCardFavorite(btn){
        the screen with a bar naming the round and the shoe above them and a bar carrying the
        balance below.
    Which of the two you get is the screen's own width, exactly as it is outside fullscreen. */
+/* Not every browser has the fullscreen API this used to call, and the ones that don't were left
+   with a button that did nothing at all: it asked for `requestFullscreen?.()`, and optional
+   chaining on a method that isn't there is silence, not an error. Safari on iOS has no element
+   fullscreen at all (only a video can go fullscreen there), and others carry it webkit-prefixed
+   only. So: the prefixed names are tried too, and where there is no such API - or the browser
+   refuses the request - the table goes fullscreen the only way left, by covering the viewport
+   itself. The layout is already driven by the .is-fs class rather than :fullscreen, so the faux
+   one is the same screen; all it adds is the fixed box holding it. */
+let FAUX_FS = null;
+function nativeFsElement(){ return document.fullscreenElement || document.webkitFullscreenElement || null; }
+function stageFsElement(){ return nativeFsElement() || FAUX_FS; }
+function enterFauxFullscreen(root){
+  if (FAUX_FS) return;
+  FAUX_FS = root;
+  root.classList.add('faux-fs');
+  document.body.classList.add('faux-fs-lock');
+  onStageFullscreenChanged();
+}
+function exitFauxFullscreen(){
+  if (!FAUX_FS) return;
+  FAUX_FS.classList.remove('faux-fs');
+  FAUX_FS = null;
+  document.body.classList.remove('faux-fs-lock');
+  onStageFullscreenChanged();
+}
 function toggleStageFullscreen(btn){
   const root = (btn && btn.closest('.speed-detail-wrap')) || document.querySelector('.speed-detail-wrap');
   if (!root) return;
-  if (!document.fullscreenElement) root.requestFullscreen?.().catch(()=>{});
-  else document.exitFullscreen?.();
+  if (stageFsElement()){ exitStageFullscreen(); return; }
+  const req = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (!req){ enterFauxFullscreen(root); return; }
+  // a refusal comes back as a rejected promise on some browsers and a throw on others
+  try { Promise.resolve(req.call(root)).catch(()=>enterFauxFullscreen(root)); }
+  catch(e){ enterFauxFullscreen(root); }
 }
-function exitStageFullscreen(){ if (document.fullscreenElement) document.exitFullscreen?.(); }
+function exitStageFullscreen(){
+  if (FAUX_FS){ exitFauxFullscreen(); return; }
+  const ex = document.exitFullscreen || document.webkitExitFullscreen;
+  if (nativeFsElement() && ex) ex.call(document);
+}
 /* The layout swap is a class rather than :fullscreen so the pieces that have to move in JS -
    the roads, which are pinned to their newest column and have to be re-pinned once the panel
    they live in changes width - move with it. */
@@ -188,11 +221,11 @@ function adoptFsFollowers(host){
 }
 function releaseFsFollowers(){ adoptFsFollowers(document.body); }
 function fsFollowHost(){
-  const fs = document.fullscreenElement;
+  const fs = stageFsElement();
   return fs && fs.classList.contains('speed-detail-wrap') ? fs : document.body;
 }
-document.addEventListener('fullscreenchange', ()=>{
-  const fs = document.fullscreenElement;
+function onStageFullscreenChanged(){
+  const fs = stageFsElement();
   document.querySelectorAll('.speed-detail-wrap').forEach(w=>w.classList.toggle('is-fs', w === fs));
   adoptFsFollowers(fsFollowHost());
   if (SPEED.detailTableId){
@@ -204,7 +237,11 @@ document.addEventListener('fullscreenchange', ()=>{
     paintAvatarFsBars();
     renderAvatarRoad(); renderAvatarTally();
   }
-});
+}
+document.addEventListener('fullscreenchange', onStageFullscreenChanged);
+document.addEventListener('webkitfullscreenchange', onStageFullscreenChanged);
+/* Escape leaves the real fullscreen without anyone wiring it up; the faux one has to be told. */
+document.addEventListener('keydown', e=>{ if (e.key === 'Escape' && FAUX_FS) exitFauxFullscreen(); });
 /* the round, the shoe and the balance the fullscreen bars carry - by class, because the head and
    the foot both carry them and only one of the two is on the screen at a time */
 function paintSpeedFsBars(tableId){
@@ -735,7 +772,7 @@ async function enterAvatarSession(tableId){
   paintAvatarFsBars();
   // the screen is rebuilt from scratch on every open, so one opened while already fullscreen
   // needs the class - and the loans - put back on the new wrapper (mirrors openSpeedTableDetail)
-  if (document.fullscreenElement){
+  if (stageFsElement()){
     document.querySelector('#viewAvatarTable .speed-detail-wrap')?.classList.add('is-fs');
     adoptFsFollowers(fsFollowHost());
   }
@@ -1560,7 +1597,7 @@ function fsBarHtml(tb, where, mode){
 
    Both carry the same ids, so everything that paints a spot paints either of them. */
 function betBoardHtml(tableId){
-  return document.fullscreenElement ? feltBoardHtml(tableId) : classicBoardHtml(tableId);
+  return stageFsElement() ? feltBoardHtml(tableId) : classicBoardHtml(tableId);
 }
 /* the screen is not rebuilt when fullscreen is entered or left, so the board is swapped in place */
 function renderBetBoard(tableId){
@@ -1638,7 +1675,7 @@ function feltBoardHtml(tableId){
    (which take a clickable tableId throughout) - no onclick, filled from AVATAR.bets instead of
    a chip tray, since the avatar places the bet automatically rather than the player. */
 function avatarBetBoardHtml(){
-  return document.fullscreenElement ? avatarFeltBoardHtml() : avatarClassicBoardHtml();
+  return stageFsElement() ? avatarFeltBoardHtml() : avatarClassicBoardHtml();
 }
 function avatarClassicBoardHtml(){
   const cell = (key, cls, i18n, ko, odds) =>
@@ -1726,7 +1763,7 @@ function openSpeedTableDetail(tableId, preserveScroll){
   paintSpeedFsBars(tableId);
   // the screen is rebuilt from scratch on every open, so one opened while already fullscreen
   // needs the class - and the loans - put back on the new wrapper
-  if (document.fullscreenElement){
+  if (stageFsElement()){
     document.querySelector('.speed-detail-wrap')?.classList.add('is-fs');
     adoptFsFollowers(fsFollowHost());
   }
@@ -1740,7 +1777,7 @@ function openSpeedTableDetail(tableId, preserveScroll){
 }
 function closeSpeedTableDetail(){
   SPEED.detailTableId = null;
-  if (document.fullscreenElement) document.exitFullscreen?.();
+  exitStageFullscreen();
   releaseFsFollowers();
   document.getElementById('viewSpeedTable').innerHTML = '';
   showView('viewSpeedLobby');

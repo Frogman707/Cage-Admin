@@ -18,6 +18,13 @@
   --road-green:#17886B;
 }
 
+/* Dragging the mouse (or a finger) anywhere on the game screens must never fall through to
+   native text selection - a swipe across the felt, a roadmap, or the multi-bet rail shouldn't
+   highlight whatever number or label happens to sit under the drag path. Form fields opt back
+   in so login/signup inputs keep normal text editing/selection. */
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
+
 .game-header{
   display:flex;align-items:center;gap:16px;padding:11px 22px;
   background:linear-gradient(180deg, rgba(21,48,79,.92), rgba(15,32,56,.92));
@@ -196,6 +203,13 @@
 .sm-list{flex:0 0 auto;display:flex;gap:10px;align-items:stretch;
   overflow-x:auto;overflow-y:hidden;padding:10px 14px 12px;scroll-snap-type:x proximity;}
 .sm-list > .sm-row{scroll-snap-align:start;}
+/* The rail's own horizontal scrollbar is hidden (see the ::-webkit-scrollbar rule further
+   down), so with more tables than fit on screen there was no cue at all that the rest are
+   reachable by swiping - this thumb is that cue, sliding left-right under the rail as it
+   scrolls. Hidden entirely when everything already fits (nothing to indicate). */
+.sm-scrollbar{flex:0 0 auto;height:3px;margin:0 14px 8px;border-radius:2px;background:var(--line);position:relative;display:none;}
+.sm-scrollbar.visible{display:block;}
+.sm-scrollbar-thumb{position:absolute;top:0;left:0;height:100%;border-radius:2px;background:var(--brass);}
 /* min-width:0 on the row and the road both: without it the road's own content sets the row's
    min-content width, the grid track is blown out past the viewport, and the whole list scrolls
    sideways instead of the one road that is too long. */
@@ -277,6 +291,7 @@
   .sm-chips .chip{width:32px;height:32px;}
   .sm-list{padding:8px 10px 10px;gap:8px;}
   .sm-row{flex-basis:calc(100% - 34px);width:calc(100% - 34px);}
+  .sm-scrollbar{margin:0 10px 8px;}
   .tb-spot .tb-label{font-size:9px;}
   .tb-row.hands .tb-spot .tb-label{font-size:11px;}
 }

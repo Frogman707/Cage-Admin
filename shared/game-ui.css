@@ -915,7 +915,11 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .bet-board{position:relative;display:flex;flex-direction:column;gap:5px;flex:1;min-height:200px;min-width:0;}
 .bb-row{display:grid;gap:5px;min-height:0;}
 .bb-top{grid-template-columns:1fr var(--bb-arch) 1fr;flex:0 0 38%;}
-.bb-main{grid-template-columns:1fr 1fr;flex:1 1 auto;min-height:0;}
+/* Same three-column shape as the top row, with an empty middle track the same width as the
+   arch standing over it - without it 플레이어/뱅커 were full-width rectangles the arch simply
+   painted over, so the seam between the arch and its neighbours vanished exactly where the
+   three shapes meet, unlike every other seam on the board which keeps the row's own gap. */
+.bb-main{grid-template-columns:1fr var(--bb-arch) 1fr;flex:1 1 auto;min-height:0;}
 .bet-board{--bb-arch:27%;}
 .bet-board > .bet-spot.bb-tie{
   /* Centred with a margin rather than a transform. It used to ride on translateX(-50%), and the

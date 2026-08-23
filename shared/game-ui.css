@@ -1320,11 +1320,16 @@ body.faux-fs-lock{overflow:hidden;}
   .sd-live.is-fs .sd-underbar{display:contents;}
   .sd-live.is-fs .sd-board-row{display:grid;}
   /* The results row scrolls sideways (roads on page one, Bead Plate on page two), and a box that
-     scrolls has an automatic minimum size of nothing - so the fullscreen grid, short of room,
-     was free to squeeze it down to a sliver and did: 40px of the 157 it needs, which cut the
-     roads off mid-row. Held to its content's height it keeps them, and the grid scrolls instead,
-     which is what the phone's fullscreen is meant to do anyway. */
-  .sd-live.is-fs .sd-board-row{min-height:max-content;}
+     scrolls has an automatic minimum size of nothing - so the fullscreen grid, short of room, is
+     free to squeeze it down to a sliver, and did: 40px of the 157 it needs, which cut the roads
+     off mid-row. A floor of its own stops that; the grid scrolls instead, which is what the
+     phone's fullscreen is meant to do anyway.
+     The floor is a length rather than max-content because max-content is not honoured here on
+     every engine - Safari left the row at its squeezed 40px and the roads stayed cut off, which
+     is the browser this screen is most used from. A length is unambiguous everywhere, and an
+     exact one: the row is the counts strip over a road of a fixed six rows at a fixed cell size,
+     so it measures 157px at every phone width from 320 to 430, not merely at the one tested. */
+  .sd-live.is-fs .sd-board-row{min-height:157px;}
   .sd-live.is-fs .sd-tally{grid-area:tally;box-shadow:none;}
   .sd-live.is-fs .sd-road{grid-area:road;box-shadow:none;}
   .sd-live.is-fs .sd-bets{grid-area:bets;height:auto;align-self:auto;}

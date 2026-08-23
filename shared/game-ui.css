@@ -946,7 +946,13 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 }
 .bet-board .bet-spot::before{display:none;}
 .bet-board .bet-spot:hover{transform:none;filter:brightness(1.14);}
-.bet-board .bet-spot.locked{opacity:.55;cursor:not-allowed;}
+/* Dimmed down rather than faded out. The arch laps over 플레이어 and 뱅커, so making it
+   translucent didn't dim it - it showed the two of them straight through it, and the round's
+   result was read against a board with three spots visible where the arch is. Brightness leaves
+   it solid. Locked outranks the hover brighten, which a finger still triggers on a phone. */
+.bet-board .bet-spot.locked,.bet-board .bet-spot.locked:hover{
+  opacity:1;filter:brightness(.62);cursor:not-allowed;
+}
 /* the three colours the felt uses: 플레이어 blue, 뱅커 red, 타이 green - a lit edge over a
    deeper fill of the same hue, which is how the reference board reads at a glance */
 .bet-board .bet-spot.player{border-color:#4D9BD4;background:linear-gradient(180deg,#3D8FCC 0%,#2568A3 100%);}
@@ -1313,6 +1319,12 @@ body.faux-fs-lock{overflow:hidden;}
      second column of the phone's single-column grid and squeezed the video to nothing. */
   .sd-live.is-fs .sd-underbar{display:contents;}
   .sd-live.is-fs .sd-board-row{display:grid;}
+  /* The results row scrolls sideways (roads on page one, Bead Plate on page two), and a box that
+     scrolls has an automatic minimum size of nothing - so the fullscreen grid, short of room,
+     was free to squeeze it down to a sliver and did: 40px of the 157 it needs, which cut the
+     roads off mid-row. Held to its content's height it keeps them, and the grid scrolls instead,
+     which is what the phone's fullscreen is meant to do anyway. */
+  .sd-live.is-fs .sd-board-row{min-height:max-content;}
   .sd-live.is-fs .sd-tally{grid-area:tally;box-shadow:none;}
   .sd-live.is-fs .sd-road{grid-area:road;box-shadow:none;}
   .sd-live.is-fs .sd-bets{grid-area:bets;height:auto;align-self:auto;}

@@ -197,6 +197,7 @@ async function doLogin(){
   document.getElementById('topbar').style.display='flex';
   document.getElementById('shell').style.display='flex';
   document.getElementById('staffNameTxt').textContent = staff.name || staff.id;
+  document.getElementById('hdrLangRow').innerHTML = langSwitcherHtml('hdrLangSwitch');
   switchView('dashboard');
 }
 function doLogout(){

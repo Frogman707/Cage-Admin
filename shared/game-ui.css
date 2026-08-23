@@ -912,8 +912,8 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    in either, which is the only way one shape can belong to both.
    The arch is as wide as it is tall, so `50%` on its two bottom corners draws a true semicircle
    at any size - no fixed radius to keep in step with the board's width. */
-.bet-board{position:relative;display:flex;flex-direction:column;gap:5px;flex:1;min-height:200px;min-width:0;}
-.bb-row{display:grid;gap:5px;min-height:0;}
+.bet-board{position:relative;display:flex;flex-direction:column;gap:3px;flex:1;min-height:200px;min-width:0;}
+.bb-row{display:grid;gap:3px;min-height:0;}
 .bb-top{grid-template-columns:1fr var(--bb-arch) 1fr;flex:0 0 38%;}
 /* Same three-column shape as the top row, with an empty middle track the same width as the
    arch standing over it - without it 플레이어/뱅커 were full-width rectangles the arch simply
@@ -941,9 +941,9 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .bet-board .bet-spot.locked{opacity:.55;cursor:not-allowed;}
 /* the three colours the felt uses: 플레이어 blue, 뱅커 red, 타이 green - a lit edge over a
    deeper fill of the same hue, which is how the reference board reads at a glance */
-.bet-board .bet-spot.player{border-color:#4D9BD4;background:linear-gradient(180deg,#2C608A 0%,#1D4A72 100%);}
-.bet-board .bet-spot.banker{border-color:#E04B3B;background:linear-gradient(180deg,#A93027 0%,#8E241C 100%);}
-.bet-board .bet-spot.tie   {border-color:#57C257;background:linear-gradient(180deg,#2A7A41 0%,#1C5A30 100%);}
+.bet-board .bet-spot.player{border-color:#4D9BD4;background:linear-gradient(180deg,#3D8FCC 0%,#2568A3 100%);}
+.bet-board .bet-spot.banker{border-color:#E04B3B;background:linear-gradient(180deg,#D6432F 0%,#A82D1F 100%);}
+.bet-board .bet-spot.tie   {border-color:#57C257;background:linear-gradient(180deg,#34A855 0%,#1D7A3C 100%);}
 .bet-board .bet-spot.selected{box-shadow:inset 0 0 0 2px var(--brass), 0 0 0 1px rgba(217,178,106,.5);}
 
 /* the readings: the share of the round's money on this spot, how many are on it and what is on

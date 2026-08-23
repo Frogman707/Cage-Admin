@@ -915,12 +915,15 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .bet-board{position:relative;display:flex;flex-direction:column;gap:3px;flex:1;min-height:200px;min-width:0;}
 .bb-row{display:grid;gap:3px;min-height:0;}
 .bb-top{grid-template-columns:1fr var(--bb-arch) 1fr;flex:0 0 38%;}
-/* Same three-column shape as the top row, with an empty middle track the same width as the
-   arch standing over it - without it 플레이어/뱅커 were full-width rectangles the arch simply
-   painted over, so the seam between the arch and its neighbours vanished exactly where the
-   three shapes meet, unlike every other seam on the board which keeps the row's own gap. */
-.bb-main{grid-template-columns:1fr var(--bb-arch) 1fr;flex:1 1 auto;min-height:0;}
-.bet-board{--bb-arch:27%;}
+/* 플레이어 and 뱅커 take half the board each and meet in the middle, and the arch laps over the
+   pair of them - it is not a third column here. Cutting a column out for it left the two of them
+   short of the middle with a bite of empty board between, which is not the shape at all. */
+.bb-main{grid-template-columns:1fr 1fr;flex:1 1 auto;min-height:0;}
+/* --bb-arch-foot is the vertical radius of the arch's foot. A flat 50% makes it half the arch's
+   own height, which on a column this narrow draws a long tapered point rather than the round foot
+   the felt has - so it is set to about half the arch's WIDTH instead, expressed against its height.
+   It follows the board's proportions, hence its own value per screen. */
+.bet-board{--bb-arch:18%;--bb-arch-foot:28%;--bb-seam:3px;--bb-seam-ink:#0A0F17;}
 .bet-board > .bet-spot.bb-tie{
   /* Centred with a margin rather than a transform. It used to ride on translateX(-50%), and the
      spots clear the base rail's 1px hover lift with transform:none - which wiped the arch's
@@ -929,7 +932,12 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
      the board can undo it. Both are percentages of the same containing block, so half is exact. */
   position:absolute;left:50%;margin-left:calc(var(--bb-arch) / -2);top:0;
   width:var(--bb-arch);height:68%;
-  border-radius:10px 10px 50% 50%;
+  border-radius:10px 10px 50% 50% / 10px 10px var(--bb-arch-foot) var(--bb-arch-foot);
+  /* The seam the arch keeps against everything it touches. Where it laps over 플레이어/뱅커 there
+     is no grid gap to give it one - the two of them run on underneath - so it carries its own,
+     drawn in the same ink the board's other gaps read as. Against the pairs above it lands in
+     the row's own gap rather than adding to it, so every seam on the board is the one width. */
+  outline:var(--bb-seam) solid var(--bb-seam-ink);
 }
 .bet-board .bet-spot{
   position:relative;display:block;padding:0;margin:0;gap:0;
@@ -1013,8 +1021,11 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
      to carry the readings and the name side by side in it. Everything on them is cut to fit, and
      these sizes come after the board's own so they actually win: set above them they were simply
      overwritten and the two blocks printed over each other. */
+  /* the arch is a share of the board's width, and a phone's board is a third of a desktop's -
+     the same share leaves it too narrow to set 타이 and its odds in, so it takes a bigger one */
   .bet-board{--bb-pad:6px;--bb-pct:21px;--bb-fs-pct:7.5px;--bb-fs-stat:6.5px;
-             --bb-fs-label:12px;--bb-fs-plabel:9px;--bb-fs-odds:9px;--bb-fs-mine:13px;}
+             --bb-fs-label:12px;--bb-fs-plabel:9px;--bb-fs-odds:9px;--bb-fs-mine:13px;
+             --bb-arch:27%;--bb-arch-foot:42%;--bb-seam:2px;}
   .bet-board .bb-meta{gap:4px;}
   .speed-detail-wrap{padding:8px 8px 24px;}
   .sd-stage{min-height:220px;height:auto;border-radius:12px;}

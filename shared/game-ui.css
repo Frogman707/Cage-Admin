@@ -267,11 +267,6 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .sm-open{flex-shrink:0;background:none;border:1px solid var(--line);color:var(--ink-faint);border-radius:7px;
   padding:2px 7px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .sm-open:hover{border-color:var(--brass-dim);color:var(--brass);}
-/* the table on the screen leads the rail and is marked as such - its own big board is above,
-   but the strip can be over it, and this row bets it either way */
-.sm-here{flex-shrink:0;border:1px solid var(--brass-dim);color:var(--brass);border-radius:7px;
-  padding:2px 7px;font-size:10px;font-weight:700;white-space:nowrap;}
-.sm-row.current{border-color:var(--brass-dim);background:rgba(217,178,106,.07);}
 @media (max-width:640px){
   /* a phone shows one table at a time with the next peeking past the edge, which is the cue to
      swipe - the rail is the same rail, only narrower than the screen rather than wider */
@@ -1452,4 +1447,18 @@ body.faux-fs-lock{overflow:hidden;}
   .sd-live.is-fs .sd-fs-bar .fs-ico svg{width:17px;height:17px;}
   /* the head carries the way out, so the ✕ over the video would say the same thing twice */
   .sd-live.is-fs .speed-detail-close{display:none;}
+}
+
+/* ---- the toast clears the chip tray ----
+   shared/cage-ui.css puts a toast at the foot of the screen, centred. On the two table screens
+   the foot is the chip tray - 베팅완료 and 반복 and 멀티 베팅 are in it - and on a phone the
+   toast landed squarely over them, which is exactly when a round's result is being announced and
+   the next bet is being placed. It stands above the tray on those screens; everywhere else the
+   foot is empty and the toast stays where it was. */
+body.has-chip-tray .toast{bottom:84px;}
+body.has-chip-tray .toast.show{bottom:94px;}
+@media (max-width:860px){
+  /* the phone's tray is deeper: it wraps the chips onto their own line */
+  body.has-chip-tray .toast{bottom:104px;}
+  body.has-chip-tray .toast.show{bottom:114px;}
 }

@@ -103,6 +103,7 @@ const I18N_DICT = {
   sortHot:{ko:'좋은 흐름순',zhHans:'热门走势',zhHant:'熱門走勢',en:'Hot streak',ja:'好調な流れ順',vi:'Chuỗi thắng'},
   sortName:{ko:'테이블명순',zhHans:'桌台名称',zhHant:'桌臺名稱',en:'Table name',ja:'テーブル名順',vi:'Tên bàn'},
   noAvatarTables:{ko:'열려있는 아바타 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.',zhHans:'暂无开放的代打桌台。请在合作伙伴管理后台生成演示数据。',zhHant:'暫無開放的代打桌臺。請在合作伙伴管理後臺生成演示資料。',en:'No open Avatar tables. Please generate demo data in Partner Admin.',ja:'開いているアバターテーブルがありません。パートナー管理画面でデモデータを生成してください。',vi:'Không có bàn Avatar nào đang mở. Vui lòng tạo dữ liệu demo trong Partner Admin.'},
+  noOtherTables:{ko:'다른 테이블이 없습니다',zhHans:'没有其他桌台',zhHant:'沒有其他桌檯',en:'No other tables',ja:'他のテーブルがありません',vi:'Không có bàn nào khác'},
   noSpeedTables:{ko:'열려있는 스피드 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.',zhHans:'暂无开放的极速桌台。请在合作伙伴管理后台生成演示数据。',zhHant:'暫無開放的極速桌臺。請在合作伙伴管理後臺生成演示資料。',en:'No open Speed tables. Please generate demo data in Partner Admin.',ja:'開いているスピードテーブルがありません。パートナー管理画面でデモデータを生成してください。',vi:'Không có bàn Speed nào đang mở. Vui lòng tạo dữ liệu demo trong Partner Admin.'},
   noRecord:{ko:'기록 없음',zhHans:'暂无记录',zhHant:'暫無記錄',en:'No record',ja:'記録なし',vi:'Chưa có dữ liệu'},
   todayLabel:{ko:'오늘',zhHans:'今日',zhHant:'今日',en:'Today',ja:'本日',vi:'Hôm nay'},
@@ -182,6 +183,11 @@ const I18N_DICT = {
   send:{ko:'전송',zhHans:'发送',zhHant:'傳送',en:'Send',ja:'送信',vi:'Gửi'},
   noChat:{ko:'채팅이 없습니다',zhHans:'暂无聊天记录',zhHant:'暫無聊天記錄',en:'No messages yet',ja:'チャットがありません',vi:'Chưa có tin nhắn'},
   wonAmount:{ko:'+{amount} 획득!',zhHans:'赢得 +{amount}！',zhHant:'贏得 +{amount}！',en:'+{amount} won!',ja:'+{amount} 獲得！',vi:'+{amount} thắng!'},
+  // A round the player had money on is called either way, not only when it pays. `lostAmount`
+  // is what the round cost, `pushedAmount` the stake handed back when a 플레이어/뱅커 bet meets
+  // a tie - which paid out before and so was announced as a win, though nothing was won.
+  lostAmount:{ko:'-{amount} 손실',zhHans:'输 -{amount}',zhHant:'輸 -{amount}',en:'-{amount} lost',ja:'-{amount} 損失',vi:'-{amount} thua'},
+  pushedAmount:{ko:'타이 - {amount} 반환',zhHans:'和局 - 退还 {amount}',zhHant:'和局 - 退還 {amount}',en:'Tie - {amount} returned',ja:'タイ - {amount} 返還',vi:'Hòa - hoàn {amount}'},
 
   // ---- game history sheet ----
   historyTabSpeed:{ko:'스피드 베팅',zhHans:'极速投注',zhHant:'極速投注',en:'Speed Bets',ja:'スピードベット',vi:'Cược Speed'},
@@ -206,7 +212,6 @@ const I18N_DICT = {
   repeatNoPrev:{ko:'반복할 이전 베팅이 없습니다',zhHans:'没有可重复的上一次投注',zhHant:'沒有可重複的上一次投注',en:'No previous bet to repeat',ja:'繰り返すベットがありません',vi:'Không có cược trước để lặp lại'},
   streakLabel:{ko:'연속',zhHans:'连',zhHant:'連',en:'streak',ja:'連続',vi:'liên tiếp'},
   roundFailed:{ko:'이번 라운드 처리에 실패했습니다. 연결을 확인해 주세요.',zhHans:'本局处理失败，请检查网络连接。',zhHant:'本局處理失敗，請檢查網路連線。',en:'This round could not be settled — check your connection.',ja:'このラウンドの処理に失敗しました。接続を確認してください。',vi:'Không xử lý được ván này — vui lòng kiểm tra kết nối.'},
-  watchingNow:{ko:'보는 중',zhHans:'观看中',zhHant:'觀看中',en:'Watching',ja:'視聴中',vi:'Đang xem'},
   multiBet:{ko:'멀티 베팅',zhHans:'多桌投注',zhHant:'多桌投注',en:'Multi-bet',ja:'マルチベット',vi:'Cược nhiều bàn'},
   enterShort:{ko:'입장',zhHans:'进入',zhHant:'進入',en:'Enter',ja:'入場',vi:'Vào'},
   allInStaked:{ko:'보유금 전액 {amount} 을 베팅했습니다',zhHans:'已投注全部余额 {amount}',zhHant:'已投注全部餘額 {amount}',en:'Staked your whole balance, {amount}',ja:'保有金全額 {amount} をベットしました',vi:'Đã cược toàn bộ số dư {amount}'},

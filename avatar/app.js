@@ -17,6 +17,20 @@ const AVATAR_BETTING_SECONDS = 30, AVATAR_DEALING_SECONDS = 4, AVATAR_RESULT_SEC
 const SPEED_BETTING_SECONDS = 30, SPEED_DEALING_SECONDS = 3, SPEED_RESULT_SECONDS = 3;
 
 function betLabel(type){ return t(type); } // BET_LABEL keys (player/banker/tie/playerPair/bankerPair) match i18n dict keys 1:1
+/* What a round did to the player's money, said the same way at either kind of table.
+   Only the winning rounds used to be called, on `payout > 0` - so a round that took the stake and
+   gave nothing back passed in silence, and a 플레이어/뱅커 bet meeting a tie was announced as a
+   win, because the stake handed back is a payout. Both are now named for what they are.
+   The figure is the net either way: what the round gained or cost, not the gross returned, so the
+   three readings are the same measure and can be compared to one another.
+   Called only for a round the player staked on - a round they sat out has nothing to say about
+   their money, and a toast every round would be noise over the next bet. */
+function roundOutcomeText(staked, payout){
+  const net = payout - staked;
+  if (net > 0) return t('wonAmount', {amount: fmtNum(net)});
+  if (net < 0) return t('lostAmount', {amount: fmtNum(-net)});
+  return t('pushedAmount', {amount: fmtNum(staked)});
+}
 let MY_BET_LOG = []; // {tableName, roundNo, betType, amount, payout, mode, dt} newest first, shared across both modes
 
 let STATE = { balance: 0, points: 0, selectedChip: CHIP_VALUES[0] };
@@ -347,6 +361,10 @@ function showView(name){
   ['viewPicker','viewAvatarLobby','viewAvatarTable','viewSpeedLobby','viewSpeedTable'].forEach(id=>{
     document.getElementById(id).style.display = (id===name) ? 'block' : 'none';
   });
+  /* The two table screens keep a chip tray across the foot - 베팅완료 and 반복 sit in it - and a
+     toast is drawn at the foot too, so on a phone it landed squarely over them. The class lets
+     the toast clear the tray on those screens and nowhere else, where the foot is empty. */
+  document.body.classList.toggle('has-chip-tray', name==='viewAvatarTable' || name==='viewSpeedTable');
   document.getElementById('changeGameBtn').style.display = name==='viewPicker' ? 'none' : 'inline-block';
   document.getElementById('avatarLobbyBtn').style.display = name==='viewAvatarTable' ? 'inline-block' : 'none';
 }
@@ -1094,6 +1112,7 @@ async function beginAvatarResultPhase(){
     totalPayout += payout;
     MY_BET_LOG.unshift({tableName, roundNo, betType, amount, payout, mode:'avatar', dt:new Date().toISOString()});
   }
+  const staked = Object.values(bets).reduce((a,x)=>a+x, 0);
   if (MY_BET_LOG.length) renderMyBetHistory();
   if (AVATAR.currentRoundId !== myRound){
     // moved on to a new round while this settlement was in flight - the payout still landed
@@ -1103,7 +1122,8 @@ async function beginAvatarResultPhase(){
     await refreshBalance();
     return;
   }
-  if (totalPayout > 0){ STATE.balance += totalPayout; toast(t('wonAmount', {amount: fmtNum(totalPayout)})); }
+  if (totalPayout > 0) STATE.balance += totalPayout;
+  if (staked > 0) toast(roundOutcomeText(staked, totalPayout));
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
   refreshPointsQuiet();
 
@@ -1215,31 +1235,26 @@ const SPEED_TILE_SPOTS = [
   ['playerPair','playerPairShort','pair player'], ['tie','tie','tie'], ['bankerPair','bankerPairShort','pair banker'],
   ['player','player','player'], ['banker','banker','banker'],
 ];
-/* The multi-bet panel: every table on one strip, the one being watched first, each with the same
-   five spots - so a round can be staked across the room without leaving the table on the screen.
-   The open table is on it too. It has its own full-size board above, but that board is not always
-   in the clear once the strip is up, and a rail that carries every table means one place to bet
-   them all from whatever the strip happens to be covering. It stakes whatever chip is selected -
-   the same STATE.selectedChip the table's own tray uses - and carries the running total. */
+/* The multi-bet panel: the OTHER tables on one strip, each with the same five spots - so a round
+   can be staked across the room without leaving the table on the screen. The table being watched
+   is not on it: it has its own full-size board right there, and a second, smaller copy of it in
+   the strip was one more thing to scroll past to reach a table that is not already in front of
+   you. It stakes whatever chip is selected - the same STATE.selectedChip the table's own tray
+   uses - and carries the running total across the lot. */
 function speedMultiPanelHtml(){
   const openId = SPEED.detailTableId;
-  const all = Object.keys(SPEED.tstate);
-  const others = openId && SPEED.tstate[openId]
-    ? [openId, ...all.filter(id => id !== openId)]
-    : all;
+  const others = Object.keys(SPEED.tstate).filter(id => id !== openId);
   const spot = (tableId) => ([key,label,cls]) =>
     `<button type="button" class="tb-spot ${cls}" id="tilespot-${tableId}-${key}" onclick="placeSpeedBet('${tableId}','${key}')">
        <span class="tb-label">${t(label)}</span><b class="tb-amt" id="tilebet-${tableId}-${key}"></b>
      </button>`;
   const rows = others.map(id=>{
     const tb = SPEED.tables[id] || {name:id};
-    const here = id === openId;
-    return `<div class="sm-row${here ? ' current' : ''}" id="smrow-${id}">
+    return `<div class="sm-row" id="smrow-${id}">
       <div class="sm-head">
         <span class="sm-name">${escapeHtml(tb.name || id)}</span>
         <span class="sm-timer">⏱ <b id="smtimer-${id}">–</b></span>
-        ${here ? `<span class="sm-here">${t('watchingNow')}</span>`
-               : `<button class="sm-open" onclick="openSpeedTableDetail('${id}')">${t('enterShort')}</button>`}
+        <button class="sm-open" onclick="openSpeedTableDetail('${id}')">${t('enterShort')}</button>
       </div>
       <div class="sm-sub">
         <span class="sm-phase" id="smphase-${id}"></span>
@@ -1268,7 +1283,7 @@ function speedMultiPanelHtml(){
       <button class="btn btn-sm" onclick="clearAllSpeedBets()">${t('cancelBet')}</button>
       <button class="icon-btn sm-close" onclick="toggleSpeedMultiPanel(false)" title="${t('backToList')}">✕</button>
     </div>
-    <div class="sm-list">${rows || `<p class="hint">${t('noSpeedTables')}</p>`}</div>
+    <div class="sm-list">${rows || `<p class="hint">${t('noOtherTables')}</p>`}</div>
     <div class="sm-scrollbar" id="speedMultiScrollbar"><div class="sm-scrollbar-thumb" id="speedMultiScrollbarThumb"></div></div>`;
 }
 /* Slides the thumb to match the rail's own scrollLeft - the rail's native scrollbar is hidden,
@@ -2143,8 +2158,10 @@ async function beginSpeedResult(tableId){
     MY_BET_LOG.unshift({tableName:tb.name, roundNo:s.roundNo, betType, amount, payout, mode:'speed', dt:new Date().toISOString()});
     SPEED.allBets.push({relatedTableId:tableId, amount:-amount, category:'bet', createdAt:new Date().toISOString()});
   }
+  const staked = Object.values(s.bets).reduce((a,x)=>a+x, 0);
   if (MY_BET_LOG.length) renderMyBetHistory();
-  if (totalPayout > 0){ STATE.balance += totalPayout; toast(`[${tb.name}] ${t('wonAmount', {amount: fmtNum(totalPayout)})}`); }
+  if (totalPayout > 0) STATE.balance += totalPayout;
+  if (staked > 0) toast(`[${tb.name}] ${roundOutcomeText(staked, totalPayout)}`);
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
 
   await writeRoundDoc(db, {tableId, tableType:'speed', roundNo:s.roundNo, shoeNo:s.shoe.no, sim, startedAt:new Date(Date.now()-(SPEED_BETTING_SECONDS+SPEED_DEALING_SECONDS)*1000).toISOString()});

@@ -917,7 +917,9 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    own height, which on a column this narrow draws a long tapered point rather than the round foot
    the felt has - so it is set to about half the arch's WIDTH instead, expressed against its height.
    It follows the board's proportions, hence its own value per screen. */
-.bet-board{--bb-arch:18%;--bb-arch-foot:28%;--bb-seam:3px;--bb-seam-ink:#0A0F17;}
+/* The seams read as a true black in the reference - #000305 off the one between 플레이어 페어 and
+   플레이어 - not the blue-black they were set in here. */
+.bet-board{--bb-arch:18%;--bb-arch-foot:28%;--bb-seam:3px;--bb-seam-ink:#000205;}
 .bet-board > .bet-spot.bb-tie{
   /* Centred with a margin rather than a transform. It used to ride on translateX(-50%), and the
      spots clear the base rail's 1px hover lift with transform:none - which wiped the arch's
@@ -949,9 +951,21 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 }
 /* the three colours the felt uses: 플레이어 blue, 뱅커 red, 타이 green - a lit edge over a
    deeper fill of the same hue, which is how the reference board reads at a glance */
-.bet-board .bet-spot.player{border-color:#4D9BD4;background:linear-gradient(180deg,#3D8FCC 0%,#2568A3 100%);}
-.bet-board .bet-spot.banker{border-color:#E04B3B;background:linear-gradient(180deg,#D6432F 0%,#A82D1F 100%);}
-.bet-board .bet-spot.tie   {border-color:#57C257;background:linear-gradient(180deg,#34A855 0%,#1D7A3C 100%);}
+/* Read off the reference shot pixel by pixel rather than eyeballed. Every value below is a
+   sample: the fills down the middle of each spot, the edges off the seams where two spots meet,
+   which is the one place no black bleeds into the line. The white card in that shot comes out a
+   true 255 and the foot bar a 1, so nothing in it is dimmed and these are the colours themselves.
+   They are deeper and a good deal more saturated than the greyed tints that were here - the felt
+   is a near-navy and a near-oxblood, and the lines over them are bright.
+   The pair spots and the spots under them do not share a fill: each pair brightens downward and
+   each spot below it darkens downward, so the two of them make one lit band along the seam they
+   share. 타이 is brightest across its waist and falls away to both its shoulder and its foot,
+   which is a three-stop gradient, not a two. */
+.bet-board .bet-spot.player{border-color:#2A8CB8;background:linear-gradient(180deg,#0C4369 0%,#093858 100%);}
+.bet-board .bet-spot.banker{border-color:#A3180F;background:linear-gradient(180deg,#761613 0%,#601919 100%);}
+.bet-board .bet-spot.bb-pp{background:linear-gradient(180deg,#0D3D60 0%,#124372 100%);}
+.bet-board .bet-spot.bb-bp{background:linear-gradient(180deg,#701613 0%,#791512 100%);}
+.bet-board .bet-spot.tie   {border-color:#4C992B;background:linear-gradient(180deg,#1C6036 0%,#28773E 45%,#184728 100%);}
 .bet-board .bet-spot.selected{box-shadow:inset 0 0 0 2px var(--brass), 0 0 0 1px rgba(217,178,106,.5);}
 
 /* the readings: the share of the round's money on this spot, how many are on it and what is on
@@ -1202,9 +1216,10 @@ body.faux-fs-lock{overflow:hidden;}
 }
 .sd-live.is-fs .sd-fs-top{border-bottom:1px solid rgba(255,255,255,.07);}
 .sd-live.is-fs .sd-fs-bottom{border-top:1px solid rgba(255,255,255,.07);}
-.sd-fs-bar .fs-mark{display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--brass);flex-shrink:0;}
-.sd-fs-bar .fs-mark img{width:20px;height:20px;object-fit:contain;}
-.sd-fs-bar .fs-mark b{font-size:10px;font-weight:800;letter-spacing:1.5px;}
+.sd-fs-bar .fs-mark{display:flex;align-items:center;color:var(--brass);flex-shrink:0;}
+.sd-fs-bar .fs-mark img{width:40px;height:40px;object-fit:contain;}
+/* the house's name is on the mark itself, so spelling it out underneath said it twice */
+.sd-fs-bar .fs-mark b{display:none;}
 .sd-fs-bar .fs-stat{display:flex;align-items:center;gap:7px;flex-shrink:0;}
 .sd-fs-bar .fs-stat i{font-style:normal;color:rgba(255,255,255,.5);font-size:12px;}
 .sd-fs-bar .fs-stat i::after{content:' :';}
@@ -1236,7 +1251,10 @@ body.faux-fs-lock{overflow:hidden;}
    Plate and the roads without either panel being moved in the markup */
 .sd-live.is-fs .sd-underbar{
   display:grid;position:absolute;left:0;right:0;bottom:0;z-index:6;
-  grid-template-columns:minmax(0,.78fr) minmax(0,1fr) minmax(0,.78fr);
+  /* 30 / 40 / 30 of the strip, which is what the reference measures: its bead plate runs 70..606
+     of 1917, its felt 606..1315 and its roads 1326..1850, so the felt is a third again as wide as
+     either paper panel. .78fr gave the felt 39.1% and left it a shade narrow. */
+  grid-template-columns:minmax(0,.75fr) minmax(0,1fr) minmax(0,.75fr);
   gap:3px;padding:0;height:var(--sd-board);
   /* the row is pinned to the board's own depth. Left to size itself it grew to the tallest item
      - the felt, which is deliberately taller - and the two paper panels stretched with it and
@@ -1248,9 +1266,12 @@ body.faux-fs-lock{overflow:hidden;}
 .sd-live.is-fs .sd-tally{grid-row:1;grid-column:1;box-shadow:none;border-radius:0;border:none;}
 .sd-live.is-fs .sd-bets{grid-row:1;grid-column:2;background:none;border:none;overflow:visible;}
 .sd-live.is-fs .sd-road{grid-row:1;grid-column:3;box-shadow:none;border-radius:0;border:none;}
-/* the three panels of the strip are level with one another, as the board it is drawn from has
-   them - the felt used to stand a little proud and break the top of the line */
-.sd-live.is-fs .sd-bets{align-self:stretch;height:auto;}
+/* The felt stands proud of the two paper panels and the three of them share a foot, which is how
+   the reference has it: measured off the shot the felt runs 548..838 and the bead plate beside it
+   585..838, so the felt is about a seventh the deeper and all of that goes upward. Sat level with
+   them - which is how this read for a while - the board lost the prominence it has there. It
+   overflows its grid row rather than growing it, so the two panels keep their own depth. */
+.sd-live.is-fs .sd-bets{align-self:end;height:calc(var(--sd-board) * 1.146);}
 /* The felt keeps the board's own proportions instead of stretching to whatever the middle column
    happens to be. Its depth is fixed, so every extra inch of screen went into its length alone -
    on a wide monitor it had drawn out to half again the width of the board it is taken from. The
@@ -1290,14 +1311,17 @@ body.faux-fs-lock{overflow:hidden;}
 .sd-live.is-fs .playing-card{height:110px;}
 .sd-live.is-fs .playing-card.third{margin:0 15px;}
 .sd-live.is-fs .cards-area{gap:60px;}
-/* the board's own sizes at the width the middle column gives it */
-.sd-live.is-fs .bet-board{--bb-pad:10px;--bb-pct:32px;--bb-fs-pct:11px;--bb-fs-stat:11px;
+/* the board's own sizes at the width the middle column gives it. It carries the seam ink as its
+   own ground so the gaps between the spots read the black they do in the reference rather than
+   letting the still show through them. */
+.sd-live.is-fs .bet-board{background:var(--bb-seam-ink);
+                          --bb-pad:10px;--bb-pct:32px;--bb-fs-pct:11px;--bb-fs-stat:11px;
                           --bb-fs-label:14px;--bb-fs-plabel:12.5px;--bb-fs-odds:11.5px;--bb-fs-mine:15px;}
 /* The chip tray leaves the board and becomes the middle of the bar at the foot - which is where
    the reference has it, and is what lets the felt be nothing but the five spots. It is fixed
    rather than moved in the markup, so the ordinary page keeps its tray inside the card. */
 .sd-live.is-fs .sd-chip-tray{
-  position:fixed;left:23%;right:8%;bottom:0;height:var(--fs-bar);z-index:10;
+  position:fixed;left:16%;right:16%;bottom:0;height:var(--fs-bar);z-index:10;
   background:none;border:none;border-radius:0;margin:0;padding:0;
   display:flex;align-items:center;justify-content:center;gap:9px;
   flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;

@@ -103,11 +103,6 @@ const I18N_DICT = {
   sortHot:{ko:'좋은 흐름순',zhHans:'热门走势',zhHant:'熱門走勢',en:'Hot streak',ja:'好調な流れ順',vi:'Chuỗi thắng'},
   sortName:{ko:'테이블명순',zhHans:'桌台名称',zhHant:'桌臺名稱',en:'Table name',ja:'テーブル名順',vi:'Tên bàn'},
   noAvatarTables:{ko:'열려있는 아바타 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.',zhHans:'暂无开放的代打桌台。请在合作伙伴管理后台生成演示数据。',zhHant:'暫無開放的代打桌臺。請在合作伙伴管理後臺生成演示資料。',en:'No open Avatar tables. Please generate demo data in Partner Admin.',ja:'開いているアバターテーブルがありません。パートナー管理画面でデモデータを生成してください。',vi:'Không có bàn Avatar nào đang mở. Vui lòng tạo dữ liệu demo trong Partner Admin.'},
-  // ---- the prediction rail's key. On the DERIVED roads red and blue do not mean banker and
-  // player - they mean the shoe is repeating or choppy. Reading them as banker/player is the
-  // standard mistake with these boards, so the rail spells it out rather than assuming it.
-  roadKeyPattern:{ko:'패턴',zhHans:'有规律',zhHant:'有規律',en:'Pattern',ja:'規則',vi:'Có quy luật'},
-  roadKeyChoppy:{ko:'불규칙',zhHans:'无规律',zhHant:'無規律',en:'Choppy',ja:'不規則',vi:'Không quy luật'},
   // ---- 다음 게임 예측 (AI panel). The wording is deliberately plain about what it is: a read
   // on the shoe, not a tip. See shared/baccarat-ai.js for why that matters.
   aiPredictTitle:{ko:'AI 예측',zhHans:'AI 预测',zhHant:'AI 預測',en:'AI Prediction',ja:'AI予測',vi:'Dự đoán AI'},

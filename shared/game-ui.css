@@ -883,55 +883,32 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    the mark the road it stands for draws */
 .sd-road-legend-rail .rail-badge .slash{width:11px;height:11px;box-sizing:border-box;position:relative;}
 .sd-road-legend-rail .rail-badge .slash::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-45deg);}
-/* Neutral, deliberately. These badges used to be drawn in the Big Road's Player blue and Banker
-   red - the same two colours the marks inside them use for "repeating" and "choppy". Two
-   alphabets, one pair of colours, twenty pixels apart: a blue mark in a blue P badge read as
-   "player", the same mark in the red B badge read as broken. The letter is identity enough. */
-.sd-road-legend-rail .rail-badge.player,
-.sd-road-legend-rail .rail-badge.banker{color:#9aa0a8;}
+/* The two rows carry the Big Road's own colours, which is how a real board labels them. Note the
+   marks inside are a different alphabet sharing the same inks - on the derived roads red means
+   the shoe is repeating and blue that it is choppy, nothing to do with banker or player. */
+.sd-road-legend-rail .rail-badge.player{color:var(--road-blue);}
+.sd-road-legend-rail .rail-badge.banker{color:var(--road-red);}
 /* the answer: each mark overrides the pill's colour with the one its road would draw. A road
    that has not started yet - Big Eye needs the third hand, Cockroach the fifth - stays grey
    rather than showing a wrong answer. */
 .sd-road-legend-rail .rail-badge .red{color:var(--road-red);}
 .sd-road-legend-rail .rail-badge .blue{color:var(--road-blue);}
 .sd-road-legend-rail .rail-badge .none{color:#d8d8d8;}
-/* What the two colours mean, said once, next to the only place they are used - otherwise the rail
-   asks the reader to already know that red and blue swap alphabets between the Big Road and the
-   derived ones.
-   Stacked, not side by side: Korean fits on one line but English, Vietnamese and both Chinese do
-   not - "Không quy luật" alone is wider than the rail - so the two entries read down it, where
-   the width each needs is one label rather than two. */
-.sd-road-legend-rail .rail-key{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
-.sd-road-legend-rail .rail-key span{display:flex;align-items:center;gap:3px;}
-.sd-road-legend-rail .rail-key i{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
-.sd-road-legend-rail .rail-key i.red{background:var(--road-red);}
-.sd-road-legend-rail .rail-key i.blue{background:var(--road-blue);}
-.sd-road-legend-rail .rail-key b{font-size:8px;font-weight:700;color:#8b8f96;white-space:nowrap;}
 /* The size the reference gives the rail. Measured off the shot its two pills are 33 wide and 107
    deep in a road card 524 by 253 - about two fifths of the card's depth each - and the marks in
    them 16px across. The card is the same 252 deep on the page as it is fullscreen, so both take
    the same sizes and the rail does not change under the reader when the screen does.
    The guard is on width, not on fullscreen: a phone lays this rail on its side as a row of two
    flat pills under the roads (see the max-width:860px block below), which these sizes burst. */
-/* The card's depth is fixed at 252 and it clips, so everything in the rail is on a height
-   budget: two 103px pills, two 6px gaps and the 24px two-line key come to 242, which leaves
-   five clear pixels top and bottom - at 9px gaps the key sat flush on the card's edge, one font
-   metric away from being clipped again. The pills keep
-   the 19px letter and the 16px marks they were enlarged to - only their padding gives up 3px a
-   side, which is not visible - because the enlargement was asked for and the key is the thing
-   that arrived late. Width is the cheap axis here: the rail takes 76 so the longest label fits
-   on its own line, and the roads scroll, so nothing becomes unreachable. */
 @media (min-width:861px){
-  .sd-road-legend-rail{width:76px;gap:6px;margin-right:-16px;}
+  .sd-road-legend-rail{width:56px;gap:14px;margin-right:-16px;}
   .sd-road-legend-rail .rail-badge{
-    gap:7px;font-size:19px;border-width:2px;border-radius:20px;padding:4px 6px;
+    gap:7px;font-size:19px;border-width:2px;border-radius:20px;padding:7px 6px;
   }
   .sd-road-legend-rail .rail-badge .ring{width:16px;height:16px;border-width:2.5px;}
   .sd-road-legend-rail .rail-badge .dot{width:16px;height:16px;}
   .sd-road-legend-rail .rail-badge .slash{width:16px;height:16px;}
   .sd-road-legend-rail .rail-badge .slash::before{height:2.5px;}
-  .sd-road-legend-rail .rail-key i{width:6px;height:6px;}
-  .sd-road-legend-rail .rail-key b{font-size:8px;}
 }
 .sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 /* ---- the board on the page: flat cells on the dark green, as this screen has always had it.
@@ -1181,11 +1158,6 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   .sd-road-legend-rail .rail-badge{flex-direction:row;gap:6px;padding:4px 9px;border-radius:14px;font-size:12px;}
   .sd-road-legend-rail .rail-badge .ring,.sd-road-legend-rail .rail-badge .slash{width:10px;height:10px;}
   .sd-road-legend-rail .rail-badge .dot{width:8px;height:8px;}
-  /* the key stays a two-line column at the end of the row - there is no width on a phone to lay
-     it out flat, and it must not push the pills off the strip */
-  .sd-road-legend-rail .rail-key{gap:2px;}
-  .sd-road-legend-rail .rail-key i{width:5px;height:5px;}
-  .sd-road-legend-rail .rail-key b{font-size:7.5px;}
 
   /* the roads keep one card, the Bead Plate gets its own alongside */
   .sd-road-main,.sd-tally .bead-road{background-color:#fafafa;border:1px solid #e4e4e4;border-radius:10px;}
@@ -1541,18 +1513,29 @@ body.has-chip-tray .toast.show{bottom:94px;}
    The reading is deliberately plain - bars, the two expected values, and a line saying what the
    model did and did not resolve. See shared/baccarat-ai.js for why the last one matters more
    than the percentages do. */
+/* The panel is never taller than the still it sits on, and the still clips. Its content is not a
+   fixed height - the notes wrap to two or three lines depending on the reading and the language -
+   so it is bounded to the stage and the body scrolls inside it rather than the last line being
+   cut off. On a short phone the disclaimer was the part that disappeared, which is exactly the
+   line that must not. */
 .ai-panel{
   position:absolute;left:12px;bottom:12px;z-index:7;width:min(300px, calc(100% - 24px));
+  max-height:calc(100% - 24px);display:flex;flex-direction:column;
   background:rgba(6,10,16,.93);border:1px solid rgba(255,255,255,.14);border-radius:12px;
   backdrop-filter:blur(6px);color:#fff;font-size:12px;
   opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .18s ease, transform .18s ease, visibility .18s;
 }
 .ai-panel.open{opacity:1;visibility:visible;transform:none;}
-.ai-head{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.1);}
+.ai-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.1);}
 .ai-head b{color:var(--brass);font-size:12.5px;letter-spacing:.3px;}
 .ai-close{background:none;border:none;color:rgba(255,255,255,.6);font-size:13px;cursor:pointer;padding:0 2px;}
 .ai-close:hover{color:#fff;}
-.ai-body{padding:11px 12px 12px;}
+.ai-body{padding:11px 12px 12px;overflow-y:auto;min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+/* a hairline scrollbar rather than the platform's slab, which on a 300px sheet is most of the
+   right margin */
+.ai-body::-webkit-scrollbar{width:4px;}
+.ai-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:2px;}
+.ai-body::-webkit-scrollbar-track{background:transparent;}
 .ai-bars{display:flex;flex-direction:column;gap:6px;}
 .ai-bar{display:grid;grid-template-columns:52px 1fr 46px;align-items:center;gap:8px;}
 .ai-bar .ai-k{font-size:11px;color:rgba(255,255,255,.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -1571,12 +1554,25 @@ body.has-chip-tray .toast.show{bottom:94px;}
 .ai-meta div{display:flex;align-items:baseline;justify-content:space-between;gap:6px;}
 .ai-meta i{font-style:normal;color:rgba(255,255,255,.55);font-size:10.5px;}
 .ai-meta b{font-family:var(--mono);font-size:11.5px;font-weight:700;}
+/* Green only for an edge that cleared its own error bar. A positive number that is inside the
+   sampling noise is not good news and must not be coloured like it. */
 .ai-meta b.pos{color:#3FCF8E;} .ai-meta b.neg{color:#E8564A;}
+.ai-meta b.flat{color:rgba(255,255,255,.75);}
 .ai-note{margin:9px 0 0;font-size:10px;line-height:1.5;color:rgba(255,255,255,.5);}
 .ai-note.warn{color:rgba(232,178,74,.75);}
 .sd-stage-icons .sd-ico-ai.active{border-color:var(--brass);color:var(--brass);}
 @media (max-width:860px){
   /* on a phone the panel takes the width it can and the still is short, so it rides the top */
-  .ai-panel{left:8px;right:8px;bottom:auto;top:8px;width:auto;font-size:11.5px;}
+  .ai-panel{left:8px;right:8px;bottom:auto;top:8px;width:auto;font-size:11.5px;
+    max-height:calc(100% - 16px);}
   .ai-bar{grid-template-columns:46px 1fr 42px;}
+  /* The scroll above is the guarantee; this is so it is rarely needed. A phone still is around
+     260 deep and the panel wanted 288, so the padding and the leading give back the difference -
+     nothing here changes a type size, only the air around it. */
+  .ai-head{padding:8px 11px;}
+  .ai-body{padding:9px 11px 8px;}
+  .ai-bars{gap:5px;}
+  .ai-rec{margin-top:8px;padding:6px 10px;}
+  .ai-meta{margin-top:7px;gap:4px 10px;}
+  .ai-note{margin-top:6px;font-size:9.5px;line-height:1.45;}
 }

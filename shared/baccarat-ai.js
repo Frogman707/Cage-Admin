@@ -250,21 +250,39 @@ function evDifferenceNoise(p, trials){
   const v = (a*a*p.player*(1-p.player) + b*b*p.banker*(1-p.banker) + 2*a*b*p.player*p.banker) / trials;
   return NOISE_SIGMA*Math.sqrt(Math.max(v, 0));
 }
+/* The error bar on ONE side's expected value, which is not the error bar on the probability it is
+   built from. EV(banker) = 0.95*p_b - p_p and EV(player) = p_p - p_b: each combines two counts
+   from the same multinomial draw, so each carries the error of both plus their covariance.
+   Sizing the confidence off sampleMargin(p[side]) instead - the error of a single probability -
+   understates it by roughly half, and that is not a rounding difference: at a depleted shoe the
+   panel showed "+1.66%, confidence normal" directly above its own note saying the cards had not
+   separated the two sides. The +1.66% was sampling noise. The note was right and the headline
+   was wrong, so the headline now uses the same yardstick the note does. */
+function evSideNoise(p, side, trials){
+  if (!trials) return Infinity;
+  // coefficient on the side's own probability, and on the other one (always -1)
+  const a = side === 'banker' ? (1 - BANKER_COMMISSION) : 1;
+  const own = side === 'banker' ? p.banker : p.player;
+  const other = side === 'banker' ? p.player : p.banker;
+  const v = (a*a*own*(1-own) + other*(1-other) + 2*a*own*other) / trials;
+  return NOISE_SIGMA*Math.sqrt(Math.max(v, 0));
+}
 function recommend(p, opts){
   const trials = (opts && opts.trials) || (p && p.trials) || COMPOSITION_TRIALS;
   const ev = expectedValues(p);
   const noise = evDifferenceNoise(p, trials);
   const side = (ev.player - ev.banker) > noise ? 'player' : 'banker';
   const edge = ev[side];
-  const margin = 2*sampleMargin(p[side], trials);
+  const margin = evSideNoise(p, side, trials);
   let confidence = 'none';
-  if (edge > 0 && edge > margin) confidence = edge > 3*margin ? 'high' : 'normal';
+  if (edge > margin) confidence = edge > 2*margin ? 'high' : 'normal';
   else if (edge > -0.02) confidence = 'low';
   return {
     side, ev, edge, margin, noise, confidence,
     // The honest headline. A negative edge is the normal state of a baccarat hand and saying so
-    // is the point: this is the side that loses least, not a side that wins.
-    positive: edge > 0 && edge > margin,
+    // is the point: this is the side that loses least, not a side that wins. An edge that is
+    // positive but inside its own error bar is not an edge, and does not count here.
+    positive: edge > margin,
     // and whether the shoe was even read finely enough for the comparison to mean anything
     resolved: Math.abs(ev.banker - ev.player) > noise,
   };
@@ -289,7 +307,7 @@ function predictNextHand(shoe, history, opts){
 if (typeof module !== 'undefined' && module.exports){
   module.exports = {
     emptyValueCounts, shoeValueCounts, remainingValueCounts, countsTotal,
-    compositionModel, playTableauValues, sampleMargin, evDifferenceNoise,
+    compositionModel, playTableauValues, sampleMargin, evDifferenceNoise, evSideNoise,
     PATTERN_FEATURES, patternFeatureVector, makePatternModel,
     blendPredictions, expectedValues, recommend, predictNextHand,
     BANKER_COMMISSION, COMPOSITION_TRIALS, DEFAULT_PATTERN_WEIGHT,

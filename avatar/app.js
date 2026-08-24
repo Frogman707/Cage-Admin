@@ -837,7 +837,7 @@ async function enterAvatarSession(tableId){
   AVATAR.history = rounds.map(r=>r.result);
   AVATAR.pairFlags = rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair}));
   AVATAR.roundNo = (Math.max(0, ...all.map(r=>r.roundNo||0)) || 0) + 1;
-  AVATAR.shoe = openShoe(shoeNo);
+  AVATAR.shoe = openShoeAt(shoeNo, rounds.length);   // stands where the record left it
   await refreshTipTotals();
 
   paintScreen(view, avatarTableShellHtml());
@@ -1289,7 +1289,7 @@ async function loadSpeedTables(){
       bets:{player:0, banker:0, tie:0, playerPair:0, bankerPair:0}, currentRoundId: uuidv4(),
       history: rounds.map(r=>r.result),
       pairFlags: rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair})),
-      shoe: openShoe(shoeNo),
+      shoe: openShoeAt(shoeNo, rounds.length),   // stands where the record left it
       // seeded from the last round on record so a table already in play shows its score straight away
       lastResult: rounds.length
         ? {p: rounds[rounds.length-1].playerScore, b: rounds[rounds.length-1].bankerScore, side: rounds[rounds.length-1].result}
@@ -2046,6 +2046,11 @@ function confirmSpeedBets(tableId, quiet){
   if (speedBetsTotal(s.bets) <= 0){ if (!quiet) toast(t('nothingToConfirm'), true); return false; }
   s.confirmed = {...s.bets};
   paintSpeedConfirmState(tableId);
+  /* 베팅완료 is the moment the player expects to see the money go. It is already off the balance
+     by then - it comes off as each chip lands - but returnUnderMinSpeedBets() just above can hand
+     a short bet back, and confirming from the multi-bet sheet stakes several tables at once, so
+     the figure is re-read here rather than assumed to be current. */
+  projectSpeedBalance();
   if (!quiet) toast(t('betCompleteToast'));
   return true;
 }
@@ -2189,8 +2194,14 @@ function repeatLastSpeedBetDetail(tableId){
   renderSpeedStakedTotal();
   projectSpeedBalance();
 }
+/* What the player has left to stake, on every surface that shows it. The page header was the only
+   one repainted here; the fullscreen bar carries its own copy of the figure and was left to pick
+   the change up on the next clock tick, so in fullscreen - which is where the table is actually
+   played - money placed did not come off the balance until as much as a second later. Stake three
+   chips quickly and the number stood still and then jumped. It moves with the chips now. */
 function projectSpeedBalance(){
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance - speedLockedTotal());
+  if (SPEED.detailTableId) paintSpeedFsBars(SPEED.detailTableId);
 }
 /* One loop drives every table's clock, so it must never wait on any of them. It used to await
    the phase changes, and a phase change is not quick: closing betting writes each staked spot to
@@ -2328,6 +2339,11 @@ function returnUnderMinSpeedBets(tableId){
   if (returned > 0){
     renderSpeedTileBets(tableId);
     renderSpeedStakedTotal();
+    /* The money is back on the balance here, so the balance is re-read here. Leaving it to the
+       caller missed the case that matters most: when the short bet was the only thing on the
+       felt, confirmSpeedBets returns early with "nothing to confirm" - before it ever gets to
+       repaint - and the chip was handed back while the header went on showing it as staked. */
+    projectSpeedBalance();
     toast(t('betReturnedBelowMin', {amount: fmtNum(returned)}), true);
   }
   return returned;

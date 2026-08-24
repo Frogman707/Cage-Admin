@@ -74,6 +74,25 @@ function advanceShoe(shoe){
   if (shoeRemaining(shoe) < MAX_CARDS_PER_ROUND) return openShoe(shoe.no + 1);
   return shoe;
 }
+/* A shoe picked up from the record has to stand where the record left it. A screen restores its
+   board from the rounds already dealt on this shoe, but it used to open the shoe itself FRESH -
+   full, one burn in - so the table read "forty hands into shoe 3" while the shoe in hand had
+   dealt none of them. The cut card is 400 cards down, about eighty hands, and every trip back to
+   the lobby put the shoe back to the top: on a table anyone actually plays, dipping in and out,
+   it never got near the change and the shoe number never moved.
+   The cards themselves are dealt at random, so what has to be carried across is how far in the
+   shoe is, not which cards came out. Dealing the hands already on record does exactly that and
+   costs nothing else - their results are thrown away, the board keeps the real ones. */
+function openShoeAt(no, handsDealt){
+  const shoe = openShoe(no);
+  const n = Math.max(0, Number(handsDealt) || 0);
+  for (let i = 0; i < n && shoeRemaining(shoe) >= MAX_CARDS_PER_ROUND; i++) simulateRound(shoe);
+  /* The record can outrun the shoe - more hands filed under one shoe number than a shoe holds,
+     which legacy rounds do have - and then this would hand back a shoe with less than a hand
+     left in it for the caller to deal from and read off the end of. advanceShoe is the game's own
+     rule for that: same shoe if it can still take a hand, a fresh one if it cannot. */
+  return advanceShoe(shoe);
+}
 
 function simulateRound(shoe){
   // Punto banco tableau: both hands get two cards, then the fixed drawing rules decide any

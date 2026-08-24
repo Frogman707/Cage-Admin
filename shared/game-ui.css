@@ -327,11 +327,17 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    every screen: there was never a media query on it, so the phone and the desktop were already
    spinning at one rate, and both are slower now.
    Linear, and left that way: an eased loop stutters at the seam where it starts over. */
-.table-loading .spin-lg{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--brass);border-radius:50%;animation:sp 1.1s linear infinite;box-shadow:0 0 16px -4px rgba(217,178,106,.4);}
+.table-loading .spin-lg{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--brass);border-radius:50%;animation:sp var(--spin-turn) linear infinite;box-shadow:0 0 16px -4px rgba(217,178,106,.4);}
 /* The lobby's own placeholder, which the grid shows while the tables are still coming. It had no
    rule on this site at all - only the two admin panels ever styled it - so it drew as an empty
    box and the lobby simply looked blank while it loaded. */
-.lobby-grid > .spin{width:22px;height:22px;border:2px solid var(--line);border-top-color:var(--brass);border-radius:50%;animation:sp 1.1s linear infinite;margin:40px auto;grid-column:1/-1;}
+.lobby-grid > .spin{width:22px;height:22px;border:2px solid var(--line);border-top-color:var(--brass);border-radius:50%;animation:sp var(--spin-turn) linear infinite;margin:40px auto;grid-column:1/-1;}
+/* A phone waits longer than a desktop does - a table comes over a mobile connection, and the
+   player sits and watches the ring the whole way. At the desktop's rate it reads as something
+   racing rather than something waiting, so a phone turns it half again slower. Both rates live
+   here rather than on the rules, so the two spinners can never drift apart. */
+:root{--spin-turn:1.1s;}
+@media (max-width:860px){ :root{--spin-turn:1.8s;} }
 @keyframes sp{to{transform:rotate(360deg);}}
 
 /* ---- table stage ---- */

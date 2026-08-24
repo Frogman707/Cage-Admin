@@ -412,18 +412,26 @@ function tableBetVolume(betLedgerRows){
   return {total, today};
 }
 
-/* ---------------- derived roads (Big Eye Boy / Small Road / Cockroach Road) -
-   decorative, simplified approximation of the standard rule: each one compares
-   a Big Road column against the column `offset` steps further back to mark red
-   (matching pattern) / blue (breaking pattern). offset 1/2/3 = Big Eye Boy/
-   Small Road/Cockroach Road respectively - same comparison, deeper look-back. */
-function deriveRoad(cols, offset){
-  // A leading tie carries a marker but is not a Big Road column, so it contributes no depth.
-  const depth = i => (cols[i] && cols[i].side) ? cols[i].items.length : 0;
+/* ---------------- derived roads (Big Eye Boy / Small Road / Cockroach Road) ----------------
+   The standard rule, not an approximation of it. All three ask the same question of the Big
+   Road at a different depth - offset 1/2/3 is Big Eye Boy / Small Road / Cockroach Road:
+     - a hand that OPENS a column asks whether the two columns `offset` back are the same
+       length. Same length is red (the pattern repeated), different is blue (it broke).
+     - a hand that CONTINUES a column at row j asks whether the column `offset` back reaches
+       that row. It does: red. It ends one row short: blue.
+   Each road therefore starts where it first has something to compare: Big Eye Boy at Big Road
+   column 2 row 2 or column 3 row 1, Small Road one column later, Cockroach one later again -
+   which is what the `i < offset + 1` skip is. */
+function deriveRoad(allCols, offset){
+  /* A tie before any decision carries a marker of its own on the Big Road but is not a column
+     of it, and the derived roads count columns - left in, it shifted all three of them by one
+     for the whole shoe and put a mark on the board a hand early. Every other tie is drawn
+     across a cell that already exists and never reaches here. */
+  const cols = allCols.filter(c => c.side);
+  const depth = i => (cols[i] ? cols[i].items.length : 0);
   const out = [];
   for (let i=offset;i<cols.length;i++){
     const col = cols[i];
-    if (!col.side) continue;
     for (let j=0;j<col.items.length;j++){
       let mark;
       if (j===0){

@@ -190,3 +190,112 @@ async function sumWhere(db, coll, wheres, field){
 function escapeHtml(s){
   return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+/* ============================================================
+   one balance rule, for every site that shows a balance
+   ============================================================
+   A member opened at a cage keeps its money in the cage's own book - `ledger`, one row per
+   movement carrying accountId/inn/out - and NOT in memberLedger. memberLedger is still written
+   for it: it is the record of play the partner admin reports on, and where its points live. But
+   the running total there is not its balance, and summing it is what left the two admin panels
+   showing a number the cage, the player's own screen and each other all disagreed with.
+   A member who was never opened at a cage - a demo account, an online signup - has no cage book,
+   so memberLedger is the only one it has and its balance is the sum of it.
+   This is the same rule shared/game-engine.js getPlayerBalance() reads the player's own balance
+   by, stated once so no screen can drift from another. */
+function isCageAccountMember(m){ return !!m && m.source === 'cage'; }
+/* memberLedgerRows: every row of memberLedger. cageLedgerRows: every row of `ledger`.
+   members: the member docs, needed only to say which ids are cage accounts.
+   Returns {[memberId]: {balance, points, deposit, withdraw, bet, payout}}.
+   The four tallies beside the balance stay memberLedger's throughout - they are the record of
+   what was played through the site, which is the same book for both kinds of member. */
+function accountBalanceMap(memberLedgerRows, cageLedgerRows, members){
+  const cageIds = new Set((members||[]).filter(isCageAccountMember).map(m=>m.id));
+  const map = {};
+  const at = id => map[id] || (map[id] = {balance:0, points:0, deposit:0, withdraw:0, bet:0, payout:0});
+  (memberLedgerRows||[]).forEach(r=>{
+    const m = at(r.memberId);
+    const amt = Number(r.amount)||0;
+    if (r.category==='point_earn' || r.category==='point_convert') m.points += amt;
+    else if (!cageIds.has(r.memberId)) m.balance += amt;
+    if (r.category==='deposit') m.deposit += amt;
+    if (r.category==='withdraw') m.withdraw += amt;
+    if (r.category==='bet') m.bet += amt;
+    if (r.category==='payout') m.payout += amt;
+  });
+  // A cage account's balance is its cage book, summed across every branch it holds money at -
+  // which is what the cage's own account list totals (accountTotalBalance in index.html).
+  (cageLedgerRows||[]).forEach(r=>{
+    if (!cageIds.has(r.accountId)) return;
+    at(r.accountId).balance += (Number(r.inn)||0) - (Number(r.out)||0);
+  });
+  return map;
+}
+
+/* Appends one movement to the cage's own book. Any screen that moves a cage account's money has
+   to write here, because this is where that money is - a memberLedger row alone is a record of a
+   transfer that never happened. The book is append-only and the balance is derived from it, which
+   is what lets the cage, the two admin panels and the player's own screen all agree. */
+function cageLedgerWrite(db, {accountId, casino, type, amount, memo, staff}){
+  const value = Math.abs(Number(amount) || 0);
+  if (!value) return Promise.resolve();
+  const id = 'ldg_' + Date.now() + '_' + Math.random().toString(36).slice(2,9);
+  return db.collection('ledger').doc(id).set({
+    id, accountId, casino: casino || 'HANN',
+    dt: new Date().toISOString().slice(0,16).replace('T',' '),
+    type, inn: type === 'IN' ? value : 0, out: type === 'OUT' ? value : 0,
+    staff: staff || 'system', memo: memo || '',
+  });
+}
+
+/* ---- live sync: a balance moves at the cage or at the table, not on this screen ----
+   Watches the collections a screen is drawn from and calls back when any of them changes
+   elsewhere. The first callback on each collection is its initial load, not a change, so it is
+   swallowed; the rest are collapsed into one call per quiet moment, since a settlement writes
+   several rows at once and each would otherwise be a repaint of its own.
+   Returns the unsubscribe. */
+function watchCollections(db, colls, onChange, quietMs){
+  const unsubs = [], seeded = new Set(), pending = new Set();
+  let timer = null;
+  colls.forEach(coll=>{
+    // A collection that cannot be watched is one this screen stops following on its own; it is
+    // never a reason to fail the call, which is made on the way in to the panel.
+    try{
+      unsubs.push(db.collection(coll).onSnapshot(()=>{
+        if (!seeded.has(coll)){ seeded.add(coll); return; }
+        pending.add(coll);
+        clearTimeout(timer);
+        timer = setTimeout(()=>{
+          const changed = new Set(pending); pending.clear();
+          try{ onChange(changed); }catch(e){ console.error('watchCollections onChange failed:', e); }
+        }, quietMs || 250);
+      }, err=>console.error(`watchCollections(${coll}) failed:`, err)));
+    }catch(e){ console.error(`watchCollections(${coll}) could not subscribe:`, e); }
+  });
+  return ()=>{ clearTimeout(timer); unsubs.forEach(u=>{ try{ u(); }catch(e){} }); };
+}
+
+/* Repaints every balance already on the screen without redrawing it. A cell that shows a balance
+   is marked `data-bal="<memberId>"` and a cell that shows a sum of several is
+   `data-bal-sum="id,id,..."`; both are rewritten in place, so a search box keeps its text, a list
+   keeps its scroll and an open form is not disturbed by money moving underneath it. */
+function repaintBalances(balances, root){
+  (root||document).querySelectorAll('[data-bal]').forEach(el=>{
+    const b = (balances[el.getAttribute('data-bal')]||{}).balance || 0;
+    el.textContent = fmtNum(b);
+    el.classList.toggle('neg', b<0);
+    el.classList.toggle('pos', b>0);
+  });
+  (root||document).querySelectorAll('[data-bal-sum]').forEach(el=>{
+    const ids = el.getAttribute('data-bal-sum').split(',').filter(Boolean);
+    el.textContent = fmtNum(ids.reduce((s,id)=>s + ((balances[id]||{}).balance||0), 0));
+  });
+}
+
+/* True while the screen is somebody's to finish with: a form is open, or the caret is in a field.
+   A live redraw waits for both rather than pulling the page out from under them. */
+function uiIsBusy(){
+  if (document.querySelector('.modal-bg.open')) return true;
+  const a = document.activeElement;
+  return !!a && ['INPUT','TEXTAREA','SELECT'].includes(a.tagName);
+}

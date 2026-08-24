@@ -4742,6 +4742,17 @@ async function syncAccountsToAvatarSpeed(silent){
   return {ok:false, synced:0, error:String(e)};
  }
 }
+/* The same projection for a handful of accounts rather than all of them. A block is applied to
+   one customer, and rewriting every member doc to carry that one change is a write per account
+   on every terminal that sees it. Silent throughout: nobody pressed anything. */
+function syncSomeAccountsToAvatarSpeed(ids){
+ if(!fbDb || !ids || !ids.length) return Promise.resolve();
+ const batch = fbDb.batch();
+ ids.filter(id=>DB.accounts[id] && !isMainAccount(id)).forEach(id=>{
+  batch.set(fbDb.collection('members').doc(id), cageAccountAsMember(id), {merge:true});
+ });
+ return batch.commit().catch(err=>console.error('syncSomeAccountsToAvatarSpeed failed:', err));
+}
 
 /* ---- Accounts (guest/member profiles) — auth-gated (see firestore.rules: plaintext passwords +
    ID photos live here). Balance is NOT synced through this collection - accountBalanceFor()/
@@ -4818,6 +4829,14 @@ function syncAccountToCloud(id){
 function deleteAccountFromCloud(id){
  if(!fbDb) return;
  fbDb.collection('accounts').doc(id).delete().catch(err=>console.error('deleteAccountFromCloud failed:', id, err));
+ /* The account's projection into `members` goes with it. Left behind it was a customer who no
+    longer exists at any cage still able to sign in to Avatar Speed, and still on the roll in the
+    two admin panels - the projection is only ever written from here, so it can only be cleared
+    from here too. Only the projection: a member of the same id that the partner admin opened
+    itself is that panel's record, not ours, and is left alone. */
+ fbDb.collection('members').doc(id).get()
+  .then(d=>{ if(d.exists && d.data().source === 'cage') return d.ref.delete(); })
+  .catch(err=>console.error('member projection delete failed:', id, err));
 }
 
 /* ---- Ledger (account deposits/withdrawals/transfers) — append-only, balance is derived ---- */
@@ -4941,7 +4960,7 @@ async function seedBlocksToCloud(){
   await batch.commit();
  }catch(e){}
 }
-let fbBlocksUnsub = null;
+let fbBlocksUnsub = null, fbBlocksSeeded = false;
 function subscribeBlocksCloud(){
  if(!fbDb) return;
  if(fbBlocksUnsub) fbBlocksUnsub();
@@ -4949,7 +4968,19 @@ function subscribeBlocksCloud(){
  // ordering by creation time descending - matches the local unshift()-newest-first behavior this
  // replaces, without needing a separate field just for sorting.
  fbBlocksUnsub = fbDb.collection('blocks').orderBy('id','desc').onSnapshot(snap=>{
+  const wasBlocked = new Set((DB.blocks||[]).map(b=>b.account));
   DB.blocks = snap.docs.map(d=>d.data());
+  /* A block is the one field of a member's projection that is not on the account doc, so nothing
+     else pushes it. Left here, a customer blocked at the cage stayed 정상 in the two admin panels
+     and could still sign in to Avatar Speed. Only the accounts whose block state actually turned
+     are rewritten, and only after the first snapshot - that one is the load, and re-pushing the
+     whole blocked list on every terminal's startup is a write per block for no change. */
+  if(fbBlocksSeeded){
+   const nowBlocked = new Set(DB.blocks.map(b=>b.account));
+   const turned = [...new Set([...wasBlocked, ...nowBlocked])].filter(id=>wasBlocked.has(id) !== nowBlocked.has(id));
+   syncSomeAccountsToAvatarSpeed(turned);
+  }
+  fbBlocksSeeded = true;
   renderBlocks();
   resetFirestoreResubscribeBackoff('blocks');
  }, err=>{

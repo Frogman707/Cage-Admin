@@ -1309,10 +1309,9 @@ function toggleSpeedMultiPanel(open){
     paintScreen(el, speedMultiPanelHtml());
     Object.keys(SPEED.tstate).forEach(id=>{
       renderSpeedTileBets(id);
-      setSpeedTileBetsLocked(id, SPEED.tstate[id].phase !== 'betting');
       paintSpeedMultiRow(id);
       renderSpeedMultiResult(id);      // marks the road; the observer draws the ones on screen
-      paintSpeedConfirmState(id);
+      paintSpeedConfirmState(id);      // and this is what locks a board closed to further chips
     });
     renderSpeedStakedTotal();
     watchSpeedMultiRoads();
@@ -1552,9 +1551,20 @@ function speedLockedTotal(){
   });
   return locked;
 }
+/* A table takes chips while betting is open and nothing has been signed off on it yet. 베팅완료
+   closes its board for the round: what was confirmed is what rides. A tap on a spot after it used
+   to quietly re-open the bet and add to the stake, so a stray touch on the way to the next round
+   staked more than the player had agreed to - and the confirmation on screen no longer described
+   what was on the felt. 취소 is still the way back: it takes the whole stake off and re-opens the
+   board, which is a deliberate act rather than a slip. */
+function speedTableTakesBets(tableId){
+  const s = SPEED.tstate[tableId];
+  return !!s && s.phase === 'betting' && !s.confirmed;
+}
 function placeSpeedBet(tableId, type){
   const s = SPEED.tstate[tableId];
   if (!s || s.phase !== 'betting'){ toast(t('notBettingTime'), true); return; }
+  if (s.confirmed){ toast(t('alreadyConfirmed'), true); return; }
   const free = STATE.balance - speedLockedTotal();
   // the table's limits apply to each betting position, not to the round as a whole
   const max = tableBetMax(tableId);
@@ -1660,8 +1670,9 @@ function renderBetBoard(tableId){
   const s = SPEED.tstate[tableId];
   if (s) ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
     const spot = document.getElementById(`spot-detail-${k}`);
-    if (spot){ spot.classList.toggle('selected', s.bets[k]>0); spot.classList.toggle('locked', s.phase!=='betting'); }
+    if (spot) spot.classList.toggle('selected', s.bets[k]>0);
   });
+  if (s) paintSpeedConfirmState(tableId);   // which is what puts the lock on, confirmed or dealt
 }
 function classicBoardHtml(tableId){
   const cell = (key, cls, i18n, ko, odds) =>
@@ -1821,8 +1832,9 @@ function openSpeedTableDetail(tableId, preserveScroll){
   setSpeedTileTimer(tableId, Math.max(0, s.secondsLeft));
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
     const spot = document.getElementById(`spot-detail-${k}`);
-    if (spot){ spot.classList.toggle('selected', s.bets[k]>0); spot.classList.toggle('locked', s.phase!=='betting'); }
+    if (spot) spot.classList.toggle('selected', s.bets[k]>0);
   });
+  paintSpeedConfirmState(tableId);          // which is what puts the lock on, confirmed or dealt
   if (s.phase==='result' && s._sim) revealSpeedDetailCards(s._sim, true);
 }
 function closeSpeedTableDetail(){
@@ -1950,20 +1962,36 @@ function confirmAllSpeedBets(){
   Object.keys(SPEED.tstate || {}).forEach(id=>{ if (confirmSpeedBets(id, true)) n++; });
   toast(n ? t('betConfirmedCount', {n}) : t('nothingToConfirm'), !n);
 }
-/* the open table's spots and the sheet's rows both show whether what is on them is riding */
+/* the open table's spots and the sheet's rows both show whether what is on them is riding - and
+   both boards take the lock together, so a table closed to further chips is closed on the felt
+   and on its tile in the strip alike */
 function paintSpeedConfirmState(tableId){
   const s = SPEED.tstate[tableId];
   if (!s) return;
   const pending = speedBetsTotal(s.bets) > 0 && !s.confirmed;
+  /* Two ways to be shut, and they do not look alike. A round gone to the cards is dimmed right
+     down - there is nothing to read on it any more. A round the player has signed off is still a
+     live betting round they will want to read for the next thirty seconds, so it is marked as
+     closed rather than darkened. Either way it takes no more chips. */
+  const dealt = s.phase !== 'betting';
+  const signedOff = !dealt && !!s.confirmed;
   if (SPEED.detailTableId === tableId){
     document.getElementById('viewSpeedTable')?.classList.toggle('bets-pending', pending);
     const btn = document.getElementById('speedConfirmBtn');
-    if (btn) btn.classList.toggle('pending', pending);
+    if (btn){ btn.classList.toggle('pending', pending); btn.classList.toggle('done', !!s.confirmed); }
+    ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+      const spot = document.getElementById(`spot-detail-${k}`);
+      if (!spot) return;
+      spot.classList.toggle('locked', dealt);
+      spot.classList.toggle('bets-closed', signedOff);
+    });
   }
+  setSpeedTileBetsLocked(tableId, dealt || signedOff);
   document.getElementById(`smrow-${tableId}`)?.classList.toggle('pending', pending);
 }
 function repeatLastSpeedBetDetail(tableId){
   const s = SPEED.tstate[tableId]; if (!s || s.phase!=='betting') return;
+  if (s.confirmed){ toast(t('alreadyConfirmed'), true); return; }   // the board is closed, as the spots are
   if (!s.lastBets || !Object.values(s.lastBets).some(v=>v>0)){ toast(t('repeatNoPrev'), true); return; }
   const need = Object.values(s.lastBets).reduce((a,b)=>a+b,0);
   if (STATE.balance - speedLockedTotal() < need){ toast(t('insufficientBalance'), true); return; }
@@ -2060,7 +2088,7 @@ function beginSpeedBetting(tableId){
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
     if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${k}`)?.classList.remove('selected','locked');
   });
-  setSpeedTileBetsLocked(tableId, false);
+  paintSpeedConfirmState(tableId);          // a fresh round: nothing confirmed, both boards open
   renderSpeedTileBets(tableId);
   renderSpeedStakedTotal();
   // the header can be showing this table's stake projected off the balance - clearing s.bets
@@ -2077,10 +2105,7 @@ async function beginSpeedDealing(tableId){
   s.phase = 'dealing'; s.secondsLeft = SPEED_DEALING_SECONDS;
   // still counts as locked until the balance actually moves below - see speedLockedTotal
   s.settling = true;
-  if (SPEED.detailTableId===tableId){
-    ['player','tie','banker','playerPair','bankerPair'].forEach(k=> document.getElementById(`spot-detail-${k}`)?.classList.add('locked'));
-  }
-  setSpeedTileBetsLocked(tableId, true);
+  paintSpeedConfirmState(tableId);          // betting is shut: both boards take the lock
   setSpeedTilePhaseText(tableId, t('phaseDealing'));
   returnUnderMinSpeedBets(tableId);   // a short bet never reaches the felt
   // Only what was confirmed rides. Chips left on a spot without pressing 베팅완료 are pushed

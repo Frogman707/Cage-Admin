@@ -171,6 +171,8 @@ const I18N_DICT = {
   totalLabel:{ko:'총',zhHans:'总计',zhHant:'總計',en:'Total',ja:'合計',vi:'Tổng'},
   insufficientBalance:{ko:'보유금이 부족합니다',zhHans:'余额不足',zhHant:'餘額不足',en:'Insufficient balance',ja:'保有金が不足しています',vi:'Số dư không đủ'},
   notBettingTime:{ko:'베팅 시간이 아닙니다',zhHans:'不在投注时间',zhHant:'不在投注時間',en:'Not betting time',ja:'ベット時間ではありません',vi:'Không phải giờ đặt cược'},
+  // 베팅완료 closes the board for the round - 취소 is the way back, not another tap on a spot
+  alreadyConfirmed:{ko:'베팅완료된 라운드입니다. 취소 후 다시 베팅하세요',zhHans:'本局已确认投注。请先取消再重新下注',zhHant:'本局已確認投注。請先取消再重新下注',en:'Bet already confirmed. Cancel to bet again',ja:'このラウンドはベット確定済みです。取消してから再度ベットしてください',vi:'Ván này đã xác nhận cược. Hãy huỷ để đặt lại'},
   connectingTable:{ko:'테이블에 연결 중입니다...',zhHans:'正在连接桌台...',zhHant:'正在連線桌臺...',en:'Connecting to table...',ja:'テーブルに接続中...',vi:'Đang kết nối bàn...'},
   dealsLabel:{ko:'게임 횟수',zhHans:'局數',zhHant:'局數',en:'Deals',ja:'ゲーム回数',vi:'Số ván'},
   roundLabel:{ko:'라운드 번호',zhHans:'局號',zhHant:'局號',en:'Round',ja:'ラウンド番号',vi:'Số ván'},

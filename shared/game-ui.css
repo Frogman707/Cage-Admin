@@ -479,6 +479,31 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .bet-controls{margin-left:auto;display:flex;gap:8px;flex-shrink:0;align-items:center;}
 .current-bet-total{font-family:var(--mono);font-weight:800;color:var(--brass);font-size:16px;}
 
+/* ---- the tip picker ----
+   The tip is built by handing chips over rather than typing a figure, so it borrows the tray's
+   own chips. A chip that would take the tip past what the player can spend is shown spent -
+   flat, greyed and unclickable - rather than taking the tap and refusing it afterwards. */
+.tip-chips{display:flex;flex-wrap:wrap;gap:10px;padding:2px 0;}
+.tip-chips .chip{width:46px;height:46px;}
+.tip-chips .chip.disabled{cursor:not-allowed;opacity:.32;filter:grayscale(1) drop-shadow(0 2px 4px rgba(0,0,0,.4));}
+.tip-chips .chip.disabled:hover{transform:none;}
+.tip-stack-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 2px;
+  padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.16);
+  min-height:42px;
+}
+/* the stack the player has built, in the same overlapped artwork a betting spot uses */
+.tip-stack{display:flex;align-items:center;flex-wrap:wrap;gap:0;min-width:0;}
+.tip-stack .cs-chip{width:22px;height:22px;margin-left:-9px;background:center/contain no-repeat;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.55));}
+.tip-stack .cs-chip:first-child{margin-left:0;}
+.tip-stack .hint{font-size:11.5px;}
+.tip-total{display:flex;align-items:baseline;gap:8px;flex-shrink:0;white-space:nowrap;}
+.tip-total span{font-size:11px;color:var(--muted);}
+.tip-total b{font-family:var(--mono);font-weight:800;color:var(--brass);font-size:16px;}
+.tip-actions{display:flex;gap:8px;justify-content:flex-end;margin:8px 0 12px;}
+#tipSubmitBtn:disabled{opacity:.45;cursor:not-allowed;}
+
 /* ---- roadmap ---- */
 .br-col{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
 /* Real Big Road boards draw hollow outline rings (not solid filled balls) so a

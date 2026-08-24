@@ -188,14 +188,27 @@ body{overflow:auto;}
 <div class="modal-bg" id="modal-tip"><div class="modal" style="width:380px;">
   <button class="modal-close" onclick="closeModal('modal-tip')">×</button>
   <h3 data-i18n="tipModalTitle">팁 지급</h3>
-  <div class="field"><label data-i18n="tipTargetLabel">지급 대상</label>
+  <!-- hidden on a speed table: there is no avatar there, so the dealer is the only recipient -->
+  <div class="field" id="tipTargetField"><label data-i18n="tipTargetLabel">지급 대상</label>
     <select id="tipTarget">
       <option value="avatar" data-i18n="tipTargetAvatar">아바타</option>
       <option value="dealer" data-i18n="tipTargetDealer">딜러</option>
     </select>
   </div>
-  <div class="field"><label data-i18n="tipAmountLabel">팁 금액</label><input id="tipAmount" type="text" inputmode="numeric" placeholder="1,000" oninput="formatNumInput(this)"></div>
-  <button class="btn btn-gold btn-block" data-i18n="giveTip" onclick="submitTip()">팁 지급</button>
+  <!-- The tip is built by handing over chips, the way it is done at a table, rather than typed.
+       Tapping a chip adds it to the stack; the stack is what gets given. -->
+  <div class="field"><label data-i18n="tipChipLabel">칩 선택</label>
+    <div class="tip-chips" id="tipChips"></div>
+  </div>
+  <div class="tip-stack-row">
+    <div class="tip-stack" id="tipStack"></div>
+    <div class="tip-total"><span data-i18n="tipAmountLabel">팁 금액</span><b id="tipTotal">0</b></div>
+  </div>
+  <div class="tip-actions">
+    <button class="btn btn-sm" onclick="undoTipChip()" data-i18n="tipUndo">되돌리기</button>
+    <button class="btn btn-sm" onclick="clearTipChips()" data-i18n="tipClear">지우기</button>
+  </div>
+  <button class="btn btn-gold btn-block" id="tipSubmitBtn" data-i18n="giveTip" onclick="submitTip()">팁 지급</button>
 </div></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>

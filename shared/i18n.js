@@ -160,6 +160,11 @@ const I18N_DICT = {
   tipTargetAvatar:{ko:'아바타',zhHans:'代打',zhHant:'代打',en:'Avatar',ja:'アバター',vi:'Avatar'},
   tipTargetDealer:{ko:'딜러',zhHans:'荷官',zhHant:'荷官',en:'Dealer',ja:'ディーラー',vi:'Dealer'},
   tipAmountLabel:{ko:'팁 금액',zhHans:'小费金额',zhHant:'小費金額',en:'Tip amount',ja:'チップ金額',vi:'Số tiền tip'},
+  tipChipLabel:{ko:'칩 선택',zhHans:'选择筹码',zhHant:'選擇籌碼',en:'Pick chips',ja:'チップを選ぶ',vi:'Chọn phỉnh'},
+  tipPickChip:{ko:'칩을 눌러 팁을 올려주세요.',zhHans:'点击筹码来放置小费。',zhHant:'點擊籌碼來放置小費。',en:'Tap a chip to add it to the tip.',ja:'チップをタップして積んでください。',vi:'Chạm vào phỉnh để thêm vào tip.'},
+  tipUndo:{ko:'되돌리기',zhHans:'撤回',zhHant:'撤回',en:'Undo',ja:'戻す',vi:'Hoàn tác'},
+  tipClear:{ko:'지우기',zhHans:'清除',zhHant:'清除',en:'Clear',ja:'クリア',vi:'Xóa'},
+  tipSentAmount:{ko:'{amount} 팁이 지급되었습니다.',zhHans:'已发送 {amount} 小费。',zhHant:'已傳送 {amount} 小費。',en:'Tip of {amount} sent.',ja:'{amount} のチップを渡しました。',vi:'Đã gửi tip {amount}.'},
   tipSent:{ko:'팁이 지급되었습니다.',zhHans:'小费已发送。',zhHant:'小費已傳送。',en:'Tip sent.',ja:'チップを渡しました。',vi:'Đã gửi tip.'},
   shoeChangeSent:{ko:'슈 체인지가 요청되었습니다.',zhHans:'已申请换靴。',zhHant:'已申請換靴。',en:'Shoe-change requested.',ja:'シューチェンジを要請しました。',vi:'Đã gửi yêu cầu đổi giày bài.'},
   shoeChanged:{ko:'슈 체인지 — {no}번 슈가 시작됩니다',zhHans:'换靴 — 第 {no} 靴开始',zhHant:'換靴 — 第 {no} 靴開始',en:'Shoe change — shoe #{no} begins',ja:'シューチェンジ — {no}番シュー開始',vi:'Đổi giày bài — giày #{no} bắt đầu'},
@@ -216,7 +221,6 @@ const I18N_DICT = {
   fullscreen:{ko:'전체화면',zhHans:'全屏',zhHant:'全屏',en:'Fullscreen',ja:'全画面',vi:'Toàn màn hình'},
   mute:{ko:'음소거',zhHans:'静音',zhHant:'靜音',en:'Mute',ja:'ミュート',vi:'Tắt tiếng'},
   viewToggle:{ko:'화면 보기 전환',zhHans:'切换视角',zhHant:'切換視角',en:'Toggle view',ja:'表示切替',vi:'Chuyển chế độ xem'},
-  tipComingSoon:{ko:'팁 기능은 준비 중입니다',zhHans:'打赏功能即将上线',zhHant:'打賞功能即將上線',en:'Tipping is coming soon',ja:'チップ機能は準備中です',vi:'Tính năng tip sắp ra mắt'},
   favorites:{ko:'즐겨찾기',zhHans:'收藏',zhHant:'收藏',en:'Favorites',ja:'お気に入り',vi:'Yêu thích'},
 
   // ---- display settings (theme / skin) ----

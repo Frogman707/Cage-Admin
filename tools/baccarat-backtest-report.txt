@@ -1,0 +1,89 @@
+This file is the output of
+
+    node tools/baccarat-backtest.js --shoes 120 --trials 1500 --seed 1
+
+checked in so the verdict below is a result on record rather than a claim in a
+chat message. Re-run the command to reproduce it - the seed makes it exact.
+
+Read the GO / NO-GO block at the bottom first. It is the answer to the
+project's own opening question, and the answer is no.
+
+------------------------------------------------------------------------------
+
+baccarat backtest — 120 shoes, 1500 composition trials a hand, seed 1
+walk-forward: every hand is predicted before it is dealt and learned from only after.
+
+STAGE 1 — the baselines everything else has to beat (section 6)
+
+── always banker ───────────────────────────────────────
+   hands 9831   bets 9831   win 4525  lose 4392  push 914
+   hit rate (decided hands)   50.75%
+   profit                     -93.25 units
+   ROI per unit staked        -0.949%
+
+── always player ───────────────────────────────────────
+   hands 9831   bets 9831   win 4392  lose 4525  push 914
+   hit rate (decided hands)   49.25%
+   profit                     -133.00 units
+   ROI per unit staked        -1.353%
+
+── coin flip ───────────────────────────────────────────
+   hands 9831   bets 9831   win 4414  lose 4503  push 914
+   hit rate (decided hands)   49.50%
+   profit                     -200.65 units
+   ROI per unit staked        -2.041%
+
+
+STAGE 2 — the control: a shuffled simulator, where there is nothing to find (section 13C)
+Anything above chance here is a bug in the model or a leak in this harness, not an edge.
+
+── composition model, shuffled shoes ───────────────────
+   hands 9838   bets 9838   win 4466  lose 4419  push 953
+   hit rate (decided hands)   50.26%
+   accuracy on P/B            50.59%
+   Brier                      0.25028   (0.25 = no information)
+   log loss                   0.69370   (0.6931 = no information)
+   profit                     -175.85 units
+   ROI per unit staked        -1.787%
+   max drawdown               206.80 units
+   worst losing run           9
+   called banker 9820 (50.26% hit)   player 18 (52.94% hit)
+   by shoe   opening 51.13%   middle 49.11%   end 50.60%
+   hands the model called a real edge on: 692  (45.52% hit, -12.30 units)
+
+
+STAGE 3 — the pattern model on the same shuffled shoes (section 13A)
+Trained walk-forward on the roads alone. Its own weights are printed: on shuffled
+data they should sit near zero, because there is nothing for them to hold on to.
+
+── pattern model (roads), shuffled shoes ───────────────
+   hands 9838   bets 9838   win 4474  lose 4411  push 953
+   hit rate (decided hands)   50.35%
+   accuracy on P/B            49.81%
+   Brier                      0.25333   (0.25 = no information)
+   log loss                   0.69996   (0.6931 = no information)
+   profit                     -152.80 units
+   ROI per unit staked        -1.553%
+   max drawdown               200.90 units
+   worst losing run           10
+   called banker 9498 (50.31% hit)   player 340 (51.47% hit)
+   by shoe   opening 51.51%   middle 49.11%   end 50.50%
+   hands the model called a real edge on: 2202  (45.46% hit, -31.15 units)
+
+════════════════════════════════════════════════════════════
+GO / NO-GO
+   hit rate 50.26% ± 1.04% (95%)   on 8885 decided hands
+   ROI -1.787% per unit staked
+   distance from chance: 0.50 standard errors
+   → INDISTINGUISHABLE FROM CHANCE — on this data there is no signal to build on. Per the brief: stop.
+
+   Note the two numbers are not the same question. Even a hit rate above chance can
+   lose money: banker pays 0.95 and player pays 1.00, so a flat-staked hand is worth
+   about -1.06% on banker and -1.24% on player before any model opens its mouth. The
+   model has to beat the commission, not the coin.
+════════════════════════════════════════════════════════════
+
+What this run does NOT establish: anything about a real casino's shoes. This site deals
+from a Fisher-Yates shuffle, so its recorded rounds and the control above are the same
+distribution. Point dataset A at real recorded shoes and re-run before drawing any
+conclusion about a live table.

@@ -1860,6 +1860,7 @@ function openSpeedTableDetail(tableId, preserveScroll){
     if (spot) spot.classList.toggle('selected', s.bets[k]>0);
   });
   paintSpeedConfirmState(tableId);          // which is what puts the lock on, confirmed or dealt
+  renderAiPrediction(tableId);
   if (s.phase==='result' && s._sim) revealSpeedDetailCards(s._sim, true);
 }
 function closeSpeedTableDetail(){
@@ -1894,7 +1895,9 @@ function speedDetailShellHtml(tableId){
           <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
           <button onclick="toast(t('tipComingSoon'))" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
           <button class="sd-ico-history" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
+          <button class="sd-ico-ai" id="aiToggleBtn" onclick="toggleAiPanel()" data-i18n-title="aiPredictTitle" title="AI 예측"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.4"/></svg></button>
         </div>
+        ${aiPanelHtml()}
         <div class="table-felt">
           <div class="cards-area">
             <div class="hand player"><div class="cards" id="playerCardsDetail"></div><div class="score" id="playerScoreDetail"></div></div>
@@ -2014,6 +2017,96 @@ function paintSpeedConfirmState(tableId){
   setSpeedTileBetsLocked(tableId, dealt || signedOff);
   document.getElementById(`smrow-${tableId}`)?.classList.toggle('pending', pending);
 }
+/* ============================================================
+   다음 게임 예측 — the AI panel
+   ============================================================
+   The engine is shared/baccarat-ai.js; read its header before reading this. The short of it:
+   the only real signal in baccarat is what is left in the shoe, it is far too small to beat the
+   commission, and this panel is written to SAY so rather than to sell a number.
+
+   So the panel shows three things a punter can act on and one they should:
+     - the probabilities, with the margin of error the sampling actually carries
+     - the expected value of each side, which is negative on both, always
+     - whether the model resolved anything at all, or is simply repeating the base rate
+
+   It is a read on the table, not advice, and the panel says as much on its face. */
+let AI_PANEL_OPEN = false;
+let AI_LAST = null;              // the prediction standing against the round now being dealt
+function aiPanelHtml(){
+  return `<div class="ai-panel${AI_PANEL_OPEN?' open':''}" id="aiPanel">
+    <div class="ai-head"><b data-i18n="aiPredictTitle">${t('aiPredictTitle')}</b>
+      <button class="ai-close" onclick="toggleAiPanel(false)" aria-label="close">✕</button></div>
+    <div class="ai-body" id="aiBody"><p class="hint" data-i18n="aiWaiting">${t('aiWaiting')}</p></div>
+  </div>`;
+}
+function toggleAiPanel(open){
+  const el = document.getElementById('aiPanel');
+  if (!el) return;
+  AI_PANEL_OPEN = open === undefined ? !el.classList.contains('open') : !!open;
+  el.classList.toggle('open', AI_PANEL_OPEN);
+  document.getElementById('aiToggleBtn')?.classList.toggle('active', AI_PANEL_OPEN);
+  if (AI_PANEL_OPEN && SPEED.detailTableId) renderAiPrediction(SPEED.detailTableId);
+}
+/* Run once when betting opens, not on every tick: the sampling is a few thousand hands of work
+   and the answer cannot change until a card leaves the shoe. */
+function renderAiPrediction(tableId){
+  const s = SPEED.tstate[tableId];
+  const body = document.getElementById('aiBody');
+  if (!s || !body) return;
+  if (!AI_PANEL_OPEN){ AI_LAST = null; return; }
+  const p = predictNextHand(s.shoe, s.history, {decks:8});
+  if (!p.ok){ body.innerHTML = `<p class="hint">${t('aiNoShoe')}</p>`; AI_LAST = null; return; }
+  AI_LAST = {tableId, roundId: s.currentRoundId, roundNo: s.roundNo, shoeNo: s.shoe?.no,
+             player:p.player, banker:p.banker, tie:p.tie, side:p.rec.side, ev:p.rec.edge,
+             resolved:p.rec.resolved, cardsLeft:p.cardsLeft};
+  const pctOf = v => (v*100).toFixed(1) + '%';
+  const err = (2*sampleMargin(p.banker, p.comp.trials)*100).toFixed(1);
+  const evTxt = (p.rec.edge*100).toFixed(2) + '%';
+  const conf = t('aiConf_' + p.rec.confidence);
+  body.innerHTML = `
+    <div class="ai-bars">
+      ${[['player',p.player],['banker',p.banker],['tie',p.tie]].map(([k,v])=>`
+        <div class="ai-bar ${k}"><span class="ai-k">${t(k)}</span>
+          <span class="ai-track"><i style="width:${Math.max(2,Math.min(100,v*100)).toFixed(1)}%"></i></span>
+          <b class="ai-v">${pctOf(v)}</b></div>`).join('')}
+    </div>
+    <div class="ai-rec ${p.rec.side}">
+      <span data-i18n="aiRecommendation">${t('aiRecommendation')}</span>
+      <b>${t(p.rec.side)}</b>
+    </div>
+    <div class="ai-meta">
+      <div><i>${t('aiExpectedValue')}</i><b class="${p.rec.edge>0?'pos':'neg'}">${evTxt}</b></div>
+      <div><i>${t('aiConfidence')}</i><b>${conf}</b></div>
+      <div><i>${t('aiMarginLabel')}</i><b>±${err}%</b></div>
+      <div><i>${t('aiCardsLeft')}</i><b>${fmtNum(p.cardsLeft)}</b></div>
+    </div>
+    <p class="ai-note">${p.rec.resolved ? t('aiNoteResolved') : t('aiNoteUnresolved')}</p>
+    <p class="ai-note warn">${t('aiNoteHouse')}</p>`;
+  applyI18n(body);
+}
+/* Every prediction is kept against what actually happened, which is what makes a paper-betting
+   record out of a panel. One row per hand, the shape the brief's section 20 asks for, so model
+   versions can be compared on the same hands later rather than argued about. */
+const AI_MODEL_VERSION = 'v1-composition';
+async function logAiPrediction(tableId, actual){
+  const a = AI_LAST;
+  AI_LAST = null;
+  if (!a || a.tableId !== tableId || !db) return;
+  const won = actual === 'tie' ? null : actual === a.side;
+  const profit = actual === 'tie' ? 0 : (won ? (a.side === 'banker' ? 0.95 : 1) : -1);
+  try{
+    await db.collection('aiPredictions').doc(uuidv4()).set({
+      tableId, shoeId: `${tableId}#${a.shoeNo}`, gameId: a.roundId, roundNo: a.roundNo,
+      prediction: a.side, playerProbability: a.player, bankerProbability: a.banker,
+      tieProbability: a.tie, expectedValue: a.ev, resolved: a.resolved, cardsLeft: a.cardsLeft,
+      modelVersion: AI_MODEL_VERSION, actualResult: actual,
+      winLoss: won === null ? 'push' : (won ? 'win' : 'loss'),
+      betAmount: 1, commission: a.side === 'banker' ? 0.05 : 0, profit,   // paper units, never money
+      memberId: PLAYER?.id || null, createdAt: new Date().toISOString(),
+    });
+  }catch(e){ console.error('ai prediction log failed', e); }
+}
+
 function repeatLastSpeedBetDetail(tableId){
   const s = SPEED.tstate[tableId]; if (!s || s.phase!=='betting') return;
   if (s.confirmed){ toast(t('alreadyConfirmed'), true); return; }   // the board is closed, as the spots are
@@ -2105,6 +2198,7 @@ function beginSpeedBetting(tableId){
   const hadBets = Object.values(s.bets).some(v=>v>0);
   if (hadBets) s.lastBets = {...s.bets};
   s.phase = 'betting'; s.secondsLeft = SPEED_BETTING_SECONDS; s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0}; s.currentRoundId = uuidv4();
+  if (SPEED.detailTableId === tableId) renderAiPrediction(tableId);   // read the shoe once a round
   s.settling = false;
   s.confirmed = null;
   // the hand belongs to the round that just ended; clearing it is what lets "no hand, no result"
@@ -2208,6 +2302,7 @@ async function beginSpeedResult(tableId){
     MY_BET_LOG.unshift({tableName:tb.name, roundNo:s.roundNo, betType, amount, payout, mode:'speed', dt:new Date().toISOString()});
     SPEED.allBets.push({relatedTableId:tableId, amount:-amount, category:'bet', createdAt:new Date().toISOString()});
   }
+  logAiPrediction(tableId, sim.result);   // the paper-betting record, win or lose
   const staked = Object.values(s.bets).reduce((a,x)=>a+x, 0);
   if (MY_BET_LOG.length) renderMyBetHistory();
   if (totalPayout > 0) STATE.balance += totalPayout;

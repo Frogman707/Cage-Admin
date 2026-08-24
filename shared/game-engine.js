@@ -421,7 +421,7 @@ function deriveRoad(allCols, offset){
      for the whole shoe and put a mark on the board a hand early. Every other tie is drawn
      across a cell that already exists and never reaches here. */
   const cols = allCols.filter(c => c.side);
-  const depth = i => (cols[i] ? cols[i].items.length : 0);
+  const depth = i => (i >= 0 && cols[i] ? cols[i].items.length : 0);
   const out = [];
   for (let i=offset;i<cols.length;i++){
     const col = cols[i];
@@ -429,12 +429,22 @@ function deriveRoad(allCols, offset){
       let mark;
       if (j===0){
         if (i<offset+1) continue;
-        mark = depth(i-offset) === depth(i-offset-1) ? 'red' : 'blue';
+        /* A hand that OPENS a column asks whether the column just before it is the same length
+           as the column `offset` further back again - n-1 against n-1-offset. It used to ask
+           whether the two columns `offset` back were the same length as each other, which is the
+           same question only for Big Eye Boy, where offset is 1: Small Road and Cockroach Road
+           were reading a column too early and drawing the wrong mark on every column they open.
+           It is what made 다음 게임 예측 offer red for 플레이어 and red for 뱅커 at once, which
+           the rules cannot produce - one of the two continues the run and one starts a column,
+           and a continuation is red only where a new column is not. */
+        mark = depth(i-1) === depth(i-1-offset) ? 'red' : 'blue';
       } else {
-        // the streak continued: compare the cell one column back on this row with the one
-        // above it. Both filled or both empty means the pattern repeated (red); exactly one
-        // filled means it broke (blue) - which is only when that column ends at this row.
-        mark = depth(i-offset) === j ? 'blue' : 'red';
+        /* A hand that CONTINUES one asks whether the column `offset` back reaches down to this
+           row. It does: the pattern repeated, red. It stops short: the pattern broke, blue.
+           `=== j` was near enough while the column behind was one shorter, and wrong whenever it
+           was shorter than that - a run of five over a column of one called every hand past the
+           second red, when the cell beside it has been empty the whole way down. */
+        mark = depth(i-offset) > j ? 'red' : 'blue';
       }
       out.push(mark);
     }

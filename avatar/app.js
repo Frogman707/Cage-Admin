@@ -948,32 +948,89 @@ function avatarTableShellHtml(){
   </div>`;
 }
 
-/* ---------------- tip / shoe-change / end-session ---------------- */
+/* ---------------- tip / shoe-change / end-session ----------------
+   A tip is handed over as chips, the way it is at a table: tap a chip and it joins the stack,
+   and the stack is what gets given. Typing a figure was the old way in and read like a transfer
+   form rather than like tipping.
+   Both modes come through here. A speed table has no avatar to tip, so there the dealer is the
+   only recipient and the target row is hidden. */
+let TIP = { chips: [] };
+function tipTotal(){ return TIP.chips.reduce((a,b)=>a+b, 0); }
+/* What is actually spendable right now: the stake already committed to this round is spoken for
+   even though it has not left STATE.balance yet. Which figure that is depends on the mode -
+   avatarCommittedAmount() for a session, speedLockedTotal() for the speed tables. */
+function tipFreeBalance(){
+  return STATE.balance - (MODE === 'speed' ? speedLockedTotal() : avatarCommittedAmount());
+}
+function renderTipChips(){
+  const row = document.getElementById('tipChips');
+  const stack = document.getElementById('tipStack');
+  const total = document.getElementById('tipTotal');
+  const btn = document.getElementById('tipSubmitBtn');
+  if (!row) return;
+  const free = tipFreeBalance();
+  const sum = tipTotal();
+  // a chip the player cannot afford on top of what is already on the stack is shown as spent
+  // rather than silently refusing the tap
+  row.innerHTML = CHIP_VALUES.map(v=>{
+    const over = sum + v > free;
+    return `<div class="chip${over?' disabled':''}" data-chip="${v}" ${over?'':`onclick="addTipChip(${v})"`}
+      style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`;
+  }).join('');
+  if (stack) stack.innerHTML = TIP.chips.length
+    ? TIP.chips.map(v=>`<div class="cs-chip" style="background-image:url('${chipFaceUrl(v)}')"></div>`).join('')
+    : `<span class="hint" data-i18n="tipPickChip">${t('tipPickChip')}</span>`;
+  if (total) total.textContent = fmtNum(sum);
+  if (btn) btn.disabled = sum <= 0;
+}
+function addTipChip(v){
+  if (tipTotal() + v > tipFreeBalance()){ toast(t('insufficientBalance'), true); return; }
+  TIP.chips.push(v);
+  renderTipChips();
+}
+function undoTipChip(){ TIP.chips.pop(); renderTipChips(); }
+function clearTipChips(){ TIP.chips = []; renderTipChips(); }
 function openTipModal(){
-  document.getElementById('tipAmount').value = '';
-  document.getElementById('tipTarget').value = 'avatar';
+  TIP.chips = [];
+  const speed = MODE === 'speed';
+  const sel = document.getElementById('tipTarget');
+  if (sel) sel.value = speed ? 'dealer' : 'avatar';
+  const field = document.getElementById('tipTargetField');
+  if (field) field.style.display = speed ? 'none' : '';
+  renderTipChips();
   openModal('modal-tip');
 }
 async function submitTip(){
-  const target = document.getElementById('tipTarget').value;
-  const amount = rawNum(document.getElementById('tipAmount').value);
-  if (!amount){ toast(t('suErrRequired'), true); return; }
-  // avatarCommittedAmount(): this round's stake, while it is still spoken for but has not
-  // actually left STATE.balance yet - see the comment there
-  if (amount > STATE.balance - avatarCommittedAmount()){ toast(t('insufficientBalance'), true); return; }
-  await db.collection('memberLedger').doc(uuidv4()).set({
+  const speed = MODE === 'speed';
+  const target = speed ? 'dealer' : (document.getElementById('tipTarget')?.value || 'dealer');
+  const amount = tipTotal();
+  if (!amount){ toast(t('tipPickChip'), true); return; }
+  if (amount > tipFreeBalance()){ toast(t('insufficientBalance'), true); return; }
+  const tableId = speed ? SPEED.detailTableId : AVATAR.table?.id;
+  const row = {
     memberId: PLAYER.id, casino: PLAYER.casino, amount: -amount,
     category: target==='avatar' ? 'avatar_tip' : 'dealer_tip',
-    relatedRequestId: AVATAR.request.id, relatedTableId: AVATAR.table.id,
+    relatedTableId: tableId || null,
+    chips: TIP.chips.slice(),        // what was actually handed over, not just the sum
     staff: 'member', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
+  };
+  if (!speed && AVATAR.request) row.relatedRequestId = AVATAR.request.id;
+  await db.collection('memberLedger').doc(uuidv4()).set(row);
+  /* memberLedger is the record of play; for an account opened at a cage it is NOT the money.
+     That balance is the cage's own `ledger`, which is why placeBet writes both books - and why
+     a tip that wrote only this one never actually left a cage account: the header dropped by the
+     tip and the next refresh, reading `ledger`, put it straight back. */
+  if (isCageAccount(PLAYER)) await writeCageLedger(db, {
+    accountId: PLAYER.id, casino: PLAYER.casino, type:'OUT', amount,
+    memo: `tip ${target}${tableId ? ' ' + tableId : ''}`,
   });
   STATE.balance -= amount;
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
-  await refreshTipTotals();
-  updateAvatarStatusPanel();
+  TIP.chips = [];
+  if (!speed){ await refreshTipTotals(); updateAvatarStatusPanel(); }
   closeModal('modal-tip');
-  toast(t('tipSent'));
+  toast(t('tipSentAmount', {amount: fmtNum(amount)}));
 }
 async function requestShoeChange(){
   await db.collection('avatarServiceRequests').doc(uuidv4()).set({
@@ -1902,7 +1959,7 @@ function speedDetailShellHtml(tableId){
             <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/></svg>
           </button>
           <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
-          <button onclick="toast(t('tipComingSoon'))" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
+          <button onclick="openTipModal()" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
           <button class="sd-ico-history" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
           <button class="sd-ico-ai" id="aiToggleBtn" onclick="toggleAiPanel()" data-i18n-title="aiPredictTitle" title="AI 예측"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.4"/></svg></button>
         </div>

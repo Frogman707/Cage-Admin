@@ -14,7 +14,7 @@
 let db = null;
 let MODE = null; // 'avatar' | 'speed' | null (picker)
 const AVATAR_BETTING_SECONDS = 30, AVATAR_DEALING_SECONDS = 4, AVATAR_RESULT_SECONDS = 5;
-const SPEED_BETTING_SECONDS = 15, SPEED_DEALING_SECONDS = 3, SPEED_RESULT_SECONDS = 3;
+const SPEED_BETTING_SECONDS = 30, SPEED_DEALING_SECONDS = 3, SPEED_RESULT_SECONDS = 3;
 
 function betLabel(type){ return t(type); } // BET_LABEL keys (player/banker/tie/playerPair/bankerPair) match i18n dict keys 1:1
 let MY_BET_LOG = []; // {tableName, roundNo, betType, amount, payout, mode, dt} newest first, shared across both modes
@@ -1849,7 +1849,7 @@ function speedDetailShellHtml(tableId){
             <div class="hand banker"><div class="cards" id="bankerCardsDetail"></div><div class="score" id="bankerScoreDetail"></div></div>
           </div>
         </div>
-        <div class="timer-ring-wrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-detail">15</div></div>
+        <div class="timer-ring-wrap" id="timerRingWrapDetail"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArcDetail" cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-detail">30</div></div>
       </div>
       <!-- The board and the betting spots share one wrapper. It is display:contents everywhere
            except a desktop fullscreen, so on the ordinary screen it is not there at all and its
@@ -2011,9 +2011,21 @@ function setSpeedTileTimer(tableId, v){
   const el = document.getElementById('timer-'+tableId); if (el) el.textContent = v;
   if (SPEED.detailTableId===tableId){
     const d = document.getElementById('timer-detail'); if (d) d.textContent = v;
+    updateSpeedTimerRing(tableId, v);
     paintSpeedFsBars(tableId);   // the fullscreen bars carry the round, the shoe and the balance
   }
   paintSpeedMultiRow(tableId);   // the multi-bet panel counts its neighbours down too
+}
+/* The open table's ring only ever printed a number - the arc around it was drawn once, full, and
+   left there, so the countdown had a dial that never moved. It winds down against whatever the
+   phase it is in is counted from, the way the avatar table's does. */
+function updateSpeedTimerRing(tableId, secLeft){
+  const s = SPEED.tstate[tableId]; if (!s) return;
+  const total = s.phase==='betting' ? SPEED_BETTING_SECONDS
+              : s.phase==='dealing' ? SPEED_DEALING_SECONDS : SPEED_RESULT_SECONDS;
+  const arc = document.getElementById('timerArcDetail');
+  if (arc){ const c = 169.6; arc.style.strokeDashoffset = c * (1 - Math.max(0,secLeft)/total); }
+  document.getElementById('timerRingWrapDetail')?.classList.toggle('urgent', secLeft <= 5 && secLeft > 0);
 }
 // The list no longer captions the phase - only the open table does.
 function setSpeedTilePhaseText(tableId, txt){

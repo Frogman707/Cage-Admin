@@ -349,7 +349,7 @@ function renderGameHistory(btn, mode){
    ============================================================ */
 function stopAllLoops(){
   stopAvatarRoundLoop();
-  if (SPEED.tick){ clearInterval(SPEED.tick); SPEED.tick = null; }
+  stopSpeedClock();
   SPEED.detailTableId = null;
   if (AVATAR.chatUnsub){ AVATAR.chatUnsub(); AVATAR.chatUnsub = null; }
   // #viewAvatarTable holds a dynamically-built #myBetHistory / chip-tray that would otherwise
@@ -380,14 +380,31 @@ async function chooseAvatar(){
   showView('viewAvatarLobby');
   await goAvatarLobby();
 }
+/* One clock for the room, and starting it always stops whatever was already running.
+   It used to be assigned straight after `await loadSpeedTables()`, with the only clearInterval
+   back at the top of chooseSpeed() - so two calls that overlapped that await both passed a stop
+   that had nothing to clear yet and then both assigned. The first interval was orphaned and
+   never cleared, and every table's countdown then came off two a second. A double tap on 스피드
+   in the picker is enough to do it, and the card there has no guard of its own. */
+function stopSpeedClock(){ if (SPEED.tick){ clearInterval(SPEED.tick); SPEED.tick = null; } }
+function startSpeedClock(){
+  stopSpeedClock();
+  SPEED.tick = setInterval(tickAllSpeedTables, 1000);
+}
+/* And the call that is overtaken drops out rather than finishing on top of the one that
+   overtook it: it would otherwise paint its own (older) list of tables over the newer one and
+   report a room that had already been replaced. */
+let speedEntry = 0;
 async function chooseSpeed(){
+  const mine = ++speedEntry;
   stopAllLoops();
   MODE = 'speed';
   LOBBY_CASINO_FILTER = 'ALL'; LOBBY_SEARCH = '';
   showView('viewSpeedLobby');
   await loadSpeedTables();
+  if (mine !== speedEntry) return;
   renderMyBetHistory();
-  SPEED.tick = setInterval(tickAllSpeedTables, 1000);
+  startSpeedClock();
 }
 
 /* ---------------- lobby casino tabs + game-type filter + search (shared by avatar/speed) ---------------- */

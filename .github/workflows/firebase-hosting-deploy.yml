@@ -42,6 +42,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Hosting already answers css/js with no-store (see firebase.json), but a browser that never
+      # re-requests them cannot be told anything by a header - iOS Safari keeps a tab's page and
+      # its stylesheet exactly as they were until the page is actually reloaded, so a shared
+      # stylesheet can sit unchanged in a session for hours after it was deployed. Stamping the
+      # commit onto every local css/js reference makes each deploy a set of URLs no cache holds an
+      # answer for. Done here rather than in the files so there is no version for anyone to
+      # remember to bump - every deploy stamps itself.
+      # Only relative references: the ones carrying a scheme are the Firebase CDN's, which is
+      # versioned in its own path already.
+      - name: Stamp local assets with the commit
+        run: |
+          set -eu
+          for f in avatar/index.html agent-admin/index.html partner-admin/index.html speed/index.html; do
+            [ -f "$f" ] || continue
+            sed -i -E "s#(src|href)=\"([^\"#:]+\.(css|js))\"#\1=\"\2?v=${GITHUB_SHA}\"#g" "$f"
+            echo "stamped $f:"; grep -oE "(src|href)=\"[^\"]*\?v=[^\"]*\"" "$f" || true
+          done
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"

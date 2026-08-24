@@ -977,10 +977,15 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    result was read against a board with three spots visible where the arch is. Brightness leaves
    it solid. Locked outranks the hover brighten, which a finger still triggers on a phone. */
 /* Signed off with 베팅완료: shut to more chips, but betting is still open and the board is still
-   being read, so it is marked rather than dimmed the way a round gone to the cards is. */
-.bet-spot.bets-closed,.bet-spot.bets-closed:hover{opacity:.8;cursor:not-allowed;transform:none;}
+   being read, so it is marked rather than dimmed the way a round gone to the cards is.
+   On the felt the mark is brightness and NEVER opacity, for the reason above this: 타이 is an
+   arch laid over 플레이어 and 뱅커, so anything translucent shows the two of them straight
+   through it - the seam between them ran across the middle of the arch the moment a round was
+   confirmed. The flat board has no overlapping spot, so a dim there is safe. */
+.bet-spot.bets-closed,.bet-spot.bets-closed:hover{cursor:not-allowed;transform:none;}
+.bb-classic .bet-spot.bets-closed,.bb-classic .bet-spot.bets-closed:hover{opacity:.8;}
 .bet-board .bet-spot.bets-closed,.bet-board .bet-spot.bets-closed:hover{
-  filter:brightness(.86);cursor:not-allowed;
+  opacity:1;filter:brightness(.86);cursor:not-allowed;
 }
 .bet-board .bet-spot.locked,.bet-board .bet-spot.locked:hover{
   opacity:1;filter:brightness(.62);cursor:not-allowed;

@@ -1602,12 +1602,19 @@ function fsBarHtml(tb, where, mode){
     : `<button class="fs-ico" onclick="toggleSpeedMultiPanel()" data-i18n-title="multiBet" title="멀티 베팅">${FS_BAR_ICONS.menu}</button>`;
   return `<div class="sd-fs-bar sd-fs-bottom">
     ${mark}${stats}
-    <span class="fs-who"><em><i>👤</i>${escapeHtml(PLAYER?.nickname || PLAYER?.id || '')}</em><b>₱ <span class="fs-bal">0</span></b></span>
+    <span class="fs-who"><em><i>${PERSON_ICON}</i>${escapeHtml(PLAYER?.nickname || PLAYER?.id || '')}</em><b>${PESO} <span class="fs-bal">0</span></b></span>
     <span class="fs-sp"></span>
     <button class="fs-ico" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록">${FS_BAR_ICONS.history}</button>
     ${secondIcon}
   </div>`;
 }
+
+/* The head beside a head-count, and the peso beside a sum. Both were characters - 👤 is a
+   colour emoji, so it ignored the colour it was set in and stayed its own blue on the red
+   spots too, and ₱ is absent from the mono face, so it fell back to a bare P. Drawn and
+   set in a face that has it, they take the colour around them and read as what they are. */
+const PERSON_ICON = '<svg class="ic-person" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.6 21a7.4 7.4 0 0 1 14.8 0z"/></svg>';
+const PESO = '<span class="cur-peso">₱</span>';
 
 /* ---------------- the betting board ----------------
    There are two of them, and which one is drawn is whether the table is fullscreen.
@@ -1645,7 +1652,7 @@ function classicBoardHtml(tableId){
   const cell = (key, cls, i18n, ko, odds) =>
     `<div class="bet-spot ${cls}" id="spot-detail-${key}" onclick="placeSpeedBet('${tableId}','${key}')">
       <div class="label" data-i18n="${i18n}">${ko}</div>
-      <div class="meta-row"><span>👤 <b id="heads-detail-${key}">0</b></span><span>₱ <b id="pool-detail-${key}">0</b></span></div>
+      <div class="meta-row"><span>${PERSON_ICON}<b id="heads-detail-${key}">0</b></span><span>${PESO}<b id="pool-detail-${key}">0</b></span></div>
       <div class="odds">${odds}</div>
       <div class="my-bet" id="mybet-detail-${key}"></div>
     </div>`;
@@ -1672,7 +1679,7 @@ function betSpotHtml(tableId, s){
   return `<div class="bet-spot ${s.cls} ${s.side}" id="spot-detail-${s.key}" onclick="placeSpeedBet('${tableId}','${s.key}')">
     <div class="bb-meta">
       <span class="bb-pct" id="pct-detail-${s.key}">0%</span>
-      <span class="bb-stats"><i>👤 <b id="heads-detail-${s.key}">0</b></i><i>₱ <b id="pool-detail-${s.key}">0</b></i></span>
+      <span class="bb-stats"><i>${PERSON_ICON}<b id="heads-detail-${s.key}">0</b></i><i>${PESO}<b id="pool-detail-${s.key}">0</b></i></span>
     </div>
     <div class="bb-name">
       <span class="bb-label" data-i18n="${s.i18n}">${s.ko}</span>
@@ -1709,7 +1716,7 @@ function avatarClassicBoardHtml(){
   const cell = (key, cls, i18n, ko, odds) =>
     `<div class="bet-spot ${cls} locked" id="spot-avatar-${key}">
       <div class="label" data-i18n="${i18n}">${ko}</div>
-      <div class="meta-row"><span>👤 <b id="heads-avatar-${key}">0</b></span><span>₱ <b id="pool-avatar-${key}">0</b></span></div>
+      <div class="meta-row"><span>${PERSON_ICON}<b id="heads-avatar-${key}">0</b></span><span>${PESO}<b id="pool-avatar-${key}">0</b></span></div>
       <div class="odds">${odds}</div>
       <div class="my-bet" id="mybet-avatar-${key}"></div>
     </div>`;
@@ -1729,7 +1736,7 @@ function avatarBetSpotHtml(s){
   return `<div class="bet-spot ${s.cls} ${s.side} locked" id="spot-avatar-${s.key}">
     <div class="bb-meta">
       <span class="bb-pct" id="pct-avatar-${s.key}">0%</span>
-      <span class="bb-stats"><i>👤 <b id="heads-avatar-${s.key}">0</b></i><i>₱ <b id="pool-avatar-${s.key}">0</b></i></span>
+      <span class="bb-stats"><i>${PERSON_ICON}<b id="heads-avatar-${s.key}">0</b></i><i>${PESO}<b id="pool-avatar-${s.key}">0</b></i></span>
     </div>
     <div class="bb-name">
       <span class="bb-label" data-i18n="${s.i18n}">${s.ko}</span>

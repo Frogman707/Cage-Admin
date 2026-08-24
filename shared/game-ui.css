@@ -896,6 +896,7 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .sd-bets .bet-rail .bet-spot .label{font-size:20px;}
 .sd-bets .bet-spot.selected{background:rgba(217,178,106,.1);box-shadow:inset 0 0 0 2px var(--brass);}
 .sd-bets .bet-spot .meta-row{display:flex;gap:10px;font-size:9.5px;color:rgba(255,255,255,.5);font-family:var(--mono);}
+.sd-bets .bet-spot .meta-row span{display:inline-flex;align-items:center;gap:3px;}
 .sd-bets .bet-spot .odds{font-size:9.5px;opacity:.7;}
 
 /* ---- fullscreen's board: the felt, as it is painted ----
@@ -955,26 +956,40 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 
 /* the readings: the share of the round's money on this spot, how many are on it and what is on
    it, kept together as one block that faces the middle of the board */
-.bet-board .bb-meta{position:absolute;display:flex;align-items:center;gap:7px;z-index:2;}
+/* The readings ride on a dark lozenge of their own rather than straight on the felt. They were
+   set in a tint of the spot's own colour - a blue count on the blue spot, and the same blue over
+   on the red one - at a size where ₱ was a bare stroke off a P. On their own ground, in white,
+   they read at a glance and read the same on all three colours. */
+.bet-board .bb-meta{
+  position:absolute;display:flex;align-items:center;gap:8px;z-index:2;
+  background:rgba(0,0,0,.34);border:1px solid rgba(255,255,255,.14);border-radius:999px;
+  padding:3px 10px 3px 3px;
+}
 .bet-board .bb-pct{
   width:var(--bb-pct);height:var(--bb-pct);border-radius:50%;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
-  background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.16);
-  font-family:var(--mono);font-size:var(--bb-fs-pct);font-weight:700;
+  background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.22);
+  font-family:var(--mono);font-size:var(--bb-fs-pct);font-weight:700;color:#fff;
 }
-.bet-board .bb-stats{display:flex;flex-direction:column;gap:1px;font-family:var(--mono);font-size:var(--bb-fs-stat);line-height:1.35;}
-.bet-board .bb-stats i{font-style:normal;white-space:nowrap;}
-.bet-board .bet-spot.player .bb-pct,.bet-board .bet-spot.player .bb-stats{color:#A9CDE6;}
-.bet-board .bet-spot.banker .bb-pct,.bet-board .bet-spot.banker .bb-stats{color:#EDA79D;}
-.bet-board .bet-spot.tie    .bb-pct,.bet-board .bet-spot.tie    .bb-stats{color:#A6DDB2;}
+.bet-board .bb-stats{display:flex;gap:10px;font-family:var(--mono);font-size:var(--bb-fs-stat);
+  line-height:1.2;color:rgba(255,255,255,.94);}
+.bet-board .bb-stats i{font-style:normal;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;}
+.bet-board .bb-stats b{font-weight:700;}
+/* The head was 👤, a colour emoji - it ignores the colour it is set in, so it stayed its own blue
+   on the red spots as well as the blue ones. Drawn, it takes the colour of the text beside it.
+   And ₱ is set in the sans face: the mono one has no peso sign, so it fell back to a plain P. */
+.ic-person{width:1em;height:1em;flex-shrink:0;opacity:.85;vertical-align:-.12em;}
+.cur-peso{font-family:var(--sans);font-weight:700;opacity:.85;}
 /* the name and what it pays */
 .bet-board .bb-name{position:absolute;display:flex;flex-direction:column;z-index:2;}
-.bet-board .bb-label{color:#fff;font-weight:700;font-size:var(--bb-fs-label);letter-spacing:.2px;white-space:nowrap;}
+.bet-board .bb-label{color:#fff;font-weight:700;font-size:var(--bb-fs-label);letter-spacing:.2px;
+  white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.45);}
 /* 플레이어 페어 and 뱅커 페어 are the longest words on the board and sit in its narrowest spots,
    so they are set a step smaller than 플레이어 and 뱅커 - as the reference sets them */
 .bb-pp .bb-label,.bb-bp .bb-label{font-size:var(--bb-fs-plabel);}
 .bet-board .bb-meta,.bet-board .bb-name{min-width:0;}
-.bet-board .bb-odds{color:rgba(255,255,255,.82);font-family:var(--mono);font-size:var(--bb-fs-odds);}
+.bet-board .bb-odds{color:rgba(255,255,255,.78);font-family:var(--mono);font-size:var(--bb-fs-odds);
+  text-shadow:0 1px 3px rgba(0,0,0,.45);margin-top:1px;}
 /* what this player has riding sits in the middle of the spot, where the chips would go */
 .bet-board .my-bet{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;margin:0;
@@ -983,24 +998,20 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 }
 .bet-board .bb-tie .my-bet{top:38%;}
 
-/* Where each block sits. The pairs read across the middle of their strip; 플레이어 and 뱅커 put
-   the readings in the top outer corner and the name in the bottom inner one, so the two names
-   end up either side of the arch. The banker side is the player side mirrored. */
-.bb-pp .bb-meta{left:var(--bb-pad);top:50%;transform:translateY(-50%);}
-.bb-pp .bb-name{right:var(--bb-pad);top:50%;transform:translateY(-50%);align-items:flex-end;}
-.bb-bp .bb-meta{right:var(--bb-pad);top:50%;transform:translateY(-50%);flex-direction:row-reverse;}
-.bb-bp .bb-name{left:var(--bb-pad);top:50%;transform:translateY(-50%);align-items:flex-start;}
-.bb-pl .bb-meta{left:var(--bb-pad);top:var(--bb-pad);}
-.bb-pl .bb-name{right:var(--bb-pad);bottom:var(--bb-pad);align-items:flex-end;flex-direction:column-reverse;}
-.bb-bk .bb-meta{right:var(--bb-pad);top:var(--bb-pad);flex-direction:row-reverse;}
-.bb-bk .bb-name{left:var(--bb-pad);bottom:var(--bb-pad);align-items:flex-start;flex-direction:column-reverse;}
-/* the arch reads down the middle: its name at the top of the column, its readings inside the
-   curve at the foot, clear of the rounded edge */
-.bb-tie .bb-name{left:0;right:0;top:8px;align-items:center;}
-.bb-tie .bb-meta{left:50%;transform:translateX(-50%);bottom:13%;}
+/* Every spot reads the same way, down the middle: its name across the top, what it pays under
+   that, and the round's standings across the foot. They used to be pushed into whichever corner
+   was free and the name into the corner opposite, which hollowed out the middle of 플레이어 and
+   뱅커 and set 타이's readings shoulder to shoulder with 뱅커's, close enough that the two were
+   read as one. Centred, each spot is a column of its own and the board reads as five of them. */
+.bet-board .bb-name{left:var(--bb-pad);right:var(--bb-pad);top:var(--bb-pad);align-items:center;}
+.bet-board .bb-meta{left:50%;transform:translateX(-50%);bottom:var(--bb-pad);}
+/* the arch is a narrow column: its readings stack rather than run across, and sit up inside the
+   curve where it is still full width */
+.bb-tie .bb-meta{bottom:11%;padding:3px 8px 3px 3px;gap:6px;}
+.bb-tie .bb-stats{flex-direction:column;gap:1px;}
 
 /* one set of sizes for the board, scaled per screen rather than per rule */
-.bet-board{--bb-pad:11px;--bb-pct:38px;--bb-fs-pct:11px;--bb-fs-stat:9.5px;
+.bet-board{--bb-pad:11px;--bb-pct:34px;--bb-fs-pct:11.5px;--bb-fs-stat:11.5px;
            --bb-fs-label:15px;--bb-fs-plabel:13.5px;--bb-fs-odds:12px;--bb-fs-mine:16px;}
 /* Avatar's session/preview screens reuse the same grid area but have no chip betting
    rail - stack the status + chat cards instead, each with their own .card framing. */
@@ -1022,7 +1033,7 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
      overwritten and the two blocks printed over each other. */
   /* the arch is a share of the board's width, and a phone's board is a third of a desktop's -
      the same share leaves it too narrow to set 타이 and its odds in, so it takes a bigger one */
-  .bet-board{--bb-pad:6px;--bb-pct:21px;--bb-fs-pct:7.5px;--bb-fs-stat:6.5px;
+  .bet-board{--bb-pad:6px;--bb-pct:24px;--bb-fs-pct:8.5px;--bb-fs-stat:8.5px;
              --bb-fs-label:12px;--bb-fs-plabel:9px;--bb-fs-odds:9px;--bb-fs-mine:13px;
              --bb-arch:27%;--bb-arch-foot:42%;--bb-seam:2px;}
   .bet-board .bb-meta{gap:4px;}
@@ -1282,7 +1293,7 @@ body.faux-fs-lock{overflow:hidden;}
 .sd-live.is-fs .playing-card.third{margin:0 15px;}
 .sd-live.is-fs .cards-area{gap:60px;}
 /* the board's own sizes at the width the middle column gives it */
-.sd-live.is-fs .bet-board{--bb-pad:10px;--bb-pct:34px;--bb-fs-pct:10px;--bb-fs-stat:8.5px;
+.sd-live.is-fs .bet-board{--bb-pad:10px;--bb-pct:32px;--bb-fs-pct:11px;--bb-fs-stat:11px;
                           --bb-fs-label:14px;--bb-fs-plabel:12.5px;--bb-fs-odds:11.5px;--bb-fs-mine:15px;}
 /* The chip tray leaves the board and becomes the middle of the bar at the foot - which is where
    the reference has it, and is what lets the felt be nothing but the five spots. It is fixed
@@ -1348,7 +1359,7 @@ body.faux-fs-lock{overflow:hidden;}
   /* the desktop's fullscreen sizes are not inside a query, so they reach the phone and beat the
      phone's own - which had the readings and the name printing over each other again in the
      pair spots. Restated here at the same weight, they do not. */
-  .sd-live.is-fs .bet-board{--bb-pad:6px;--bb-pct:21px;--bb-fs-pct:7.5px;--bb-fs-stat:6.5px;
+  .sd-live.is-fs .bet-board{--bb-pad:6px;--bb-pct:24px;--bb-fs-pct:8.5px;--bb-fs-stat:8.5px;
                             --bb-fs-label:12px;--bb-fs-plabel:9px;--bb-fs-odds:9px;--bb-fs-mine:13px;}
   .sd-live.is-fs .bet-board .bb-meta{gap:4px;}
   .sd-live.is-fs .table-felt{padding-bottom:0;}

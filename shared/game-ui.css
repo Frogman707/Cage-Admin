@@ -51,17 +51,11 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 @media (max-width:1023px){ .game-header .brand .mark{font-size:16px;} }
 .balance-ticket,.points-ticket{
   display:flex;align-items:center;gap:7px;background:linear-gradient(155deg,var(--panel-hi),var(--void));
-  border:1px solid var(--brass-dim);border-radius:22px;padding:6px 16px 6px 8px;
+  border:1px solid var(--brass-dim);border-radius:22px;padding:6px 16px;
   font-family:var(--mono);font-weight:700;font-size:13.5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 3px 10px -4px rgba(0,0,0,.5);
 }
 .balance-ticket{color:var(--brass);}
 .points-ticket{color:var(--jade);border-color:var(--jade-dim);}
-.balance-ticket::before{content:'';width:20px;height:20px;border-radius:50%;flex-shrink:0;
-  background:radial-gradient(circle at 35% 30%, #FFF3D4, #E8C077 45%, #B8863A 80%);
-  box-shadow:0 0 0 2px rgba(217,178,106,.25), inset 0 0 0 1px rgba(0,0,0,.2);}
-.points-ticket::before{content:'';width:20px;height:20px;border-radius:50%;flex-shrink:0;
-  background:radial-gradient(circle at 35% 30%, #DFFCF1, #6FE0C4 45%, #1C6E5A 80%);
-  box-shadow:0 0 0 2px rgba(47,169,140,.25), inset 0 0 0 1px rgba(0,0,0,.2);}
 .balance-ticket .lbl,.points-ticket .lbl{font-family:var(--sans);font-weight:600;color:var(--ink-faint);font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-right:1px;}
 .game-header-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
 .hdr-action-btn{display:inline-flex;align-items:center;gap:6px;}
@@ -550,7 +544,6 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   .game-header .brand .mark{font-size:14px;white-space:nowrap;}
   .balance-ticket,.points-ticket{padding:5px 10px 5px 5px;font-size:11px;white-space:nowrap;}
   .balance-ticket .lbl,.points-ticket .lbl{display:none;}
-  .balance-ticket::before,.points-ticket::before{width:15px;height:15px;}
   .hdr-nick{display:none;}
   .game-header-right{gap:6px;}
   .game-header-right .btn{white-space:nowrap;flex-shrink:0;}
@@ -1319,16 +1312,12 @@ body.faux-fs-lock{overflow:hidden;}
      second column of the phone's single-column grid and squeezed the video to nothing. */
   .sd-live.is-fs .sd-underbar{display:contents;}
   .sd-live.is-fs .sd-board-row{display:grid;}
-  /* The results row scrolls sideways (roads on page one, Bead Plate on page two), and a box that
-     scrolls has an automatic minimum size of nothing - so the fullscreen grid, short of room, is
-     free to squeeze it down to a sliver, and did: 40px of the 157 it needs, which cut the roads
-     off mid-row. A floor of its own stops that; the grid scrolls instead, which is what the
-     phone's fullscreen is meant to do anyway.
-     The floor is a length rather than max-content because max-content is not honoured here on
-     every engine - Safari left the row at its squeezed 40px and the roads stayed cut off, which
-     is the browser this screen is most used from. A length is unambiguous everywhere, and an
-     exact one: the row is the counts strip over a road of a fixed six rows at a fixed cell size,
-     so it measures 157px at every phone width from 320 to 430, not merely at the one tested. */
+  /* A floor under the results row. Nothing should be squeezing it any more (see the grid below),
+     so this is belt and braces rather than the fix - but it is the piece that was reported cut
+     off twice, and the engine it was cut off on is one I cannot run here, so it keeps its floor.
+     A length rather than max-content, which Safari did not honour: the row is the counts strip
+     over a road of a fixed six rows at a fixed cell size, so it measures 157px at every phone
+     width from 320 to 430. */
   .sd-live.is-fs .sd-board-row{min-height:157px;}
   .sd-live.is-fs .sd-tally{grid-area:tally;box-shadow:none;}
   .sd-live.is-fs .sd-road{grid-area:road;box-shadow:none;}
@@ -1336,10 +1325,19 @@ body.faux-fs-lock{overflow:hidden;}
   /* minmax(0,...) rather than 1fr: the chip row is wider than the screen and scrolls, and a
      plain 1fr column is sized by its min-content - which let the row push the whole stack,
      video included, out past the right edge of the phone. */
+  /* The screen scrolls as a whole; the grid inside it does not. Penned into the height left over,
+     the grid had to shrink a row to fit, and it could: both the video (its height comes from its
+     aspect ratio) and the results row (a box that scrolls sideways) have an automatic minimum
+     size of nothing. Whichever one it took it from then drew outside the track it had been given
+     and over its neighbour - the roads came out on top of the still. Unpenned, every piece is its
+     own size, nothing overlaps, and the screen scrolls past them with the two bars staying put. */
   .sd-live.is-fs .speed-detail-grid{
-    display:grid;position:static;flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;
+    display:grid;position:static;flex:0 0 auto;min-height:0;overflow:visible;
     grid-template-columns:minmax(0,1fr);padding:6px;gap:6px;align-content:start;
   }
+  .speed-detail-wrap.is-fs{overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;}
+  .sd-live.is-fs .sd-fs-top{position:sticky;top:0;z-index:5;}
+  .sd-live.is-fs .sd-fs-bottom{position:sticky;bottom:0;z-index:5;}
   .sd-live.is-fs .sd-bets,.sd-live.is-fs .sd-chip-tray{min-width:0;}
   /* the still is a panel again, sized by its own 672x470 - the desktop screen took those away
      when it stretched the still over the whole screen, and without them it came out 0 tall */

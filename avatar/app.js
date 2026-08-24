@@ -108,6 +108,7 @@ async function onSignup(){
 
 function onLogout(){
   stopAllLoops();
+  unwatchPlayerBalance();
   playerLogout(db); // clears the active-session marker in the background; UI resets immediately
   MODE = null;
   MY_BET_LOG = [];
@@ -123,6 +124,7 @@ async function enterApp(){
   document.getElementById('hdrNick').textContent = `${PLAYER.nickname} (${PLAYER.id})`;
   clearLoginFields();
   await refreshBalance();
+  watchPlayerBalance();
   const requestedMode = new URLSearchParams(location.search).get('mode');
   if (requestedMode === 'speed') chooseSpeed();
   else if (requestedMode === 'avatar') chooseAvatar();
@@ -133,6 +135,32 @@ async function refreshBalance(){
   STATE.balance = b.balance; STATE.points = b.points;
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
   document.getElementById('hdrPoints').textContent = fmtNum(STATE.points);
+}
+/* The balance is kept live rather than read the once. Money moves from outside this screen -
+   the cage pays an account out at the window, an agent transfers to a member - and none of it
+   showed here until the player happened to place a bet or signed in again. The rows those
+   movements are written to are watched instead, so the header follows the money as it lands.
+   Which book to watch is which kind of account this is, the same split getPlayerBalance reads:
+   one opened at a cage keeps its money in the cage's own `ledger`, everyone else's is in
+   `memberLedger` - and a cage account still earns its points on memberLedger, so it watches
+   both. */
+let BALANCE_WATCH = [];
+function watchPlayerBalance(){
+  unwatchPlayerBalance();
+  if (!db || !PLAYER) return;
+  const onMoved = ()=>{ refreshBalance().catch(()=>{}); };
+  const watch = (coll, field) => {
+    try{
+      const un = db.collection(coll).where(field,'==',PLAYER.id).onSnapshot(onMoved, ()=>{});
+      if (typeof un === 'function') BALANCE_WATCH.push(un);
+    }catch(e){ /* offline, or a build with no live queries - the balance still refreshes on its own */ }
+  };
+  watch('memberLedger','memberId');
+  if (isCageAccount(PLAYER)) watch('ledger','accountId');
+}
+function unwatchPlayerBalance(){
+  BALANCE_WATCH.forEach(un=>{ try{ un(); }catch(e){} });
+  BALANCE_WATCH = [];
 }
 /* The chip artwork carries its own value on its face, so the tray needs no label of its own.
    This is still here for anywhere a chip's worth is written as text. */

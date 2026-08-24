@@ -601,7 +601,9 @@ function renderAvatarLobbyGrid(sortMode){
   if (!AVATAR.lobbyData) return;
   const grid = document.getElementById('lobbyGrid');
   const rows = AVATAR.lobbyData.tables.map(t=>{
-    const tableRounds = AVATAR.lobbyData.rounds.filter(r=>r.tableId===t.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+    const allRounds = AVATAR.lobbyData.rounds.filter(r=>r.tableId===t.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+    // the card's counts and its streak are this shoe's, the same as the board inside the table
+    const tableRounds = roundsInShoe(allRounds, latestShoeNo(allRounds, t.shoeNo));
     const results = tableRounds.map(r=>r.result);
     const tableBets = AVATAR.lobbyData.bets.filter(b=>b.relatedTableId===t.id);
     return {t, results, wins: tableWinCounts(results), streak: trailingStreak(results), volume: tableBetVolume(tableBets)};
@@ -677,7 +679,8 @@ async function openAvatarTablePreview(tableId, state){
   const doc = await db.collection('tables').doc(tableId).get();
   AVATAR.table = {id:tableId, ...doc.data()};
   const roundsSnap = await db.collection('rounds').where('tableId','==',tableId).get();
-  const rounds = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+  const all = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+  const rounds = roundsInShoe(all, latestShoeNo(all, AVATAR.table.shoeNo));   // this shoe only
   AVATAR.history = rounds.map(r=>r.result);
   AVATAR.pairFlags = rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair}));
 
@@ -819,11 +822,13 @@ async function enterAvatarSession(tableId){
   const doc = await db.collection('tables').doc(tableId).get();
   AVATAR.table = {id:tableId, ...doc.data()};
   const roundsSnap = await db.collection('rounds').where('tableId','==',tableId).get();
-  const rounds = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+  const all = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+  const shoeNo = latestShoeNo(all, AVATAR.table.shoeNo);
+  const rounds = roundsInShoe(all, shoeNo);          // the board is this shoe's, not the table's life
   AVATAR.history = rounds.map(r=>r.result);
   AVATAR.pairFlags = rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair}));
-  AVATAR.roundNo = (Math.max(0, ...rounds.map(r=>r.roundNo||0)) || 0) + 1;
-  AVATAR.shoe = openShoe(AVATAR.table.shoeNo || 1);
+  AVATAR.roundNo = (Math.max(0, ...all.map(r=>r.roundNo||0)) || 0) + 1;
+  AVATAR.shoe = openShoe(shoeNo);
   await refreshTipTotals();
 
   paintScreen(view, avatarTableShellHtml());
@@ -1208,14 +1213,17 @@ async function loadSpeedTables(){
   applyLobbyTileFilter();
   tables.forEach(tb=>{
     SPEED.tables[tb.id] = tb;
-    const rounds = allRounds.filter(r=>r.tableId===tb.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+    const all = allRounds.filter(r=>r.tableId===tb.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+    // the board shows the shoe it is on, not every shoe the table has ever dealt
+    const shoeNo = latestShoeNo(all, tb.shoeNo);
+    const rounds = roundsInShoe(all, shoeNo);
     SPEED.tstate[tb.id] = {
       phase:'betting', secondsLeft: SPEED_BETTING_SECONDS - (Object.keys(SPEED.tstate).length*3)%SPEED_BETTING_SECONDS,
-      roundNo: (Math.max(0, ...rounds.map(r=>r.roundNo||0))||0)+1,
+      roundNo: (Math.max(0, ...all.map(r=>r.roundNo||0))||0)+1,
       bets:{player:0, banker:0, tie:0, playerPair:0, bankerPair:0}, currentRoundId: uuidv4(),
       history: rounds.map(r=>r.result),
       pairFlags: rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair})),
-      shoe: openShoe(tb.shoeNo || 1),
+      shoe: openShoe(shoeNo),
       // seeded from the last round on record so a table already in play shows its score straight away
       lastResult: rounds.length
         ? {p: rounds[rounds.length-1].playerScore, b: rounds[rounds.length-1].bankerScore, side: rounds[rounds.length-1].result}

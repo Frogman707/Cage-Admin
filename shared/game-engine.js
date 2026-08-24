@@ -337,6 +337,23 @@ function renderBigRoad(runs, maxRows){
   });
 }
 
+/* ---------------- one shoe's worth of record ----------------
+   A roadmap and the P/B/T counts beside it belong to one shoe: that is what the boards in a
+   house are, and it is why the cut card wipes them. The `rounds` collection holds every shoe a
+   table has ever dealt, and the screens were seeded from all of it - a table that had been
+   running a while opened on a road of a thousand hands and a count to match.
+   Which shoe to show is taken from the rounds themselves rather than from the table document:
+   the number moves on when the cut card comes out and is stamped onto each round as it is
+   dealt, while the table document is only written when someone changes the table. */
+function latestShoeNo(rounds, fallback){
+  const nos = (rounds||[]).map(r=>Number(r.shoeNo)||0).filter(n=>n>0);
+  return nos.length ? Math.max(...nos) : (Number(fallback)||1);
+}
+// Rounds dealt before this field existed carry no shoeNo and count as the first shoe.
+function roundsInShoe(rounds, shoeNo){
+  return (rounds||[]).filter(r => (Number(r.shoeNo)||1) === Number(shoeNo));
+}
+
 /* ---------------- Bead Plate (진주로드 / 珠盤路) ----------------
    The Bead Plate is the plain chronological log: one bead per hand, in the order the shoe dealt
    them, filling a column top to bottom and only then moving to the next column. It does NOT

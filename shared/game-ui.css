@@ -1335,6 +1335,24 @@ body.faux-fs-lock{overflow:hidden;}
 .sd-live.is-fs .bet-board{background:var(--bb-seam-ink);
                           --bb-pad:10px;--bb-pct:32px;--bb-fs-pct:11px;--bb-fs-stat:11px;
                           --bb-fs-label:14px;--bb-fs-plabel:12.5px;--bb-fs-odds:11.5px;--bb-fs-mine:15px;}
+/* The prediction rail at the far right is drawn at the size the reference gives it. Measured off
+   the shot its two pills are 33 wide and 107 deep in a road card 524 by 253 - about two fifths of
+   the card's depth each - and the marks in them are 16px across. Carried over at the page's own
+   sizes they came out barely half that on a screen this size and read as an afterthought beside
+   the roads. Only fullscreen on a screen wide enough for the strip is resized: the rail on the
+   page sits in a much shorter card, and on a phone it turns on its side into a row of two flat
+   pills under the roads, which these sizes would burst. Hence the width guard rather than
+   specificity - these rules outrank the phone's by a class and would have won without it. */
+@media (min-width:861px){
+  .sd-live.is-fs .sd-road-legend-rail{width:56px;gap:14px;margin-right:-16px;}
+  .sd-live.is-fs .sd-road-legend-rail .rail-badge{
+    gap:7px;font-size:19px;border-width:2px;border-radius:20px;padding:7px 6px;
+  }
+  .sd-live.is-fs .sd-road-legend-rail .rail-badge .ring{width:16px;height:16px;border-width:2.5px;}
+  .sd-live.is-fs .sd-road-legend-rail .rail-badge .dot{width:16px;height:16px;}
+  .sd-live.is-fs .sd-road-legend-rail .rail-badge .slash{width:16px;height:16px;}
+  .sd-live.is-fs .sd-road-legend-rail .rail-badge .slash::before{height:2.5px;}
+}
 /* The chip tray leaves the board and becomes the middle of the bar at the foot - which is where
    the reference has it, and is what lets the felt be nothing but the five spots. It is fixed
    rather than moved in the markup, so the ordinary page keeps its tray inside the card. */

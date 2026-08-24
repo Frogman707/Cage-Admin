@@ -957,6 +957,12 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    translucent didn't dim it - it showed the two of them straight through it, and the round's
    result was read against a board with three spots visible where the arch is. Brightness leaves
    it solid. Locked outranks the hover brighten, which a finger still triggers on a phone. */
+/* Signed off with 베팅완료: shut to more chips, but betting is still open and the board is still
+   being read, so it is marked rather than dimmed the way a round gone to the cards is. */
+.bet-spot.bets-closed,.bet-spot.bets-closed:hover{opacity:.8;cursor:not-allowed;transform:none;}
+.bet-board .bet-spot.bets-closed,.bet-board .bet-spot.bets-closed:hover{
+  filter:brightness(.86);cursor:not-allowed;
+}
 .bet-board .bet-spot.locked,.bet-board .bet-spot.locked:hover{
   opacity:1;filter:brightness(.62);cursor:not-allowed;
 }
@@ -1412,20 +1418,31 @@ body.faux-fs-lock{overflow:hidden;}
   .sd-live.is-fs .timer-ring-wrap{top:auto;bottom:8px;right:8px;transform:none;}
   .sd-live.is-fs .sd-stage .phase-banner{top:46px;bottom:auto;font-size:13px;padding:7px 18px;}
   .sd-live.is-fs .sd-bets{min-height:196px;}
-  /* the tray is its own row above the bar, and its chips scroll sideways as the reference's do */
+  /* The tray is two rows, the way it is on the ordinary screen: the chips across the top and
+     취소 / 베팅완료 / 반복 under them. On one line as rings the size of a chip - which is what
+     the desktop bar has, and what this had - a phone could not fit them beside six chips, so the
+     row scrolled sideways and the button you wanted was usually off the edge of it.
+     The order does the splitting, not the markup: 취소 sits before the chips in the DOM and the
+     other two after, and the tray is the same element on both screens. The spacer already
+     between them is the line break. Six chips at 46px fit a 390px screen, so nothing scrolls. */
   .sd-live.is-fs .sd-chip-tray{
-    position:static;background:none;border:none;border-radius:0;margin:6px 0 0;padding:0 6px;
-    gap:8px;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;scrollbar-width:none;
+    /* height too: the desktop bar pins the tray to its own 62px, and that rule is not inside a
+       query, so it reached here and held the two rows to the depth of one - the buttons drew
+       outside the tray and under the bar at the foot. */
+    position:static;height:auto;background:none;border:none;border-radius:0;margin:8px 0 0;padding:0 8px;
+    display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:9px;overflow:visible;
   }
-  .sd-live.is-fs .sd-chip-tray::-webkit-scrollbar{display:none;}
-  .sd-live.is-fs .sd-chip-tray .chip{width:52px;height:52px;flex-shrink:0;}
+  .sd-live.is-fs .sd-chip-tray .chip{width:46px;height:46px;flex-shrink:0;order:1;}
+  .sd-live.is-fs .sd-chip-tray .spacer{display:block;order:2;flex-basis:100%;height:0;margin:0;}
   .sd-live.is-fs .sd-chip-tray .btn{
-    width:52px;height:52px;border-radius:50%;padding:0;flex-shrink:0;
-    background:none;border:1.5px solid rgba(255,255,255,.4);color:rgba(255,255,255,.9);
-    font-size:10px;letter-spacing:-.2px;line-height:1.15;font-weight:700;text-align:center;
-    white-space:normal;display:flex;align-items:center;justify-content:center;
+    order:3;width:auto;height:34px;min-width:78px;padding:0 16px;border-radius:17px;flex-shrink:0;
+    background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.32);
+    color:rgba(255,255,255,.92);font-size:12.5px;line-height:1;font-weight:700;
+    letter-spacing:0;white-space:nowrap;display:flex;align-items:center;justify-content:center;
   }
-  .sd-live.is-fs .sd-chip-tray .btn.btn-gold{border-color:#3FB6E8;color:#3FB6E8;box-shadow:none;}
+  .sd-live.is-fs .sd-chip-tray .btn.btn-gold{
+    border-color:#3FB6E8;color:#3FB6E8;background:rgba(63,182,232,.14);box-shadow:none;
+  }
   .sd-live.is-fs .sd-chip-tray .sd-multi-btn{display:none;}
   /* the head names the round and the shoe on two lines, and carries the way out; the foot names
      the player and what they are holding. The casino, the round and the shoe belong to the head

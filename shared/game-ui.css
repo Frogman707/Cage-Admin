@@ -883,29 +883,55 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    the mark the road it stands for draws */
 .sd-road-legend-rail .rail-badge .slash{width:11px;height:11px;box-sizing:border-box;position:relative;}
 .sd-road-legend-rail .rail-badge .slash::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-45deg);}
-.sd-road-legend-rail .rail-badge.player{color:var(--road-blue);}
-.sd-road-legend-rail .rail-badge.banker{color:var(--road-red);}
+/* Neutral, deliberately. These badges used to be drawn in the Big Road's Player blue and Banker
+   red - the same two colours the marks inside them use for "repeating" and "choppy". Two
+   alphabets, one pair of colours, twenty pixels apart: a blue mark in a blue P badge read as
+   "player", the same mark in the red B badge read as broken. The letter is identity enough. */
+.sd-road-legend-rail .rail-badge.player,
+.sd-road-legend-rail .rail-badge.banker{color:#9aa0a8;}
 /* the answer: each mark overrides the pill's colour with the one its road would draw. A road
    that has not started yet - Big Eye needs the third hand, Cockroach the fifth - stays grey
    rather than showing a wrong answer. */
 .sd-road-legend-rail .rail-badge .red{color:var(--road-red);}
 .sd-road-legend-rail .rail-badge .blue{color:var(--road-blue);}
 .sd-road-legend-rail .rail-badge .none{color:#d8d8d8;}
+/* What the two colours mean, said once, next to the only place they are used - otherwise the rail
+   asks the reader to already know that red and blue swap alphabets between the Big Road and the
+   derived ones.
+   Stacked, not side by side: Korean fits on one line but English, Vietnamese and both Chinese do
+   not - "Không quy luật" alone is wider than the rail - so the two entries read down it, where
+   the width each needs is one label rather than two. */
+.sd-road-legend-rail .rail-key{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
+.sd-road-legend-rail .rail-key span{display:flex;align-items:center;gap:3px;}
+.sd-road-legend-rail .rail-key i{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.sd-road-legend-rail .rail-key i.red{background:var(--road-red);}
+.sd-road-legend-rail .rail-key i.blue{background:var(--road-blue);}
+.sd-road-legend-rail .rail-key b{font-size:8px;font-weight:700;color:#8b8f96;white-space:nowrap;}
 /* The size the reference gives the rail. Measured off the shot its two pills are 33 wide and 107
    deep in a road card 524 by 253 - about two fifths of the card's depth each - and the marks in
    them 16px across. The card is the same 252 deep on the page as it is fullscreen, so both take
    the same sizes and the rail does not change under the reader when the screen does.
    The guard is on width, not on fullscreen: a phone lays this rail on its side as a row of two
    flat pills under the roads (see the max-width:860px block below), which these sizes burst. */
+/* The card's depth is fixed at 252 and it clips, so everything in the rail is on a height
+   budget: two 103px pills, two 6px gaps and the 24px two-line key come to 242, which leaves
+   five clear pixels top and bottom - at 9px gaps the key sat flush on the card's edge, one font
+   metric away from being clipped again. The pills keep
+   the 19px letter and the 16px marks they were enlarged to - only their padding gives up 3px a
+   side, which is not visible - because the enlargement was asked for and the key is the thing
+   that arrived late. Width is the cheap axis here: the rail takes 76 so the longest label fits
+   on its own line, and the roads scroll, so nothing becomes unreachable. */
 @media (min-width:861px){
-  .sd-road-legend-rail{width:56px;gap:14px;margin-right:-16px;}
+  .sd-road-legend-rail{width:76px;gap:6px;margin-right:-16px;}
   .sd-road-legend-rail .rail-badge{
-    gap:7px;font-size:19px;border-width:2px;border-radius:20px;padding:7px 6px;
+    gap:7px;font-size:19px;border-width:2px;border-radius:20px;padding:4px 6px;
   }
   .sd-road-legend-rail .rail-badge .ring{width:16px;height:16px;border-width:2.5px;}
   .sd-road-legend-rail .rail-badge .dot{width:16px;height:16px;}
   .sd-road-legend-rail .rail-badge .slash{width:16px;height:16px;}
   .sd-road-legend-rail .rail-badge .slash::before{height:2.5px;}
+  .sd-road-legend-rail .rail-key i{width:6px;height:6px;}
+  .sd-road-legend-rail .rail-key b{font-size:8px;}
 }
 .sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
 /* ---- the board on the page: flat cells on the dark green, as this screen has always had it.
@@ -1155,6 +1181,11 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   .sd-road-legend-rail .rail-badge{flex-direction:row;gap:6px;padding:4px 9px;border-radius:14px;font-size:12px;}
   .sd-road-legend-rail .rail-badge .ring,.sd-road-legend-rail .rail-badge .slash{width:10px;height:10px;}
   .sd-road-legend-rail .rail-badge .dot{width:8px;height:8px;}
+  /* the key stays a two-line column at the end of the row - there is no width on a phone to lay
+     it out flat, and it must not push the pills off the strip */
+  .sd-road-legend-rail .rail-key{gap:2px;}
+  .sd-road-legend-rail .rail-key i{width:5px;height:5px;}
+  .sd-road-legend-rail .rail-key b{font-size:7.5px;}
 
   /* the roads keep one card, the Bead Plate gets its own alongside */
   .sd-road-main,.sd-tally .bead-road{background-color:#fafafa;border:1px solid #e4e4e4;border-radius:10px;}

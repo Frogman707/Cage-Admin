@@ -753,7 +753,18 @@ function avatarScoreboardHtml(idSuffix){
 /* The board's prediction rail: what Big Eye Boy, Small Road and Cockroach Road would each draw
    if the next hand went Banker, and if it went Player. Laid out as a grid so the three marks in
    the B row sit exactly over the three in the P row - a stack of free-standing badges never did
-   line up. The mark shapes say which road each column is, the way the board itself does. */
+   line up. The mark shapes say which road each column is, the way the board itself does.
+
+   On the DERIVED roads red and blue do not mean banker and player. They mean the shoe is
+   repeating (red) or choppy (blue) - a different alphabet from the Big Road's, sharing the same
+   two colours. Reading them as banker/player is the standard beginner's mistake with these
+   boards, and this rail used to walk people straight into it: the P badge was drawn in the
+   Player blue and the B badge in the Banker red, so the marks inside them carried one meaning in
+   their own colour and a contradictory one in their badge's. A blue mark in the blue P badge
+   read as "player"; the identical blue mark in the red B badge read as a bug - which is exactly
+   how it was reported.
+   So the badges are neutral now. The only red and blue left in the rail belong to the roads, and
+   the legend underneath says what they mean. */
 const ASK_MARKS = [['bigEye','ring'], ['smallRoad','dot'], ['cockroach','slash']];
 function roadAskHtml(idSuffix){
   const badge = side => `
@@ -764,6 +775,10 @@ function roadAskHtml(idSuffix){
   return `<div class="sd-road-legend-rail" id="ask-${idSuffix}">
     ${badge('player')}
     ${badge('banker')}
+    <div class="rail-key">
+      <span><i class="red"></i><b data-i18n="roadKeyPattern">${t('roadKeyPattern')}</b></span>
+      <span><i class="blue"></i><b data-i18n="roadKeyChoppy">${t('roadKeyChoppy')}</b></span>
+    </div>
   </div>`;
 }
 function renderRoadPrediction(idSuffix, history){

@@ -321,24 +321,27 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .lobby-search:focus{outline:none;border-color:var(--brass-dim);}
 .lobby-search::placeholder{color:var(--ink-faint);}
 .table-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:16px;color:var(--ink-dim);font-size:13px;}
-/* A revolution every 1.1s rather than every 0.7s. The old speed made the brass arc a blur rather
-   than something turning, which reads as a page in trouble instead of one waiting on a table -
-   and the wait is long enough on a phone's connection to sit and watch. The speed is the same on
-   every screen: there was never a media query on it, so the phone and the desktop were already
-   spinning at one rate, and both are slower now.
+/* A revolution every 1.1s rather than the 0.7s this started at. The old speed made the brass arc
+   a blur rather than something turning, which reads as a page in trouble instead of one waiting
+   on a table.
    Linear, and left that way: an eased loop stutters at the seam where it starts over. */
-.table-loading .spin-lg{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--brass);border-radius:50%;animation:sp var(--spin-turn) linear infinite;box-shadow:0 0 16px -4px rgba(217,178,106,.4);}
+.table-loading .spin-lg{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--brass);border-radius:50%;animation:sp 1.1s linear infinite;box-shadow:0 0 16px -4px rgba(217,178,106,.4);}
 /* The lobby's own placeholder, which the grid shows while the tables are still coming. It had no
    rule on this site at all - only the two admin panels ever styled it - so it drew as an empty
    box and the lobby simply looked blank while it loaded. */
-.lobby-grid > .spin{width:22px;height:22px;border:2px solid var(--line);border-top-color:var(--brass);border-radius:50%;animation:sp var(--spin-turn) linear infinite;margin:40px auto;grid-column:1/-1;}
-/* A phone waits longer than a desktop does - a table comes over a mobile connection, and the
-   player sits and watches the ring the whole way. At the desktop's rate it reads as something
-   racing rather than something waiting, so a phone turns it half again slower. Both rates live
-   here rather than on the rules, so the two spinners can never drift apart. */
-:root{--spin-turn:1.1s;}
-@media (max-width:860px){ :root{--spin-turn:1.8s;} }
+.lobby-grid > .spin{width:22px;height:22px;border:2px solid var(--line);border-top-color:var(--brass);border-radius:50%;animation:sp 1.1s linear infinite;margin:40px auto;grid-column:1/-1;}
 @keyframes sp{to{transform:rotate(360deg);}}
+/* A phone waits far longer than a desktop does - the table comes over a mobile connection and the
+   player sits and watches the ring the whole way - so it turns a revolution every 3s there, which
+   is more than four times slower than this started at. Two earlier passes at 1.1s and 1.8s both
+   still read as something racing rather than something waiting.
+   The duration longhand rather than a custom property in the `animation` shorthand: a var() that
+   fails to substitute takes the whole shorthand down with it and leaves no animation at all, and
+   this is the rule that has to land. */
+@media (max-width:860px){
+  .table-loading .spin-lg{animation-duration:3s;}
+  .lobby-grid > .spin{animation-duration:3s;}
+}
 
 /* ---- table stage ---- */
 /* Reference shows the table photo as a plain full-bleed video panel -

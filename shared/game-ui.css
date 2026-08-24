@@ -1503,3 +1503,49 @@ body.has-chip-tray .toast.show{bottom:94px;}
   body.has-chip-tray .toast{bottom:104px;}
   body.has-chip-tray .toast.show{bottom:114px;}
 }
+
+/* ---- 다음 게임 예측: the AI panel ----
+   A sheet over the bottom-left of the still, opened from the stage icons. It sits over the video
+   rather than in the layout so it costs the board nothing and works the same fullscreen or not.
+   The reading is deliberately plain - bars, the two expected values, and a line saying what the
+   model did and did not resolve. See shared/baccarat-ai.js for why the last one matters more
+   than the percentages do. */
+.ai-panel{
+  position:absolute;left:12px;bottom:12px;z-index:7;width:min(300px, calc(100% - 24px));
+  background:rgba(6,10,16,.93);border:1px solid rgba(255,255,255,.14);border-radius:12px;
+  backdrop-filter:blur(6px);color:#fff;font-size:12px;
+  opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .18s ease, transform .18s ease, visibility .18s;
+}
+.ai-panel.open{opacity:1;visibility:visible;transform:none;}
+.ai-head{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.1);}
+.ai-head b{color:var(--brass);font-size:12.5px;letter-spacing:.3px;}
+.ai-close{background:none;border:none;color:rgba(255,255,255,.6);font-size:13px;cursor:pointer;padding:0 2px;}
+.ai-close:hover{color:#fff;}
+.ai-body{padding:11px 12px 12px;}
+.ai-bars{display:flex;flex-direction:column;gap:6px;}
+.ai-bar{display:grid;grid-template-columns:52px 1fr 46px;align-items:center;gap:8px;}
+.ai-bar .ai-k{font-size:11px;color:rgba(255,255,255,.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ai-bar .ai-track{height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden;}
+.ai-bar .ai-track i{display:block;height:100%;border-radius:3px;background:currentColor;}
+.ai-bar .ai-v{font-family:var(--mono);font-size:11.5px;text-align:right;}
+.ai-bar.player{color:#3FB6E8;} .ai-bar.banker{color:#E8564A;} .ai-bar.tie{color:#3FCF8E;}
+.ai-rec{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px;
+  padding:8px 11px;border-radius:9px;border:1px solid currentColor;font-size:11.5px;
+}
+.ai-rec b{font-size:14px;font-weight:800;letter-spacing:.4px;}
+.ai-rec.player{color:#3FB6E8;background:rgba(63,182,232,.1);}
+.ai-rec.banker{color:#E8564A;background:rgba(232,86,74,.1);}
+.ai-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-top:10px;}
+.ai-meta div{display:flex;align-items:baseline;justify-content:space-between;gap:6px;}
+.ai-meta i{font-style:normal;color:rgba(255,255,255,.55);font-size:10.5px;}
+.ai-meta b{font-family:var(--mono);font-size:11.5px;font-weight:700;}
+.ai-meta b.pos{color:#3FCF8E;} .ai-meta b.neg{color:#E8564A;}
+.ai-note{margin:9px 0 0;font-size:10px;line-height:1.5;color:rgba(255,255,255,.5);}
+.ai-note.warn{color:rgba(232,178,74,.75);}
+.sd-stage-icons .sd-ico-ai.active{border-color:var(--brass);color:var(--brass);}
+@media (max-width:860px){
+  /* on a phone the panel takes the width it can and the still is short, so it rides the top */
+  .ai-panel{left:8px;right:8px;bottom:auto;top:8px;width:auto;font-size:11.5px;}
+  .ai-bar{grid-template-columns:46px 1fr 42px;}
+}

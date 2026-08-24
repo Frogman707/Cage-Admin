@@ -411,9 +411,14 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    rather than relying on whatever colors happen to be behind it at that moment */
 .timer-ring-wrap::before{content:'';position:absolute;inset:7px;border-radius:50%;background:rgba(4,10,20,.72);}
 .timer-ring-wrap .txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:23px;letter-spacing:-.5px;color:#fff;text-shadow:0 0 10px rgba(47,169,140,.8);}
+/* The last five seconds turn the ring red. They used to make it throb as well - the whole ring
+   scaling 1.00 to 1.07 and back, once a second, five times over - which is motion at the edge of
+   the eye over a live video at exactly the moment the player is deciding what to do. The colour
+   says the same thing and holds still. It was already switched off in fullscreen, so dropping it
+   also makes the two agree instead of the ring behaving differently depending on the screen. */
 .timer-ring-wrap.urgent .txt{color:#fff;text-shadow:0 0 10px rgba(217,105,90,.9);}
-.timer-ring-wrap.urgent{animation:timerPulse 1s ease-in-out infinite;}
-@keyframes timerPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.07);}}
+/* the wound arc is the second circle - the first is the unlit track behind it */
+.timer-ring-wrap.urgent svg circle + circle{stroke:var(--danger);}
 .phase-banner{
   position:absolute;top:16px;left:50%;transform:translateX(-50%);
   background:rgba(0,0,0,.6);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.18);border-radius:8px;
@@ -1368,7 +1373,6 @@ body.faux-fs-lock{overflow:hidden;}
 .sd-live.is-fs .timer-ring-wrap{
   top:68%;bottom:auto;right:40px;transform:translateY(-50%) scale(1.7);
 }
-.sd-live.is-fs .timer-ring-wrap.urgent{animation:none;}
 .sd-live.is-fs .sd-stage .phase-banner{top:74px;bottom:auto;font-size:21px;padding:10px 30px;border-radius:6px;}
 /* The still fills the screen edge to edge, as the board it is drawn from has it - the table runs
    off both sides and the floor shows at the foot. Fitted inside instead, the whole scene was on

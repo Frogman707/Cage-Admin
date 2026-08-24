@@ -188,16 +188,9 @@ async function playerSignup(db, data){
    ledger to draw on, so they keep their own memberLedger balance, which is the only book they
    have. memberLedger is written either way: it is the partner admin's record of play. */
 function isCageAccount(member){ return !!member && member.source === 'cage'; }
+// the write itself is shared/cage-ui.js's, so the admin panels and this one append the same row
 async function writeCageLedger(db, {accountId, casino, type, amount, memo}){
-  const value = Math.abs(Number(amount) || 0);
-  if (!value) return;
-  const id = 'ldg_' + Date.now() + '_' + Math.random().toString(36).slice(2,9);
-  await db.collection('ledger').doc(id).set({
-    id, accountId, casino: casino || 'HANN',
-    dt: new Date().toISOString().slice(0,16).replace('T',' '),
-    type, inn: type === 'IN' ? value : 0, out: type === 'OUT' ? value : 0,
-    staff: 'avatar', memo: memo || '',
-  });
+  await cageLedgerWrite(db, {accountId, casino, type, amount, memo, staff:'avatar'});
 }
 async function getPlayerBalance(db, memberId, member){
   const cage = isCageAccount(member || PLAYER);

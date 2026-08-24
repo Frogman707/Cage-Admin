@@ -143,9 +143,11 @@ async function doLogin(){
   document.getElementById('shell').style.display='flex';
   document.getElementById('staffNameTxt').textContent = `${staff.name || staff.id} (${staff.agentCode})`;
   document.getElementById('hdrLangRow').innerHTML = langSwitcherHtml('hdrLangSwitch');
+  startLiveSync();
   switchView('member');
 }
 function doLogout(){
+  stopLiveSync();
   CURRENT_STAFF = null;
   document.getElementById('login-gate').style.display='flex';
   document.getElementById('topbar').style.display='none';
@@ -181,33 +183,64 @@ async function fetchAll(coll){
   const snap = await db.collection(coll).get();
   return snap.docs.map(d=>({id:d.id, ...d.data()}));
 }
-let MEMBER_CACHE = null, BALANCE_CACHE = null, LEDGER_CACHE = null;
+let MEMBER_CACHE = null, BALANCE_CACHE = null, LEDGER_CACHE = null, CAGE_LEDGER_CACHE = null;
 function myAgentCode(){ return CURRENT_STAFF?.agentCode; }
-async function getMembers(force){
+// every member on the site, not only this agent's - accountBalanceMap needs to know which ids are
+// cage accounts, and a row of the cage book carries an account id and nothing else
+async function getAllMembers(force){
   if (!MEMBER_CACHE || force) MEMBER_CACHE = await fetchAll('members');
-  return MEMBER_CACHE.filter(m=>m.parentAgent===myAgentCode());
+  return MEMBER_CACHE;
+}
+async function getMembers(force){
+  return (await getAllMembers(force)).filter(m=>m.parentAgent===myAgentCode());
 }
 async function getLedger(force){
   if (!LEDGER_CACHE || force) LEDGER_CACHE = await fetchAll('memberLedger');
   return LEDGER_CACHE;
 }
+// the cage's own book, which is where a cage account's money actually is - see accountBalanceMap
+async function getCageLedger(force){
+  if (!CAGE_LEDGER_CACHE || force) CAGE_LEDGER_CACHE = await fetchAll('ledger');
+  return CAGE_LEDGER_CACHE;
+}
 async function getBalances(force){
   if (BALANCE_CACHE && !force) return BALANCE_CACHE;
-  const rows = await getLedger(force);
-  const map = {};
-  rows.forEach(r=>{
-    const m = map[r.memberId] || (map[r.memberId] = {balance:0, points:0, deposit:0, withdraw:0, bet:0, payout:0});
-    if (r.category==='point_earn' || r.category==='point_convert') m.points += Number(r.amount)||0;
-    else m.balance += Number(r.amount)||0;
-    if (r.category==='deposit') m.deposit += Number(r.amount)||0;
-    if (r.category==='withdraw') m.withdraw += Number(r.amount)||0;
-    if (r.category==='bet') m.bet += Number(r.amount)||0;
-    if (r.category==='payout') m.payout += Number(r.amount)||0;
-  });
-  BALANCE_CACHE = map;
-  return map;
+  // the member list is read, not re-read: every caller that forces a balance has either just
+  // read the members itself or come through invalidateCaches(), and forcing here made the
+  // 회원관리/계정관리 screens fetch the whole collection twice to draw once
+  const [rows, cageRows, members] = await Promise.all([
+    getLedger(force), getCageLedger(force), getAllMembers(),
+  ]);
+  BALANCE_CACHE = accountBalanceMap(rows, cageRows, members);
+  return BALANCE_CACHE;
 }
-function invalidateCaches(){ MEMBER_CACHE=null; BALANCE_CACHE=null; LEDGER_CACHE=null; }
+function invalidateCaches(){ MEMBER_CACHE=null; BALANCE_CACHE=null; LEDGER_CACHE=null; CAGE_LEDGER_CACHE=null; }
+
+/* ---- live sync ----
+   A balance moves at the cage window or at the table, not on this screen, and the agent watching
+   it should not have to reload to see it. Money changes repaint the numbers where they stand, so
+   nothing else on the screen is disturbed; a change to the member records themselves - a branch,
+   a nickname, a block applied at the cage - redraws the view, and waits for an open form or the
+   caret to leave a field before it does. */
+let LIVE_UNSUB = null, LIVE_RETRY = null;
+function startLiveSync(){
+  stopLiveSync();
+  LIVE_UNSUB = watchCollections(db, ['members','memberLedger','ledger'], async changed=>{
+    invalidateCaches();
+    const balances = await getBalances(true);
+    repaintBalances(balances);
+    if (changed.has('members')) redrawWhenFree();
+  });
+}
+function stopLiveSync(){
+  clearTimeout(LIVE_RETRY); LIVE_RETRY = null;
+  if (LIVE_UNSUB){ LIVE_UNSUB(); LIVE_UNSUB = null; }
+}
+function redrawWhenFree(){
+  clearTimeout(LIVE_RETRY);
+  if (uiIsBusy()){ LIVE_RETRY = setTimeout(redrawWhenFree, 1500); return; }
+  switchView(CURRENT_VIEW);
+}
 async function myLedger(force){
   const memberIds = new Set((await getMembers(force)).map(m=>m.id));
   return (await getLedger(force)).filter(r=>memberIds.has(r.memberId));
@@ -239,7 +272,7 @@ async function renderMember(){
       <div class="stat-card"><div class="lbl">${t('statTotalDownline')}</div><div class="val">${members.length}</div></div>
       <div class="stat-card"><div class="lbl">${t('statActive')}</div><div class="val">${members.filter(m=>m.status==='정상').length}</div></div>
       <div class="stat-card"><div class="lbl">${t('statSuspended')}</div><div class="val">${members.filter(m=>m.status==='정지').length}</div></div>
-      <div class="stat-card"><div class="lbl">${t('statBalanceSum')}</div><div class="val">${fmtNum(Object.entries(balances).filter(([id])=>members.some(m=>m.id===id)).reduce((s,[,b])=>s+b.balance,0))}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statBalanceSum')}</div><div class="val" data-bal-sum="${members.map(m=>m.id).join(',')}">${fmtNum(members.reduce((s,m)=>s+(balances[m.id]?.balance||0),0))}</div></div>
     </div>
     <div class="card">
       <div class="toolbar">
@@ -263,7 +296,7 @@ function memberRowsHtml(rows, balances){
   return rows.map(m=>`<tr>
     <td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td><td>${maskPhone(m.phone)}</td>
     <td>${escapeHtml(m.casino||'—')}</td><td>${memberTypeLabel(m)}</td>
-    <td><span class="num">${fmtNum(balances[m.id]?.balance||0)}</span></td>
+    <td><span class="num" data-bal="${escapeHtml(m.id)}">${fmtNum(balances[m.id]?.balance||0)}</span></td>
     <td>${fmtDate(m.createdAt)}</td><td>${m.lastLoginAt?fmtDt(m.lastLoginAt):'—'}</td><td>${pill(m.status,{정상:'ok',정지:'bad',블랙리스트:'bad'})}</td>
   </tr>`).join('') || `<tr class="empty-row"><td colspan="9">${t('noSubMembers')}</td></tr>`;
 }
@@ -316,7 +349,7 @@ async function renderAccount(){
   return `
     ${pageHead(t('accountTitle'), t('accountSub'))}
     <div class="grid grid-4" style="margin-bottom:16px;">
-      <div class="stat-card"><div class="lbl">${t('myAccountBalance')}</div><div class="val">${fmtNum(myBal)}</div></div>
+      <div class="stat-card"><div class="lbl">${t('myAccountBalance')}</div><div class="val" data-bal-sum="${escapeHtml(myAgentCode()||'')}">${fmtNum(myBal)}</div></div>
     </div>
     <div class="card">
       <div class="toolbar">
@@ -338,7 +371,7 @@ function acctRowHtml(m, bal){
   const blocked = m.accessBlocked === true;
   return `<tr id="acctrow-${m.id}">
     <td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td>
-    <td><span class="num ${bal<0?'neg':bal>0?'pos':''}">${fmtNum(bal)}</span></td>
+    <td><span class="num ${bal<0?'neg':bal>0?'pos':''}" data-bal="${escapeHtml(m.id)}">${fmtNum(bal)}</span></td>
     <td>
       <button class="btn btn-xs btn-jade" onclick="openBalanceModal('${m.id}','deposit',t('fundTransferTitle'))">${t('transferBtn')}</button>
       <button class="btn btn-xs btn-danger" onclick="openBalanceModal('${m.id}','withdraw',t('fundRecallTitle'))">${t('recallBtn')}</button>
@@ -441,11 +474,21 @@ async function submitBalanceAdjust(){
   }
   const memo = document.getElementById('balanceMemo').value;
   const signed = BALANCE_CTX.mode==='withdraw' ? -Math.abs(amt) : Math.abs(amt);
+  const target = (await getAllMembers()).find(m=>m.id===BALANCE_CTX.memberId);
   await db.collection('memberLedger').doc(uuidv4()).set({
     memberId: BALANCE_CTX.memberId, amount: signed,
     category: BALANCE_CTX.mode==='withdraw' ? 'withdraw' : 'deposit',
     memo, staff: CURRENT_STAFF?.id||'—', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
+  });
+  /* For an account opened at a cage the row above is the record of the transfer, not the transfer:
+     its money is in the cage's own book, so that is where the movement has to be appended too.
+     Without this the button wrote a receipt for a payment that never reached the customer. */
+  if (isCageAccountMember(target)) await cageLedgerWrite(db, {
+    accountId: BALANCE_CTX.memberId, casino: target.casino,
+    type: BALANCE_CTX.mode==='withdraw' ? 'OUT' : 'IN', amount: amt,
+    memo: memo || (BALANCE_CTX.mode==='withdraw' ? t('fundRecallTitle') : t('fundTransferTitle')),
+    staff: CURRENT_STAFF?.id || '—',
   });
   await logAction(BALANCE_CTX.memberId, `${BALANCE_CTX.mode==='withdraw'?'자금 회수':'자금 이체'} ${fmtNum(amt)}`);
   closeModal('modal-balance');

@@ -998,6 +998,29 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
      the row's own gap rather than adding to it, so every seam on the board is the one width. */
   outline:var(--bb-seam) solid var(--bb-seam-ink);
 }
+/* 플레이어 and 뱅커 run on underneath the arch, so where it laps over them their own outline
+   simply stopped: every other region on this board is bounded in its own colour, and along that
+   curve the two of them were raw felt meeting the arch's black seam. This draws the edge they
+   were missing - blue down the 플레이어 side, red down the 뱅커 side, meeting under the foot of
+   the arch where the two of them meet anyway.
+   It is drawn on the board rather than on the arch because the arch clips its own children
+   (.bet-spot carries overflow:hidden), and it takes the arch's exact box and radius so it can
+   only ever follow the same curve - offset outward by the seam so the black gap stays between
+   the two regions, as it is everywhere else. */
+.bet-board{--bb-lap:2px;}
+.bet-board::before,.bet-board::after{
+  content:'';position:absolute;pointer-events:none;z-index:1;
+  left:50%;margin-left:calc(var(--bb-arch) / -2);top:0;
+  width:var(--bb-arch);height:68%;
+  border-radius:10px 10px 50% 50% / 10px 10px var(--bb-arch-foot) var(--bb-arch-foot);
+  outline:var(--bb-lap) solid;outline-offset:var(--bb-seam);
+}
+/* Only the lapped part is wanted: above the row boundary the pair spots carry their own edge
+   already. The boundary is 38% of the board (the pair row) plus the 3px the rows sit apart, and
+   the arch is 68% of the board tall - so as a fraction of the arch's own height, 38/68. The
+   negative insets are what let the outline through, since it lies outside the border box. */
+.bet-board::before{outline-color:#2A8CB8;clip-path:inset(calc(55.882% + 3px) 50% -10px -10px);}
+.bet-board::after {outline-color:#A3180F;clip-path:inset(calc(55.882% + 3px) -10px -10px 50%);}
 .bet-board .bet-spot{
   position:relative;display:block;padding:0;margin:0;gap:0;
   border:2px solid;border-radius:10px;box-shadow:none;overflow:hidden;

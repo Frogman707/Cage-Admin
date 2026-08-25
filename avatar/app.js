@@ -540,7 +540,7 @@ async function goAvatarLobby(){
           <option value="popular" data-i18n="sortPopular">인기순 (베팅총액)</option>
           <option value="today" data-i18n="sortToday">오늘 베팅액순</option>
           <option value="hot" data-i18n="sortHot">좋은 흐름순</option>
-          <option value="name" data-i18n="sortName">테이블명순</option>
+          <option value="name" data-i18n="sortName">테이블명 순</option>
         </select>
       </div>
       <div class="lobby-grid" id="lobbyGrid"><div class="spin"></div></div>
@@ -1032,6 +1032,7 @@ async function submitTip(){
   if (isCageAccount(PLAYER)) await writeCageLedger(db, {
     accountId: PLAYER.id, casino: PLAYER.casino, type:'OUT', amount,
     memo: `tip ${target}${tableId ? ' ' + tableId : ''}`,
+    staff: speed ? CAGE_LEDGER_SOURCE.speed : CAGE_LEDGER_SOURCE.avatar,
   });
   STATE.balance -= amount;
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
@@ -1151,7 +1152,7 @@ async function beginAvatarDealingPhase(){
   AVATAR.secondsLeft = AVATAR_DEALING_SECONDS;
   setAvatarPhaseBanner(t('phaseDealing'), AVATAR_DEALING_SECONDS);
   for (const [betType, amount] of Object.entries(bets)){
-    if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId:AVATAR.table.id, roundId:myRound, betType, amount, staff:'avatar'});
+    if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId:AVATAR.table.id, roundId:myRound, betType, amount, staff:CAGE_LEDGER_SOURCE.avatar});
   }
   if (AVATAR.currentRoundId !== myRound){
     // moved on to a new round while this write was in flight - the stake still landed correctly
@@ -1207,7 +1208,7 @@ async function beginAvatarResultPhase(){
   let totalPayout = 0;
   for (const [betType, amount] of Object.entries(bets)){
     if (amount <= 0) continue;
-    const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:myRound, betType, amount, resultInfo:sim});
+    const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:myRound, betType, amount, resultInfo:sim, staff:CAGE_LEDGER_SOURCE.avatar});
     totalPayout += payout;
     MY_BET_LOG.unshift({tableName, roundNo, betType, amount, payout, mode:'avatar', dt:new Date().toISOString()});
   }
@@ -2381,7 +2382,7 @@ async function beginSpeedDealing(tableId){
   }
   paintSpeedConfirmState(tableId);
   for (const [betType, amount] of Object.entries(s.bets)){
-    if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, staff:'system'});
+    if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, staff:CAGE_LEDGER_SOURCE.speed});
   }
   const totalBet = Object.values(s.bets).reduce((a,b)=>a+b,0);
   if (totalBet > 0){ STATE.balance -= totalBet; }
@@ -2443,7 +2444,7 @@ async function beginSpeedResult(tableId){
   let totalPayout = 0;
   for (const [betType, amount] of Object.entries(s.bets)){
     if (amount <= 0) continue;
-    const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, resultInfo:sim});
+    const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, resultInfo:sim, staff:CAGE_LEDGER_SOURCE.speed});
     totalPayout += payout;
     MY_BET_LOG.unshift({tableName:tb.name, roundNo:s.roundNo, betType, amount, payout, mode:'speed', dt:new Date().toISOString()});
     SPEED.allBets.push({relatedTableId:tableId, amount:-amount, category:'bet', createdAt:new Date().toISOString()});

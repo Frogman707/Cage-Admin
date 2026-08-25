@@ -74,7 +74,7 @@ const NAV_GROUPS = [
   ]},
   {id:'stats', label:'통계', icon:'chart', children:[
     {id:'marketRatio', label:'마켓비율'},
-    {id:'depositWithdrawStats', label:'입출금내역'},
+    {id:'depositWithdrawStats', label:'입출금 내역'},
     {id:'performanceCompare', label:'실적 비교'},
     {id:'realtimeRisk', label:'실시간 위험 감지'},
     {id:'highBet', label:'고액 베팅'},
@@ -85,7 +85,7 @@ const NAV_GROUPS = [
   ]},
   {id:'table', label:'테이블 관리', icon:'table', children:[
     {id:'tableList', label:'테이블 관리'},
-    {id:'tableBetHistory', label:'테이블 배팅 총 금액(24H)'},
+    {id:'tableBetHistory', label:'테이블 베팅 총 금액(24H)'},
     {id:'avatarGameList', label:'아바타 게임 관리'},
     {id:'avatarRequests', label:'아바타 대리베팅 신청'},
     {id:'roundEdit', label:'게임 라운드 수정'},
@@ -535,7 +535,7 @@ function confirmCreateBranchTables(){
   const branches = Object.keys(BRANCH_TABLE_CODES).join(', ');
   askConfirm('지점 테이블 생성',
     `${branches} 각 지점에 스피드 ${BRANCH_TABLES_PER_KIND}개 · 아바타 ${BRANCH_TABLES_PER_KIND}개, 모두 ${defs.length}개의 테이블을 만듭니다. ` +
-    '이미 있는 테이블은 이름과 타입만 맞추고 배팅 한도·슈 번호·영업 상태는 그대로 둡니다. 계속할까요?',
+    '이미 있는 테이블은 이름과 타입만 맞추고 베팅 한도·슈 번호·영업 상태는 그대로 둡니다. 계속할까요?',
     createBranchTables);
 }
 /* Safe to run again: an existing table keeps whatever limits, shoe number and open/closed state
@@ -605,7 +605,7 @@ async function renderDashboard(){
   }, 0);
 
   const metric = (label, val) => `<div class="dash-metric"><div class="lbl">${label}</div><div class="val">${fmtNum(val)}</div><div class="mini-bar"></div></div>`;
-  const legend = `<div style="display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--ink-dim);"><span><span style="color:#4A9FD8;">●</span> 유니크유저</span><span><span style="color:var(--brass);">●</span> 베팅건수</span><span><span style="color:var(--jade);">●</span> 베팅금액</span></div>`;
+  const legend = `<div style="display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--ink-dim);"><span><span style="color:#4A9FD8;">●</span> 유니크 유저</span><span><span style="color:var(--brass);">●</span> 베팅건수</span><span><span style="color:var(--jade);">●</span> 베팅금액</span></div>`;
 
   return `
     ${pageHead('대시보드', '파트너 전체 현황 요약 · '+ fmtDt(new Date()))}
@@ -641,7 +641,7 @@ async function renderDashboard(){
         <table><thead><tr><th>테이블</th><th>타입</th><th>카지노</th><th>상태</th><th>진행 라운드</th></tr></thead><tbody>
         ${(await getTables(true)).slice(0,8).map(t=>{
           const cnt = rounds.filter(r=>r.tableId===t.id).length;
-          return `<tr><td>${t.name}</td><td>${t.type==='avatar'?'아바타':'스피드'}</td><td>${t.casino}</td><td>${pill(t.status,{open:'ok',closed:'mute'})}</td><td class="num">${cnt}</td></tr>`;
+          return `<tr><td>${t.name}</td><td>${t.type==='avatar'?'아바타':'스피드'}</td><td>${t.casino}</td><td>${pill(t.status,{open:'ok',closed:'mute'})}</td><td class="num">${fmtNum(cnt)}</td></tr>`;
         }).join('') || `<tr class="empty-row"><td colspan="5">데이터 없음 — 데모 데이터를 생성하세요</td></tr>`}
         </tbody></table>
       </div>
@@ -734,7 +734,7 @@ async function renderAccount(){
         <div class="field search-box"><input id="acctSearch" placeholder="ID/닉네임 검색" oninput="filterAcctTable(this.value)"></div>
       </div>
       <div class="table-wrap"><table><thead><tr>
-        <th>아이디</th><th>닉네임</th><th>보유금액</th><th>보유금액관리</th><th>배팅최대금액</th><th>배팅최소금액</th><th>비밀번호관리</th><th>상태관리</th>
+        <th>아이디</th><th>닉네임</th><th>보유금액</th><th>보유금액 관리</th><th>베팅최대금액</th><th>베팅최소금액</th><th>비밀번호 관리</th><th>상태관리</th>
       </tr></thead><tbody id="acctBody">
       ${rows.map(m=>acctRowHtml(m, balances[m.id]?.balance||0)).join('') || `<tr class="empty-row"><td colspan="8">데이터가 없습니다</td></tr>`}
       </tbody></table></div>
@@ -786,7 +786,7 @@ async function renderSettlementReport(){
     title:'파트너 정산 리포트', sub:'파트너(에이전트)별 쉐어 정산 누계',
     coll:'partners', search:true, searchFields:['id','name'], searchPh:'파트너 코드 검색',
     columns:[
-      {key:'id', label:'파트너코드'}, {key:'name', label:'이름'}, {key:'parentCode', label:'상위코드'},
+      {key:'id', label:'파트너 코드'}, {key:'name', label:'이름'}, {key:'parentCode', label:'상위코드'},
       {key:'shareRate', label:'쉐어율', render:r=>`${r.shareRate}%`}, {key:'accum', label:'정산누계', type:'money'},
       {key:'status', label:'상태', type:'pill', pillMap:{active:'ok', inactive:'mute'}},
     ],
@@ -809,7 +809,7 @@ async function renderUserList(){
     filters:[
       {key:'parentAgent', label:'에이전트', options:['VIP88','NUSTARMS']},
       {key:'memberType', label:'회원유형', options:['정회원','준회원','관리회원','멀티회원']},
-      {key:'status', label:'로그인상태', options:['정상','정지','블랙리스트']},
+      {key:'status', label:'로그인 상태', options:['정상','정지','블랙리스트']},
     ],
     onCreate:'openCreateMemberForm()',
     columns:[
@@ -817,8 +817,8 @@ async function renderUserList(){
       {key:'phone', label:'핸드폰 번호', type:'phone'}, {key:'telegram', label:'텔레그램 주소', render:r=>r.telegram||'—'},
       {key:'memberType', label:'회원유형'}, {key:'parentAgent', label:'상위 어카운트'},
       {key:'winLoss', label:'윈로스', type:'money'}, {key:'balance', label:'보유금', type:'money', live:true},
-      {key:'rolling', label:'롤링', type:'money'}, {key:'rollingComm', label:'롤링커미션', type:'money'},
-      {key:'netRevenue', label:'내 수익금', type:'money'}, {key:'points', label:'보유포인트', type:'money'},
+      {key:'rolling', label:'롤링', type:'money'}, {key:'rollingComm', label:'롤링 커미션', type:'money'},
+      {key:'netRevenue', label:'내 수익금', type:'money'}, {key:'points', label:'보유 포인트', type:'money'},
       {key:'depositPhp', label:'입금 PHP', type:'money'}, {key:'withdrawPhp', label:'출금 PHP', type:'money'},
       {key:'status', label:'상태', type:'pill', pillMap:{정상:'ok', 정지:'bad', 블랙리스트:'bad'}},
       {key:'createdAt', label:'가입일', type:'date'},
@@ -848,7 +848,7 @@ function openCreateMemberForm(){
   document.getElementById('formModalBody').innerHTML = `
     <div class="row"><div class="field"><label>ID</label><input id="nfId"></div><div class="field"><label>닉네임</label><input id="nfNick"></div></div>
     <div class="row"><div class="field"><label>전화번호</label><input id="nfPhone"></div><div class="field"><label>카지노</label><select id="nfCasino">${CASINOS.map(c=>`<option>${c}</option>`).join('')}</select></div></div>
-    <div class="row"><div class="field"><label>상위에이전트</label><input id="nfAgent" value="VIP88"></div><div class="field"><label>회원유형</label><select id="nfType"><option>정회원</option><option>준회원</option><option>관리회원</option><option>멀티회원</option></select></div></div>
+    <div class="row"><div class="field"><label>상위 에이전트</label><input id="nfAgent" value="VIP88"></div><div class="field"><label>회원유형</label><select id="nfType"><option>정회원</option><option>준회원</option><option>관리회원</option><option>멀티회원</option></select></div></div>
   `;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     const id = document.getElementById('nfId').value.trim().toUpperCase();
@@ -870,7 +870,7 @@ async function openMemberDetail(memberId){
   const bal = balances[memberId] || {balance:0, points:0};
   document.getElementById('detailTitle').textContent = `회원 상세정보 · ${memberId}`;
   document.getElementById('detailSub').textContent = `${m.nickname||''} · ${m.casino||''} · ${m.memberType||''}`;
-  const tabs = ['상세회원정보','어카운트정보','베팅내역','입출금','포인트 누적 내역','활동내역','접속내역','문의내역'];
+  const tabs = ['상세 회원정보','어카운트 정보','베팅내역','입출금','포인트 누적 내역','활동내역','접속내역','문의내역'];
   document.getElementById('detailTabs').innerHTML = tabs.map((t,i)=>`<button class="${i===0?'active':''}" onclick="switchDetailTab(this,'${memberId}','${t}')">${t}</button>`).join('');
   await renderDetailTab(memberId, tabs[0]);
   openModal('modal-detail');
@@ -886,21 +886,21 @@ async function renderDetailTab(memberId, tab){
   const m = (await getMembers()).find(x=>x.id===memberId) || {};
   const ledger = (await fetchAll('memberLedger')).filter(l=>l.memberId===memberId).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
   let html = '';
-  if (tab==='상세회원정보'){
+  if (tab==='상세 회원정보'){
     html = `<div class="kv-grid">
       <span>ID</span><b>${escapeHtml(m.id)}</b><span>닉네임</span><b>${escapeHtml(m.nickname||'—')}</b>
       <span>전화번호</span><b>${maskPhone(m.phone)}</b><span>텔레그램</span><b>${escapeHtml(m.telegram||'—')}</b>
-      <span>카지노</span><b>${escapeHtml(m.casino)}</b><span>상위에이전트</span><b>${escapeHtml(m.parentAgent||'—')}</b>
+      <span>카지노</span><b>${escapeHtml(m.casino)}</b><span>상위 에이전트</span><b>${escapeHtml(m.parentAgent||'—')}</b>
       <span>회원유형</span><b>${escapeHtml(m.memberType)}</b><span>상태</span><b>${escapeHtml(m.status)}</b>
-      <span>배팅최대금액</span><b>${fmtNum(m.betMax)}</b><span>배팅최소금액</span><b>${fmtNum(m.betMin)}</b>
+      <span>베팅최대금액</span><b>${fmtNum(m.betMax)}</b><span>베팅최소금액</span><b>${fmtNum(m.betMin)}</b>
       <span>가입일</span><b>${fmtDt(m.createdAt)}</b><span>최근접속</span><b>${fmtDt(m.lastLoginAt)}</b>
     </div>`;
-  } else if (tab==='어카운트정보'){
+  } else if (tab==='어카운트 정보'){
     const b = (await getBalances())[memberId] || {};
     html = `<div class="kv-grid">
-      <span>보유금</span><b class="num">${fmtNum(b.balance||0)}</b><span>보유포인트</span><b class="num">${fmtNum(b.points||0)}</b>
+      <span>보유금</span><b class="num">${fmtNum(b.balance||0)}</b><span>보유 포인트</span><b class="num">${fmtNum(b.points||0)}</b>
       <span>누적입금</span><b class="num">${fmtNum(b.deposit||0)}</b><span>누적출금</span><b class="num">${fmtNum(-b.withdraw||0)}</b>
-      <span>누적베팅</span><b class="num">${fmtNum(-b.bet||0)}</b><span>누적페이아웃</span><b class="num">${fmtNum(b.payout||0)}</b>
+      <span>누적베팅</span><b class="num">${fmtNum(-b.bet||0)}</b><span>누적 페이아웃</span><b class="num">${fmtNum(b.payout||0)}</b>
     </div>`;
   } else if (tab==='베팅내역'){
     const rows = ledger.filter(l=>l.category==='bet'||l.category==='payout');
@@ -954,7 +954,7 @@ async function renderPayoutHistory(){
 async function renderPointAccum(){
   return mountListView({
     title:'포인트 누적 내역', coll:'memberLedger', extraFilter:l=>l.category==='point_earn', search:true, searchFields:['memberId'],
-    columns:[{key:'createdAt', label:'시간', type:'dt'}, {key:'memberId', label:'회원ID'}, {key:'amount', label:'적립포인트', type:'money'}, {key:'memo', label:'사유'}],
+    columns:[{key:'createdAt', label:'시간', type:'dt'}, {key:'memberId', label:'회원ID'}, {key:'amount', label:'적립 포인트', type:'money'}, {key:'memo', label:'사유'}],
     sortKey:'createdAt', sortDir:'desc',
   });
 }
@@ -969,13 +969,13 @@ async function renderShareMgmt(){
   return mountListView({
     title:'쉐어 관리', sub:'파트너 쉐어율 설정', coll:'partners', search:true, searchFields:['id','name'], onCreate:'openCreatePartnerForm()',
     columns:[{key:'id', label:'코드'}, {key:'name', label:'이름'}, {key:'parentCode', label:'상위코드'}, {key:'level', label:'레벨'}, {key:'shareRate', label:'쉐어율(%)'}, {key:'status', label:'상태', type:'pill', pillMap:{active:'ok', inactive:'mute'}}],
-    rowActions: r => `<button class="btn btn-xs" onclick="editShareRate('${r.id}', ${r.shareRate})">쉐어파트너설정</button>`,
+    rowActions: r => `<button class="btn btn-xs" onclick="editShareRate('${r.id}', ${r.shareRate})">쉐어 파트너 설정</button>`,
   });
 }
 function openCreatePartnerForm(){
   document.getElementById('formModalTitle').textContent = '파트너 생성';
   document.getElementById('formModalBody').innerHTML = `
-    <div class="row"><div class="field"><label>파트너코드</label><input id="pfCode"></div><div class="field"><label>이름</label><input id="pfName"></div></div>
+    <div class="row"><div class="field"><label>파트너 코드</label><input id="pfCode"></div><div class="field"><label>이름</label><input id="pfName"></div></div>
     <div class="row"><div class="field"><label>상위코드</label><input id="pfParent" value="MAIN"></div><div class="field"><label>쉐어율(%)</label><input id="pfRate" value="0.5"></div></div>
   `;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
@@ -987,7 +987,7 @@ function openCreatePartnerForm(){
   openModal('modal-form');
 }
 function editShareRate(code, cur){
-  document.getElementById('formModalTitle').textContent = `쉐어파트너설정 · ${code}`;
+  document.getElementById('formModalTitle').textContent = `쉐어 파트너 설정 · ${code}`;
   document.getElementById('formModalBody').innerHTML = `<div class="field"><label>쉐어율(%)</label><input id="srInput" value="${cur}"></div>`;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     await db.collection('partners').doc(code).set({shareRate:Number(document.getElementById('srInput').value)||0}, {merge:true});
@@ -1045,7 +1045,7 @@ async function rejectDeposit(id){
 async function renderShareAccumList(){
   return mountListView({
     title:'쉐어 누적 리스트', coll:'shareLedger', search:true, searchFields:['partnerCode'],
-    columns:[{key:'createdAt', label:'시간', type:'dt'}, {key:'partnerCode', label:'파트너코드'}, {key:'category', label:'구분'}, {key:'amount', label:'금액', type:'money'}, {key:'memo', label:'메모'}],
+    columns:[{key:'createdAt', label:'시간', type:'dt'}, {key:'partnerCode', label:'파트너 코드'}, {key:'category', label:'구분'}, {key:'amount', label:'금액', type:'money'}, {key:'memo', label:'메모'}],
     sortKey:'createdAt', sortDir:'desc',
   });
 }
@@ -1074,7 +1074,7 @@ async function renderDailyReport(){
   return `
     ${pageHead('데일리 리포트')}
     <div class="card"><div class="table-wrap"><table><thead><tr><th>일자</th><th>순유저</th><th>입금</th><th>출금</th><th>베팅액</th><th>페이아웃</th><th>윈로스</th></tr></thead><tbody>
-    ${rows.map(r=>`<tr><td>${r.day}</td><td class="num">${r.users}</td><td class="num pos">${fmtNum(r.deposit)}</td><td class="num neg">${fmtNum(r.withdraw)}</td><td class="num">${fmtNum(r.bet)}</td><td class="num">${fmtNum(r.payout)}</td><td class="num ${r.winloss>=0?'pos':'neg'}">${fmtSigned(r.winloss)}</td></tr>`).join('')}
+    ${rows.map(r=>`<tr><td>${r.day}</td><td class="num">${fmtNum(r.users)}</td><td class="num pos">${fmtNum(r.deposit)}</td><td class="num neg">${fmtNum(r.withdraw)}</td><td class="num">${fmtNum(r.bet)}</td><td class="num">${fmtNum(r.payout)}</td><td class="num ${r.winloss>=0?'pos':'neg'}">${fmtSigned(r.winloss)}</td></tr>`).join('')}
     </tbody></table></div></div>
   `;
 }
@@ -1082,7 +1082,7 @@ async function renderDailyReport(){
 /* ============================================================
    STATS GROUP (single component, 9 sub-tabs)
    ============================================================ */
-const STATS_TABS = ['마켓비율','입출금내역','실적 비교','실시간 위험 감지','고액 베팅','리더보드','회원 활동','회원가입 현황','베팅현황'];
+const STATS_TABS = ['마켓비율','입출금 내역','실적 비교','실시간 위험 감지','고액 베팅','리더보드','회원 활동','회원가입 현황','베팅현황'];
 async function renderStatsTab(tabId){
   setTimeout(()=>renderStatsBody(tabId), 0);
   return `
@@ -1095,7 +1095,7 @@ async function renderStatsTab(tabId){
   `;
 }
 function statsTabToViewId(t){
-  return {마켓비율:'marketRatio', 입출금내역:'depositWithdrawStats', '실적 비교':'performanceCompare', '실시간 위험 감지':'realtimeRisk', '고액 베팅':'highBet', 리더보드:'leaderboard', '회원 활동':'memberActivity', '회원가입 현황':'signupStatus', 베팅현황:'bettingStatus'}[t];
+  return {마켓비율:'marketRatio', '입출금 내역':'depositWithdrawStats', '실적 비교':'performanceCompare', '실시간 위험 감지':'realtimeRisk', '고액 베팅':'highBet', 리더보드:'leaderboard', '회원 활동':'memberActivity', '회원가입 현황':'signupStatus', 베팅현황:'bettingStatus'}[t];
 }
 async function renderStatsBody(tabId){
   const body = document.getElementById('statsBody');
@@ -1228,8 +1228,8 @@ async function renderTableList(){
   return mountListView({
     title:'테이블 관리', coll:'tables', search:true, searchFields:['id','name'], onCreate:'openCreateTableForm()',
     filters:[{key:'type', label:'타입', options:['avatar','speed']}],
-    columns:[{key:'id', label:'테이블ID'}, {key:'name', label:'이름'}, {key:'type', label:'타입', render:r=>r.type==='avatar'?'아바타':'스피드'}, {key:'casino', label:'카지노'}, {key:'betMin', label:'최소배팅', type:'money'}, {key:'betMax', label:'최대배팅', type:'money'}, {key:'status', label:'상태', type:'pill', pillMap:{open:'ok', closed:'mute'}}],
-    rowActions: r => `<button class="btn btn-xs" onclick="editTableSettings('${r.id}')">테이블설정</button>`,
+    columns:[{key:'id', label:'테이블ID'}, {key:'name', label:'이름'}, {key:'type', label:'타입', render:r=>r.type==='avatar'?'아바타':'스피드'}, {key:'casino', label:'카지노'}, {key:'betMin', label:'최소베팅', type:'money'}, {key:'betMax', label:'최대베팅', type:'money'}, {key:'status', label:'상태', type:'pill', pillMap:{open:'ok', closed:'mute'}}],
+    rowActions: r => `<button class="btn btn-xs" onclick="editTableSettings('${r.id}')">테이블 설정</button>`,
   });
 }
 /* Deleting a table is not deleting its history: rounds and 베팅내역 are their own records, keyed
@@ -1299,13 +1299,13 @@ async function openCreateTableForm(){
   document.getElementById('formModalBody').innerHTML = `
     <div class="row"><div class="field"><label>카지노</label><select id="tfCasino" onchange="refreshCreateTableIds()">${branches.map(c=>`<option>${c}</option>`).join('')}</select></div><div class="field"><label>타입</label><select id="tfType" onchange="refreshCreateTableIds()"><option value="speed">스피드</option><option value="avatar">아바타</option></select></div></div>
     <div class="row"><div class="field"><label>테이블ID</label><select id="tfId" onchange="syncCreateTableName()"></select><div class="hint" id="tfIdHint" style="display:none;"></div></div><div class="field"><label>이름</label><input id="tfName"></div></div>
-    <div class="row"><div class="field"><label>최소배팅</label><input id="tfMin" value="5,000" oninput="formatThousands(this)"></div><div class="field"><label>최대배팅</label><input id="tfMax" value="3,000,000" oninput="formatThousands(this)"></div></div>
+    <div class="row"><div class="field"><label>최소베팅</label><input id="tfMin" value="5,000" oninput="formatNumInput(this)"></div><div class="field"><label>최대베팅</label><input id="tfMax" value="3,000,000" oninput="formatNumInput(this)"></div></div>
   `;
   refreshCreateTableIds();
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     const id = document.getElementById('tfId').value;
     if (!id){ toast('만들 수 있는 테이블ID가 없습니다', true); return; }
-    await db.collection('tables').doc(id).set({id, name:document.getElementById('tfName').value, type:document.getElementById('tfType').value, casino:document.getElementById('tfCasino').value, betMin:unformatThousands(document.getElementById('tfMin').value), betMax:unformatThousands(document.getElementById('tfMax').value), status:'open', shoeNo:1});
+    await db.collection('tables').doc(id).set({id, name:document.getElementById('tfName').value, type:document.getElementById('tfType').value, casino:document.getElementById('tfCasino').value, betMin:rawNum(document.getElementById('tfMin').value), betMax:rawNum(document.getElementById('tfMax').value), status:'open', shoeNo:1});
     closeModal('modal-form'); toast('테이블이 생성되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
   };
   openModal('modal-form');
@@ -1318,18 +1318,18 @@ async function editTableSettings(id){
     .then(d=>d.exists ? d.data() : null)
     .catch(e=>{ console.error('editTableSettings read failed:', e); return null; });
   if (!t){ toast('테이블을 찾을 수 없습니다', true); invalidateCaches(); return; }
-  document.getElementById('formModalTitle').textContent = `테이블설정 · ${id}`;
+  document.getElementById('formModalTitle').textContent = `테이블 설정 · ${id}`;
   /* 삭제 lives here rather than on the row: it is the one action on this screen that cannot be
      undone, and a row's worth of buttons is where a mis-click costs the least to make. Opening
      the table's own settings first is a step, and it is the step that shows which table this is. */
   document.getElementById('formModalBody').innerHTML = `
     <div class="row"><div class="field"><label>카지노</label><input value="${escapeHtml(t.casino||'—')}" disabled></div><div class="field"><label>타입</label><input value="${t.type==='speed'?'스피드':'아바타'}" disabled></div></div>
-    <div class="row"><div class="field"><label>최소배팅</label><input id="etMin" value="${fmtNum(t.betMin||0)}" oninput="formatThousands(this)"></div><div class="field"><label>최대배팅</label><input id="etMax" value="${fmtNum(t.betMax||0)}" oninput="formatThousands(this)"></div></div>
+    <div class="row"><div class="field"><label>최소베팅</label><input id="etMin" value="${fmtNum(t.betMin||0)}" oninput="formatNumInput(this)"></div><div class="field"><label>최대베팅</label><input id="etMax" value="${fmtNum(t.betMax||0)}" oninput="formatNumInput(this)"></div></div>
     <div class="field"><label>상태</label><select id="etStatus"><option value="open" ${t.status==='open'?'selected':''}>운영중</option><option value="closed" ${t.status==='closed'?'selected':''}>마감</option></select></div>
     <button class="btn btn-danger btn-block" style="margin-top:14px;" onclick="deleteTable('${id}')">이 테이블 삭제</button>
   `;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
-    await db.collection('tables').doc(id).set({betMin:unformatThousands(document.getElementById('etMin').value), betMax:unformatThousands(document.getElementById('etMax').value), status:document.getElementById('etStatus').value}, {merge:true});
+    await db.collection('tables').doc(id).set({betMin:rawNum(document.getElementById('etMin').value), betMax:rawNum(document.getElementById('etMax').value), status:document.getElementById('etStatus').value}, {merge:true});
     closeModal('modal-form'); toast('저장되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
   };
   openModal('modal-form');
@@ -1348,19 +1348,19 @@ async function renderTableBetHistory(){
 async function renderAvatarGameList(){
   const tables = (await getTables(true)).filter(t=>t.type==='avatar');
   return `
-    ${pageHead('아바타게임관리')}
+    ${pageHead('아바타 게임 관리')}
     <div class="tabs-mini">
-      <button class="active">아바타게임관리</button>
-      <button onclick="openAvatarGameSettings()">아바타게임설정</button>
-      <button onclick="openAvatarDetailSettings()">아바타설정</button>
+      <button class="active">아바타 게임 관리</button>
+      <button onclick="openAvatarGameSettings()">아바타 게임 설정</button>
+      <button onclick="openAvatarDetailSettings()">아바타 설정</button>
     </div>
-    <div class="card"><div class="table-wrap"><table><thead><tr><th>테이블</th><th>카지노</th><th>슈번호</th><th>상태</th><th>배팅한도</th></tr></thead><tbody>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>테이블</th><th>카지노</th><th>슈번호</th><th>상태</th><th>베팅한도</th></tr></thead><tbody>
     ${tables.map(t=>`<tr><td>${t.name}</td><td>${t.casino}</td><td class="num">${t.shoeNo||1}</td><td>${pill(t.status,{open:'ok',closed:'mute'})}</td><td class="num">${fmtNum(t.betMin)} ~ ${fmtNum(t.betMax)}</td></tr>`).join('') || `<tr class="empty-row"><td colspan="5">아바타 테이블이 없습니다</td></tr>`}
     </tbody></table></div></div>
   `;
 }
 function openAvatarGameSettings(){
-  document.getElementById('formModalTitle').textContent = '아바타게임설정';
+  document.getElementById('formModalTitle').textContent = '아바타 게임 설정';
   document.getElementById('formModalBody').innerHTML = `
     <div class="row"><div class="field"><label>베팅 타이머(초)</label><input id="agTimer" value="30"></div><div class="field"><label>최대 동시 테이블</label><input id="agMaxTable" value="6"></div></div>
     <div class="field"><label>딜러 커미션(%)</label><input id="agComm" value="5"></div>
@@ -1372,7 +1372,7 @@ function openAvatarGameSettings(){
   openModal('modal-form');
 }
 function openAvatarDetailSettings(){
-  document.getElementById('formModalTitle').textContent = '아바타상세설정';
+  document.getElementById('formModalTitle').textContent = '아바타 상세 설정';
   document.getElementById('formModalBody').innerHTML = `
     <div class="field"><label>아바타 스킨</label><select><option>클래식</option><option>모던</option></select></div>
     <div class="field"><label>테마</label><select><option>다크</option><option>라이트</option></select></div>
@@ -1399,7 +1399,7 @@ async function renderAvatarRequests(){
          exists rather than the column being dropped and their history with it. */
       {key:'betSide', label:'베팅지시',
        render:r=>r.betSide ? `${betSideLabel(r.betSide)} ${fmtNum(r.betAmount)}` : '테이블에서 직접'},
-      {key:'avatarStaffId', label:'담당아바타', render:r=>r.avatarStaffId || '—'},
+      {key:'avatarStaffId', label:'담당 아바타', render:r=>r.avatarStaffId || '—'},
       {key:'status', label:'상태', type:'pill', pillMap:{'대기':'warn','진행중':'ok','종료':'mute'}},
     ],
     rowActions: r => {
@@ -1539,7 +1539,7 @@ async function renderAvatarMissFix(){
 async function renderTableVideo(){
   const tables = (await getTables(true)).filter(t=>t.type==='avatar' || t.type==='speed');
   return `
-    ${pageHead('게임테이블영상', '실 영상 대신 데모 플레이스홀더가 표시됩니다')}
+    ${pageHead('게임 테이블 영상', '실 영상 대신 데모 플레이스홀더가 표시됩니다')}
     <div class="video-wall">
     ${tables.map(t=>`
       <div class="video-tile"><div class="feed"><div class="felt"></div><div class="dot"></div>
@@ -1723,7 +1723,7 @@ async function renderCsContact(){
   });
 }
 function openCsContactForm(){
-  document.getElementById('formModalTitle').textContent = '고객센터연락처 추가';
+  document.getElementById('formModalTitle').textContent = '고객센터 연락처 추가';
   document.getElementById('formModalBody').innerHTML = `
     <div class="row"><div class="field"><label>채널</label><select id="csChannel"><option value="telegram">Telegram</option><option value="kakao">Kakao</option><option value="whatsapp">WhatsApp</option><option value="line">Line</option></select></div>
     <div class="field"><label>라벨</label><input id="csLabel"></div></div>
@@ -1800,7 +1800,7 @@ async function renderSharePartnerMgmt(){
   return mountListView({
     title:'쉐어 파트너 관리', coll:'partners', search:true, searchFields:['id','name'],
     columns:[{key:'id', label:'코드'}, {key:'name', label:'이름'}, {key:'level', label:'레벨'}, {key:'shareRate', label:'쉐어율(%)'}, {key:'status', label:'상태', type:'pill', pillMap:{active:'ok', inactive:'mute'}}],
-    rowActions: r => `<button class="btn btn-xs" onclick="editShareRate('${r.id}', ${r.shareRate})">쉐어파트너설정</button>`,
+    rowActions: r => `<button class="btn btn-xs" onclick="editShareRate('${r.id}', ${r.shareRate})">쉐어 파트너 설정</button>`,
   });
 }
 async function renderSubJunketMgmt(){
@@ -2013,7 +2013,7 @@ async function seedDemoData(){
   // chat messages
   for (let i=0;i<40;i++){
     const t = randPick(tableDefs.filter(t=>t.type==='avatar'));
-    set('chatMessages', uuidv4(), {tableId:t.id, memberId:randPick(memberIds), nickname:randPick(nicknames), text: randPick(['배팅 완료!','뱅커 갑니다','오늘 컨디션 좋네요','타이 노려봅니다','굿럭 다들','아 아깝다']), dt: randDateWithin(3)});
+    set('chatMessages', uuidv4(), {tableId:t.id, memberId:randPick(memberIds), nickname:randPick(nicknames), text: randPick(['베팅 완료!','뱅커 갑니다','오늘 컨디션 좋네요','타이 노려봅니다','굿럭 다들','아 아깝다']), dt: randDateWithin(3)});
   }
   // CS / content collections
   ['첫 입금 20% 보너스 이벤트 진행중','서버 점검 안내 (매주 화 04:00~05:00)','신규 회원 가입 이벤트 안내'].forEach(t=> set('notices', uuidv4(), {title:t, body:t+' 자세한 내용은 공지사항을 확인하세요.', pinned:Math.random()>.6, staff:'admin', dt: randDateWithin(20)}));
@@ -2029,7 +2029,7 @@ async function seedDemoData(){
 
   // logs
   for (let i=0;i<25;i++) set('memberActionLogs', uuidv4(), {memberId:randPick(memberIds), action: randPick(['보유금 지급 100,000','보유금 차감 50,000','상태변경 → 정상','비밀번호 초기화','소속이동']), staff:'admin', dt: randDateWithin(15)});
-  for (let i=0;i<25;i++) set('adminLogs', uuidv4(), {staff: randPick(['admin','Eric','Jena']), action: randPick(['로그인','테이블설정 변경','쉐어율 변경 VIP88','공지사항 등록','회원 생성']), target: randPick(memberIds), dt: randDateWithin(15)});
+  for (let i=0;i<25;i++) set('adminLogs', uuidv4(), {staff: randPick(['admin','Eric','Jena']), action: randPick(['로그인','테이블 설정 변경','쉐어율 변경 VIP88','공지사항 등록','회원 생성']), target: randPick(memberIds), dt: randDateWithin(15)});
 
   // deposit / payment requests
   for (let i=0;i<10;i++) set('depositRequests', uuidv4(), {memberId:randPick(memberIds), amount: randInt(5,50)*10000, method:'계좌이체', status: i<3?'대기':randPick(['승인','거절']), dt: randDateWithin(7)});

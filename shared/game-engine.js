@@ -74,6 +74,25 @@ function advanceShoe(shoe){
   if (shoeRemaining(shoe) < MAX_CARDS_PER_ROUND) return openShoe(shoe.no + 1);
   return shoe;
 }
+/* A shoe picked up from the record has to stand where the record left it. A screen restores its
+   board from the rounds already dealt on this shoe, but it used to open the shoe itself FRESH -
+   full, one burn in - so the table read "forty hands into shoe 3" while the shoe in hand had
+   dealt none of them. The cut card is 400 cards down, about eighty hands, and every trip back to
+   the lobby put the shoe back to the top: on a table anyone actually plays, dipping in and out,
+   it never got near the change and the shoe number never moved.
+   The cards themselves are dealt at random, so what has to be carried across is how far in the
+   shoe is, not which cards came out. Dealing the hands already on record does exactly that and
+   costs nothing else - their results are thrown away, the board keeps the real ones. */
+function openShoeAt(no, handsDealt){
+  const shoe = openShoe(no);
+  const n = Math.max(0, Number(handsDealt) || 0);
+  for (let i = 0; i < n && shoeRemaining(shoe) >= MAX_CARDS_PER_ROUND; i++) simulateRound(shoe);
+  /* The record can outrun the shoe - more hands filed under one shoe number than a shoe holds,
+     which legacy rounds do have - and then this would hand back a shoe with less than a hand
+     left in it for the caller to deal from and read off the end of. advanceShoe is the game's own
+     rule for that: same shoe if it can still take a hand, a fresh one if it cannot. */
+  return advanceShoe(shoe);
+}
 
 function simulateRound(shoe){
   // Punto banco tableau: both hands get two cards, then the fixed drawing rules decide any
@@ -120,15 +139,32 @@ function dealSequence(sim){
 
 /* ---------------- member session (lite auth against `members`) ---------------- */
 let PLAYER = null;
+// A member already active on another device within this window can't be signed in
+// on a second device until that session ends (logout) or the window lapses - the
+// same 6h "online" window the admin panels already use to call a member online.
+const SESSION_STALE_MS = 1000*60*60*6;
 async function playerLogin(db, id, pw){
-  const doc = await db.collection('members').doc(id.toUpperCase()).get();
+  const ref = db.collection('members').doc(id.toUpperCase());
+  const doc = await ref.get();
   if (!doc.exists) return {ok:false, reason:'notfound'};
   const m = doc.data();
   if (String(m.pw ?? '0000') !== pw) return {ok:false, reason:'badpw'};
   if (m.status !== '정상') return {ok:false, reason:'blocked'};
-  await db.collection('members').doc(id.toUpperCase()).set({lastLoginAt:new Date().toISOString()}, {merge:true});
-  PLAYER = m;
-  return {ok:true, member:m};
+  const myDevice = getDeviceId();
+  if (m.activeDeviceId && m.activeDeviceId !== myDevice && m.lastLoginAt && (Date.now() - new Date(m.lastLoginAt).getTime()) < SESSION_STALE_MS){
+    return {ok:false, reason:'duplicate'};
+  }
+  const lastLoginAt = new Date().toISOString();
+  await ref.set({lastLoginAt, activeDeviceId: myDevice}, {merge:true});
+  PLAYER = {...m, lastLoginAt, activeDeviceId: myDevice};
+  return {ok:true, member:PLAYER};
+}
+async function playerLogout(db){
+  const id = PLAYER?.id;
+  PLAYER = null;
+  if (id && db){
+    try{ await db.collection('members').doc(id).set({activeDeviceId: firebase.firestore.FieldValue.delete()}, {merge:true}); }catch(e){}
+  }
 }
 async function playerSignup(db, data){
   const id = data.id.toUpperCase();
@@ -137,7 +173,7 @@ async function playerSignup(db, data){
     casino:data.casino, agentCode:data.agentCode||'DIRECT', parentAgent:data.agentCode||'DIRECT',
     memberType:'준회원', status:'정상', vip:false, betMax:1000000, betMin:5000,
     withdrawPw:data.pw, smsVerified:!!data.smsVerified, source:'online',
-    createdAt:new Date().toISOString(), lastLoginAt:new Date().toISOString(),
+    createdAt:new Date().toISOString(), lastLoginAt:new Date().toISOString(), activeDeviceId: getDeviceId(),
   };
   // Claiming the id (checking it doesn't exist, then creating it) has to happen in one transaction,
   // not a separate get() then set() - otherwise two concurrent signups for the same id can both pass
@@ -171,23 +207,22 @@ async function playerSignup(db, data){
    ledger to draw on, so they keep their own memberLedger balance, which is the only book they
    have. memberLedger is written either way: it is the partner admin's record of play. */
 function isCageAccount(member){ return !!member && member.source === 'cage'; }
+// the write itself is shared/cage-ui.js's, so the admin panels and this one append the same row
 async function writeCageLedger(db, {accountId, casino, type, amount, memo}){
-  const value = Math.abs(Number(amount) || 0);
-  if (!value) return;
-  const id = 'ldg_' + Date.now() + '_' + Math.random().toString(36).slice(2,9);
-  await db.collection('ledger').doc(id).set({
-    id, accountId, casino: casino || 'HANN',
-    dt: new Date().toISOString().slice(0,16).replace('T',' '),
-    type, inn: type === 'IN' ? value : 0, out: type === 'OUT' ? value : 0,
-    staff: 'avatar', memo: memo || '',
-  });
+  await cageLedgerWrite(db, {accountId, casino, type, amount, memo, staff:'avatar'});
 }
+/* The cage book is read either way, and having rows in it is itself proof the account is a cage
+   one - the same second opinion accountBalanceMap takes, so the player's header and the admin
+   panels cannot disagree about which book holds their money. Trusting only the member record
+   meant that if it was missing or had lost source:'cage', this summed memberLedger instead: for a
+   cage account that is bets and payouts with no deposits in it at all, so it reported the
+   player's running LOSS as their balance, negative. One extra equality query is the price. */
 async function getPlayerBalance(db, memberId, member){
-  const cage = isCageAccount(member || PLAYER);
   const [ledgerSnap, memberSnap] = await Promise.all([
-    cage ? db.collection('ledger').where('accountId','==',memberId).get() : Promise.resolve(null),
+    db.collection('ledger').where('accountId','==',memberId).get().catch(()=>null),
     db.collection('memberLedger').where('memberId','==',memberId).get(),
   ]);
+  const cage = isCageAccount(member || PLAYER) || !!(ledgerSnap && ledgerSnap.size > 0);
   let balance = 0, points = 0;
   memberSnap.forEach(d=>{
     const r = d.data();
@@ -327,6 +362,23 @@ function renderBigRoad(runs, maxRows){
   });
 }
 
+/* ---------------- one shoe's worth of record ----------------
+   A roadmap and the P/B/T counts beside it belong to one shoe: that is what the boards in a
+   house are, and it is why the cut card wipes them. The `rounds` collection holds every shoe a
+   table has ever dealt, and the screens were seeded from all of it - a table that had been
+   running a while opened on a road of a thousand hands and a count to match.
+   Which shoe to show is taken from the rounds themselves rather than from the table document:
+   the number moves on when the cut card comes out and is stamped onto each round as it is
+   dealt, while the table document is only written when someone changes the table. */
+function latestShoeNo(rounds, fallback){
+  const nos = (rounds||[]).map(r=>Number(r.shoeNo)||0).filter(n=>n>0);
+  return nos.length ? Math.max(...nos) : (Number(fallback)||1);
+}
+// Rounds dealt before this field existed carry no shoeNo and count as the first shoe.
+function roundsInShoe(rounds, shoeNo){
+  return (rounds||[]).filter(r => (Number(r.shoeNo)||1) === Number(shoeNo));
+}
+
 /* ---------------- Bead Plate (진주로드 / 珠盤路) ----------------
    The Bead Plate is the plain chronological log: one bead per hand, in the order the shoe dealt
    them, filling a column top to bottom and only then moving to the next column. It does NOT
@@ -395,28 +447,46 @@ function tableBetVolume(betLedgerRows){
   return {total, today};
 }
 
-/* ---------------- derived roads (Big Eye Boy / Small Road / Cockroach Road) -
-   decorative, simplified approximation of the standard rule: each one compares
-   a Big Road column against the column `offset` steps further back to mark red
-   (matching pattern) / blue (breaking pattern). offset 1/2/3 = Big Eye Boy/
-   Small Road/Cockroach Road respectively - same comparison, deeper look-back. */
-function deriveRoad(cols, offset){
-  // A leading tie carries a marker but is not a Big Road column, so it contributes no depth.
-  const depth = i => (cols[i] && cols[i].side) ? cols[i].items.length : 0;
+/* ---------------- derived roads (Big Eye Boy / Small Road / Cockroach Road) ----------------
+   The standard rule, not an approximation of it. All three ask the same question of the Big
+   Road at a different depth - offset 1/2/3 is Big Eye Boy / Small Road / Cockroach Road:
+     - a hand that OPENS a column asks whether the two columns `offset` back are the same
+       length. Same length is red (the pattern repeated), different is blue (it broke).
+     - a hand that CONTINUES a column at row j asks whether the column `offset` back reaches
+       that row. It does: red. It ends one row short: blue.
+   Each road therefore starts where it first has something to compare: Big Eye Boy at Big Road
+   column 2 row 2 or column 3 row 1, Small Road one column later, Cockroach one later again -
+   which is what the `i < offset + 1` skip is. */
+function deriveRoad(allCols, offset){
+  /* A tie before any decision carries a marker of its own on the Big Road but is not a column
+     of it, and the derived roads count columns - left in, it shifted all three of them by one
+     for the whole shoe and put a mark on the board a hand early. Every other tie is drawn
+     across a cell that already exists and never reaches here. */
+  const cols = allCols.filter(c => c.side);
+  const depth = i => (i >= 0 && cols[i] ? cols[i].items.length : 0);
   const out = [];
   for (let i=offset;i<cols.length;i++){
     const col = cols[i];
-    if (!col.side) continue;
     for (let j=0;j<col.items.length;j++){
       let mark;
       if (j===0){
         if (i<offset+1) continue;
-        mark = depth(i-offset) === depth(i-offset-1) ? 'red' : 'blue';
+        /* A hand that OPENS a column asks whether the column just before it is the same length
+           as the column `offset` further back again - n-1 against n-1-offset. It used to ask
+           whether the two columns `offset` back were the same length as each other, which is the
+           same question only for Big Eye Boy, where offset is 1: Small Road and Cockroach Road
+           were reading a column too early and drawing the wrong mark on every column they open.
+           It is what made 다음 게임 예측 offer red for 플레이어 and red for 뱅커 at once, which
+           the rules cannot produce - one of the two continues the run and one starts a column,
+           and a continuation is red only where a new column is not. */
+        mark = depth(i-1) === depth(i-1-offset) ? 'red' : 'blue';
       } else {
-        // the streak continued: compare the cell one column back on this row with the one
-        // above it. Both filled or both empty means the pattern repeated (red); exactly one
-        // filled means it broke (blue) - which is only when that column ends at this row.
-        mark = depth(i-offset) === j ? 'blue' : 'red';
+        /* A hand that CONTINUES one asks whether the column `offset` back reaches down to this
+           row. It does: the pattern repeated, red. It stops short: the pattern broke, blue.
+           `=== j` was near enough while the column behind was one shorter, and wrong whenever it
+           was shorter than that - a run of five over a column of one called every hand past the
+           second red, when the cell beside it has been empty the whole way down. */
+        mark = depth(i-offset) > j ? 'red' : 'blue';
       }
       out.push(mark);
     }

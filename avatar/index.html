@@ -48,7 +48,7 @@ body{overflow:auto;}
 
 <div id="login-gate">
   <div class="login-card">
-    <button type="button" class="icon-btn login-theme-btn" id="loginThemeBtn" onclick="toggleLoginTheme()" data-i18n-title="displaySettings" title="화면 설정">
+    <button type="button" class="icon-btn login-theme-btn theme-toggle-btn" id="loginThemeBtn" onclick="toggleLoginTheme()" data-i18n-title="displaySettings" title="화면 설정">
       <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
     </button>
@@ -112,7 +112,10 @@ body{overflow:auto;}
     <button class="icon-btn" onclick="showPicker()" data-i18n-title="changeGame" title="메뉴"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="2.4" rx="1"/><rect x="3" y="11" width="18" height="2.4" rx="1"/><rect x="3" y="17" width="18" height="2.4" rx="1"/></svg></button>
     <div class="game-header-right">
       <span class="hdr-lang" id="hdrLangRow"></span>
-      <button class="icon-btn" onclick="openModal('modal-display');syncDisplayToggleUI()" data-i18n-title="displaySettings" title="화면 설정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <button class="icon-btn theme-toggle-btn" onclick="toggleLoginTheme()" data-i18n-title="displaySettings" title="화면 설정">
+        <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </button>
       <button class="icon-btn" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
       <span class="hdr-nick" style="font-size:12px;color:var(--ink-dim);" id="hdrNick">—</span>
       <button class="btn btn-sm hdr-action-btn" id="avatarLobbyBtn" onclick="backToAvatarLobby()" style="display:none;" data-i18n-title="tableList" title="테이블 목록"><svg class="hdr-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg><span class="hdr-lbl" data-i18n="tableList">테이블 목록</span></button>
@@ -168,43 +171,40 @@ body{overflow:auto;}
 <div class="modal-bg" id="modal-avatar-request"><div class="modal">
   <button class="modal-close" onclick="closeModal('modal-avatar-request')">×</button>
   <h3 data-i18n="requestModalTitle">아바타 대리베팅 신청</h3>
-  <p class="hint" data-i18n="requestModalDesc">전담 아바타가 아래 지시에 따라 라운드마다 대신 베팅합니다. 보유금에서 실시간으로 차감/지급됩니다.</p>
+  <p class="hint" data-i18n="requestModalDesc">전담 아바타가 배정되면 테이블에서 라운드마다 직접 베팅하실 수 있습니다. 보유금에서 실시간으로 차감/지급됩니다.</p>
+  <!-- whose account the buy-in comes out of, said before the amount is asked for -->
+  <div class="field"><label data-i18n="reqAccountLabel">어카운트</label>
+    <div class="req-account" id="reqAccount"></div>
+  </div>
   <div class="field"><label data-i18n="buyinLabel">바이인 금액</label><input id="reqBuyin" type="text" inputmode="numeric" placeholder="100,000" oninput="formatNumInput(this)"></div>
-  <div class="field"><label data-i18n="betInstructionLabel">라운드당 베팅 지시</label>
-    <select id="reqSide">
-      <option value="player" data-i18n="player">플레이어</option>
-      <option value="banker" data-i18n="banker">뱅커</option>
-      <option value="tie" data-i18n="tie">타이</option>
-    </select>
-  </div>
-  <div class="field"><label data-i18n="betAmountLabel">라운드당 베팅액</label><input id="reqAmount" type="text" inputmode="numeric" placeholder="10,000" oninput="formatNumInput(this)"></div>
   <button class="btn btn-gold btn-block" data-i18n="submitRequest" onclick="submitAvatarRequest()">신청하기</button>
-</div></div>
-
-<!-- display settings modal (theme) -->
-<div class="modal-bg" id="modal-display"><div class="modal" style="width:360px;">
-  <button class="modal-close" onclick="closeModal('modal-display')">×</button>
-  <h3 data-i18n="displaySettings">화면 설정</h3>
-  <div class="field"><label data-i18n="themeLabel">테마</label>
-    <div class="seg-toggle" id="themeToggle">
-      <button type="button" class="seg-btn" data-v="dark" data-i18n="themeDark" onclick="setTheme('dark');syncDisplayToggleUI()">다크</button>
-      <button type="button" class="seg-btn" data-v="light" data-i18n="themeLight" onclick="setTheme('light');syncDisplayToggleUI()">라이트</button>
-    </div>
-  </div>
 </div></div>
 
 <!-- tip modal -->
 <div class="modal-bg" id="modal-tip"><div class="modal" style="width:380px;">
   <button class="modal-close" onclick="closeModal('modal-tip')">×</button>
   <h3 data-i18n="tipModalTitle">팁 지급</h3>
-  <div class="field"><label data-i18n="tipTargetLabel">지급 대상</label>
+  <!-- hidden on a speed table: there is no avatar there, so the dealer is the only recipient -->
+  <div class="field" id="tipTargetField"><label data-i18n="tipTargetLabel">지급 대상</label>
     <select id="tipTarget">
       <option value="avatar" data-i18n="tipTargetAvatar">아바타</option>
       <option value="dealer" data-i18n="tipTargetDealer">딜러</option>
     </select>
   </div>
-  <div class="field"><label data-i18n="tipAmountLabel">팁 금액</label><input id="tipAmount" type="text" inputmode="numeric" placeholder="1,000" oninput="formatNumInput(this)"></div>
-  <button class="btn btn-gold btn-block" data-i18n="giveTip" onclick="submitTip()">팁 지급</button>
+  <!-- The tip is built by handing over chips, the way it is done at a table, rather than typed.
+       Tapping a chip adds it to the stack; the stack is what gets given. -->
+  <div class="field"><label data-i18n="tipChipLabel">칩 선택</label>
+    <div class="tip-chips" id="tipChips"></div>
+  </div>
+  <div class="tip-stack-row">
+    <div class="tip-stack" id="tipStack"></div>
+    <div class="tip-total"><span data-i18n="tipAmountLabel">팁 금액</span><b id="tipTotal">0</b></div>
+  </div>
+  <div class="tip-actions">
+    <button class="btn btn-sm" onclick="undoTipChip()" data-i18n="tipUndo">되돌리기</button>
+    <button class="btn btn-sm" onclick="clearTipChips()" data-i18n="tipClear">지우기</button>
+  </div>
+  <button class="btn btn-gold btn-block" id="tipSubmitBtn" data-i18n="giveTip" onclick="submitTip()">팁 지급</button>
 </div></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -212,6 +212,7 @@ body{overflow:auto;}
 <script src="../shared/cage-ui.js"></script>
 <script src="../shared/i18n.js"></script>
 <script src="../shared/game-engine.js"></script>
+<script src="../shared/baccarat-ai.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

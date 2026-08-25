@@ -149,6 +149,7 @@ function setActiveNav(viewId){
 window.addEventListener('DOMContentLoaded', ()=>{
   db = cageInitFirebase();
   buildNav();
+  document.getElementById('loginLangRow').innerHTML = langSwitcherHtml('loginLangSwitch');
   setInterval(()=>{ document.getElementById('clockTxt').textContent = fmtDt(new Date()); }, 1000);
   ensureDefaultStaff();
   document.getElementById('loginPw').addEventListener('keydown', e=>{ if (e.key==='Enter') doLogin(); });
@@ -179,10 +180,13 @@ async function doLogin(){
   const pw = document.getElementById('loginPw').value.trim() || '0000';
   let staff = null;
   try{
-    const doc = await db.collection('partnerStaff').doc(id).get();
-    if (doc.exists) staff = doc.data();
+    // case-insensitive match: don't rely on the Firestore doc id's exact
+    // casing, compare every staff doc's id against the (uppercased) input.
+    const snap = await db.collection('partnerStaff').get();
+    const found = snap.docs.find(d => String(d.id).toUpperCase() === id.toUpperCase());
+    if (found) staff = found.data();
   }catch(e){}
-  if (!staff && id==='admin' && pw==='0000') staff = {id:'admin', name:'Eric', role:'master'};
+  if (!staff && id.toUpperCase()==='ADMIN' && pw==='0000') staff = {id:'admin', name:'Eric', role:'master'};
   if (!staff || String(staff.pw ?? '0000') !== pw){
     document.getElementById('loginErr').style.display='block';
     return;
@@ -193,9 +197,12 @@ async function doLogin(){
   document.getElementById('topbar').style.display='flex';
   document.getElementById('shell').style.display='flex';
   document.getElementById('staffNameTxt').textContent = staff.name || staff.id;
+  document.getElementById('hdrLangRow').innerHTML = langSwitcherHtml('hdrLangSwitch');
+  startLiveSync();
   switchView('dashboard');
 }
 function doLogout(){
+  stopLiveSync();
   CURRENT_STAFF = null;
   document.getElementById('login-gate').style.display='flex';
   document.getElementById('topbar').style.display='none';
@@ -238,6 +245,7 @@ async function fetchAll(coll){
   return snap.docs.map(d=>({id:d.id, ...d.data()}));
 }
 let MEMBER_CACHE = null, BALANCE_CACHE = null, TABLE_CACHE = null;
+let LEDGER_CACHE = null, CAGE_LEDGER_CACHE = null;
 async function getMembers(force){
   if (!MEMBER_CACHE || force) MEMBER_CACHE = await fetchAll('members');
   return MEMBER_CACHE;
@@ -246,23 +254,53 @@ async function getTables(force){
   if (!TABLE_CACHE || force) TABLE_CACHE = await fetchAll('tables');
   return TABLE_CACHE;
 }
+async function getLedger(force){
+  if (!LEDGER_CACHE || force) LEDGER_CACHE = await fetchAll('memberLedger');
+  return LEDGER_CACHE;
+}
+// the cage's own book, which is where a cage account's money actually is - see accountBalanceMap
+async function getCageLedger(force){
+  if (!CAGE_LEDGER_CACHE || force) CAGE_LEDGER_CACHE = await fetchAll('ledger');
+  return CAGE_LEDGER_CACHE;
+}
 async function getBalances(force){
   if (BALANCE_CACHE && !force) return BALANCE_CACHE;
-  const rows = await fetchAll('memberLedger');
-  const map = {};
-  rows.forEach(r=>{
-    const m = map[r.memberId] || (map[r.memberId] = {balance:0, points:0, deposit:0, withdraw:0, bet:0, payout:0});
-    if (r.category==='point_earn' || r.category==='point_convert') m.points += Number(r.amount)||0;
-    else m.balance += Number(r.amount)||0;
-    if (r.category==='deposit') m.deposit += Number(r.amount)||0;
-    if (r.category==='withdraw') m.withdraw += Number(r.amount)||0;
-    if (r.category==='bet') m.bet += Number(r.amount)||0;
-    if (r.category==='payout') m.payout += Number(r.amount)||0;
-  });
-  BALANCE_CACHE = map;
-  return map;
+  // the member list is read, not re-read: every caller that forces a balance has either just
+  // read the members itself or come through invalidateCaches(), and forcing here made the
+  // member screens fetch the whole collection twice to draw once
+  const [rows, cageRows, members] = await Promise.all([
+    getLedger(force), getCageLedger(force), getMembers(),
+  ]);
+  BALANCE_CACHE = accountBalanceMap(rows, cageRows, members);
+  return BALANCE_CACHE;
 }
-function invalidateCaches(){ MEMBER_CACHE=null; BALANCE_CACHE=null; TABLE_CACHE=null; }
+function invalidateCaches(){
+  MEMBER_CACHE=null; BALANCE_CACHE=null; TABLE_CACHE=null; LEDGER_CACHE=null; CAGE_LEDGER_CACHE=null;
+}
+
+/* ---- live sync ----
+   A balance moves at the cage window or at the table, not on this screen. Money changes repaint
+   the numbers where they stand, so a search box keeps its text and an open form is not disturbed;
+   a change to the member records themselves - a branch, a nickname, a block applied at the cage -
+   redraws the view once the screen is nobody's to finish with. */
+let LIVE_UNSUB = null, LIVE_RETRY = null;
+function startLiveSync(){
+  stopLiveSync();
+  LIVE_UNSUB = watchCollections(db, ['members','memberLedger','ledger'], async changed=>{
+    invalidateCaches();
+    repaintBalances(await getBalances(true));
+    if (changed.has('members')) redrawWhenFree();
+  });
+}
+function stopLiveSync(){
+  clearTimeout(LIVE_RETRY); LIVE_RETRY = null;
+  if (LIVE_UNSUB){ LIVE_UNSUB(); LIVE_UNSUB = null; }
+}
+function redrawWhenFree(){
+  clearTimeout(LIVE_RETRY);
+  if (uiIsBusy()){ LIVE_RETRY = setTimeout(redrawWhenFree, 1500); return; }
+  switchView(CURRENT_VIEW);
+}
 
 /* generic list-view engine, driven by config */
 let LIST_STATE = {};
@@ -390,12 +428,36 @@ function gotoListPage(p){ LIST_STATE.page = p; renderListBody(); }
 function renderCell(row, c){
   if (c.render) return c.render(row);
   const v = row[c.key];
-  if (c.type==='money') return `<span class="num ${Number(v)<0?'neg':Number(v)>0?'pos':''}">${fmtNum(v)}</span>`;
+  // `live:true` on a money column marks the cell as a member's balance, so the live sync can
+  // rewrite it where it stands when money moves at the cage or the table (see repaintBalances)
+  if (c.type==='money') return `<span class="num ${Number(v)<0?'neg':Number(v)>0?'pos':''}"${c.live?` data-bal="${escapeHtml(row.id)}"`:''}>${fmtNum(v)}</span>`;
   if (c.type==='dt') return fmtDt(v);
   if (c.type==='date') return fmtDate(v);
   if (c.type==='pill') return pill(v, c.pillMap||{});
   if (c.type==='phone') return maskPhone(v);
   return escapeHtml(v ?? '—');
+}
+
+/* ---------------- moving a member's money ----------------
+   Every place this panel credits or debits a member goes through here. The memberLedger row is
+   the record of the movement and the panel's own book; for an account opened at a cage the
+   movement itself belongs in the cage's book, because that book IS that account's balance. A
+   memberLedger row on its own was a receipt for a payment the customer never received - the
+   number the cage, the player's screen and this panel all read never moved. */
+async function creditMember({memberId, casino, amount, category, memo, extra}){
+  const signed = Number(amount)||0;
+  await db.collection('memberLedger').doc(uuidv4()).set({
+    memberId, amount: signed, category, memo,
+    ...(casino ? {casino} : {}), ...(extra||{}),
+    staff: CURRENT_STAFF?.id||'—', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
+  });
+  const target = (await getMembers()).find(m=>m.id===memberId);
+  if (isCageAccountMember(target)) await cageLedgerWrite(db, {
+    accountId: memberId, casino: casino || target.casino,
+    type: signed < 0 ? 'OUT' : 'IN', amount: signed,
+    memo, staff: CURRENT_STAFF?.id||'—',
+  });
 }
 
 /* ---------------- balance adjust modal (reused by many screens) ---------------- */
@@ -413,11 +475,10 @@ async function submitBalanceAdjust(){
   if (!amt){ toast('금액을 입력하세요', true); return; }
   const memo = document.getElementById('balanceMemo').value;
   const signed = BALANCE_CTX.mode==='withdraw' ? -Math.abs(amt) : Math.abs(amt);
-  await db.collection('memberLedger').doc(uuidv4()).set({
+  await creditMember({
     memberId: BALANCE_CTX.memberId, amount: signed,
     category: BALANCE_CTX.mode==='withdraw' ? 'withdraw' : 'deposit',
-    memo, staff: CURRENT_STAFF?.id||'—', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
+    memo: memo || (BALANCE_CTX.mode==='withdraw' ? '보유금 차감' : '보유금 지급'),
   });
   await db.collection('memberActionLogs').doc(uuidv4()).set({
     memberId: BALANCE_CTX.memberId, action: `${BALANCE_CTX.mode==='withdraw'?'차감':'지급'} ${fmtNum(amt)}`,
@@ -624,7 +685,7 @@ async function renderAccount(){
 function acctRowHtml(m, bal){
   return `<tr id="acctrow-${m.id}">
     <td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td>
-    <td><span class="num ${bal<0?'neg':bal>0?'pos':''}">${fmtNum(bal)}</span></td>
+    <td><span class="num ${bal<0?'neg':bal>0?'pos':''}" data-bal="${escapeHtml(m.id)}">${fmtNum(bal)}</span></td>
     <td><button class="btn btn-xs btn-jade" onclick="openBalanceModal('${m.id}','deposit','보유금 추가')">+ 추가</button>
         <button class="btn btn-xs btn-danger" onclick="openBalanceModal('${m.id}','withdraw','보유금 차감')">− 차감</button></td>
     <td><span class="num">${fmtNum(m.betMax||0)}</span></td>
@@ -687,7 +748,7 @@ async function renderUserList(){
     title:'유저리스트', sub:'전체 회원 목록',
     coll:'members', casinoField:'casino', search:true, searchFields:['id','nickname','phone'], searchPh:'ID/닉네임/전화번호 검색',
     filters:[
-      {key:'parentAgent', label:'에이전트', options:['SEVIP88','nustarms']},
+      {key:'parentAgent', label:'에이전트', options:['VIP88','NUSTARMS']},
       {key:'memberType', label:'회원유형', options:['정회원','준회원','관리회원','멀티회원']},
       {key:'status', label:'로그인상태', options:['정상','정지','블랙리스트']},
     ],
@@ -696,7 +757,7 @@ async function renderUserList(){
       {key:'id', label:'ID'}, {key:'casino', label:'CASINO'}, {key:'id', label:'어카운트'}, {key:'nickname', label:'닉네임'},
       {key:'phone', label:'헨드폰번호', type:'phone'}, {key:'telegram', label:'텔레그램주소', render:r=>r.telegram||'—'},
       {key:'memberType', label:'회원유형'}, {key:'parentAgent', label:'상위어카운트'},
-      {key:'winLoss', label:'윈로스', type:'money'}, {key:'balance', label:'보유금', type:'money'},
+      {key:'winLoss', label:'윈로스', type:'money'}, {key:'balance', label:'보유금', type:'money', live:true},
       {key:'rolling', label:'롤링', type:'money'}, {key:'rollingComm', label:'롤링커미션', type:'money'},
       {key:'netRevenue', label:'내 수익금', type:'money'}, {key:'points', label:'보유포인트', type:'money'},
       {key:'depositPhp', label:'입금 PHP', type:'money'}, {key:'withdrawPhp', label:'출금 PHP', type:'money'},
@@ -728,7 +789,7 @@ function openCreateMemberForm(){
   document.getElementById('formModalBody').innerHTML = `
     <div class="row"><div class="field"><label>ID</label><input id="nfId"></div><div class="field"><label>닉네임</label><input id="nfNick"></div></div>
     <div class="row"><div class="field"><label>전화번호</label><input id="nfPhone"></div><div class="field"><label>카지노</label><select id="nfCasino">${CASINOS.map(c=>`<option>${c}</option>`).join('')}</select></div></div>
-    <div class="row"><div class="field"><label>상위에이전트</label><input id="nfAgent" value="SEVIP88"></div><div class="field"><label>회원유형</label><select id="nfType"><option>정회원</option><option>준회원</option><option>관리회원</option><option>멀티회원</option></select></div></div>
+    <div class="row"><div class="field"><label>상위에이전트</label><input id="nfAgent" value="VIP88"></div><div class="field"><label>회원유형</label><select id="nfType"><option>정회원</option><option>준회원</option><option>관리회원</option><option>멀티회원</option></select></div></div>
   `;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
     const id = document.getElementById('nfId').value.trim().toUpperCase();
@@ -903,7 +964,7 @@ async function approveDeposit(id){
     if (e.message === 'NOT_FOUND'){ toast('요청을 찾을 수 없습니다'); switchView(CURRENT_VIEW); return; }
     throw e;
   }
-  await db.collection('memberLedger').doc(uuidv4()).set({memberId:d.memberId, amount:Math.abs(d.amount), category:'deposit', memo:'디파짓 승인', staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
+  await creditMember({memberId:d.memberId, amount:Math.abs(d.amount), category:'deposit', memo:'디파짓 승인'});
   toast('승인되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
 }
 async function rejectDeposit(id){
@@ -1200,7 +1261,11 @@ async function renderAvatarRequests(){
       {key:'tableId', label:'테이블', render:r=>tableMap[r.tableId]?.name || r.tableId},
       {key:'casino', label:'카지노'},
       {key:'buyin', label:'바이인', type:'money'},
-      {key:'betSide', label:'베팅지시', render:r=>`${betSideLabel(r.betSide)} ${fmtNum(r.betAmount)}`},
+      /* A request carries a buy-in and nothing else now - the player gives the instruction at the
+         table, round by round. Older rows still have the standing one, so it is shown where it
+         exists rather than the column being dropped and their history with it. */
+      {key:'betSide', label:'베팅지시',
+       render:r=>r.betSide ? `${betSideLabel(r.betSide)} ${fmtNum(r.betAmount)}` : '테이블에서 직접'},
       {key:'avatarStaffId', label:'담당아바타', render:r=>r.avatarStaffId || '—'},
       {key:'status', label:'상태', type:'pill', pillMap:{'대기':'warn','진행중':'ok','종료':'mute'}},
     ],
@@ -1301,10 +1366,10 @@ async function submitRoundCancel(roundId, tableId){
   for (const d of snap.docs){
     const r = d.data();
     if (r.category==='bet'){
-      await db.collection('memberLedger').doc(uuidv4()).set({memberId:r.memberId, casino:r.casino, amount:Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 환불 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
+      await creditMember({memberId:r.memberId, casino:r.casino, amount:Math.abs(r.amount), category:'correction', memo:`라운드 취소 환불 (${reason})`, extra:{relatedRoundId:roundId, relatedTableId:tableId}});
       refunded += Math.abs(r.amount);
     } else if (r.category==='payout'){
-      await db.collection('memberLedger').doc(uuidv4()).set({memberId:r.memberId, casino:r.casino, amount:-Math.abs(r.amount), category:'correction', relatedRoundId:roundId, relatedTableId:tableId, memo:`라운드 취소 페이아웃 회수 (${reason})`, staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
+      await creditMember({memberId:r.memberId, casino:r.casino, amount:-Math.abs(r.amount), category:'correction', memo:`라운드 취소 페이아웃 회수 (${reason})`, extra:{relatedRoundId:roundId, relatedTableId:tableId}});
       clawedBack += Math.abs(r.amount);
     }
   }
@@ -1678,7 +1743,7 @@ async function processPayment(id, status){
     throw e;
   }
   if (status==='승인' && p){
-    await db.collection('memberLedger').doc(uuidv4()).set({memberId:p.memberId, amount: p.type==='출금' ? -Math.abs(p.amount) : Math.abs(p.amount), category: p.type==='출금'?'withdraw':'deposit', memo:'결제처리 승인', staff:CURRENT_STAFF?.id||'—', createdAt:firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt:new Date().toISOString(), deviceId:getDeviceId()});
+    await creditMember({memberId:p.memberId, amount: p.type==='출금' ? -Math.abs(p.amount) : Math.abs(p.amount), category: p.type==='출금'?'withdraw':'deposit', memo:'결제처리 승인'});
   }
   toast(`${status}되었습니다`); invalidateCaches(); switchView(CURRENT_VIEW);
 }
@@ -1731,8 +1796,8 @@ async function seedDemoData(){
   // partners hierarchy
   const partners = [
     {id:'MAIN', name:'본사', parentCode:null, level:0, shareRate:0},
-    {id:'SEVIP88', name:'SEVIP88 파트너', parentCode:'MAIN', level:1, shareRate:0.8},
-    {id:'SEA0904', name:'SEA0904 서브', parentCode:'SEVIP88', level:2, shareRate:0.4},
+    {id:'VIP88', name:'VIP88 파트너', parentCode:'MAIN', level:1, shareRate:0.8},
+    {id:'SEA0904', name:'SEA0904 서브', parentCode:'VIP88', level:2, shareRate:0.4},
     {id:'NUSTARMS', name:'nustarms 파트너', parentCode:'MAIN', level:1, shareRate:0.6},
     {id:'HANNVIP', name:'HANN VIP 파트너', parentCode:'MAIN', level:1, shareRate:0.5},
   ];
@@ -1751,13 +1816,13 @@ async function seedDemoData(){
   tableDefs.forEach(t => set('tables', t.id, {...t, status:'open', betMin:5000, betMax:3000000, shoeNo: randInt(1,8)}));
 
   // members
-  const agents = ['SEVIP88','SEA0904','NUSTARMS','HANNVIP'];
+  const agents = ['VIP88','SEA0904','NUSTARMS','HANNVIP'];
   const types = ['정회원','정회원','정회원','정회원','정회원','준회원','관리회원','멀티회원'];
   const nicknames = ['용용용','Eeyeyete','홈미르크','두산에너빌리티','아꼬케이','GDragon','레오123','HANYING','Danny','메이드킹','뽀삐','우주최강','달빛소년','골드핑거','실버베어','청춘예찬','바다사랑','들꽃향기','새벽별','황금돼지'];
   const memberIds = [];
   for (let i=1;i<=40;i++){
     const casino = randPick(CASINOS);
-    const id = `SE${casino[0]}${String(1000+i)}`;
+    const id = `PL${String(1000+i)}`;
     memberIds.push(id);
     let status = '정상';
     if (i%17===0) status = '블랙리스트'; else if (i%11===0) status = '정지';
@@ -1835,7 +1900,7 @@ async function seedDemoData(){
 
   // logs
   for (let i=0;i<25;i++) set('memberActionLogs', uuidv4(), {memberId:randPick(memberIds), action: randPick(['보유금 지급 100,000','보유금 차감 50,000','상태변경 → 정상','비밀번호 초기화','소속이동']), staff:'admin', dt: randDateWithin(15)});
-  for (let i=0;i<25;i++) set('adminLogs', uuidv4(), {staff: randPick(['admin','Eric','Jena']), action: randPick(['로그인','테이블설정 변경','쉐어율 변경 SEVIP88','공지사항 등록','회원 생성']), target: randPick(memberIds), dt: randDateWithin(15)});
+  for (let i=0;i<25;i++) set('adminLogs', uuidv4(), {staff: randPick(['admin','Eric','Jena']), action: randPick(['로그인','테이블설정 변경','쉐어율 변경 VIP88','공지사항 등록','회원 생성']), target: randPick(memberIds), dt: randDateWithin(15)});
 
   // deposit / payment requests
   for (let i=0;i<10;i++) set('depositRequests', uuidv4(), {memberId:randPick(memberIds), amount: randInt(5,50)*10000, method:'계좌이체', status: i<3?'대기':randPick(['승인','거절']), dt: randDateWithin(7)});

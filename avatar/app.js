@@ -14,9 +14,23 @@
 let db = null;
 let MODE = null; // 'avatar' | 'speed' | null (picker)
 const AVATAR_BETTING_SECONDS = 30, AVATAR_DEALING_SECONDS = 4, AVATAR_RESULT_SECONDS = 5;
-const SPEED_BETTING_SECONDS = 15, SPEED_DEALING_SECONDS = 3, SPEED_RESULT_SECONDS = 3;
+const SPEED_BETTING_SECONDS = 30, SPEED_DEALING_SECONDS = 3, SPEED_RESULT_SECONDS = 3;
 
 function betLabel(type){ return t(type); } // BET_LABEL keys (player/banker/tie/playerPair/bankerPair) match i18n dict keys 1:1
+/* What a round did to the player's money, said the same way at either kind of table.
+   Only the winning rounds used to be called, on `payout > 0` - so a round that took the stake and
+   gave nothing back passed in silence, and a 플레이어/뱅커 bet meeting a tie was announced as a
+   win, because the stake handed back is a payout. Both are now named for what they are.
+   The figure is the net either way: what the round gained or cost, not the gross returned, so the
+   three readings are the same measure and can be compared to one another.
+   Called only for a round the player staked on - a round they sat out has nothing to say about
+   their money, and a toast every round would be noise over the next bet. */
+function roundOutcomeText(staked, payout){
+  const net = payout - staked;
+  if (net > 0) return t('wonAmount', {amount: fmtNum(net)});
+  if (net < 0) return t('lostAmount', {amount: fmtNum(-net)});
+  return t('pushedAmount', {amount: fmtNum(staked)});
+}
 let MY_BET_LOG = []; // {tableName, roundNo, betType, amount, payout, mode, dt} newest first, shared across both modes
 
 let STATE = { balance: 0, points: 0, selectedChip: CHIP_VALUES[0] };
@@ -52,7 +66,7 @@ async function onLogin(){
   if (!id || !pw){ err.textContent = t('loginErrRequired'); err.style.display='block'; return; }
   const res = await playerLogin(db, id, pw);
   if (!res.ok){
-    err.textContent = res.reason==='notfound' ? t('loginErrNotfound') : res.reason==='blocked' ? t('loginErrBlocked') : t('loginErrBadPw');
+    err.textContent = res.reason==='notfound' ? t('loginErrNotfound') : res.reason==='blocked' ? t('loginErrBlocked') : res.reason==='duplicate' ? t('loginErrDuplicate') : t('loginErrBadPw');
     err.style.display='block';
     return;
   }
@@ -108,7 +122,8 @@ async function onSignup(){
 
 function onLogout(){
   stopAllLoops();
-  PLAYER = null;
+  unwatchPlayerBalance();
+  playerLogout(db); // clears the active-session marker in the background; UI resets immediately
   MODE = null;
   MY_BET_LOG = [];
   document.getElementById('app').style.display = 'none';
@@ -123,6 +138,7 @@ async function enterApp(){
   document.getElementById('hdrNick').textContent = `${PLAYER.nickname} (${PLAYER.id})`;
   clearLoginFields();
   await refreshBalance();
+  watchPlayerBalance();
   const requestedMode = new URLSearchParams(location.search).get('mode');
   if (requestedMode === 'speed') chooseSpeed();
   else if (requestedMode === 'avatar') chooseAvatar();
@@ -133,6 +149,32 @@ async function refreshBalance(){
   STATE.balance = b.balance; STATE.points = b.points;
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
   document.getElementById('hdrPoints').textContent = fmtNum(STATE.points);
+}
+/* The balance is kept live rather than read the once. Money moves from outside this screen -
+   the cage pays an account out at the window, an agent transfers to a member - and none of it
+   showed here until the player happened to place a bet or signed in again. The rows those
+   movements are written to are watched instead, so the header follows the money as it lands.
+   Which book to watch is which kind of account this is, the same split getPlayerBalance reads:
+   one opened at a cage keeps its money in the cage's own `ledger`, everyone else's is in
+   `memberLedger` - and a cage account still earns its points on memberLedger, so it watches
+   both. */
+let BALANCE_WATCH = [];
+function watchPlayerBalance(){
+  unwatchPlayerBalance();
+  if (!db || !PLAYER) return;
+  const onMoved = ()=>{ refreshBalance().catch(()=>{}); };
+  const watch = (coll, field) => {
+    try{
+      const un = db.collection(coll).where(field,'==',PLAYER.id).onSnapshot(onMoved, ()=>{});
+      if (typeof un === 'function') BALANCE_WATCH.push(un);
+    }catch(e){ /* offline, or a build with no live queries - the balance still refreshes on its own */ }
+  };
+  watch('memberLedger','memberId');
+  if (isCageAccount(PLAYER)) watch('ledger','accountId');
+}
+function unwatchPlayerBalance(){
+  BALANCE_WATCH.forEach(un=>{ try{ un(); }catch(e){} });
+  BALANCE_WATCH = [];
 }
 /* The chip artwork carries its own value on its face, so the tray needs no label of its own.
    This is still here for anywhere a chip's worth is written as text. */
@@ -147,7 +189,12 @@ function renderMyBetHistory(){
   el.innerHTML = MY_BET_LOG.slice(0, 20).map(b=>{
     const net = b.payout - b.amount;
     const cls = net > 0 ? 'pos' : net < 0 ? 'neg' : '';
-    return `<div class="row"><span>[${escapeHtml(b.tableName)}] #${b.roundNo} ${betLabel(b.betType)} ${fmtNum(b.amount)}</span><span class="${cls}">${net===0 ? t('push') : fmtSigned(net)}</span></div>`;
+    /* The table is named plainly, the way the history sheet names it. It used to be bracketed,
+       which put a [ ] in front of every round number - and a table that came through without a
+       name left the pair of them standing there as an empty box before the #. Dropped when there
+       is nothing to name. */
+    const where = b.tableName ? `${escapeHtml(b.tableName)} ` : '';
+    return `<div class="row"><span>${where}#${b.roundNo} ${betLabel(b.betType)} ${fmtNum(b.amount)}</span><span class="${cls}">${net===0 ? t('push') : fmtSigned(net)}</span></div>`;
   }).join('');
 }
 
@@ -168,13 +215,46 @@ function toggleCardFavorite(btn){
        the screen with a bar naming the round and the shoe above them and a bar carrying the
        balance below.
    Which of the two you get is the screen's own width, exactly as it is outside fullscreen. */
+/* Not every browser has the fullscreen API this used to call, and the ones that don't were left
+   with a button that did nothing at all: it asked for `requestFullscreen?.()`, and optional
+   chaining on a method that isn't there is silence, not an error. Safari on iOS has no element
+   fullscreen at all (only a video can go fullscreen there), and others carry it webkit-prefixed
+   only. So: the prefixed names are tried too, and where there is no such API - or the browser
+   refuses the request - the table goes fullscreen the only way left, by covering the viewport
+   itself. The layout is already driven by the .is-fs class rather than :fullscreen, so the faux
+   one is the same screen; all it adds is the fixed box holding it. */
+let FAUX_FS = null;
+function nativeFsElement(){ return document.fullscreenElement || document.webkitFullscreenElement || null; }
+function stageFsElement(){ return nativeFsElement() || FAUX_FS; }
+function enterFauxFullscreen(root){
+  if (FAUX_FS) return;
+  FAUX_FS = root;
+  root.classList.add('faux-fs');
+  document.body.classList.add('faux-fs-lock');
+  onStageFullscreenChanged();
+}
+function exitFauxFullscreen(){
+  if (!FAUX_FS) return;
+  FAUX_FS.classList.remove('faux-fs');
+  FAUX_FS = null;
+  document.body.classList.remove('faux-fs-lock');
+  onStageFullscreenChanged();
+}
 function toggleStageFullscreen(btn){
   const root = (btn && btn.closest('.speed-detail-wrap')) || document.querySelector('.speed-detail-wrap');
   if (!root) return;
-  if (!document.fullscreenElement) root.requestFullscreen?.().catch(()=>{});
-  else document.exitFullscreen?.();
+  if (stageFsElement()){ exitStageFullscreen(); return; }
+  const req = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (!req){ enterFauxFullscreen(root); return; }
+  // a refusal comes back as a rejected promise on some browsers and a throw on others
+  try { Promise.resolve(req.call(root)).catch(()=>enterFauxFullscreen(root)); }
+  catch(e){ enterFauxFullscreen(root); }
 }
-function exitStageFullscreen(){ if (document.fullscreenElement) document.exitFullscreen?.(); }
+function exitStageFullscreen(){
+  if (FAUX_FS){ exitFauxFullscreen(); return; }
+  const ex = document.exitFullscreen || document.webkitExitFullscreen;
+  if (nativeFsElement() && ex) ex.call(document);
+}
 /* The layout swap is a class rather than :fullscreen so the pieces that have to move in JS -
    the roads, which are pinned to their newest column and have to be re-pinned once the panel
    they live in changes width - move with it. */
@@ -188,19 +268,27 @@ function adoptFsFollowers(host){
 }
 function releaseFsFollowers(){ adoptFsFollowers(document.body); }
 function fsFollowHost(){
-  const fs = document.fullscreenElement;
+  const fs = stageFsElement();
   return fs && fs.classList.contains('speed-detail-wrap') ? fs : document.body;
 }
-document.addEventListener('fullscreenchange', ()=>{
-  const fs = document.fullscreenElement;
+function onStageFullscreenChanged(){
+  const fs = stageFsElement();
   document.querySelectorAll('.speed-detail-wrap').forEach(w=>w.classList.toggle('is-fs', w === fs));
   adoptFsFollowers(fsFollowHost());
   if (SPEED.detailTableId){
     renderBetBoard(SPEED.detailTableId);   // the page's board and the felt are not the same board
     paintSpeedFsBars(SPEED.detailTableId);
     renderSpeedDetailRoad(SPEED.detailTableId);
+  } else if (AVATAR.table && document.getElementById('viewAvatarTable').style.display !== 'none'){
+    renderAvatarBetBoard();
+    paintAvatarFsBars();
+    renderAvatarRoad(); renderAvatarTally();
   }
-});
+}
+document.addEventListener('fullscreenchange', onStageFullscreenChanged);
+document.addEventListener('webkitfullscreenchange', onStageFullscreenChanged);
+/* Escape leaves the real fullscreen without anyone wiring it up; the faux one has to be told. */
+document.addEventListener('keydown', e=>{ if (e.key === 'Escape' && FAUX_FS) exitFauxFullscreen(); });
 /* the round, the shoe and the balance the fullscreen bars carry - by class, because the head and
    the foot both carry them and only one of the two is on the screen at a time */
 function paintSpeedFsBars(tableId){
@@ -209,6 +297,14 @@ function paintSpeedFsBars(tableId){
   const set = (cls, v)=>document.querySelectorAll('.' + cls).forEach(el=>{ el.textContent = v; });
   set('fs-round', s.roundNo || 1);
   set('fs-shoe', s.shoe ? s.shoe.no : (SPEED.tables[tableId]?.shoeNo || 1));
+  const hdr = document.getElementById('hdrBalance');
+  set('fs-bal', hdr ? hdr.textContent : fmtNum(STATE.balance));
+}
+function paintAvatarFsBars(){
+  if (!AVATAR.table) return;
+  const set = (cls, v)=>document.querySelectorAll('.' + cls).forEach(el=>{ el.textContent = v; });
+  set('fs-round', AVATAR.roundNo || 1);
+  set('fs-shoe', AVATAR.shoe ? AVATAR.shoe.no : (AVATAR.table.shoeNo || 1));
   const hdr = document.getElementById('hdrBalance');
   set('fs-bal', hdr ? hdr.textContent : fmtNum(STATE.balance));
 }
@@ -258,7 +354,7 @@ function renderGameHistory(btn, mode){
    ============================================================ */
 function stopAllLoops(){
   stopAvatarRoundLoop();
-  if (SPEED.tick){ clearInterval(SPEED.tick); SPEED.tick = null; }
+  stopSpeedClock();
   SPEED.detailTableId = null;
   if (AVATAR.chatUnsub){ AVATAR.chatUnsub(); AVATAR.chatUnsub = null; }
   // #viewAvatarTable holds a dynamically-built #myBetHistory / chip-tray that would otherwise
@@ -270,6 +366,10 @@ function showView(name){
   ['viewPicker','viewAvatarLobby','viewAvatarTable','viewSpeedLobby','viewSpeedTable'].forEach(id=>{
     document.getElementById(id).style.display = (id===name) ? 'block' : 'none';
   });
+  /* The two table screens keep a chip tray across the foot - 베팅완료 and 반복 sit in it - and a
+     toast is drawn at the foot too, so on a phone it landed squarely over them. The class lets
+     the toast clear the tray on those screens and nowhere else, where the foot is empty. */
+  document.body.classList.toggle('has-chip-tray', name==='viewAvatarTable' || name==='viewSpeedTable');
   document.getElementById('changeGameBtn').style.display = name==='viewPicker' ? 'none' : 'inline-block';
   document.getElementById('avatarLobbyBtn').style.display = name==='viewAvatarTable' ? 'inline-block' : 'none';
 }
@@ -285,14 +385,31 @@ async function chooseAvatar(){
   showView('viewAvatarLobby');
   await goAvatarLobby();
 }
+/* One clock for the room, and starting it always stops whatever was already running.
+   It used to be assigned straight after `await loadSpeedTables()`, with the only clearInterval
+   back at the top of chooseSpeed() - so two calls that overlapped that await both passed a stop
+   that had nothing to clear yet and then both assigned. The first interval was orphaned and
+   never cleared, and every table's countdown then came off two a second. A double tap on 스피드
+   in the picker is enough to do it, and the card there has no guard of its own. */
+function stopSpeedClock(){ if (SPEED.tick){ clearInterval(SPEED.tick); SPEED.tick = null; } }
+function startSpeedClock(){
+  stopSpeedClock();
+  SPEED.tick = setInterval(tickAllSpeedTables, 1000);
+}
+/* And the call that is overtaken drops out rather than finishing on top of the one that
+   overtook it: it would otherwise paint its own (older) list of tables over the newer one and
+   report a room that had already been replaced. */
+let speedEntry = 0;
 async function chooseSpeed(){
+  const mine = ++speedEntry;
   stopAllLoops();
   MODE = 'speed';
   LOBBY_CASINO_FILTER = 'ALL'; LOBBY_SEARCH = '';
   showView('viewSpeedLobby');
   await loadSpeedTables();
+  if (mine !== speedEntry) return;
   renderMyBetHistory();
-  SPEED.tick = setInterval(tickAllSpeedTables, 1000);
+  startSpeedClock();
 }
 
 /* ---------------- lobby casino tabs + game-type filter + search (shared by avatar/speed) ---------------- */
@@ -374,6 +491,7 @@ function onLangChange(){
       if (AVATAR.request){
         paintScreen(document.getElementById('viewAvatarTable'), avatarTableShellHtml());
         renderAvatarRoad(); renderAvatarTally(); renderMyBetHistory(); updateAvatarStatusPanel();
+        renderAvatarBetSpots(); paintAvatarFsBars();
       } else {
         paintScreen(document.getElementById('viewAvatarTable'), avatarPreviewShellHtml(avatarRequestStateForTable(AVATAR.previewTableId).state));
         renderAvatarRoad(); renderAvatarTally();
@@ -488,7 +606,9 @@ function renderAvatarLobbyGrid(sortMode){
   if (!AVATAR.lobbyData) return;
   const grid = document.getElementById('lobbyGrid');
   const rows = AVATAR.lobbyData.tables.map(t=>{
-    const tableRounds = AVATAR.lobbyData.rounds.filter(r=>r.tableId===t.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+    const allRounds = AVATAR.lobbyData.rounds.filter(r=>r.tableId===t.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+    // the card's counts and its streak are this shoe's, the same as the board inside the table
+    const tableRounds = roundsInShoe(allRounds, latestShoeNo(allRounds, t.shoeNo));
     const results = tableRounds.map(r=>r.result);
     const tableBets = AVATAR.lobbyData.bets.filter(b=>b.relatedTableId===t.id);
     return {t, results, wins: tableWinCounts(results), streak: trailingStreak(results), volume: tableBetVolume(tableBets)};
@@ -525,20 +645,24 @@ function renderAvatarLobbyGrid(sortMode){
 let AVATAR_PENDING_TABLE = null;
 function openAvatarRequestModal(tableId){
   AVATAR_PENDING_TABLE = tableId;
+  // the buy-in comes out of this account, so the form says which one before it asks for an amount
+  const acct = document.getElementById('reqAccount');
+  if (acct) acct.textContent = PLAYER ? `${PLAYER.nickname || ''} (${PLAYER.id})`.trim() : '';
   document.getElementById('reqBuyin').value = '';
-  document.getElementById('reqAmount').value = '';
-  document.getElementById('reqSide').value = 'banker';
   openModal('modal-avatar-request');
 }
 async function submitAvatarRequest(){
   const buyin = rawNum(document.getElementById('reqBuyin').value);
-  const betSide = document.getElementById('reqSide').value;
-  const betAmount = rawNum(document.getElementById('reqAmount').value);
-  if (!buyin || !betAmount){ toast(t('suErrRequired'), true); return; }
-  const tbl = AVATAR.lobbyData.tables.find(x=>x.id===AVATAR_PENDING_TABLE);
+  if (!buyin){ toast(t('suErrRequired'), true); return; }
+  // AVATAR.lobbyData may not be loaded if the request modal was opened from a table's own
+  // screen (an active session's "아바타 신청" button) rather than the lobby - fall back to
+  // whatever table info is on hand there instead
+  const tbl = AVATAR.lobbyData?.tables.find(x=>x.id===AVATAR_PENDING_TABLE)
+    || (AVATAR.table?.id===AVATAR_PENDING_TABLE ? AVATAR.table : null)
+    || SPEED.tables[AVATAR_PENDING_TABLE];
   await db.collection('avatarRequests').doc(uuidv4()).set({
     memberId: PLAYER.id, tableId: AVATAR_PENDING_TABLE, casino: tbl?.casino || PLAYER.casino,
-    buyin, betSide, betAmount, status:'대기', avatarStaffId:null,
+    buyin, status:'대기', avatarStaffId:null,
     requestedAt: new Date().toISOString(), approvedAt:null, endedAt:null,
   });
   closeModal('modal-avatar-request');
@@ -559,7 +683,8 @@ async function openAvatarTablePreview(tableId, state){
   const doc = await db.collection('tables').doc(tableId).get();
   AVATAR.table = {id:tableId, ...doc.data()};
   const roundsSnap = await db.collection('rounds').where('tableId','==',tableId).get();
-  const rounds = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+  const all = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+  const rounds = roundsInShoe(all, latestShoeNo(all, AVATAR.table.shoeNo));   // this shoe only
   AVATAR.history = rounds.map(r=>r.result);
   AVATAR.pairFlags = rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair}));
 
@@ -632,7 +757,16 @@ function avatarScoreboardHtml(idSuffix){
 /* The board's prediction rail: what Big Eye Boy, Small Road and Cockroach Road would each draw
    if the next hand went Banker, and if it went Player. Laid out as a grid so the three marks in
    the B row sit exactly over the three in the P row - a stack of free-standing badges never did
-   line up. The mark shapes say which road each column is, the way the board itself does. */
+   line up. The mark shapes say which road each column is, the way the board itself does.
+
+   Worth knowing when reading it: on the DERIVED roads red and blue do not mean banker and
+   player. Red means the shoe is repeating, blue that it is choppy - a different alphabet from
+   the Big Road's that happens to borrow the same two inks. So the two rows showing the same
+   colour is not a fault; for offset k the continuing answer is red only when the column k back
+   is deeper and the breaking answer only when it is equal, which cannot both hold - both-red is
+   impossible - while neither holds once the current run is longer than the one k back, and both
+   go blue. That is an ordinary dragon. The rail is laid out the way a real board lays it out,
+   rows labelled in the Big Road's colours. */
 const ASK_MARKS = [['bigEye','ring'], ['smallRoad','dot'], ['cockroach','slash']];
 function roadAskHtml(idSuffix){
   const badge = side => `
@@ -701,11 +835,13 @@ async function enterAvatarSession(tableId){
   const doc = await db.collection('tables').doc(tableId).get();
   AVATAR.table = {id:tableId, ...doc.data()};
   const roundsSnap = await db.collection('rounds').where('tableId','==',tableId).get();
-  const rounds = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+  const all = roundsSnap.docs.map(d=>d.data()).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+  const shoeNo = latestShoeNo(all, AVATAR.table.shoeNo);
+  const rounds = roundsInShoe(all, shoeNo);          // the board is this shoe's, not the table's life
   AVATAR.history = rounds.map(r=>r.result);
   AVATAR.pairFlags = rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair}));
-  AVATAR.roundNo = (Math.max(0, ...rounds.map(r=>r.roundNo||0)) || 0) + 1;
-  AVATAR.shoe = openShoe(AVATAR.table.shoeNo || 1);
+  AVATAR.roundNo = (Math.max(0, ...all.map(r=>r.roundNo||0)) || 0) + 1;
+  AVATAR.shoe = openShoeAt(shoeNo, rounds.length);   // stands where the record left it
   await refreshTipTotals();
 
   paintScreen(view, avatarTableShellHtml());
@@ -714,6 +850,13 @@ async function enterAvatarSession(tableId){
   renderMyBetHistory();
   updateAvatarStatusPanel();
   mountAvatarChat(tableId);
+  paintAvatarFsBars();
+  // the screen is rebuilt from scratch on every open, so one opened while already fullscreen
+  // needs the class - and the loans - put back on the new wrapper (mirrors openSpeedTableDetail)
+  if (stageFsElement()){
+    document.querySelector('#viewAvatarTable .speed-detail-wrap')?.classList.add('is-fs');
+    adoptFsFollowers(fsFollowHost());
+  }
   startAvatarRoundLoop();
 }
 async function refreshTipTotals(){
@@ -732,7 +875,7 @@ function updateAvatarStatusPanel(){
   const r = AVATAR.request;
   el.innerHTML = `
     <span>${t('assignedAvatar')}</span><b>${r.avatarStaffId ? escapeHtml(r.avatarStaffId) : t('unassigned')}</b>
-    <span>${t('myInstruction')}</span><b>${betLabel(r.betSide)} ${fmtNum(r.betAmount)}</b>
+    <span>${t('buyinLabel')}</span><b class="num">${fmtNum(r.buyin)}</b>
     <span>${t('avatarTipTotal')}</span><b class="num">${fmtNum(AVATAR.tipTotals.avatar)}</b>
     <span>${t('dealerTipTotal')}</span><b class="num">${fmtNum(AVATAR.tipTotals.dealer)}</b>
   `;
@@ -740,7 +883,12 @@ function updateAvatarStatusPanel(){
 function avatarTableShellHtml(){
   const tb = AVATAR.table;
   return `
-  <div class="speed-detail-wrap">
+  <div class="speed-detail-wrap sd-live">
+    <!-- ported from Speed's screen (speedDetailShellHtml) - same fullscreen bars, felt, timer
+         ring and board chrome. The board here is read-only (avatarBetBoardHtml/renderAvatarBetSpots)
+         since the avatar places the bet automatically; its chip-tray slot below carries the
+         avatar's own actions instead of chips. -->
+    ${fsBarHtml(tb, 'top', 'avatar')}
     <div class="speed-detail-grid">
       <div class="sd-stage">
         <button class="icon-btn speed-detail-close" onclick="backToAvatarLobby()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
@@ -768,16 +916,33 @@ function avatarTableShellHtml(){
         </div>
         <div class="timer-ring-wrap" id="timerRingWrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArc" cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-avatar">30</div></div>
       </div>
+      <div class="sd-underbar">
       ${avatarScoreboardHtml('avatar')}
       <div class="sd-bets avatar-side">
+        ${avatarBetBoardHtml()}
+        <!-- The instruction is given here now, not on the request form: pick a chip, put it on a
+             spot, and whatever is down when the clock runs out is what the avatar plays. -->
+        <div class="sd-chip-tray">
+          <button class="btn btn-sm" onclick="clearAvatarBets()" data-i18n="cancelBet">취소</button>
+          ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
+          <span class="spacer"></span>
+          <button class="btn btn-sm btn-gold" onclick="openTipModal()">${t('giveTip')}</button>
+          <button class="btn btn-sm" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
+          <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
+        </div>
+        <div class="card avatar-bet-summary">
+          <div class="row" style="justify-content:space-between;align-items:center;">
+            <span class="hint" style="margin:0;">${t('betPlacedLabel')}</span>
+            <b style="font-family:var(--mono);color:var(--brass);" id="avatarStakedTotal">0</b>
+          </div>
+          <div class="row" style="justify-content:space-between;align-items:center;margin-top:8px;">
+            <span class="hint" style="margin:0;">${t('chipUsedLabel')}</span>
+            <div class="chip-stack" style="height:auto;" id="avatarStakedChips"></div>
+          </div>
+        </div>
         <div class="card avatar-status-card">
           <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
           <div class="kv-grid" id="avatarStatusGrid"></div>
-          <div class="row" style="gap:8px;margin-top:14px;">
-            <button class="btn btn-gold btn-sm" onclick="openTipModal()">${t('giveTip')}</button>
-            <button class="btn btn-sm" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
-            <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
-          </div>
         </div>
         <div class="card chat-panel">
           <h3>${t('chat')}</h3>
@@ -785,36 +950,95 @@ function avatarTableShellHtml(){
           <div class="chat-input-row"><input id="chatInput" placeholder="${t('chatPh')}" onkeydown="if(event.key==='Enter')sendAvatarChat()"><button class="btn btn-sm btn-gold" onclick="sendAvatarChat()">${t('send')}</button></div>
         </div>
       </div>
+      </div>
     </div>
+    ${fsBarHtml(tb, 'bottom', 'avatar')}
   </div>`;
 }
 
-/* ---------------- tip / shoe-change / end-session ---------------- */
+/* ---------------- tip / shoe-change / end-session ----------------
+   A tip is handed over as chips, the way it is at a table: tap a chip and it joins the stack,
+   and the stack is what gets given. Typing a figure was the old way in and read like a transfer
+   form rather than like tipping.
+   Both modes come through here. A speed table has no avatar to tip, so there the dealer is the
+   only recipient and the target row is hidden. */
+let TIP = { chips: [] };
+function tipTotal(){ return TIP.chips.reduce((a,b)=>a+b, 0); }
+/* What is actually spendable right now: the stake already committed to this round is spoken for
+   even though it has not left STATE.balance yet. Which figure that is depends on the mode -
+   avatarCommittedAmount() for a session, speedLockedTotal() for the speed tables. */
+function tipFreeBalance(){
+  return STATE.balance - (MODE === 'speed' ? speedLockedTotal() : avatarCommittedAmount());
+}
+function renderTipChips(){
+  const row = document.getElementById('tipChips');
+  const stack = document.getElementById('tipStack');
+  const total = document.getElementById('tipTotal');
+  const btn = document.getElementById('tipSubmitBtn');
+  if (!row) return;
+  const free = tipFreeBalance();
+  const sum = tipTotal();
+  // a chip the player cannot afford on top of what is already on the stack is shown as spent
+  // rather than silently refusing the tap
+  row.innerHTML = CHIP_VALUES.map(v=>{
+    const over = sum + v > free;
+    return `<div class="chip${over?' disabled':''}" data-chip="${v}" ${over?'':`onclick="addTipChip(${v})"`}
+      style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`;
+  }).join('');
+  if (stack) stack.innerHTML = TIP.chips.length
+    ? TIP.chips.map(v=>`<div class="cs-chip" style="background-image:url('${chipFaceUrl(v)}')"></div>`).join('')
+    : `<span class="hint" data-i18n="tipPickChip">${t('tipPickChip')}</span>`;
+  if (total) total.textContent = fmtNum(sum);
+  if (btn) btn.disabled = sum <= 0;
+}
+function addTipChip(v){
+  if (tipTotal() + v > tipFreeBalance()){ toast(t('insufficientBalance'), true); return; }
+  TIP.chips.push(v);
+  renderTipChips();
+}
+function undoTipChip(){ TIP.chips.pop(); renderTipChips(); }
+function clearTipChips(){ TIP.chips = []; renderTipChips(); }
 function openTipModal(){
-  document.getElementById('tipAmount').value = '';
-  document.getElementById('tipTarget').value = 'avatar';
+  TIP.chips = [];
+  const speed = MODE === 'speed';
+  const sel = document.getElementById('tipTarget');
+  if (sel) sel.value = speed ? 'dealer' : 'avatar';
+  const field = document.getElementById('tipTargetField');
+  if (field) field.style.display = speed ? 'none' : '';
+  renderTipChips();
   openModal('modal-tip');
 }
 async function submitTip(){
-  const target = document.getElementById('tipTarget').value;
-  const amount = rawNum(document.getElementById('tipAmount').value);
-  if (!amount){ toast(t('suErrRequired'), true); return; }
-  // avatarCommittedAmount(): this round's stake, while it is still spoken for but has not
-  // actually left STATE.balance yet - see the comment there
-  if (amount > STATE.balance - avatarCommittedAmount()){ toast(t('insufficientBalance'), true); return; }
-  await db.collection('memberLedger').doc(uuidv4()).set({
+  const speed = MODE === 'speed';
+  const target = speed ? 'dealer' : (document.getElementById('tipTarget')?.value || 'dealer');
+  const amount = tipTotal();
+  if (!amount){ toast(t('tipPickChip'), true); return; }
+  if (amount > tipFreeBalance()){ toast(t('insufficientBalance'), true); return; }
+  const tableId = speed ? SPEED.detailTableId : AVATAR.table?.id;
+  const row = {
     memberId: PLAYER.id, casino: PLAYER.casino, amount: -amount,
     category: target==='avatar' ? 'avatar_tip' : 'dealer_tip',
-    relatedRequestId: AVATAR.request.id, relatedTableId: AVATAR.table.id,
+    relatedTableId: tableId || null,
+    chips: TIP.chips.slice(),        // what was actually handed over, not just the sum
     staff: 'member', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
+  };
+  if (!speed && AVATAR.request) row.relatedRequestId = AVATAR.request.id;
+  await db.collection('memberLedger').doc(uuidv4()).set(row);
+  /* memberLedger is the record of play; for an account opened at a cage it is NOT the money.
+     That balance is the cage's own `ledger`, which is why placeBet writes both books - and why
+     a tip that wrote only this one never actually left a cage account: the header dropped by the
+     tip and the next refresh, reading `ledger`, put it straight back. */
+  if (isCageAccount(PLAYER)) await writeCageLedger(db, {
+    accountId: PLAYER.id, casino: PLAYER.casino, type:'OUT', amount,
+    memo: `tip ${target}${tableId ? ' ' + tableId : ''}`,
   });
   STATE.balance -= amount;
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
-  await refreshTipTotals();
-  updateAvatarStatusPanel();
+  TIP.chips = [];
+  if (!speed){ await refreshTipTotals(); updateAvatarStatusPanel(); }
   closeModal('modal-tip');
-  toast(t('tipSent'));
+  toast(t('tipSentAmount', {amount: fmtNum(amount)}));
 }
 async function requestShoeChange(){
   await db.collection('avatarServiceRequests').doc(uuidv4()).set({
@@ -852,11 +1076,15 @@ function beginAvatarBettingPhase(){
   AVATAR.secondsLeft = AVATAR_BETTING_SECONDS;
   AVATAR.currentRoundId = uuidv4();
   AVATAR.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
-  AVATAR.bets[AVATAR.request.betSide] = AVATAR.request.betAmount;
-  AVATAR.committed = true;   // this round's stake is spoken for from the moment betting opens
+  /* The round opens with nothing on it. The request used to carry a side and an amount and every
+     round was staked with them before the player could say anything; the instruction is given at
+     the table now, chip by chip, so what rides is whatever they put down before the clock runs
+     out. Nothing is spoken for until they do. */
+  AVATAR.committed = false;
   // the hand belongs to the round that just ended; clearing it is what lets "no hand, no result"
   // in beginAvatarResultPhase mean this round's hand rather than possibly a stale earlier one
   AVATAR._sim = null;
+  renderAvatarBetSpots();
   setAvatarPhaseBanner(t('phaseBetting'), AVATAR_BETTING_SECONDS);
   document.getElementById('playerCardsAvatar').innerHTML = ''; document.getElementById('bankerCardsAvatar').innerHTML = '';
   document.getElementById('playerScoreAvatar').textContent = ''; document.getElementById('bankerScoreAvatar').textContent = '';
@@ -871,6 +1099,7 @@ function updateAvatarTimerRing(secLeft, secTotal){
   if (arc){ const c = 169.6; arc.style.strokeDashoffset = c * (1 - secLeft/secTotal); }
   const wrap = document.getElementById('timerRingWrap');
   if (wrap) wrap.classList.toggle('urgent', secLeft <= 5 && secLeft > 0);
+  paintAvatarFsBars();   // the fullscreen bars carry the round, the shoe and the balance
 }
 /* avatarTick is driven by a plain setInterval, which fires again every second whether or not the
    previous tick's async work has finished. A slow placeBet/settleBet write can outlast dealing's
@@ -917,7 +1146,7 @@ async function beginAvatarDealingPhase(){
   // switch and subtract the NEW round's total, or announce the wrong side, for a bet that was
   // actually placed under the OLD round entirely
   const myRound = AVATAR.currentRoundId;
-  const bets = AVATAR.bets, total = avatarTotalBet(), betSide = AVATAR.request.betSide, betAmount = AVATAR.request.betAmount;
+  const bets = AVATAR.bets, total = avatarTotalBet();
   AVATAR.phase = 'dealing';
   AVATAR.secondsLeft = AVATAR_DEALING_SECONDS;
   setAvatarPhaseBanner(t('phaseDealing'), AVATAR_DEALING_SECONDS);
@@ -934,7 +1163,7 @@ async function beginAvatarDealingPhase(){
   if (total > 0){
     STATE.balance -= total;
     document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
-    toast(t('avatarPlacedBet', {side: betLabel(betSide), amount: fmtNum(betAmount)}));
+    toast(t('avatarPlacedTotal', {amount: fmtNum(total)}));
   }
   AVATAR.committed = false;   // the stake has actually left STATE.balance now, one way or the other
   AVATAR._sim = simulateRound(AVATAR.shoe);
@@ -982,6 +1211,7 @@ async function beginAvatarResultPhase(){
     totalPayout += payout;
     MY_BET_LOG.unshift({tableName, roundNo, betType, amount, payout, mode:'avatar', dt:new Date().toISOString()});
   }
+  const staked = Object.values(bets).reduce((a,x)=>a+x, 0);
   if (MY_BET_LOG.length) renderMyBetHistory();
   if (AVATAR.currentRoundId !== myRound){
     // moved on to a new round while this settlement was in flight - the payout still landed
@@ -991,7 +1221,8 @@ async function beginAvatarResultPhase(){
     await refreshBalance();
     return;
   }
-  if (totalPayout > 0){ STATE.balance += totalPayout; toast(t('wonAmount', {amount: fmtNum(totalPayout)})); }
+  if (totalPayout > 0) STATE.balance += totalPayout;
+  if (staked > 0) toast(roundOutcomeText(staked, totalPayout));
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
   refreshPointsQuiet();
 
@@ -1059,14 +1290,17 @@ async function loadSpeedTables(){
   applyLobbyTileFilter();
   tables.forEach(tb=>{
     SPEED.tables[tb.id] = tb;
-    const rounds = allRounds.filter(r=>r.tableId===tb.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+    const all = allRounds.filter(r=>r.tableId===tb.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+    // the board shows the shoe it is on, not every shoe the table has ever dealt
+    const shoeNo = latestShoeNo(all, tb.shoeNo);
+    const rounds = roundsInShoe(all, shoeNo);
     SPEED.tstate[tb.id] = {
       phase:'betting', secondsLeft: SPEED_BETTING_SECONDS - (Object.keys(SPEED.tstate).length*3)%SPEED_BETTING_SECONDS,
-      roundNo: (Math.max(0, ...rounds.map(r=>r.roundNo||0))||0)+1,
+      roundNo: (Math.max(0, ...all.map(r=>r.roundNo||0))||0)+1,
       bets:{player:0, banker:0, tie:0, playerPair:0, bankerPair:0}, currentRoundId: uuidv4(),
       history: rounds.map(r=>r.result),
       pairFlags: rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair})),
-      shoe: openShoe(tb.shoeNo || 1),
+      shoe: openShoeAt(shoeNo, rounds.length),   // stands where the record left it
       // seeded from the last round on record so a table already in play shows its score straight away
       lastResult: rounds.length
         ? {p: rounds[rounds.length-1].playerScore, b: rounds[rounds.length-1].bankerScore, side: rounds[rounds.length-1].result}
@@ -1103,31 +1337,26 @@ const SPEED_TILE_SPOTS = [
   ['playerPair','playerPairShort','pair player'], ['tie','tie','tie'], ['bankerPair','bankerPairShort','pair banker'],
   ['player','player','player'], ['banker','banker','banker'],
 ];
-/* The multi-bet panel: every table on one strip, the one being watched first, each with the same
-   five spots - so a round can be staked across the room without leaving the table on the screen.
-   The open table is on it too. It has its own full-size board above, but that board is not always
-   in the clear once the strip is up, and a rail that carries every table means one place to bet
-   them all from whatever the strip happens to be covering. It stakes whatever chip is selected -
-   the same STATE.selectedChip the table's own tray uses - and carries the running total. */
+/* The multi-bet panel: the OTHER tables on one strip, each with the same five spots - so a round
+   can be staked across the room without leaving the table on the screen. The table being watched
+   is not on it: it has its own full-size board right there, and a second, smaller copy of it in
+   the strip was one more thing to scroll past to reach a table that is not already in front of
+   you. It stakes whatever chip is selected - the same STATE.selectedChip the table's own tray
+   uses - and carries the running total across the lot. */
 function speedMultiPanelHtml(){
   const openId = SPEED.detailTableId;
-  const all = Object.keys(SPEED.tstate);
-  const others = openId && SPEED.tstate[openId]
-    ? [openId, ...all.filter(id => id !== openId)]
-    : all;
+  const others = Object.keys(SPEED.tstate).filter(id => id !== openId);
   const spot = (tableId) => ([key,label,cls]) =>
     `<button type="button" class="tb-spot ${cls}" id="tilespot-${tableId}-${key}" onclick="placeSpeedBet('${tableId}','${key}')">
        <span class="tb-label">${t(label)}</span><b class="tb-amt" id="tilebet-${tableId}-${key}"></b>
      </button>`;
   const rows = others.map(id=>{
     const tb = SPEED.tables[id] || {name:id};
-    const here = id === openId;
-    return `<div class="sm-row${here ? ' current' : ''}" id="smrow-${id}">
+    return `<div class="sm-row" id="smrow-${id}">
       <div class="sm-head">
         <span class="sm-name">${escapeHtml(tb.name || id)}</span>
         <span class="sm-timer">⏱ <b id="smtimer-${id}">–</b></span>
-        ${here ? `<span class="sm-here">${t('watchingNow')}</span>`
-               : `<button class="sm-open" onclick="openSpeedTableDetail('${id}')">${t('enterShort')}</button>`}
+        <button class="sm-open" onclick="openSpeedTableDetail('${id}')">${t('enterShort')}</button>
       </div>
       <div class="sm-sub">
         <span class="sm-phase" id="smphase-${id}"></span>
@@ -1156,7 +1385,23 @@ function speedMultiPanelHtml(){
       <button class="btn btn-sm" onclick="clearAllSpeedBets()">${t('cancelBet')}</button>
       <button class="icon-btn sm-close" onclick="toggleSpeedMultiPanel(false)" title="${t('backToList')}">✕</button>
     </div>
-    <div class="sm-list">${rows || `<p class="hint">${t('noSpeedTables')}</p>`}</div>`;
+    <div class="sm-list">${rows || `<p class="hint">${t('noOtherTables')}</p>`}</div>
+    <div class="sm-scrollbar" id="speedMultiScrollbar"><div class="sm-scrollbar-thumb" id="speedMultiScrollbarThumb"></div></div>`;
+}
+/* Slides the thumb to match the rail's own scrollLeft - the rail's native scrollbar is hidden,
+   so without this there's no on-screen cue that swiping left/right reaches more tables. */
+function updateSpeedMultiScrollbar(){
+  const list = document.querySelector('#speedMultiPanel .sm-list');
+  const bar = document.getElementById('speedMultiScrollbar');
+  const thumb = document.getElementById('speedMultiScrollbarThumb');
+  if (!list || !bar || !thumb) return;
+  const scrollable = list.scrollWidth - list.clientWidth;
+  if (scrollable <= 4){ bar.classList.remove('visible'); return; }
+  bar.classList.add('visible');
+  const barWidth = bar.clientWidth;
+  const thumbWidth = Math.max(30, barWidth * (list.clientWidth / list.scrollWidth));
+  thumb.style.width = thumbWidth + 'px';
+  thumb.style.left = ((list.scrollLeft / scrollable) * (barWidth - thumbWidth)) + 'px';
 }
 function toggleSpeedMultiPanel(open){
   const el = document.getElementById('speedMultiPanel');
@@ -1166,13 +1411,17 @@ function toggleSpeedMultiPanel(open){
     paintScreen(el, speedMultiPanelHtml());
     Object.keys(SPEED.tstate).forEach(id=>{
       renderSpeedTileBets(id);
-      setSpeedTileBetsLocked(id, SPEED.tstate[id].phase !== 'betting');
       paintSpeedMultiRow(id);
       renderSpeedMultiResult(id);      // marks the road; the observer draws the ones on screen
-      paintSpeedConfirmState(id);
+      paintSpeedConfirmState(id);      // and this is what locks a board closed to further chips
     });
     renderSpeedStakedTotal();
     watchSpeedMultiRoads();
+    const list = el.querySelector('.sm-list');
+    if (list){
+      list.addEventListener('scroll', updateSpeedMultiScrollbar);
+      requestAnimationFrame(updateSpeedMultiScrollbar);
+    }
   } else {
     unwatchSpeedMultiRoads();
   }
@@ -1404,9 +1653,20 @@ function speedLockedTotal(){
   });
   return locked;
 }
+/* A table takes chips while betting is open and nothing has been signed off on it yet. 베팅완료
+   closes its board for the round: what was confirmed is what rides. A tap on a spot after it used
+   to quietly re-open the bet and add to the stake, so a stray touch on the way to the next round
+   staked more than the player had agreed to - and the confirmation on screen no longer described
+   what was on the felt. 취소 is still the way back: it takes the whole stake off and re-opens the
+   board, which is a deliberate act rather than a slip. */
+function speedTableTakesBets(tableId){
+  const s = SPEED.tstate[tableId];
+  return !!s && s.phase === 'betting' && !s.confirmed;
+}
 function placeSpeedBet(tableId, type){
   const s = SPEED.tstate[tableId];
   if (!s || s.phase !== 'betting'){ toast(t('notBettingTime'), true); return; }
+  if (s.confirmed){ toast(t('alreadyConfirmed'), true); return; }
   const free = STATE.balance - speedLockedTotal();
   // the table's limits apply to each betting position, not to the round as a whole
   const max = tableBetMax(tableId);
@@ -1451,7 +1711,8 @@ const FS_BAR_ICONS = {
   history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>',
   menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
 };
-function fsBarHtml(tb, where){
+function fsBarHtml(tb, where, mode){
+  mode = mode || 'speed';
   const mark = `<span class="fs-mark">${CASINO_MARK_SRC[tb.casino] ? `<img src="${CASINO_MARK_SRC[tb.casino]}" alt="">` : ''}<b>${escapeHtml(tb.casino || '')}</b></span>`;
   const stats = `
     <span class="fs-stat"><i>${t('roundLabel')}</i><b class="fs-round">1</b></span>
@@ -1461,14 +1722,26 @@ function fsBarHtml(tb, where){
       <button class="fs-x" onclick="exitStageFullscreen()" data-i18n-title="fullscreen" title="전체화면">✕</button>
     </div>`;
   }
+  // Speed's second icon opens the multi-bet sheet, which has no avatar equivalent (nothing to
+  // bet manually there) - it opens the tip modal instead.
+  const secondIcon = mode === 'avatar'
+    ? `<button class="fs-ico" onclick="openTipModal()" data-i18n-title="giveTip" title="팁">${FS_BAR_ICONS.menu}</button>`
+    : `<button class="fs-ico" onclick="toggleSpeedMultiPanel()" data-i18n-title="multiBet" title="멀티 베팅">${FS_BAR_ICONS.menu}</button>`;
   return `<div class="sd-fs-bar sd-fs-bottom">
     ${mark}${stats}
-    <span class="fs-who"><em><i>👤</i>${escapeHtml(PLAYER?.nickname || PLAYER?.id || '')}</em><b>₱ <span class="fs-bal">0</span></b></span>
+    <span class="fs-who"><em><i>${PERSON_ICON}</i>${escapeHtml(PLAYER?.nickname || PLAYER?.id || '')}</em><b>${PESO} <span class="fs-bal">0</span></b></span>
     <span class="fs-sp"></span>
     <button class="fs-ico" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록">${FS_BAR_ICONS.history}</button>
-    <button class="fs-ico" onclick="toggleSpeedMultiPanel()" data-i18n-title="multiBet" title="멀티 베팅">${FS_BAR_ICONS.menu}</button>
+    ${secondIcon}
   </div>`;
 }
+
+/* The head beside a head-count, and the peso beside a sum. Both were characters - 👤 is a
+   colour emoji, so it ignored the colour it was set in and stayed its own blue on the red
+   spots too, and ₱ is absent from the mono face, so it fell back to a bare P. Drawn and
+   set in a face that has it, they take the colour around them and read as what they are. */
+const PERSON_ICON = '<svg class="ic-person" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.6 21a7.4 7.4 0 0 1 14.8 0z"/></svg>';
+const PESO = '<span class="cur-peso">₱</span>';
 
 /* ---------------- the betting board ----------------
    There are two of them, and which one is drawn is whether the table is fullscreen.
@@ -1486,7 +1759,7 @@ function fsBarHtml(tb, where){
 
    Both carry the same ids, so everything that paints a spot paints either of them. */
 function betBoardHtml(tableId){
-  return document.fullscreenElement ? feltBoardHtml(tableId) : classicBoardHtml(tableId);
+  return stageFsElement() ? feltBoardHtml(tableId) : classicBoardHtml(tableId);
 }
 /* the screen is not rebuilt when fullscreen is entered or left, so the board is swapped in place */
 function renderBetBoard(tableId){
@@ -1499,14 +1772,15 @@ function renderBetBoard(tableId){
   const s = SPEED.tstate[tableId];
   if (s) ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
     const spot = document.getElementById(`spot-detail-${k}`);
-    if (spot){ spot.classList.toggle('selected', s.bets[k]>0); spot.classList.toggle('locked', s.phase!=='betting'); }
+    if (spot) spot.classList.toggle('selected', s.bets[k]>0);
   });
+  if (s) paintSpeedConfirmState(tableId);   // which is what puts the lock on, confirmed or dealt
 }
 function classicBoardHtml(tableId){
   const cell = (key, cls, i18n, ko, odds) =>
     `<div class="bet-spot ${cls}" id="spot-detail-${key}" onclick="placeSpeedBet('${tableId}','${key}')">
       <div class="label" data-i18n="${i18n}">${ko}</div>
-      <div class="meta-row"><span>👤 <b id="heads-detail-${key}">0</b></span><span>₱ <b id="pool-detail-${key}">0</b></span></div>
+      <div class="meta-row"><span>${PERSON_ICON}<b id="heads-detail-${key}">0</b></span><span>${PESO}<b id="pool-detail-${key}">0</b></span></div>
       <div class="odds">${odds}</div>
       <div class="my-bet" id="mybet-detail-${key}"></div>
     </div>`;
@@ -1533,7 +1807,7 @@ function betSpotHtml(tableId, s){
   return `<div class="bet-spot ${s.cls} ${s.side}" id="spot-detail-${s.key}" onclick="placeSpeedBet('${tableId}','${s.key}')">
     <div class="bb-meta">
       <span class="bb-pct" id="pct-detail-${s.key}">0%</span>
-      <span class="bb-stats"><i>👤 <b id="heads-detail-${s.key}">0</b></i><i>₱ <b id="pool-detail-${s.key}">0</b></i></span>
+      <span class="bb-stats"><i>${PERSON_ICON}<b id="heads-detail-${s.key}">0</b></i><i>${PESO}<b id="pool-detail-${s.key}">0</b></i></span>
     </div>
     <div class="bb-name">
       <span class="bb-label" data-i18n="${s.i18n}">${s.ko}</span>
@@ -1558,6 +1832,129 @@ function feltBoardHtml(tableId){
   </div>`;
 }
 
+/* ---------------- avatar's board is Speed's, read-only ----------------
+   Same shape/classes as Speed's board (classic or felt, whichever fullscreen calls for), kept
+   as its own small set of functions with an -avatar id suffix rather than parametrizing Speed's
+   (which take a clickable tableId throughout) - no onclick, filled from AVATAR.bets instead of
+   a chip tray, since the avatar places the bet automatically rather than the player. */
+function avatarBetBoardHtml(){
+  return stageFsElement() ? avatarFeltBoardHtml() : avatarClassicBoardHtml();
+}
+function avatarClassicBoardHtml(){
+  const cell = (key, cls, i18n, ko, odds) =>
+    `<div class="bet-spot ${cls}" id="spot-avatar-${key}" onclick="placeAvatarBet('${key}')">
+      <div class="label" data-i18n="${i18n}">${ko}</div>
+      <div class="meta-row"><span>${PERSON_ICON}<b id="heads-avatar-${key}">0</b></span><span>${PESO}<b id="pool-avatar-${key}">0</b></span></div>
+      <div class="odds">${odds}</div>
+      <div class="my-bet" id="mybet-avatar-${key}"></div>
+    </div>`;
+  return `<div class="bb-classic">
+    <div class="pair-row">
+      ${cell('playerPair','pair player','playerPair','플레이어 페어','11:1')}
+      ${cell('tie','tie','tie','타이','8:1')}
+      ${cell('bankerPair','pair banker','bankerPair','뱅커 페어','11:1')}
+    </div>
+    <div class="bet-rail two-up" style="margin-top:0;">
+      ${cell('player','player','player','플레이어','1:1')}
+      ${cell('banker','banker','banker','뱅커','0.95:1')}
+    </div>
+  </div>`;
+}
+function avatarBetSpotHtml(s){
+  return `<div class="bet-spot ${s.cls} ${s.side}" id="spot-avatar-${s.key}" onclick="placeAvatarBet('${s.key}')">
+    <div class="bb-meta">
+      <span class="bb-pct" id="pct-avatar-${s.key}">0%</span>
+      <span class="bb-stats"><i>${PERSON_ICON}<b id="heads-avatar-${s.key}">0</b></i><i>${PESO}<b id="pool-avatar-${s.key}">0</b></i></span>
+    </div>
+    <div class="bb-name">
+      <span class="bb-label" data-i18n="${s.i18n}">${s.ko}</span>
+      <span class="bb-odds">${s.odds}</span>
+    </div>
+    <div class="my-bet" id="mybet-avatar-${s.key}"></div>
+  </div>`;
+}
+function avatarFeltBoardHtml(){
+  const spot = key => avatarBetSpotHtml(BET_SPOTS.find(s=>s.key===key));
+  return `<div class="bet-board">
+    <div class="bb-row bb-top">
+      ${spot('playerPair')}
+      <div class="bb-arch-gap"></div>
+      ${spot('bankerPair')}
+    </div>
+    <div class="bb-row bb-main">
+      ${spot('player')}
+      ${spot('banker')}
+    </div>
+    ${spot('tie')}
+  </div>`;
+}
+/* mirrors renderSpeedTileBets + paintBetBoardReadings, but reading AVATAR.bets - the .locked
+   class in the markup above already keeps every spot inert, so there's no click state to track,
+   only amounts to paint in as the avatar's auto-bet lands each round. */
+/* Putting a chip on the felt. The avatar plays what is on the board when the clock runs out, so
+   this is the instruction - and it is the same shape as Speed's placeSpeedBet: only while betting
+   is open, never past the table maximum, and a chip worth more than is left rides the rest of the
+   balance in rather than being refused. */
+function avatarTakesBets(){ return AVATAR.phase === 'betting' && !!AVATAR.request; }
+function placeAvatarBet(type){
+  if (!avatarTakesBets()){ toast(t('notBettingTime'), true); return; }
+  const free = STATE.balance - avatarCommittedAmount();
+  const max = Number(AVATAR.table?.betMax) || Infinity;
+  const headroom = Math.max(0, max - (AVATAR.bets[type] || 0));
+  const stake = Math.min(STATE.selectedChip, headroom, free);
+  if (stake <= 0){
+    toast(free <= 0 ? t('insufficientBalance') : t('aboveTableMax', {max: fmtNum(max)}), true);
+    return;
+  }
+  AVATAR.bets[type] = (AVATAR.bets[type] || 0) + stake;
+  AVATAR.committed = true;          // spoken for from the moment a chip lands
+  if (stake < STATE.selectedChip && stake === free) toast(t('allInStaked', {amount: fmtNum(stake)}));
+  document.getElementById(`spot-avatar-${type}`)?.classList.add('selected');
+  renderAvatarBetSpots();
+  projectAvatarBalance();
+}
+function clearAvatarBets(){
+  if (!avatarTakesBets()){ toast(t('notBettingTime'), true); return; }
+  AVATAR.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
+  AVATAR.committed = false;
+  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>
+    document.getElementById(`spot-avatar-${k}`)?.classList.remove('selected'));
+  renderAvatarBetSpots();
+  projectAvatarBalance();
+}
+/* the header follows the chips, as it does on a Speed table - the stake has not left the balance
+   yet, so what is shown is what is left to stake */
+function projectAvatarBalance(){
+  const el = document.getElementById('hdrBalance');
+  if (el) el.textContent = fmtNum(STATE.balance - avatarCommittedAmount());
+  paintAvatarFsBars();
+}
+function renderAvatarBetSpots(){
+  const total = Object.values(AVATAR.bets).reduce((a,b)=>a+b,0);
+  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+    const amt = AVATAR.bets[k] || 0;
+    const set = (id, v)=>{ const el = document.getElementById(id); if (el) el.textContent = v; };
+    set(`mybet-avatar-${k}`, amt ? fmtNum(amt) : '');
+    set(`pct-avatar-${k}`, (total ? Math.round(amt / total * 100) : 0) + '%');
+    set(`heads-avatar-${k}`, amt ? 1 : 0);
+    set(`pool-avatar-${k}`, fmtNum(amt));
+  });
+  const tot = document.getElementById('avatarStakedTotal');
+  if (tot) tot.textContent = fmtNum(total);
+  const chips = document.getElementById('avatarStakedChips');
+  if (chips) chips.innerHTML = total ? chipStackHtml(total) : '';
+}
+/* the screen is not rebuilt when fullscreen is entered or left, so the board is swapped in
+   place - mirrors renderBetBoard for Speed's own board */
+function renderAvatarBetBoard(){
+  const host = document.querySelector('#viewAvatarTable .sd-bets');
+  if (!host) return;
+  const old = host.querySelector('.bet-board, .bb-classic');
+  if (old) old.outerHTML = avatarBetBoardHtml();
+  applyI18n?.(host);
+  renderAvatarBetSpots();
+}
+
 /* ---------------- speed single-table detail screen (opened from a tile) ---------------- */
 function openSpeedTableDetail(tableId, preserveScroll){
   const s = SPEED.tstate[tableId], tb = SPEED.tables[tableId];
@@ -1571,7 +1968,7 @@ function openSpeedTableDetail(tableId, preserveScroll){
   paintSpeedFsBars(tableId);
   // the screen is rebuilt from scratch on every open, so one opened while already fullscreen
   // needs the class - and the loans - put back on the new wrapper
-  if (document.fullscreenElement){
+  if (stageFsElement()){
     document.querySelector('.speed-detail-wrap')?.classList.add('is-fs');
     adoptFsFollowers(fsFollowHost());
   }
@@ -1579,13 +1976,15 @@ function openSpeedTableDetail(tableId, preserveScroll){
   setSpeedTileTimer(tableId, Math.max(0, s.secondsLeft));
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
     const spot = document.getElementById(`spot-detail-${k}`);
-    if (spot){ spot.classList.toggle('selected', s.bets[k]>0); spot.classList.toggle('locked', s.phase!=='betting'); }
+    if (spot) spot.classList.toggle('selected', s.bets[k]>0);
   });
+  paintSpeedConfirmState(tableId);          // which is what puts the lock on, confirmed or dealt
+  renderAiPrediction(tableId);
   if (s.phase==='result' && s._sim) revealSpeedDetailCards(s._sim, true);
 }
 function closeSpeedTableDetail(){
   SPEED.detailTableId = null;
-  if (document.fullscreenElement) document.exitFullscreen?.();
+  exitStageFullscreen();
   releaseFsFollowers();
   document.getElementById('viewSpeedTable').innerHTML = '';
   showView('viewSpeedLobby');
@@ -1613,16 +2012,18 @@ function speedDetailShellHtml(tableId){
             <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/></svg>
           </button>
           <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
-          <button onclick="toast(t('tipComingSoon'))" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
+          <button onclick="openTipModal()" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
           <button class="sd-ico-history" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
+          <button class="sd-ico-ai" id="aiToggleBtn" onclick="toggleAiPanel()" data-i18n-title="aiPredictTitle" title="AI 예측"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.4"/></svg></button>
         </div>
+        ${aiPanelHtml()}
         <div class="table-felt">
           <div class="cards-area">
             <div class="hand player"><div class="cards" id="playerCardsDetail"></div><div class="score" id="playerScoreDetail"></div></div>
             <div class="hand banker"><div class="cards" id="bankerCardsDetail"></div><div class="score" id="bankerScoreDetail"></div></div>
           </div>
         </div>
-        <div class="timer-ring-wrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-detail">15</div></div>
+        <div class="timer-ring-wrap" id="timerRingWrapDetail"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArcDetail" cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-detail">30</div></div>
       </div>
       <!-- The board and the betting spots share one wrapper. It is display:contents everywhere
            except a desktop fullscreen, so on the ordinary screen it is not there at all and its
@@ -1638,8 +2039,10 @@ function speedDetailShellHtml(tableId){
           <span class="spacer"></span>
           <button class="btn btn-sm btn-gold" id="speedConfirmBtn" onclick="confirmSpeedBetDetail('${tableId}')" data-i18n="betComplete">베팅완료</button>
           <button class="btn btn-sm" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n="repeatBet">반복</button>
+          <!-- Two labels, one button. Fullscreen turns the tray's buttons into 46px rings, and
+               "멀티 베팅" does not go in one - so the short form is what shows there. -->
           <button class="btn btn-sm sd-multi-btn" id="speedMultiBtn" onclick="toggleSpeedMultiPanel()">
-            <span data-i18n="multiBet">멀티 베팅</span><b class="sm-count" id="speedMultiCount"></b>
+            <span class="mb-long" data-i18n="multiBet">멀티 베팅</span><span class="mb-short" data-i18n="multiBetShort">멀티</span><b class="sm-count" id="speedMultiCount"></b>
           </button>
         </div>
       </div>
@@ -1698,6 +2101,11 @@ function confirmSpeedBets(tableId, quiet){
   if (speedBetsTotal(s.bets) <= 0){ if (!quiet) toast(t('nothingToConfirm'), true); return false; }
   s.confirmed = {...s.bets};
   paintSpeedConfirmState(tableId);
+  /* 베팅완료 is the moment the player expects to see the money go. It is already off the balance
+     by then - it comes off as each chip lands - but returnUnderMinSpeedBets() just above can hand
+     a short bet back, and confirming from the multi-bet sheet stakes several tables at once, so
+     the figure is re-read here rather than assumed to be current. */
+  projectSpeedBalance();
   if (!quiet) toast(t('betCompleteToast'));
   return true;
 }
@@ -1708,20 +2116,135 @@ function confirmAllSpeedBets(){
   Object.keys(SPEED.tstate || {}).forEach(id=>{ if (confirmSpeedBets(id, true)) n++; });
   toast(n ? t('betConfirmedCount', {n}) : t('nothingToConfirm'), !n);
 }
-/* the open table's spots and the sheet's rows both show whether what is on them is riding */
+/* the open table's spots and the sheet's rows both show whether what is on them is riding - and
+   both boards take the lock together, so a table closed to further chips is closed on the felt
+   and on its tile in the strip alike */
 function paintSpeedConfirmState(tableId){
   const s = SPEED.tstate[tableId];
   if (!s) return;
   const pending = speedBetsTotal(s.bets) > 0 && !s.confirmed;
+  /* Two ways to be shut, and they do not look alike. A round gone to the cards is dimmed right
+     down - there is nothing to read on it any more. A round the player has signed off is still a
+     live betting round they will want to read for the next thirty seconds, so it is marked as
+     closed rather than darkened. Either way it takes no more chips. */
+  const dealt = s.phase !== 'betting';
+  const signedOff = !dealt && !!s.confirmed;
   if (SPEED.detailTableId === tableId){
     document.getElementById('viewSpeedTable')?.classList.toggle('bets-pending', pending);
     const btn = document.getElementById('speedConfirmBtn');
-    if (btn) btn.classList.toggle('pending', pending);
+    if (btn){ btn.classList.toggle('pending', pending); btn.classList.toggle('done', !!s.confirmed); }
+    ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
+      const spot = document.getElementById(`spot-detail-${k}`);
+      if (!spot) return;
+      spot.classList.toggle('locked', dealt);
+      spot.classList.toggle('bets-closed', signedOff);
+    });
+    /* The stretch of 플레이어's and 뱅커's border that runs round the arch is drawn on the board,
+       not on either spot - it has to be, because a spot clips its own children. So the dimming the
+       spots take when a round shuts does not reach it, and a closed board was left with two bright
+       curves on it. The board carries the same state, and dims them with it. */
+    const board = document.querySelector('#viewSpeedTable .bet-board');
+    if (board){
+      board.classList.toggle('board-locked', dealt);
+      board.classList.toggle('board-closed', signedOff);
+    }
   }
+  setSpeedTileBetsLocked(tableId, dealt || signedOff);
   document.getElementById(`smrow-${tableId}`)?.classList.toggle('pending', pending);
 }
+/* ============================================================
+   다음 게임 예측 — the AI panel
+   ============================================================
+   The engine is shared/baccarat-ai.js; read its header before reading this. The short of it:
+   the only real signal in baccarat is what is left in the shoe, it is far too small to beat the
+   commission, and this panel is written to SAY so rather than to sell a number.
+
+   So the panel shows three things a punter can act on and one they should:
+     - the probabilities, with the margin of error the sampling actually carries
+     - the expected value of each side, which is negative on both, always
+     - whether the model resolved anything at all, or is simply repeating the base rate
+
+   It is a read on the table, not advice, and the panel says as much on its face. */
+let AI_PANEL_OPEN = false;
+let AI_LAST = null;              // the prediction standing against the round now being dealt
+function aiPanelHtml(){
+  return `<div class="ai-panel${AI_PANEL_OPEN?' open':''}" id="aiPanel">
+    <div class="ai-head"><b data-i18n="aiPredictTitle">${t('aiPredictTitle')}</b>
+      <button class="ai-close" onclick="toggleAiPanel(false)" aria-label="close">✕</button></div>
+    <div class="ai-body" id="aiBody"><p class="hint" data-i18n="aiWaiting">${t('aiWaiting')}</p></div>
+  </div>`;
+}
+function toggleAiPanel(open){
+  const el = document.getElementById('aiPanel');
+  if (!el) return;
+  AI_PANEL_OPEN = open === undefined ? !el.classList.contains('open') : !!open;
+  el.classList.toggle('open', AI_PANEL_OPEN);
+  document.getElementById('aiToggleBtn')?.classList.toggle('active', AI_PANEL_OPEN);
+  if (AI_PANEL_OPEN && SPEED.detailTableId) renderAiPrediction(SPEED.detailTableId);
+}
+/* Run once when betting opens, not on every tick: the sampling is a few thousand hands of work
+   and the answer cannot change until a card leaves the shoe. */
+function renderAiPrediction(tableId){
+  const s = SPEED.tstate[tableId];
+  const body = document.getElementById('aiBody');
+  if (!s || !body) return;
+  if (!AI_PANEL_OPEN){ AI_LAST = null; return; }
+  const p = predictNextHand(s.shoe, s.history, {decks:8});
+  if (!p.ok){ body.innerHTML = `<p class="hint">${t('aiNoShoe')}</p>`; AI_LAST = null; return; }
+  AI_LAST = {tableId, roundId: s.currentRoundId, roundNo: s.roundNo, shoeNo: s.shoe?.no,
+             player:p.player, banker:p.banker, tie:p.tie, side:p.rec.side, ev:p.rec.edge,
+             resolved:p.rec.resolved, cardsLeft:p.cardsLeft};
+  const pctOf = v => (v*100).toFixed(1) + '%';
+  const err = (2*sampleMargin(p.banker, p.comp.trials)*100).toFixed(1);
+  const evTxt = (p.rec.edge*100).toFixed(2) + '%';
+  const conf = t('aiConf_' + p.rec.confidence);
+  body.innerHTML = `
+    <div class="ai-bars">
+      ${[['player',p.player],['banker',p.banker],['tie',p.tie]].map(([k,v])=>`
+        <div class="ai-bar ${k}"><span class="ai-k">${t(k)}</span>
+          <span class="ai-track"><i style="width:${Math.max(2,Math.min(100,v*100)).toFixed(1)}%"></i></span>
+          <b class="ai-v">${pctOf(v)}</b></div>`).join('')}
+    </div>
+    <div class="ai-rec ${p.rec.side}">
+      <span data-i18n="aiRecommendation">${t('aiRecommendation')}</span>
+      <b>${t(p.rec.side)}</b>
+    </div>
+    <div class="ai-meta">
+      <div><i>${t('aiExpectedValue')}</i><b class="${p.rec.positive?'pos':p.rec.edge<0?'neg':'flat'}">${evTxt}</b></div>
+      <div><i>${t('aiConfidence')}</i><b>${conf}</b></div>
+      <div><i>${t('aiMarginLabel')}</i><b>±${err}%</b></div>
+      <div><i>${t('aiCardsLeft')}</i><b>${fmtNum(p.cardsLeft)}</b></div>
+    </div>
+    <p class="ai-note">${p.rec.resolved ? t('aiNoteResolved') : t('aiNoteUnresolved')}</p>
+    <p class="ai-note warn">${t('aiNoteHouse')}</p>`;
+  applyI18n(body);
+}
+/* Every prediction is kept against what actually happened, which is what makes a paper-betting
+   record out of a panel. One row per hand, the shape the brief's section 20 asks for, so model
+   versions can be compared on the same hands later rather than argued about. */
+const AI_MODEL_VERSION = 'v1-composition';
+async function logAiPrediction(tableId, actual){
+  const a = AI_LAST;
+  AI_LAST = null;
+  if (!a || a.tableId !== tableId || !db) return;
+  const won = actual === 'tie' ? null : actual === a.side;
+  const profit = actual === 'tie' ? 0 : (won ? (a.side === 'banker' ? 0.95 : 1) : -1);
+  try{
+    await db.collection('aiPredictions').doc(uuidv4()).set({
+      tableId, shoeId: `${tableId}#${a.shoeNo}`, gameId: a.roundId, roundNo: a.roundNo,
+      prediction: a.side, playerProbability: a.player, bankerProbability: a.banker,
+      tieProbability: a.tie, expectedValue: a.ev, resolved: a.resolved, cardsLeft: a.cardsLeft,
+      modelVersion: AI_MODEL_VERSION, actualResult: actual,
+      winLoss: won === null ? 'push' : (won ? 'win' : 'loss'),
+      betAmount: 1, commission: a.side === 'banker' ? 0.05 : 0, profit,   // paper units, never money
+      memberId: PLAYER?.id || null, createdAt: new Date().toISOString(),
+    });
+  }catch(e){ console.error('ai prediction log failed', e); }
+}
+
 function repeatLastSpeedBetDetail(tableId){
   const s = SPEED.tstate[tableId]; if (!s || s.phase!=='betting') return;
+  if (s.confirmed){ toast(t('alreadyConfirmed'), true); return; }   // the board is closed, as the spots are
   if (!s.lastBets || !Object.values(s.lastBets).some(v=>v>0)){ toast(t('repeatNoPrev'), true); return; }
   const need = Object.values(s.lastBets).reduce((a,b)=>a+b,0);
   if (STATE.balance - speedLockedTotal() < need){ toast(t('insufficientBalance'), true); return; }
@@ -1735,8 +2258,14 @@ function repeatLastSpeedBetDetail(tableId){
   renderSpeedStakedTotal();
   projectSpeedBalance();
 }
+/* What the player has left to stake, on every surface that shows it. The page header was the only
+   one repainted here; the fullscreen bar carries its own copy of the figure and was left to pick
+   the change up on the next clock tick, so in fullscreen - which is where the table is actually
+   played - money placed did not come off the balance until as much as a second later. Stake three
+   chips quickly and the number stood still and then jumped. It moves with the chips now. */
 function projectSpeedBalance(){
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance - speedLockedTotal());
+  if (SPEED.detailTableId) paintSpeedFsBars(SPEED.detailTableId);
 }
 /* One loop drives every table's clock, so it must never wait on any of them. It used to await
    the phase changes, and a phase change is not quick: closing betting writes each staked spot to
@@ -1784,9 +2313,21 @@ function setSpeedTileTimer(tableId, v){
   const el = document.getElementById('timer-'+tableId); if (el) el.textContent = v;
   if (SPEED.detailTableId===tableId){
     const d = document.getElementById('timer-detail'); if (d) d.textContent = v;
+    updateSpeedTimerRing(tableId, v);
     paintSpeedFsBars(tableId);   // the fullscreen bars carry the round, the shoe and the balance
   }
   paintSpeedMultiRow(tableId);   // the multi-bet panel counts its neighbours down too
+}
+/* The open table's ring only ever printed a number - the arc around it was drawn once, full, and
+   left there, so the countdown had a dial that never moved. It winds down against whatever the
+   phase it is in is counted from, the way the avatar table's does. */
+function updateSpeedTimerRing(tableId, secLeft){
+  const s = SPEED.tstate[tableId]; if (!s) return;
+  const total = s.phase==='betting' ? SPEED_BETTING_SECONDS
+              : s.phase==='dealing' ? SPEED_DEALING_SECONDS : SPEED_RESULT_SECONDS;
+  const arc = document.getElementById('timerArcDetail');
+  if (arc){ const c = 169.6; arc.style.strokeDashoffset = c * (1 - Math.max(0,secLeft)/total); }
+  document.getElementById('timerRingWrapDetail')?.classList.toggle('urgent', secLeft <= 5 && secLeft > 0);
 }
 // The list no longer captions the phase - only the open table does.
 function setSpeedTilePhaseText(tableId, txt){
@@ -1798,6 +2339,7 @@ function beginSpeedBetting(tableId){
   const hadBets = Object.values(s.bets).some(v=>v>0);
   if (hadBets) s.lastBets = {...s.bets};
   s.phase = 'betting'; s.secondsLeft = SPEED_BETTING_SECONDS; s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0}; s.currentRoundId = uuidv4();
+  if (SPEED.detailTableId === tableId) renderAiPrediction(tableId);   // read the shoe once a round
   s.settling = false;
   s.confirmed = null;
   // the hand belongs to the round that just ended; clearing it is what lets "no hand, no result"
@@ -1806,7 +2348,7 @@ function beginSpeedBetting(tableId){
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
     if (SPEED.detailTableId===tableId) document.getElementById(`spot-detail-${k}`)?.classList.remove('selected','locked');
   });
-  setSpeedTileBetsLocked(tableId, false);
+  paintSpeedConfirmState(tableId);          // a fresh round: nothing confirmed, both boards open
   renderSpeedTileBets(tableId);
   renderSpeedStakedTotal();
   // the header can be showing this table's stake projected off the balance - clearing s.bets
@@ -1823,10 +2365,7 @@ async function beginSpeedDealing(tableId){
   s.phase = 'dealing'; s.secondsLeft = SPEED_DEALING_SECONDS;
   // still counts as locked until the balance actually moves below - see speedLockedTotal
   s.settling = true;
-  if (SPEED.detailTableId===tableId){
-    ['player','tie','banker','playerPair','bankerPair'].forEach(k=> document.getElementById(`spot-detail-${k}`)?.classList.add('locked'));
-  }
-  setSpeedTileBetsLocked(tableId, true);
+  paintSpeedConfirmState(tableId);          // betting is shut: both boards take the lock
   setSpeedTilePhaseText(tableId, t('phaseDealing'));
   returnUnderMinSpeedBets(tableId);   // a short bet never reaches the felt
   // Only what was confirmed rides. Chips left on a spot without pressing 베팅완료 are pushed
@@ -1864,6 +2403,11 @@ function returnUnderMinSpeedBets(tableId){
   if (returned > 0){
     renderSpeedTileBets(tableId);
     renderSpeedStakedTotal();
+    /* The money is back on the balance here, so the balance is re-read here. Leaving it to the
+       caller missed the case that matters most: when the short bet was the only thing on the
+       felt, confirmSpeedBets returns early with "nothing to confirm" - before it ever gets to
+       repaint - and the chip was handed back while the header went on showing it as staked. */
+    projectSpeedBalance();
     toast(t('betReturnedBelowMin', {amount: fmtNum(returned)}), true);
   }
   return returned;
@@ -1904,8 +2448,11 @@ async function beginSpeedResult(tableId){
     MY_BET_LOG.unshift({tableName:tb.name, roundNo:s.roundNo, betType, amount, payout, mode:'speed', dt:new Date().toISOString()});
     SPEED.allBets.push({relatedTableId:tableId, amount:-amount, category:'bet', createdAt:new Date().toISOString()});
   }
+  logAiPrediction(tableId, sim.result);   // the paper-betting record, win or lose
+  const staked = Object.values(s.bets).reduce((a,x)=>a+x, 0);
   if (MY_BET_LOG.length) renderMyBetHistory();
-  if (totalPayout > 0){ STATE.balance += totalPayout; toast(`[${tb.name}] ${t('wonAmount', {amount: fmtNum(totalPayout)})}`); }
+  if (totalPayout > 0) STATE.balance += totalPayout;
+  if (staked > 0) toast(`[${tb.name}] ${roundOutcomeText(staked, totalPayout)}`);
   document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
 
   await writeRoundDoc(db, {tableId, tableType:'speed', roundNo:s.roundNo, shoeNo:s.shoe.no, sim, startedAt:new Date(Date.now()-(SPEED_BETTING_SECONDS+SPEED_DEALING_SECONDS)*1000).toISOString()});

@@ -44,7 +44,7 @@ module.exports = [
     },
   },
   {
-    files: ["avatar/**/*.js", "partner-admin/**/*.js", "shared/**/*.js"],
+    files: ["avatar/**/*.js", "partner-admin/**/*.js", "agent-admin/**/*.js", "shared/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "script",
@@ -57,7 +57,8 @@ module.exports = [
     },
   },
   {
-    files: ["functions/**/*.js"],
+    // tools/ is ordinary Node, run by hand rather than shipped - same rules as functions/
+    files: ["functions/**/*.js", "tools/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "commonjs",
@@ -69,6 +70,7 @@ module.exports = [
         console: "readonly",
         Buffer: "readonly",
         fetch: "readonly",
+        __dirname: "readonly",
       },
     },
     rules: {

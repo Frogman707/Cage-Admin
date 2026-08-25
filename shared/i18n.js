@@ -134,9 +134,9 @@ const I18N_DICT = {
   btnPending:{ko:'승인 대기중',zhHans:'等待批准',zhHant:'等待批准',en:'Awaiting approval',ja:'承認待ち',vi:'Đang chờ duyệt'},
   requestModalTitle:{ko:'아바타 대리베팅 신청',zhHans:'申请代打投注',zhHant:'申請代打投注',en:'Request Avatar Betting',ja:'アバター代理ベット申請',vi:'Yêu cầu đặt cược Avatar'},
   requestModalDesc:{ko:'전담 아바타가 아래 지시에 따라 라운드마다 대신 베팅합니다. 보유금에서 실시간으로 차감/지급됩니다.',zhHans:'专属代打将按下方指示每局为您代为下注，实时从余额中扣款/结算。',zhHant:'專屬代打將按下方指示每局為您代為下注，實時從餘額中扣款/結算。',en:'A dedicated avatar will place a bet each round per your instruction below, debited/credited from your balance in real time.',ja:'専属アバターが下記の指示に従い毎ラウンド代わりにベットします。保有金からリアルタイムで増減します。',vi:'Người Avatar sẽ đặt cược mỗi vòng theo hướng dẫn bên dưới, trừ/cộng trực tiếp từ số dư của bạn.'},
+  avatarPlacedTotal:{ko:'아바타가 {amount} 베팅했습니다',zhHans:'代打已下注{amount}',zhHant:'代打已下注{amount}',en:'Avatar staked {amount}',ja:'アバターが{amount}ベットしました',vi:'Avatar đã cược {amount}'},
   buyinLabel:{ko:'바이인 금액',zhHans:'买入金额',zhHant:'買入金額',en:'Buy-in amount',ja:'バイイン金額',vi:'Số tiền buy-in'},
-  betInstructionLabel:{ko:'라운드당 베팅 지시',zhHans:'每局投注指示',zhHant:'每局投注指示',en:'Per-round bet instruction',ja:'ラウンドごとのベット指示',vi:'Hướng dẫn cược mỗi vòng'},
-  betAmountLabel:{ko:'라운드당 베팅액',zhHans:'每局投注额',zhHant:'每局投注額',en:'Amount per round',ja:'ラウンドごとのベット額',vi:'Số tiền mỗi vòng'},
+  reqAccountLabel:{ko:'어카운트',zhHans:'账户',zhHant:'帳戶',en:'Account',ja:'アカウント',vi:'Tài khoản'},
   submitRequest:{ko:'신청하기',zhHans:'提交申请',zhHant:'提交申請',en:'Submit request',ja:'申請する',vi:'Gửi yêu cầu'},
   requestSubmitted:{ko:'아바타 신청이 접수되었습니다. 승인 후 대리 베팅이 시작됩니다.',zhHans:'代打申请已提交，批准后将开始代为投注。',zhHant:'代打申請已提交，批准後將開始代為投注。',en:'Your avatar request was submitted. Proxy betting starts once approved.',ja:'アバター申請を受け付けました。承認後に代理ベットが開始されます。',vi:'Yêu cầu Avatar đã được gửi. Cược thay sẽ bắt đầu sau khi được duyệt.'},
 
@@ -149,7 +149,6 @@ const I18N_DICT = {
   chipUsedLabel:{ko:'칩 선택란',zhHans:'筹码栏',zhHant:'籌碼欄',en:'Chip',ja:'チップ欄',vi:'Ô phỉnh'},
   assignedAvatar:{ko:'담당 아바타',zhHans:'负责代打',zhHant:'負責代打',en:'Assigned Avatar',ja:'担当アバター',vi:'Avatar phụ trách'},
   unassigned:{ko:'배정 대기중',zhHans:'待分配',zhHant:'待分配',en:'Not yet assigned',ja:'割当待ち',vi:'Chưa được gán'},
-  myInstruction:{ko:'내 베팅 지시',zhHans:'我的投注指示',zhHant:'我的投注指示',en:'My instruction',ja:'私のベット指示',vi:'Hướng dẫn của tôi'},
   avatarTipTotal:{ko:'아바타팁 합계',zhHans:'代打小费合计',zhHant:'代打小費合計',en:'Avatar tip total',ja:'アバターチップ合計',vi:'Tổng tip Avatar'},
   dealerTipTotal:{ko:'딜러팁 합계',zhHans:'荷官小费合计',zhHant:'荷官小費合計',en:'Dealer tip total',ja:'ディーラーチップ合計',vi:'Tổng tip Dealer'},
   giveTip:{ko:'팁 지급',zhHans:'打赏小费',zhHant:'打賞小費',en:'Give a tip',ja:'チップを渡す',vi:'Gửi tip'},
@@ -172,7 +171,6 @@ const I18N_DICT = {
   aboveTableMax:{ko:'테이블 최대 베팅은 {max} 입니다',zhHans:'本桌最高投注为 {max}',zhHant:'本桌最高投注為 {max}',en:'Table maximum is {max}',ja:'テーブル最高ベットは {max} です',vi:'Mức cược tối đa của bàn là {max}'},
   betReturnedBelowMin:{ko:'최소 베팅 미만이라 {amount} 이 반환되었습니다',zhHans:'低于最低投注，已退还 {amount}',zhHant:'低於最低投注，已退還 {amount}',en:'{amount} returned — below the table minimum',ja:'最低ベット未満のため {amount} が返却されました',vi:'Đã hoàn {amount} — dưới mức cược tối thiểu'},
   sessionEnded:{ko:'대리베팅이 종료되었습니다.',zhHans:'代打已结束。',zhHant:'代打已結束。',en:'Session ended.',ja:'代理ベットが終了しました。',vi:'Đã kết thúc phiên cược.'},
-  avatarPlacedBet:{ko:'아바타가 {side} 에 {amount} 베팅했습니다',zhHans:'代打已在{side}下注{amount}',zhHant:'代打已在{side}下注{amount}',en:'Avatar bet {amount} on {side}',ja:'アバターが{side}に{amount}ベットしました',vi:'Avatar đã cược {amount} vào {side}'},
   roundInfo:{ko:'라운드',zhHans:'局数',zhHant:'局數',en:'Round',ja:'ラウンド',vi:'Vòng'},
 
   // ---- table / betting ----

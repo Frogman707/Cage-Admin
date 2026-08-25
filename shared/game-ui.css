@@ -486,6 +486,14 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .bet-controls{margin-left:auto;display:flex;gap:8px;flex-shrink:0;align-items:center;}
 .current-bet-total{font-family:var(--mono);font-weight:800;color:var(--brass);font-size:16px;}
 
+/* The account the buy-in will come out of. Read-only, so it takes the shape of a field without
+   being one - same box as the inputs above and below it, in the mono the ids are set in. */
+.req-account{
+  width:100%;background:var(--void);border:1px solid var(--line);color:var(--ink);
+  padding:8px 10px;border-radius:var(--radius);font-size:13px;font-family:var(--mono);
+  min-height:35px;display:flex;align-items:center;
+}
+
 /* ---- the tip picker ----
    The tip is built by handing chips over rather than typing a figure, so it borrows the tray's
    own chips. A chip that would take the tip past what the player can spend is shown spent -
@@ -1032,6 +1040,11 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    negative insets are what let the outline through, since it lies outside the border box. */
 .bet-board::before{outline-color:#2A8CB8;clip-path:inset(calc(55.882% + 3px) 50% -10px -10px);}
 .bet-board::after {outline-color:#A3180F;clip-path:inset(calc(55.882% + 3px) -10px -10px 50%);}
+/* and they shut with the board. The spots dim themselves when a round closes; these are not on a
+   spot, so they take the same two brightnesses here - otherwise a closed board kept two bright
+   curves running through it. */
+.bet-board.board-closed::before,.bet-board.board-closed::after{filter:brightness(.86);}
+.bet-board.board-locked::before,.bet-board.board-locked::after{filter:brightness(.62);}
 .bet-board .bet-spot{
   position:relative;display:block;padding:0;margin:0;gap:0;
   border:2px solid;border-radius:10px;box-shadow:none;overflow:hidden;
@@ -1362,7 +1375,17 @@ body.faux-fs-lock{overflow:hidden;}
 .sd-fs-bar .fs-stat i::after{content:' :';}
 .sd-fs-bar .fs-stat b{color:#fff;font-family:var(--mono);font-weight:800;font-size:14px;}
 .sd-fs-bar .fs-stat.shoe b{color:#F2C14E;}
-.sd-fs-bar .fs-who{display:none;}
+/* The player and what they are holding. A phone's fullscreen shows it in the bar at the foot (see
+   the max-width block below); a desktop's showed it nowhere at all, so fullscreen was the one
+   screen in the app with no balance on it - and it is the screen the money is spent on. */
+.sd-fs-bar .fs-who{
+  display:flex;align-items:center;gap:10px;flex-shrink:0;white-space:nowrap;
+  color:rgba(255,255,255,.72);font-size:12px;
+}
+.sd-fs-bar .fs-who em{font-style:normal;display:flex;align-items:center;gap:6px;}
+.sd-fs-bar .fs-who i{display:inline-flex;align-items:center;opacity:.75;}
+.sd-fs-bar .fs-who i svg{width:14px;height:14px;}
+.sd-fs-bar .fs-who b{color:var(--brass);font-family:var(--mono);font-weight:800;font-size:14px;}
 .sd-fs-bar .fs-sp{flex:1;}
 .sd-fs-bar .fs-ico{
   width:42px;height:42px;border-radius:50%;flex-shrink:0;

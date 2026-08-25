@@ -2139,6 +2139,15 @@ function paintSpeedConfirmState(tableId){
       spot.classList.toggle('locked', dealt);
       spot.classList.toggle('bets-closed', signedOff);
     });
+    /* The stretch of 플레이어's and 뱅커's border that runs round the arch is drawn on the board,
+       not on either spot - it has to be, because a spot clips its own children. So the dimming the
+       spots take when a round shuts does not reach it, and a closed board was left with two bright
+       curves on it. The board carries the same state, and dims them with it. */
+    const board = document.querySelector('#viewSpeedTable .bet-board');
+    if (board){
+      board.classList.toggle('board-locked', dealt);
+      board.classList.toggle('board-closed', signedOff);
+    }
   }
   setSpeedTileBetsLocked(tableId, dealt || signedOff);
   document.getElementById(`smrow-${tableId}`)?.classList.toggle('pending', pending);

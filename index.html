@@ -937,7 +937,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           <div class="card">
             <h3 data-i18n="inGameTitle"></h3>
             <div class="table-wrap"><table>
-              <thead><tr><th data-i18n="colDate"></th><th>GameID</th><th data-i18n="colAccount"></th><th data-i18n="tableLabel"></th><th data-i18n="colCurrency"></th><th data-i18n="buyinTotal"></th><th data-i18n="workingChipLabel"></th><th data-i18n="gameType"></th><th></th></tr></thead>
+              <thead><tr><th data-i18n="colDate"></th><th>GameID</th><th data-i18n="colAccount"></th><th data-i18n="startKindLabel"></th><th data-i18n="tableLabel"></th><th data-i18n="colCurrency"></th><th data-i18n="buyinTotal"></th><th data-i18n="workingChipLabel"></th><th data-i18n="gameType"></th><th></th></tr></thead>
               <tbody id="inGameBody"></tbody>
             </table></div>
           </div>
@@ -1030,7 +1030,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             </div>
             <div class="table-wrap" id="midHistoryTableWrap"><table>
               <thead><tr>
-                <th data-i18n="colDateTime"></th><th data-i18n="colAccount"></th><th>GameID</th>
+                <th data-i18n="colDateTime"></th><th data-i18n="colAccount"></th><th>GameID</th><th data-i18n="startKindLabel"></th>
                 <th data-i18n="depositColShort"></th><th data-i18n="cashoutColShort"></th><th data-i18n="markerColShort"></th><th data-i18n="dealerTipsColShort"></th><th data-i18n="houseTipsColShort"></th>
                 <th data-i18n="workingChipsColShort"></th><th data-i18n="colStaff"></th>
               </tr></thead>
@@ -1126,7 +1126,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
               <button class="btn btn-sm" style="flex:0 0 auto;" onclick="openGameEndList()" data-i18n="gameEndListBtn"></button>
             </div>
             <div class="table-wrap" id="endedGamesTableWrap"><table>
-              <thead><tr><th data-i18n="colDate"></th><th>GameID</th><th data-i18n="colAccount"></th><th data-i18n="buyinTotal"></th><th data-i18n="totalRollingLabel"></th><th data-i18n="winLoss"></th></tr></thead>
+              <thead><tr><th data-i18n="colDate"></th><th>GameID</th><th data-i18n="colAccount"></th><th data-i18n="startKindLabel"></th><th data-i18n="buyinTotal"></th><th data-i18n="totalRollingLabel"></th><th data-i18n="winLoss"></th></tr></thead>
               <tbody id="endedGamesBody"></tbody>
             </table></div>
           </div>
@@ -1763,6 +1763,29 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="btn btn-block" style="margin-top:8px;" onclick="cancelCagePinAuth()" data-i18n="cancelBtn"></button>
 </div></div>
 
+<div class="modal-bg" id="modal-table-settings"><div class="modal" style="width:460px;">
+  <button class="modal-close" onclick="closeModal('modal-table-settings')">×</button>
+  <h3 id="tsTitle"></h3>
+  <input type="hidden" id="tsId">
+  <div class="row" style="margin-top:10px;">
+    <div class="field"><label data-i18n="colCasino"></label><input id="tsBranch" disabled></div>
+    <div class="field"><label data-i18n="colType"></label><input id="tsType" disabled></div>
+  </div>
+  <div class="row">
+    <div class="field"><label data-i18n="betMinLabel"></label><input id="tsMin" type="text" inputmode="numeric" class="fmt-num" oninput="formatNumInput(this)"></div>
+    <div class="field"><label data-i18n="betMaxLabel"></label><input id="tsMax" type="text" inputmode="numeric" class="fmt-num" oninput="formatNumInput(this)"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label data-i18n="shoeNoLabel"></label><input id="tsShoe" type="text" inputmode="numeric"></div>
+    <div class="field"><label data-i18n="colStatus"></label>
+      <select id="tsStatus">
+        <option value="open" data-i18n="tableStatusOpen"></option>
+        <option value="closed" data-i18n="tableStatusClosed"></option>
+      </select></div>
+  </div>
+  <button class="btn btn-gold btn-block" style="margin-top:10px;" onclick="submitTableSettings()" data-i18n="saveChangesBtn"></button>
+</div></div>
+
 <div class="modal-bg" id="modal-create-table"><div class="modal" style="width:460px;">
   <button class="modal-close" onclick="closeModal('modal-create-table')">×</button>
   <h3 data-i18n="createTableTitle"></h3>
@@ -1893,7 +1916,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <div class="field" style="margin-top:10px;"><input id="gameEndListSearch" data-i18n-ph="listSearchPh" oninput="renderGameEndList()"></div>
   <div class="table-wrap table-compact"><table>
     <thead><tr>
-      <th data-i18n="colDate"></th><th>GameID</th><th data-i18n="colAccount"></th><th data-i18n="buyinTotal"></th>
+      <th data-i18n="colDate"></th><th>GameID</th><th data-i18n="colAccount"></th><th data-i18n="startKindLabel"></th><th data-i18n="buyinTotal"></th>
       <th data-i18n="ccDepositColX"></th><th data-i18n="ccCashoutColX"></th><th data-i18n="ccMarkerColX"></th><th data-i18n="ccDealerTipsColX"></th><th data-i18n="ccHouseTipsColX"></th>
       <th data-i18n="nnDepositCol"></th><th data-i18n="nnCashoutCol"></th><th data-i18n="nnMarkerCol"></th><th data-i18n="nnWorkingColX"></th>
       <th data-i18n="totalRollingLabel"></th><th data-i18n="winLoss"></th><th data-i18n="floorStaffLabel"></th>
@@ -5526,7 +5549,7 @@ function renderAvatarSpeedOngoingTables(){
   tables.map(tb=>{
    const isOpen = tb.status==='open';
    return `<tr><td>${esc(tb.casino)||'—'}</td><td>${esc(tb.id)}</td><td>${esc(tb.name)||'—'}</td><td>${tb.type==='speed'?t('startKindSpeed'):t('startKindAvatar')}</td><td class="num">${esc(tb.shoeNo)||1}</td><td>${isOpen?t('tableStatusOpen'):t('tableStatusClosed')}</td><td class="num">${tb.betMin!=null?`${fmt(tb.betMin)} ~ ${fmt(tb.betMax)}`:'—'}</td>
-    <td><button class="btn btn-sm ${isOpen?'btn-danger':'btn-jade'}" onclick="toggleTableStatus('${esc(tb.id)}', ${isOpen})">${isOpen?t('tableCloseBtn'):t('tableOpenBtn')}</button></td></tr>`;
+    <td><button class="btn btn-sm" onclick="openTableSettings('${esc(tb.id)}')">${t('tableSettingsBtn')}</button></td></tr>`;
   }).join('');
  refreshGameTableOptions();
 }
@@ -5642,6 +5665,37 @@ async function ensureAvatarSpeedTableOpen(tableId, kind, casino){
    await fbDb.collection('tables').doc(tableId).set({id:tableId, name:tableId, type:kind, casino, status:'open', betMin:5000, betMax:3000000, shoeNo:1});
   }
  }catch(e){ console.error('ensureAvatarSpeedTableOpen failed:', e); }
+}
+/* 마감 was one button doing one thing. A table has limits and a shoe number as well as an open/
+   closed state, and all three are set from the same place in Partner Admin - so the row opens the
+   table's settings, and 영업 시작 / 마감 is one of the things in there. */
+function openTableSettings(id){
+ const tb = fbTablesCache.find(x=>x.id===id);
+ if(!tb){ toast(t('toastNoTableFound'), true); return; }
+ document.getElementById('tsTitle').textContent = `${t('tableSettingsBtn')} · ${id}`;
+ document.getElementById('tsId').value = id;
+ document.getElementById('tsBranch').value = tb.casino || '—';
+ document.getElementById('tsType').value = tb.type === 'speed' ? t('startKindSpeed') : t('startKindAvatar');
+ document.getElementById('tsMin').value = fmt(tb.betMin || 0);
+ document.getElementById('tsMax').value = fmt(tb.betMax || 0);
+ document.getElementById('tsShoe').value = tb.shoeNo || 1;
+ document.getElementById('tsStatus').value = tb.status === 'open' ? 'open' : 'closed';
+ openModal('modal-table-settings');
+}
+async function submitTableSettings(){
+ if(!fbDb) return;
+ const id = document.getElementById('tsId').value;
+ const row = {
+  betMin: unformatNum(document.getElementById('tsMin').value),
+  betMax: unformatNum(document.getElementById('tsMax').value),
+  shoeNo: Number(document.getElementById('tsShoe').value) || 1,
+  status: document.getElementById('tsStatus').value,
+ };
+ try{
+  await fbDb.collection('tables').doc(id).set(row, {merge:true});
+ }catch(e){ console.error('submitTableSettings failed:', id, e); toast(t('toastStaffSyncFailed'), true); return; }
+ closeModal('modal-table-settings');
+ toast(t('toastTableSaved'));
 }
 async function toggleTableStatus(id, isCurrentlyOpen){
  if(!fbDb) return;
@@ -6216,7 +6270,7 @@ ko:{
  tableLabel:"테이블", gameType:"게임 타입", avatarId:"아바타 ID", buyinTotal:"바이인 총액", startBtn:"게임 시작",
  inGameTitle:"진행중인 게임", gameIdLabel:"게임 ID",
  ongoingGamesTitle:"롤링", dailyLabel:"당일", cumulativeLabel:"누적", ongoingCountLabel:"진행 건수",
- tableIdLabel:"테이블ID", createTableBtn:"테이블 생성", createTableTitle:"테이블 생성", betMinLabel:"최소 베팅", betMaxLabel:"최대 베팅", noFreeTableIds:"이 지점의 해당 타입 테이블은 이미 모두 만들어져 있습니다.", toastTableCreated:"{id} 테이블이 생성되었습니다.", avatarSpeedOngoingTitle:"아바타·스피드 테이블 관리", shoeNoLabel:"슈 번호", betLimitLabel:"베팅 한도", tableStatusOpen:"활성화", tableStatusClosed:"마감", tableOpenBtn:"영업 시작", tableCloseBtn:"마감", toastTableStatusChanged:"테이블 상태가 변경되었습니다.", expandBtn:"펼치기", collapseBtn:"접기",
+ tableIdLabel:"테이블ID", toastNoTable:"테이블을 선택하세요.", tableSettingsBtn:"테이블 설정", toastNoTableFound:"테이블을 찾을 수 없습니다.", toastTableSaved:"테이블 설정이 저장되었습니다.", toastNoSpeedCommission:"스피드 게임은 롤링 커미션 정산 대상이 아닙니다.", toastSpeedMainOnly:"스피드 게임은 지점 메인 어카운트로만 시작할 수 있습니다.", toastMainSpeedOnly:"메인 어카운트로는 스피드 게임만 진행할 수 있습니다.", createTableBtn:"테이블 생성", createTableTitle:"테이블 생성", betMinLabel:"최소 베팅", betMaxLabel:"최대 베팅", noFreeTableIds:"이 지점의 해당 타입 테이블은 이미 모두 만들어져 있습니다.", toastTableCreated:"{id} 테이블이 생성되었습니다.", avatarSpeedOngoingTitle:"아바타·스피드 테이블 관리", shoeNoLabel:"슈 번호", betLimitLabel:"베팅 한도", tableStatusOpen:"활성화", tableStatusClosed:"마감", tableOpenBtn:"영업 시작", tableCloseBtn:"마감", toastTableStatusChanged:"테이블 상태가 변경되었습니다.", expandBtn:"펼치기", collapseBtn:"접기",
  colTime:"시간", colReqMember:"요청 회원", colKind:"구분", colPrevRolling:"이전 롤링", colRollingSub:"롤링누계", colRollingTotal:"롤링 합계",
  settlePageTitle:"롤링 커미션 정산", gameTypeFld:"게임 타입", rollingComm:"롤링 커미션", fbDiscount:"F&B 할인", resultLabel:"정산금", settleBtn:"정산 확정",
  receiptTitle:"정산 영수증", receiptEmptyHint:"게임을 선택하고 정산을 확정하면 영수증이 표시됩니다.", receiptGameNo:"게임 번호", receiptAccNo:"어카운트", receiptDate:"일자",
@@ -6358,7 +6412,7 @@ en:{
  tableLabel:"Table", gameType:"Game Type", avatarId:"Avatar ID", buyinTotal:"Buy-in Total", startBtn:"Start Game",
  inGameTitle:"Games In Progress", gameIdLabel:"Game ID",
  ongoingGamesTitle:"Rolling", dailyLabel:"Daily", cumulativeLabel:"Cumulative", ongoingCountLabel:"In Progress",
- tableIdLabel:"Table ID", createTableBtn:"Create Table", createTableTitle:"Create Table", betMinLabel:"Min Bet", betMaxLabel:"Max Bet", noFreeTableIds:"This branch already has every table of that type.", toastTableCreated:"Table {id} created.", avatarSpeedOngoingTitle:"Avatar/Speed Table Management", shoeNoLabel:"Shoe No.", betLimitLabel:"Bet Limit", tableStatusOpen:"Active", tableStatusClosed:"Closed", tableOpenBtn:"Open Table", tableCloseBtn:"Close Table", toastTableStatusChanged:"Table status updated.", expandBtn:"Expand", collapseBtn:"Collapse",
+ tableIdLabel:"Table ID", toastNoTable:"Choose a table.", tableSettingsBtn:"Table Settings", toastNoTableFound:"Table not found.", toastTableSaved:"Table settings saved.", toastNoSpeedCommission:"A speed game takes no rolling commission.", toastSpeedMainOnly:"A speed game can only be started on the branch main account.", toastMainSpeedOnly:"The main account can only run speed games.", createTableBtn:"Create Table", createTableTitle:"Create Table", betMinLabel:"Min Bet", betMaxLabel:"Max Bet", noFreeTableIds:"This branch already has every table of that type.", toastTableCreated:"Table {id} created.", avatarSpeedOngoingTitle:"Avatar/Speed Table Management", shoeNoLabel:"Shoe No.", betLimitLabel:"Bet Limit", tableStatusOpen:"Active", tableStatusClosed:"Closed", tableOpenBtn:"Open Table", tableCloseBtn:"Close Table", toastTableStatusChanged:"Table status updated.", expandBtn:"Expand", collapseBtn:"Collapse",
  colTime:"Time", colReqMember:"Requested By", colKind:"Kind", colPrevRolling:"Prev. Rolling", colRollingSub:"Rolling Cumulative", colRollingTotal:"Rolling Total",
  settlePageTitle:"Rolling Commission Settlement", gameTypeFld:"Game Type", rollingComm:"Rolling Commission", fbDiscount:"F&B Discount", resultLabel:"Settlement Amount", settleBtn:"Confirm Settlement",
  receiptTitle:"Settlement Receipt", receiptEmptyHint:"Select a game and confirm settlement to see the receipt.", receiptGameNo:"Game No.", receiptAccNo:"Account No.", receiptDate:"Date",
@@ -6500,7 +6554,7 @@ en:{
  tableLabel:"賭桌", gameType:"局別", avatarId:"分身編號", buyinTotal:"買入總額", startBtn:"開始遊戲",
  inGameTitle:"進行中賽局", gameIdLabel:"局號",
  ongoingGamesTitle:"轉碼", dailyLabel:"當日", cumulativeLabel:"累計", ongoingCountLabel:"進行局數",
- tableIdLabel:"賭桌編號", createTableBtn:"建立賭桌", createTableTitle:"建立賭桌", betMinLabel:"最低投注", betMaxLabel:"最高投注", noFreeTableIds:"此分店該類型的賭桌已全部建立。", toastTableCreated:"已建立賭桌 {id}。", avatarSpeedOngoingTitle:"電投·快速電投 桌台管理", shoeNoLabel:"靴號", betLimitLabel:"投注限額", tableStatusOpen:"啟用中", tableStatusClosed:"結束", tableOpenBtn:"開始營業", tableCloseBtn:"結束營業", toastTableStatusChanged:"桌台狀態已更新。", expandBtn:"展開", collapseBtn:"收合",
+ tableIdLabel:"賭桌編號", toastNoTable:"請選擇賭桌。", tableSettingsBtn:"賭桌設定", toastNoTableFound:"查無此賭桌。", toastTableSaved:"賭桌設定已儲存。", toastNoSpeedCommission:"快速電投不計轉碼佣金。", toastSpeedMainOnly:"快速電投只能以分店主帳戶開始。", toastMainSpeedOnly:"主帳戶僅能進行快速電投。", createTableBtn:"建立賭桌", createTableTitle:"建立賭桌", betMinLabel:"最低投注", betMaxLabel:"最高投注", noFreeTableIds:"此分店該類型的賭桌已全部建立。", toastTableCreated:"已建立賭桌 {id}。", avatarSpeedOngoingTitle:"電投·快速電投 桌台管理", shoeNoLabel:"靴號", betLimitLabel:"投注限額", tableStatusOpen:"啟用中", tableStatusClosed:"結束", tableOpenBtn:"開始營業", tableCloseBtn:"結束營業", toastTableStatusChanged:"桌台狀態已更新。", expandBtn:"展開", collapseBtn:"收合",
  colTime:"時間", colReqMember:"申請會員", colKind:"類別", colPrevRolling:"先前轉碼", colRollingSub:"轉碼累計", colRollingTotal:"轉碼合計",
  settlePageTitle:"轉碼佣金結算", gameTypeFld:"局別", rollingComm:"轉碼佣金", fbDiscount:"F&B 折讓", resultLabel:"結算金額", settleBtn:"確認結算",
  receiptTitle:"結算收據", receiptEmptyHint:"選擇遊戲並確認結算後將顯示收據。", receiptGameNo:"局號", receiptAccNo:"帳號", receiptDate:"日期",
@@ -6642,7 +6696,7 @@ en:{
  tableLabel:"赌桌", gameType:"局别", avatarId:"分身编号", buyinTotal:"买入总额", startBtn:"开始游戏",
  inGameTitle:"进行中赛局", gameIdLabel:"局号",
  ongoingGamesTitle:"转码", dailyLabel:"当日", cumulativeLabel:"累计", ongoingCountLabel:"进行局数",
- tableIdLabel:"赌桌编号", createTableBtn:"创建赌桌", createTableTitle:"创建赌桌", betMinLabel:"最低投注", betMaxLabel:"最高投注", noFreeTableIds:"此分店该类型的赌桌已全部创建。", toastTableCreated:"已创建赌桌 {id}。", avatarSpeedOngoingTitle:"电投·快速电投 桌台管理", shoeNoLabel:"靴号", betLimitLabel:"投注限额", tableStatusOpen:"启用中", tableStatusClosed:"结束", tableOpenBtn:"开始营业", tableCloseBtn:"结束营业", toastTableStatusChanged:"桌台状态已更新。", expandBtn:"展开", collapseBtn:"收起",
+ tableIdLabel:"赌桌编号", toastNoTable:"请选择赌桌。", tableSettingsBtn:"赌桌设置", toastNoTableFound:"查无此赌桌。", toastTableSaved:"赌桌设置已保存。", toastNoSpeedCommission:"快速电投不计转码佣金。", toastSpeedMainOnly:"快速电投只能以分店主账户开始。", toastMainSpeedOnly:"主账户仅能进行快速电投。", createTableBtn:"创建赌桌", createTableTitle:"创建赌桌", betMinLabel:"最低投注", betMaxLabel:"最高投注", noFreeTableIds:"此分店该类型的赌桌已全部创建。", toastTableCreated:"已创建赌桌 {id}。", avatarSpeedOngoingTitle:"电投·快速电投 桌台管理", shoeNoLabel:"靴号", betLimitLabel:"投注限额", tableStatusOpen:"启用中", tableStatusClosed:"结束", tableOpenBtn:"开始营业", tableCloseBtn:"结束营业", toastTableStatusChanged:"桌台状态已更新。", expandBtn:"展开", collapseBtn:"收起",
  colTime:"时间", colReqMember:"申请会员", colKind:"类别", colPrevRolling:"先前转码", colRollingSub:"转码累计", colRollingTotal:"转码合计",
  settlePageTitle:"转码佣金结算", gameTypeFld:"局别", rollingComm:"转码佣金", fbDiscount:"F&B 折让", resultLabel:"结算金额", settleBtn:"确认结算",
  receiptTitle:"结算收据", receiptEmptyHint:"选择游戏并确认结算后将显示收据。", receiptGameNo:"局号", receiptAccNo:"账号", receiptDate:"日期",
@@ -8032,6 +8086,53 @@ function updateGameAccBalance(){
  const acc = DB.accounts[id];
  el.value = acc ? fmt(accountTotalBalance(id)) : '';
  applyAccountRateToGameType(id);
+ applyStartKindRules();
+}
+/* ---- what each account can start ----
+   A speed table is the branch's own table, floated by the branch and settled once a day against
+   the chips - so it is started on the branch MAIN account and on nothing else. A guest account
+   has no 스피드 in the list at all; MAIN has only 스피드, since a guest's live or avatar game is
+   not the house's to start.
+   And on MAIN the rest of the form is not a choice: the money comes off the account (어카운트),
+   the game is a rolling game, and no working chip goes out - so those three are set and locked
+   rather than left open to be set wrong. */
+const ROLLING_GAME_TYPE = '롤링게임';
+function isMainAccountGameForm(){
+ const id = (document.getElementById('gAccount').value || '').trim().toUpperCase();
+ return isMainAccount(id);
+}
+function applyStartKindRules(){
+ const kindSel = document.getElementById('gStartKind');
+ if(!kindSel) return;
+ const main = isMainAccountGameForm();
+ [...kindSel.options].forEach(o=>{
+  const allowed = main ? o.value === 'speed' : o.value !== 'speed';
+  o.hidden = !allowed;
+  o.disabled = !allowed;
+ });
+ if(kindSel.selectedOptions[0] && kindSel.selectedOptions[0].disabled){
+  kindSel.value = main ? 'speed' : 'live';
+ }
+ const typeSel = document.getElementById('gStartType');
+ const gType = document.getElementById('gType');
+ const working = document.getElementById('gWorkingChip');
+ if(main){
+  if(typeSel){ typeSel.value = 'account'; typeSel.disabled = true; }
+  if(gType){
+   if(![...gType.options].some(o=>o.value === ROLLING_GAME_TYPE)){
+    const opt = document.createElement('option');
+    opt.value = ROLLING_GAME_TYPE; opt.textContent = ROLLING_GAME_TYPE;
+    gType.insertBefore(opt, gType.firstChild);
+   }
+   gType.value = ROLLING_GAME_TYPE; gType.disabled = true;
+  }
+  if(working){ working.value = ''; working.disabled = true; }
+ } else {
+  if(typeSel) typeSel.disabled = false;
+  if(gType) gType.disabled = false;
+  if(working) working.disabled = false;
+ }
+ onStartKindChange();
 }
 // The account's own rate (set on registration / edited later in "정보 수정") drives the buy-in
 // game-type selection, instead of staff manually matching a fixed preset to whatever rate the
@@ -8118,6 +8219,13 @@ function startGame(){
  }
 
  if(!account){ toast(t('toastNoAcc')); return; }
+ /* A game is played at a table, and which one decides where the chips went - a game started with
+    the picker left blank was filed under no table at all. */
+ if(!document.getElementById('gTable').value){ toast(t('toastNoTable')); return; }
+ // A speed table is the branch's own, floated and settled by the branch, so it starts on the
+ // branch MAIN account and on nothing else.
+ if(currentStartKind() === 'speed' && !isMainAccount(account)){ toast(t('toastSpeedMainOnly')); return; }
+ if(currentStartKind() !== 'speed' && isMainAccount(account)){ toast(t('toastMainSpeedOnly')); return; }
  // The house float goes out on the staff PIN, not the guest's withdrawal password - the guest is
  // in the app, not at the window, and nothing is leaving their account to ask them about.
  if(houseFunded){
@@ -8321,10 +8429,10 @@ function renderInGame(){
  const dl = document.getElementById('ongoingGameIdList');
  if(dl) dl.innerHTML = games.map(g=>`<option value="${g.gameId}">${esc(g.account)} · ${esc(g.table)}</option>`).join('');
  const body = document.getElementById('inGameBody');
- if(!games.length){ body.innerHTML = `<tr class="empty-row"><td colspan="9">—</td></tr>`; return; }
+ if(!games.length){ body.innerHTML = `<tr class="empty-row"><td colspan="10">—</td></tr>`; return; }
  const cancelLabel = {ko:'취소',en:'Cancel','zh-TW':'取消','zh-CN':'取消'}[LANG] || 'Cancel';
  body.innerHTML = games.map(g=>`
-  <tr><td class="num">${esc(g.dt)}</td><td class="num">${esc(g.gameId)}</td><td>${esc(g.account)}</td><td>${esc(g.table)}</td><td>${esc(g.cur)}</td><td class="num">${fmt(g.buyin||0)}</td><td class="num">${fmt(g.workingChip||0)}</td><td>${esc(g.type)}</td>
+  <tr><td class="num">${esc(g.dt)}</td><td class="num">${esc(g.gameId)}</td><td>${esc(g.account)}</td><td>${startKindLabel(g.startKind)}</td><td>${esc(g.table)}</td><td>${esc(g.cur)}</td><td class="num">${fmt(g.buyin||0)}</td><td class="num">${fmt(g.workingChip||0)}</td><td>${esc(g.type)}</td>
   <td><button class="btn btn-sm btn-danger" onclick="cancelGame('${g.gameId}')">${cancelLabel}</button></td></tr>`).join('');
 }
 function renderOngoing(){
@@ -8424,9 +8532,14 @@ document.addEventListener('click', e=>{
  const box = document.getElementById('settleAccResults');
  if(box && !e.target.closest('#settleAccSearch') && !e.target.closest('#settleAccResults')) box.style.display='none';
 });
+/* A speed game takes no rolling commission. It is the branch's own table, floated by the branch
+   and squared up against the chips at game end - there is no guest whose turnover a commission is
+   paid on. An avatar game is a guest's play and settles like a live one. So a speed game never
+   reaches this screen's list at all, rather than sitting in it waiting to be settled for nothing. */
+function takesRollingCommission(g){ return !!g && g.startKind !== 'speed'; }
 function populateSettleSelect(){
  const sel = document.getElementById('settleGameId');
- const ended = visibleEndedGames().filter(g => !g.settled && (!settleTargetAcc || g.account===settleTargetAcc));
+ const ended = visibleEndedGames().filter(g => !g.settled && takesRollingCommission(g) && (!settleTargetAcc || g.account===settleTargetAcc));
  sel.innerHTML = ended.map(g=>`<option value="${g.gameId}">${g.gameId}</option>`).join('');
  if(ended.length) loadSettleGame();
  else {
@@ -8447,9 +8560,10 @@ function loadSettleGame(){
  const g = findSettleGame(id);
  if(!g) return;
  document.getElementById('settleAccSearch').value = g.account;
- document.getElementById('settleType').value = g.type;
+ document.getElementById('settleType').value = g.type || '';
  document.getElementById('settleTotalRolling').value = fmt(g.rolling||0);
- const rateMatch = g.type.match(/([\d.]+)%/);
+ // a record without a game type is a record with no rate on it, not a screen that throws
+ const rateMatch = String(g.type||'').match(/([\d.]+)%/);
  const rate = rateMatch ? Number(rateMatch[1])/100 : 0;
  const comm = Math.round((g.rolling||0)*rate);
  document.getElementById('settleRolling').value = fmt(comm);
@@ -8581,12 +8695,15 @@ function settleGame(){
  const id = document.getElementById('settleGameId').value;
  const g = findSettleGame(id);
  if(!g) return;
+ // the list already leaves speed games out; this is the same rule where the money moves
+ if(!takesRollingCommission(g)){ toast(t('toastNoSpeedCommission'), true); return; }
  requestPinAuth(_doSettleGame);
 }
 async function _doSettleGame(){
  const id = document.getElementById('settleGameId').value;
  const g = findSettleGame(id);
  if(!g) return;
+ if(!takesRollingCommission(g)){ toast(t('toastNoSpeedCommission'), true); return; }
  const result = Number((document.getElementById('settleResult').textContent||'0').replace(/,/g,''));
  const commission = Number((document.getElementById('settleRolling').value||'0').replace(/,/g,''));
  const fb = unformatNum(document.getElementById('settleFb').value);
@@ -8790,7 +8907,7 @@ async function _doConfirmMidSettle(){
 function renderMidHistory(g){
  const body = document.getElementById('midHistoryBody');
  const rows = g ? (g.checkpoints||[]) : [];
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="10">—</td></tr>` :
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="11">—</td></tr>` :
   rows.map(c=>{
    const cc = c.cc||{}; const nn = c.nn||{};
    const deposit = (cc.deposit||0) + (nn.deposit||0);
@@ -8799,15 +8916,20 @@ function renderMidHistory(g){
    const dealerTips = (cc.dealerTips||0) + (nn.dealerTips||0);
    const houseTips = (cc.houseTips||0) + (nn.houseTips||0);
    const working = (cc.working||0) + (nn.working||0);
-   return `<tr><td class="num">${esc(c.dt)}</td><td>${esc(g.account)}</td><td class="num">${esc(g.gameId)}</td>
+   return `<tr><td class="num">${esc(c.dt)}</td><td>${esc(g.account)}</td><td class="num">${esc(g.gameId)}</td><td>${startKindLabel(g.startKind)}</td>
     <td class="num">${fmt(deposit)}</td><td class="num">${fmt(cashout)}</td><td class="num">${fmt(marker)}</td><td class="num">${fmt(dealerTips)}</td><td class="num">${fmt(houseTips)}</td>
     <td class="num">${fmt(working)}</td><td>${esc(c.staff)}</td></tr>`;
   }).join('');
 }
+/* 시작 종류 on every list that shows a game. It decides how the game is funded, whether it takes
+   a rolling commission and where it was played, so a row without it says less than it looks. */
+function startKindLabel(kind){
+ return {live:t('startKindLive'), avatar:t('startKindAvatar'), speed:t('startKindSpeed')}[kind] || '—';
+}
 function getAllMidCheckpoints(){
  let all = [];
- visibleGames().forEach(g=>{ (g.checkpoints||[]).forEach(c=>all.push({...c, gameId:g.gameId, account:g.account})); });
- visibleEndedGames().forEach(g=>{ (g.checkpoints||[]).forEach(c=>all.push({...c, gameId:g.gameId, account:g.account})); });
+ visibleGames().forEach(g=>{ (g.checkpoints||[]).forEach(c=>all.push({...c, gameId:g.gameId, account:g.account, startKind:g.startKind})); });
+ visibleEndedGames().forEach(g=>{ (g.checkpoints||[]).forEach(c=>all.push({...c, gameId:g.gameId, account:g.account, startKind:g.startKind})); });
  all.sort((a,b)=> (b.dt||'').localeCompare(a.dt||''));
  return all;
 }
@@ -8820,10 +8942,10 @@ function renderMidList(){
  const q = (document.getElementById('midListSearch').value||'').trim().toUpperCase();
  const rows = getAllMidCheckpoints().filter(c => !q || c.account.includes(q) || c.gameId.includes(q));
  const body = document.getElementById('midListBody');
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="14">—</td></tr>` :
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="15">—</td></tr>` :
   rows.map(c=>{
    const cc = c.cc||{}; const nn = c.nn||{};
-   return `<tr><td class="num">${esc(c.dt)}</td><td>${esc(c.account)}</td><td class="num">${esc(c.gameId)}</td>
+   return `<tr><td class="num">${esc(c.dt)}</td><td>${esc(c.account)}</td><td class="num">${esc(c.gameId)}</td><td>${startKindLabel(c.startKind)}</td>
     <td class="num">${fmt(cc.deposit)}</td><td class="num">${fmt(cc.cashout)}</td><td class="num">${fmt(cc.marker)}</td><td class="num">${fmt(cc.dealerTips)}</td><td class="num">${fmt(cc.houseTips)}</td>
     <td class="num">${fmt(nn.deposit)}</td><td class="num">${fmt(nn.cashout)}</td><td class="num">${fmt(nn.marker)}</td><td class="num">${fmt(nn.working)}</td>
     <td class="num">${fmt(c.added)}</td><td>${esc(c.staff)}</td></tr>`;
@@ -9017,8 +9139,8 @@ async function _doConfirmGameEnd(){
 function renderEndedGames(){
  const body = document.getElementById('endedGamesBody');
  const rows = visibleEndedGames();
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
-  rows.map(g=>`<tr><td class="num">${esc(g.endDt)}</td><td class="num">${esc(g.gameId)}</td><td>${esc(g.account)}</td><td class="num">${fmt(g.buyin||0)}</td><td class="num">${fmt(g.rolling||0)}</td><td class="num ${g.winLoss>0?'pos':g.winLoss<0?'neg':''}">${fmt(g.winLoss)}</td></tr>`).join('');
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="7">—</td></tr>` :
+  rows.map(g=>`<tr><td class="num">${esc(g.endDt)}</td><td class="num">${esc(g.gameId)}</td><td>${esc(g.account)}</td><td>${startKindLabel(g.startKind)}</td><td class="num">${fmt(g.buyin||0)}</td><td class="num">${fmt(g.rolling||0)}</td><td class="num ${g.winLoss>0?'pos':g.winLoss<0?'neg':''}">${fmt(g.winLoss)}</td></tr>`).join('');
 }
 function openGameEndList(){
  document.getElementById('gameEndListSearch').value = '';
@@ -9029,13 +9151,13 @@ function renderGameEndList(){
  const q = (document.getElementById('gameEndListSearch').value||'').trim().toUpperCase();
  const rows = visibleEndedGames().filter(g => !q || g.account.includes(q) || g.gameId.includes(q));
  const body = document.getElementById('gameEndListBody');
- body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="16">—</td></tr>` :
+ body.innerHTML = !rows.length ? `<tr class="empty-row"><td colspan="17">—</td></tr>` :
   rows.map(g=>{
    const cc = g.cc||{}; const nn = g.nn||{};
    const cps = g.checkpoints||[];
    const ccField = f => (cc[f]||0) + cps.reduce((s,cp)=>s+((cp.cc&&cp.cc[f])||0),0);
    const nnField = f => (nn[f]||0) + cps.reduce((s,cp)=>s+((cp.nn&&cp.nn[f])||0),0);
-   return `<tr><td class="num">${esc(g.endDt)}</td><td class="num">${esc(g.gameId)}</td><td>${esc(g.account)}</td><td class="num">${fmt(g.buyin||0)}</td>
+   return `<tr><td class="num">${esc(g.endDt)}</td><td class="num">${esc(g.gameId)}</td><td>${esc(g.account)}</td><td>${startKindLabel(g.startKind)}</td><td class="num">${fmt(g.buyin||0)}</td>
     <td class="num">${fmt(ccField('deposit'))}</td><td class="num">${fmt(ccField('cashout'))}</td><td class="num">${fmt(ccField('marker'))}</td><td class="num">${fmt(ccField('dealerTips'))}</td><td class="num">${fmt(ccField('houseTips'))}</td>
     <td class="num">${fmt(nnField('deposit'))}</td><td class="num">${fmt(nnField('cashout'))}</td><td class="num">${fmt(nnField('marker'))}</td><td class="num">${fmt(nnField('working'))}</td>
     <td class="num">${fmt(g.rolling||0)}</td><td class="num ${g.winLoss>0?'pos':g.winLoss<0?'neg':''}">${fmt(g.winLoss)}</td><td>${esc(g.endStaff)}</td></tr>`;

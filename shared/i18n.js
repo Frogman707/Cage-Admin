@@ -90,7 +90,7 @@ const I18N_DICT = {
   speedLobbyTitle:{ko:'스피드 테이블',zhHans:'极速桌台',zhHant:'極速桌臺',en:'Speed Tables',ja:'スピードテーブル',vi:'Bàn Speed'},
   speedLobbySub:{ko:'테이블을 선택해 입장하세요',zhHans:'请选择桌台进入',zhHant:'請選擇桌臺進入',en:'Pick a table to enter',ja:'テーブルを選んで入場してください',vi:'Chọn một bàn để vào'},
   allCasinos:{ko:'전체 게임',zhHans:'全部游戏',zhHant:'全部遊戲',en:'All Games',ja:'全ゲーム',vi:'Tất cả'},
-  casinoHann:{ko:'한 카지노',zhHans:'HANN 赌场',zhHant:'HANN 賭場',en:'HANN Casino',ja:'ハンカジノ',vi:'Sòng HANN'},
+  casinoHann:{ko:'한',zhHans:'HANN 赌场',zhHant:'HANN 賭場',en:'HANN Casino',ja:'ハンカジノ',vi:'Sòng HANN'},
   casinoNustar:{ko:'누스타',zhHans:'NUSTAR',zhHant:'NUSTAR',en:'NuStar',ja:'ヌスター',vi:'NuStar'},
   casinoSolaire:{ko:'솔레어',zhHans:'索莱尔',zhHant:'索萊爾',en:'Solaire',ja:'ソレア',vi:'Solaire'},
   casinoMidori:{ko:'미도리',zhHans:'美多利',zhHant:'美多利',en:'Midori',ja:'ミドリ',vi:'Midori'},

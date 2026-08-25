@@ -431,7 +431,11 @@ const CASINO_MARK_SRC = {
   HANN: '../shared/assets/logo-hann.svg?v=4',
   NUSTAR: '../shared/assets/logo-nustar.svg?v=4',
   SOLAIRE: '../shared/assets/logo-solaire.svg?v=4',
-  MIDORI: '../shared/assets/logo-midori.svg?v=4',
+  /* MIDORI's is the artwork itself rather than a drawing of it - the file the house supplied,
+     with nothing but its transparent margin trimmed off. The others are line art and vector
+     cleanly; this one is a rendered wordmark over a circuit-trace spade, and redrawing it would
+     be an imitation of the mark rather than the mark. */
+  MIDORI: '../shared/assets/logo-midori.png?v=5',
 };
 const LOBBY_CASINOS = ['HANN','NUSTAR','SOLAIRE','MIDORI'];
 const CASINO_LABELS = {ALL:'allCasinos', HANN:'casinoHann', NUSTAR:'casinoNustar', SOLAIRE:'casinoSolaire', MIDORI:'casinoMidori'};

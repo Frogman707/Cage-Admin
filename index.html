@@ -922,7 +922,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             </div>
             <div class="row">
               <div class="field"><label data-i18n="tableLabel"></label>
-                <select id="gTable"><option value=""></option><option>NS001</option><option>NS002</option><option>NS003</option><option>NS004</option><option>NS005</option><option>NS006</option><option>NS007</option><option>NS008</option><option>NS009</option><option>NS010</option></select>
+                <select id="gTable"><option value=""></option></select>
                 <div class="hint" id="gTableHint" style="display:none;"></div></div>
               <div class="field"><label data-i18n="gameType"></label>
                 <select id="gType"><option>Rolling 1.5%</option><option>Share 40%</option><option>Rolling 1% + Share 10%</option></select></div>
@@ -5386,17 +5386,24 @@ function renderAvatarSpeedOngoingTables(){
   }).join('');
  refreshGameTableOptions();
 }
-/* The 테이블 picker on 게임 시작 follows 시작 종류.
-   An avatar or speed game is played at one of that branch's own avatar/speed tables, so the list
-   is the branch's tables straight out of the tables collection - the same ones the avatar and
-   speed apps open, and the same ones the panel above opens and closes. It is not a fixed list
-   here: tables are created and retired in Partner Admin (지점 테이블 생성), and a branch that has
-   none yet says so rather than offering another branch's.
-   라이브 is a physical table on the floor, which this collection does not describe, so it keeps
-   the fixed list the markup ships with. */
-const LIVE_TABLE_OPTIONS = ['NS001','NS002','NS003','NS004','NS005','NS006','NS007','NS008','NS009','NS010'];
+/* The 테이블 picker on 게임 시작 follows both the branch and 시작 종류, because the two kinds of
+   table are two different things.
+   라이브 is a physical table on the floor, and each branch numbers its own: NUSTAR NS001-010,
+   HANN HN001-010, SOLAIRE SL001-010, MIDORI MI001-010. Nothing describes those but the branch
+   they stand in, so the list is generated here.
+   아바타 and 스피드 are tables in the tables collection - the same ones the avatar and speed apps
+   open and the panel above opens and closes - so that collection is the list, not a rule here.
+   They are created and retired in Partner Admin (지점 테이블 생성), and a branch that has none yet
+   says where they are made rather than offering another branch's. */
+const BRANCH_TABLE_PREFIX = {NUSTAR:'NS', HANN:'HN', SOLAIRE:'SL', MIDORI:'MI'};
+function liveTablesForBranch(branch){
+ const prefix = BRANCH_TABLE_PREFIX[branch] || BRANCH_TABLE_PREFIX.HANN;
+ const list = [];
+ for(let i=1;i<=10;i++) list.push(prefix + String(i).padStart(3,'0'));
+ return list;
+}
 function gameTableOptionsFor(kind){
- if(kind !== 'avatar' && kind !== 'speed') return LIVE_TABLE_OPTIONS;
+ if(kind !== 'avatar' && kind !== 'speed') return liveTablesForBranch(currentBranch());
  return fbTablesCache
   .filter(tb=>tb.type===kind && tb.casino===currentBranch())
   .map(tb=>tb.id)
@@ -5416,6 +5423,22 @@ function refreshGameTableOptions(){
   hint.style.display = empty ? '' : 'none';
   if(empty) hint.textContent = t('noBranchTablesHint');
  }
+}
+// Starting an avatar/speed game must make its table actually show up live on the Avatar Speed
+// site (it reads the same 'tables' collection) - so open (or, the first time that branch's table
+// is ever used, create) the matching table doc rather than relying on it having been pre-created
+// in Partner Admin. Merge only - an already-configured table's real bet limits/shoe are never
+// clobbered, only its status/casino/type are brought in line with this game start.
+async function ensureAvatarSpeedTableOpen(tableId, kind, casino){
+ if(!fbDb || !tableId || (kind!=='avatar' && kind!=='speed')) return;
+ try{
+  const existing = fbTablesCache.find(tb=>tb.id===tableId);
+  if(existing){
+   await fbDb.collection('tables').doc(tableId).set({status:'open', type:kind, casino}, {merge:true});
+  }else{
+   await fbDb.collection('tables').doc(tableId).set({id:tableId, name:tableId, type:kind, casino, status:'open', betMin:5000, betMax:3000000, shoeNo:1});
+  }
+ }catch(e){ console.error('ensureAvatarSpeedTableOpen failed:', e); }
 }
 async function toggleTableStatus(id, isCurrentlyOpen){
  if(!fbDb) return;
@@ -7993,6 +8016,7 @@ async function _doStartGame(account, buyin, workingChip, enteredId){
  const gameId = enteredId || nextGameIdForToday();
  const newGame = {dt:now.toISOString().slice(0,16).replace('T',' '), gameId, branch:currentBranch(), account, table, cur, type, startType, startKind, rolling:0, buyin, workingChip, staff:staffName, checkpoints:[], lastAdded:0, rollingLog:[]};
  DB.games.unshift(newGame);
+ if(startKind==='avatar' || startKind==='speed') ensureAvatarSpeedTableOpen(table, startKind, currentBranch());
  seedRollingFromBuyin(newGame, buyin, workingChip, staffName);
  if(startKind === 'avatar' && DB.avatarRequests && DB.avatarRequests.length){
   DB.avatarRequests = DB.avatarRequests.filter(r=>r.account!==account);

@@ -631,7 +631,7 @@ async function renderRealtime(){
   const members = await getMembers(true);
   const now = Date.now();
   const online = members.filter(m => m.lastLoginAt && (now - new Date(m.lastLoginAt).getTime()) < 1000*60*60*6 && !m.accessBlocked);
-  const casinos = ['NUSTAR','HANN','ONLINE'];
+  const casinos = ['NUSTAR','HANN','SOLAIRE','MIDORI','ONLINE'];
   const byCasino = {};
   casinos.forEach(c=>{ byCasino[c] = online.filter(m=>m.casino===c).length; });
   return `
@@ -740,7 +740,7 @@ async function seedDemoData(){
   const set = (coll, id, data) => { batch.set(db.collection(coll).doc(id), data); ops++; if (ops>=400) flush(); };
 
   const nicknames = ['용용용','Eeyeyete','홈미르크','두산에너빌리티','아꼬케이','GDragon','레오123','HANYING','Danny','메이드킹'];
-  const casinos = ['NUSTAR','HANN','ONLINE'];
+  const casinos = ['NUSTAR','HANN','SOLAIRE','MIDORI','ONLINE'];
   const casinoPrefix = {NUSTAR:'NU', HANN:'HN', ONLINE:'ON'};
   const memberIds = [];
   for (let i=1;i<=12;i++){

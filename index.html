@@ -945,6 +945,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
         <div class="card" style="margin-top:16px;">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
             <h3 style="margin:0;flex:1;" data-i18n="avatarSpeedOngoingTitle"></h3>
+            <!-- only while the panel is open: the tables it makes are the ones listed below it -->
+            <button class="btn btn-sm" id="createTableBtn" style="flex:0 0 auto;display:none;" onclick="openCreateTableForm()" data-i18n="createTableBtn"></button>
             <button class="btn btn-sm chevron-toggle-btn" id="avatarSpeedToggleBtn" style="flex:0 0 auto;" onclick="toggleAvatarSpeedTablePanel()" data-i18n-title="expandBtn" title="">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chevron-toggle-icon"><path d="M6 9l6 6 6-6"/></svg>
             </button>
@@ -1759,6 +1761,30 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <p class="login-error" id="cagePinAuthError" data-i18n="wdAuthPinErrorMsg" style="display:none;"></p>
   <button class="btn btn-gold btn-block" style="margin-top:10px;" onclick="confirmCagePinAuth()" data-i18n="confirmBtn"></button>
   <button class="btn btn-block" style="margin-top:8px;" onclick="cancelCagePinAuth()" data-i18n="cancelBtn"></button>
+</div></div>
+
+<div class="modal-bg" id="modal-create-table"><div class="modal" style="width:460px;">
+  <button class="modal-close" onclick="closeModal('modal-create-table')">×</button>
+  <h3 data-i18n="createTableTitle"></h3>
+  <div class="row" style="margin-top:10px;">
+    <div class="field"><label data-i18n="colCasino"></label><input id="ctBranch" disabled></div>
+    <div class="field"><label data-i18n="colType"></label>
+      <select id="ctType" onchange="refreshCreateTableIds()">
+        <option value="speed" data-i18n="startKindSpeed"></option>
+        <option value="avatar" data-i18n="startKindAvatar"></option>
+      </select></div>
+  </div>
+  <div class="row">
+    <div class="field"><label data-i18n="tableIdLabel"></label>
+      <select id="ctId" onchange="syncCreateTableName()"></select>
+      <div class="hint" id="ctIdHint" style="display:none;"></div></div>
+    <div class="field"><label data-i18n="tableLabel"></label><input id="ctName"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label data-i18n="betMinLabel"></label><input id="ctMin" type="text" inputmode="numeric" class="fmt-num" oninput="formatNumInput(this)"></div>
+    <div class="field"><label data-i18n="betMaxLabel"></label><input id="ctMax" type="text" inputmode="numeric" class="fmt-num" oninput="formatNumInput(this)"></div>
+  </div>
+  <button class="btn btn-gold btn-block" style="margin-top:10px;" onclick="submitCreateTable()" data-i18n="createTableBtn"></button>
 </div></div>
 
 <div class="modal-bg" id="modal-avatar-account"><div class="modal" style="width:420px;">
@@ -5427,6 +5453,68 @@ function toggleAvatarSpeedTablePanel(){
  btn.classList.toggle('expanded', nowOpen);
  btn.title = t(nowOpen ? 'collapseBtn' : 'expandBtn');
  btn.dataset.i18nTitle = nowOpen ? 'collapseBtn' : 'expandBtn';
+ const add = document.getElementById('createTableBtn');
+ if(add) add.style.display = nowOpen ? '' : 'none';
+}
+/* The same table as Partner Admin's 테이블 생성 makes, made from the screen that lists them.
+   Which ids a branch has is settled - ten speed and ten avatar, NUS01 and its siblings - so the
+   id is picked from what this branch is still missing rather than typed. */
+const CAGE_TABLE_CODES = {NUSTAR:'NU', HANN:'HN', SOLAIRE:'SL', MIDORI:'MI'};
+function cageBranchTableDefs(casino, type){
+ const code = CAGE_TABLE_CODES[casino];
+ if(!code) return [];
+ const letter = type === 'speed' ? 'S' : 'A';
+ const word = type === 'speed' ? 'Speed' : 'Avatar';
+ const out = [];
+ for(let i=1;i<=10;i++){
+  const no = String(i).padStart(2,'0');
+  out.push({id:`${code}${letter}${no}`, name:`${casino} ${word} ${no}`, type, casino});
+ }
+ return out;
+}
+function refreshCreateTableIds(){
+ const casino = currentBranch();
+ const type = document.getElementById('ctType').value;
+ const taken = new Set(fbTablesCache.map(tb=>tb.id));
+ const free = cageBranchTableDefs(casino, type).filter(d=>!taken.has(d.id));
+ const sel = document.getElementById('ctId');
+ sel.innerHTML = free.map(d=>`<option value="${esc(d.id)}">${esc(d.id)}</option>`).join('');
+ sel.disabled = !free.length;
+ const hint = document.getElementById('ctIdHint');
+ hint.style.display = free.length ? 'none' : '';
+ hint.textContent = t('noFreeTableIds');
+ syncCreateTableName();
+}
+function syncCreateTableName(){
+ const id = document.getElementById('ctId').value;
+ const type = document.getElementById('ctType').value;
+ const def = cageBranchTableDefs(currentBranch(), type).find(d=>d.id===id);
+ document.getElementById('ctName').value = def ? def.name : '';
+}
+function openCreateTableForm(){
+ if(!fbDb){ toast(t('toastAvatarSyncOffline')); return; }
+ document.getElementById('ctBranch').value = currentBranch();
+ document.getElementById('ctType').value = 'speed';
+ document.getElementById('ctMin').value = fmt(5000);
+ document.getElementById('ctMax').value = fmt(3000000);
+ refreshCreateTableIds();
+ openModal('modal-create-table');
+}
+async function submitCreateTable(){
+ const id = document.getElementById('ctId').value;
+ if(!id){ toast(t('noFreeTableIds'), true); return; }
+ const row = {
+  id, name: document.getElementById('ctName').value,
+  type: document.getElementById('ctType').value, casino: currentBranch(),
+  betMin: unformatNum(document.getElementById('ctMin').value),
+  betMax: unformatNum(document.getElementById('ctMax').value),
+  status:'open', shoeNo:1,
+ };
+ try{
+  await fbDb.collection('tables').doc(id).set(row);
+ }catch(e){ console.error('submitCreateTable failed:', id, e); toast(t('toastStaffSyncFailed'), true); return; }
+ closeModal('modal-create-table');
+ toast(t('toastTableCreated').replace('{id}', id));
 }
 function renderAvatarSpeedOngoingTables(){
  const body = document.getElementById('avatarSpeedOngoingBody');
@@ -5484,26 +5572,45 @@ function openAvatarAccountForm(){
    It has to be: the balance the customer sees there is read out of the cage's own ledger under
    this exact id, so a login under any other id would sit on somebody else's book, or on none.
    That is why the id is checked against the account list rather than taken as typed. */
+/* An agent playing themselves signs in with their own account. This is for the logins an agent
+   hands down to their customers: a new id and password, opened here, that the customer takes to
+   the Avatar Speed site.
+   It is a real cage account from the moment it is made - opened at this branch, at zero - because
+   the balance the customer sees on that site is read out of the cage's own ledger under this id.
+   It has no money until the cage puts some in through 입출금 처리, same as any other account.
+   An id already in use is refused rather than taken over: writing a password onto somebody's
+   existing account would hand their money to whoever this login is given to. */
 async function createAvatarAccount(){
  const id = (document.getElementById('avatarAccId').value || '').trim().toUpperCase();
  const pw = (document.getElementById('avatarAccPw').value || '').trim();
  const err = document.getElementById('avatarAccError');
  const fail = key => { err.textContent = t(key); err.style.display = 'block'; };
  if(!id || !pw) return fail('avatarAccNeedBoth');
- if(!DB.accounts[id] || isMainAccount(id)) return fail('avatarAccNoSuchAccount');
+ if(!/^[A-Z0-9]{4,20}$/.test(id)) return fail('avatarAccIdFormat');
+ if(DB.accounts[id] || closedAccountIds.has(id)) return fail('avatarAccTaken');
  if(!fbDb) return fail('toastAvatarSyncOffline');
- DB.accounts[id].pw = pw;
+ const casino = currentBranch();
+ DB.accounts[id] = {
+  member:id, phone:'—', rate:'—', telegram:'—', balance:0,
+  passportPhoto:null, sitePhoto:null, signaturePhoto:null,
+  pw, withdrawPw:'0000',
+  openedCasino:casino, openedDt: phNow().toISOString().slice(0,16).replace('T',' '),
+  currency:'PHP', remark:t('avatarAccRemark'),
+ };
  saveDB();
  syncAccountToCloud(id);
  try{
   await fbDb.collection('members').doc(id).set(cageAccountAsMember(id), {merge:true});
  }catch(e){
   console.error('createAvatarAccount failed:', id, e);
+  delete DB.accounts[id];   // it never reached the site, so it is not an account here either
+  saveDB();
   return fail('toastAvatarSyncFailed');
  }
  closeModal('modal-avatar-account');
+ renderMemberCard(); renderLedger();
  toast(t('toastAvatarAccCreated').replace('{id}', id));
- pushNotification('avatarAccTitle', id);
+ pushNotification('avatarAccTitle', `${id} · ${casino}`);
 }
 function refreshGameTableOptions(){
  const sel = document.getElementById('gTable');
@@ -6109,7 +6216,7 @@ ko:{
  tableLabel:"테이블", gameType:"게임 타입", avatarId:"아바타 ID", buyinTotal:"바이인 총액", startBtn:"게임 시작",
  inGameTitle:"진행중인 게임", gameIdLabel:"게임 ID",
  ongoingGamesTitle:"롤링", dailyLabel:"당일", cumulativeLabel:"누적", ongoingCountLabel:"진행 건수",
- tableIdLabel:"테이블ID", avatarSpeedOngoingTitle:"아바타·스피드 테이블 관리", shoeNoLabel:"슈 번호", betLimitLabel:"베팅 한도", tableStatusOpen:"활성화", tableStatusClosed:"마감", tableOpenBtn:"영업 시작", tableCloseBtn:"마감", toastTableStatusChanged:"테이블 상태가 변경되었습니다.", expandBtn:"펼치기", collapseBtn:"접기",
+ tableIdLabel:"테이블ID", createTableBtn:"테이블 생성", createTableTitle:"테이블 생성", betMinLabel:"최소 베팅", betMaxLabel:"최대 베팅", noFreeTableIds:"이 지점의 해당 타입 테이블은 이미 모두 만들어져 있습니다.", toastTableCreated:"{id} 테이블이 생성되었습니다.", avatarSpeedOngoingTitle:"아바타·스피드 테이블 관리", shoeNoLabel:"슈 번호", betLimitLabel:"베팅 한도", tableStatusOpen:"활성화", tableStatusClosed:"마감", tableOpenBtn:"영업 시작", tableCloseBtn:"마감", toastTableStatusChanged:"테이블 상태가 변경되었습니다.", expandBtn:"펼치기", collapseBtn:"접기",
  colTime:"시간", colReqMember:"요청 회원", colKind:"구분", colPrevRolling:"이전 롤링", colRollingSub:"롤링누계", colRollingTotal:"롤링 합계",
  settlePageTitle:"롤링 커미션 정산", gameTypeFld:"게임 타입", rollingComm:"롤링 커미션", fbDiscount:"F&B 할인", resultLabel:"정산금", settleBtn:"정산 확정",
  receiptTitle:"정산 영수증", receiptEmptyHint:"게임을 선택하고 정산을 확정하면 영수증이 표시됩니다.", receiptGameNo:"게임 번호", receiptAccNo:"어카운트", receiptDate:"일자",
@@ -6225,7 +6332,7 @@ ko:{
  totalRollingLabel:"토탈 롤링",
  rollingReceiptTitle:"롤링 커미션 정산서", receiptBuyinAmt:"바인금액", receiptCashoutAmt:"캐쉬아웃", rollingCommSettleAmt:"롤링 커미션 정산금", shiftManagerLabel:"Shift Manager",
  startKindLabel:"시작 종류", startKindLive:"라이브", startKindAvatar:"아바타", startKindSpeed:"스피드",
- avatarAccBtn:"아바타 계정 생성", avatarAccTitle:"아바타 계정 생성", avatarAccSub:"아바타 스피드 사이트 로그인 정보입니다. 아이디는 케이지 어카운트와 같아야 합니다 — 사이트에서 보이는 보유금이 그 어카운트의 케이지 원장이기 때문입니다.", avatarAccId:"아이디", avatarAccPw:"비밀번호", avatarAccCreateBtn:"생성", avatarAccNeedBoth:"아이디와 비밀번호를 모두 입력하세요.", avatarAccNoSuchAccount:"없는 어카운트입니다. 어카운트 목록에 있는 아이디를 입력하세요.", toastAvatarAccCreated:"{id} 아바타 계정이 생성되었습니다.",
+ avatarAccBtn:"아바타 계정 생성", avatarAccTitle:"아바타 계정 생성", avatarAccSub:"손님에게 내려줄 아바타 스피드 로그인을 만듭니다. 이 지점 어카운트로 개설되며 보유금은 0에서 시작합니다 — 입출금 처리로 입금해주세요. 본인이 직접 하실 때는 본인 어카운트로 로그인하시면 됩니다.", avatarAccId:"아이디", avatarAccPw:"비밀번호", avatarAccCreateBtn:"생성", avatarAccNeedBoth:"아이디와 비밀번호를 모두 입력하세요.", avatarAccIdFormat:"아이디는 영문 대문자와 숫자 4~20자로 입력하세요.", avatarAccTaken:"이미 사용 중인 아이디입니다. 다른 아이디를 입력하세요.", avatarAccRemark:"아바타 계정", toastAvatarAccCreated:"{id} 아바타 계정이 생성되었습니다.", toastAvatarReqCompleted:"{account} 아바타 요청이 바인 완료 처리되었습니다.",
  noBranchTablesHint:"이 지점에 등록된 아바타·스피드 테이블이 없습니다. 파트너 어드민의 '지점 테이블 생성'으로 만들어주세요.",
  memoHouseBuyin:"아바타·스피드 바이인(메인 어카운트)", memoHouseEndDeposit:"아바타·스피드 게임종료 디파짓(메인 어카운트)", toastMainInsufficient:"메인 어카운트 잔액이 부족합니다.", notifMainInsufficient:"메인 어카운트 잔액 부족",
  genBtn:"생성", walkinBtn:"워크인", addBuyinHint:"기존 게임 ID를 입력하고 바이인 총액을 넣은 뒤 게임 시작을 누르면 추가 바이인으로 처리됩니다.", notifAddBuyin:"추가 바이인", toastAddBuyin:"추가 바이인이 반영되었습니다.",
@@ -6251,7 +6358,7 @@ en:{
  tableLabel:"Table", gameType:"Game Type", avatarId:"Avatar ID", buyinTotal:"Buy-in Total", startBtn:"Start Game",
  inGameTitle:"Games In Progress", gameIdLabel:"Game ID",
  ongoingGamesTitle:"Rolling", dailyLabel:"Daily", cumulativeLabel:"Cumulative", ongoingCountLabel:"In Progress",
- tableIdLabel:"Table ID", avatarSpeedOngoingTitle:"Avatar/Speed Table Management", shoeNoLabel:"Shoe No.", betLimitLabel:"Bet Limit", tableStatusOpen:"Active", tableStatusClosed:"Closed", tableOpenBtn:"Open Table", tableCloseBtn:"Close Table", toastTableStatusChanged:"Table status updated.", expandBtn:"Expand", collapseBtn:"Collapse",
+ tableIdLabel:"Table ID", createTableBtn:"Create Table", createTableTitle:"Create Table", betMinLabel:"Min Bet", betMaxLabel:"Max Bet", noFreeTableIds:"This branch already has every table of that type.", toastTableCreated:"Table {id} created.", avatarSpeedOngoingTitle:"Avatar/Speed Table Management", shoeNoLabel:"Shoe No.", betLimitLabel:"Bet Limit", tableStatusOpen:"Active", tableStatusClosed:"Closed", tableOpenBtn:"Open Table", tableCloseBtn:"Close Table", toastTableStatusChanged:"Table status updated.", expandBtn:"Expand", collapseBtn:"Collapse",
  colTime:"Time", colReqMember:"Requested By", colKind:"Kind", colPrevRolling:"Prev. Rolling", colRollingSub:"Rolling Cumulative", colRollingTotal:"Rolling Total",
  settlePageTitle:"Rolling Commission Settlement", gameTypeFld:"Game Type", rollingComm:"Rolling Commission", fbDiscount:"F&B Discount", resultLabel:"Settlement Amount", settleBtn:"Confirm Settlement",
  receiptTitle:"Settlement Receipt", receiptEmptyHint:"Select a game and confirm settlement to see the receipt.", receiptGameNo:"Game No.", receiptAccNo:"Account No.", receiptDate:"Date",
@@ -6367,7 +6474,7 @@ en:{
  totalRollingLabel:"Total Rolling",
  rollingReceiptTitle:"Rolling Commission Settlement", receiptBuyinAmt:"Buy-in Amount", receiptCashoutAmt:"CashOut", rollingCommSettleAmt:"Rolling Commission Settlement", shiftManagerLabel:"Shift Manager",
  startKindLabel:"Start Kind", startKindLive:"Live", startKindAvatar:"Avatar", startKindSpeed:"Speed",
- avatarAccBtn:"Create Avatar Account", avatarAccTitle:"Create Avatar Account", avatarAccSub:"Login for the Avatar Speed site. The ID must be the cage account itself - the balance shown there is that account's cage ledger.", avatarAccId:"ID", avatarAccPw:"Password", avatarAccCreateBtn:"Create", avatarAccNeedBoth:"Enter both an ID and a password.", avatarAccNoSuchAccount:"No such account. Use an ID from the account list.", toastAvatarAccCreated:"Avatar account created for {id}.",
+ avatarAccBtn:"Create Avatar Account", avatarAccTitle:"Create Avatar Account", avatarAccSub:"Creates an Avatar Speed login to hand to a customer. It is opened as an account at this branch and starts at zero - fund it through Deposit / Withdraw. Playing yourself, sign in with your own account.", avatarAccId:"ID", avatarAccPw:"Password", avatarAccCreateBtn:"Create", avatarAccNeedBoth:"Enter both an ID and a password.", avatarAccIdFormat:"The ID must be 4-20 uppercase letters or digits.", avatarAccTaken:"That ID is already in use. Choose another.", avatarAccRemark:"Avatar account", toastAvatarAccCreated:"Avatar account created for {id}.", toastAvatarReqCompleted:"{account}'s avatar request is marked bought in.",
  noBranchTablesHint:"This branch has no avatar or speed tables yet. Create them with '지점 테이블 생성' in Partner Admin.",
  memoHouseBuyin:"Avatar/Speed Buy-in (Main Account)", memoHouseEndDeposit:"Avatar/Speed Game End Deposit (Main Account)", toastMainInsufficient:"The main account has insufficient balance.", notifMainInsufficient:"Main Account Insufficient",
  genBtn:"Generate", walkinBtn:"Walk-in", addBuyinHint:"Enter an existing Game ID and a Buy-in Total, then press Start Game to add an additional buy-in.", notifAddBuyin:"Additional Buy-in", toastAddBuyin:"Additional buy-in recorded.",
@@ -6393,7 +6500,7 @@ en:{
  tableLabel:"賭桌", gameType:"局別", avatarId:"分身編號", buyinTotal:"買入總額", startBtn:"開始遊戲",
  inGameTitle:"進行中賽局", gameIdLabel:"局號",
  ongoingGamesTitle:"轉碼", dailyLabel:"當日", cumulativeLabel:"累計", ongoingCountLabel:"進行局數",
- tableIdLabel:"賭桌編號", avatarSpeedOngoingTitle:"電投·快速電投 桌台管理", shoeNoLabel:"靴號", betLimitLabel:"投注限額", tableStatusOpen:"啟用中", tableStatusClosed:"結束", tableOpenBtn:"開始營業", tableCloseBtn:"結束營業", toastTableStatusChanged:"桌台狀態已更新。", expandBtn:"展開", collapseBtn:"收合",
+ tableIdLabel:"賭桌編號", createTableBtn:"建立賭桌", createTableTitle:"建立賭桌", betMinLabel:"最低投注", betMaxLabel:"最高投注", noFreeTableIds:"此分店該類型的賭桌已全部建立。", toastTableCreated:"已建立賭桌 {id}。", avatarSpeedOngoingTitle:"電投·快速電投 桌台管理", shoeNoLabel:"靴號", betLimitLabel:"投注限額", tableStatusOpen:"啟用中", tableStatusClosed:"結束", tableOpenBtn:"開始營業", tableCloseBtn:"結束營業", toastTableStatusChanged:"桌台狀態已更新。", expandBtn:"展開", collapseBtn:"收合",
  colTime:"時間", colReqMember:"申請會員", colKind:"類別", colPrevRolling:"先前轉碼", colRollingSub:"轉碼累計", colRollingTotal:"轉碼合計",
  settlePageTitle:"轉碼佣金結算", gameTypeFld:"局別", rollingComm:"轉碼佣金", fbDiscount:"F&B 折讓", resultLabel:"結算金額", settleBtn:"確認結算",
  receiptTitle:"結算收據", receiptEmptyHint:"選擇遊戲並確認結算後將顯示收據。", receiptGameNo:"局號", receiptAccNo:"帳號", receiptDate:"日期",
@@ -6509,7 +6616,7 @@ en:{
  totalRollingLabel:"總轉碼",
  rollingReceiptTitle:"轉碼佣金結算單", receiptBuyinAmt:"買入金額", receiptCashoutAmt:"兌現金額", rollingCommSettleAmt:"轉碼佣金結算金額", shiftManagerLabel:"班務經理",
  startKindLabel:"開局種類", startKindLive:"現場", startKindAvatar:"電投", startKindSpeed:"快速電投",
- avatarAccBtn:"建立電投帳號", avatarAccTitle:"建立電投帳號", avatarAccSub:"Avatar Speed 網站的登入資料。帳號必須與賭場帳戶相同 — 網站顯示的餘額即該帳戶的賭場帳本。", avatarAccId:"帳號", avatarAccPw:"密碼", avatarAccCreateBtn:"建立", avatarAccNeedBoth:"請輸入帳號與密碼。", avatarAccNoSuchAccount:"查無此帳戶。請輸入帳戶清單中的帳號。", toastAvatarAccCreated:"已建立 {id} 的電投帳號。",
+ avatarAccBtn:"建立電投帳號", avatarAccTitle:"建立電投帳號", avatarAccSub:"建立要交給客人的 Avatar Speed 登入帳號。以本分店帳戶開立，餘額從 0 開始 — 請由存提款作業存入。自己遊玩時請用本人帳戶登入。", avatarAccId:"帳號", avatarAccPw:"密碼", avatarAccCreateBtn:"建立", avatarAccNeedBoth:"請輸入帳號與密碼。", avatarAccIdFormat:"帳號請輸入 4~20 位英文大寫或數字。", avatarAccTaken:"此帳號已被使用，請改用其他帳號。", avatarAccRemark:"電投帳號", toastAvatarAccCreated:"已建立 {id} 的電投帳號。", toastAvatarReqCompleted:"{account} 的電投申請已標記為買入完成。",
  noBranchTablesHint:"此分店尚無電投／快速電投賭桌。請於合作伙伴管理後臺的「지점 테이블 생성」建立。",
  memoHouseBuyin:"電投／快速電投買入（主帳戶）", memoHouseEndDeposit:"電投／快速電投結束賽局存入（主帳戶）", toastMainInsufficient:"主帳戶餘額不足。", notifMainInsufficient:"主帳戶餘額不足",
  genBtn:"產生", walkinBtn:"散客", addBuyinHint:"輸入現有的遊戲ID並填入買入總額，按下開始遊戲即可追加買入。", notifAddBuyin:"追加買入", toastAddBuyin:"追加買入已記錄。",
@@ -6535,7 +6642,7 @@ en:{
  tableLabel:"赌桌", gameType:"局别", avatarId:"分身编号", buyinTotal:"买入总额", startBtn:"开始游戏",
  inGameTitle:"进行中赛局", gameIdLabel:"局号",
  ongoingGamesTitle:"转码", dailyLabel:"当日", cumulativeLabel:"累计", ongoingCountLabel:"进行局数",
- tableIdLabel:"赌桌编号", avatarSpeedOngoingTitle:"电投·快速电投 桌台管理", shoeNoLabel:"靴号", betLimitLabel:"投注限额", tableStatusOpen:"启用中", tableStatusClosed:"结束", tableOpenBtn:"开始营业", tableCloseBtn:"结束营业", toastTableStatusChanged:"桌台状态已更新。", expandBtn:"展开", collapseBtn:"收起",
+ tableIdLabel:"赌桌编号", createTableBtn:"创建赌桌", createTableTitle:"创建赌桌", betMinLabel:"最低投注", betMaxLabel:"最高投注", noFreeTableIds:"此分店该类型的赌桌已全部创建。", toastTableCreated:"已创建赌桌 {id}。", avatarSpeedOngoingTitle:"电投·快速电投 桌台管理", shoeNoLabel:"靴号", betLimitLabel:"投注限额", tableStatusOpen:"启用中", tableStatusClosed:"结束", tableOpenBtn:"开始营业", tableCloseBtn:"结束营业", toastTableStatusChanged:"桌台状态已更新。", expandBtn:"展开", collapseBtn:"收起",
  colTime:"时间", colReqMember:"申请会员", colKind:"类别", colPrevRolling:"先前转码", colRollingSub:"转码累计", colRollingTotal:"转码合计",
  settlePageTitle:"转码佣金结算", gameTypeFld:"局别", rollingComm:"转码佣金", fbDiscount:"F&B 折让", resultLabel:"结算金额", settleBtn:"确认结算",
  receiptTitle:"结算收据", receiptEmptyHint:"选择游戏并确认结算后将显示收据。", receiptGameNo:"局号", receiptAccNo:"账号", receiptDate:"日期",
@@ -6651,7 +6758,7 @@ en:{
  totalRollingLabel:"总转码",
  rollingReceiptTitle:"转码佣金结算单", receiptBuyinAmt:"买入金额", receiptCashoutAmt:"兑现金额", rollingCommSettleAmt:"转码佣金结算金额", shiftManagerLabel:"班务经理",
  startKindLabel:"开局种类", startKindLive:"现场", startKindAvatar:"电投", startKindSpeed:"快速电投",
- avatarAccBtn:"创建电投账号", avatarAccTitle:"创建电投账号", avatarAccSub:"Avatar Speed 网站的登录信息。账号必须与赌场账户相同 — 网站显示的余额即该账户的赌场账本。", avatarAccId:"账号", avatarAccPw:"密码", avatarAccCreateBtn:"创建", avatarAccNeedBoth:"请输入账号与密码。", avatarAccNoSuchAccount:"查无此账户。请输入账户清单中的账号。", toastAvatarAccCreated:"已创建 {id} 的电投账号。",
+ avatarAccBtn:"创建电投账号", avatarAccTitle:"创建电投账号", avatarAccSub:"创建要交给客人的 Avatar Speed 登录账号。以本分店账户开立，余额从 0 开始 — 请通过存取款操作存入。自己游玩时请用本人账户登录。", avatarAccId:"账号", avatarAccPw:"密码", avatarAccCreateBtn:"创建", avatarAccNeedBoth:"请输入账号与密码。", avatarAccIdFormat:"账号请输入 4~20 位英文大写或数字。", avatarAccTaken:"此账号已被使用，请改用其他账号。", avatarAccRemark:"电投账号", toastAvatarAccCreated:"已创建 {id} 的电投账号。", toastAvatarReqCompleted:"{account} 的电投申请已标记为买入完成。",
  noBranchTablesHint:"此分店尚无电投／快速电投赌桌。请于合作伙伴管理后台的「지점 테이블 생성」建立。",
  memoHouseBuyin:"电投／快速电投买入（主账户）", memoHouseEndDeposit:"电投／快速电投结束赛局存入（主账户）", toastMainInsufficient:"主账户余额不足。", notifMainInsufficient:"主账户余额不足",
  genBtn:"生成", walkinBtn:"散客", addBuyinHint:"输入现有的游戏ID并填入买入总额，按下开始游戏即可追加买入。", notifAddBuyin:"追加买入", toastAddBuyin:"追加买入已记录。",
@@ -6965,6 +7072,24 @@ function renderAvatarReqList(){
  body.innerHTML = !reqs.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
   reqs.map(req=>`<tr><td>${esc(req.casino)||'—'}</td><td class="num">${fmtPhFromIso(req.requestedAt)}</td><td>${esc(req.memberId)||'—'}</td><td>${esc(req.tableId)||'—'}</td><td class="num">${req.buyin?fmt(req.buyin):'—'}</td><td>${esc(req.avatarStaffId)||'—'}</td>
    <td><button class="btn btn-sm btn-danger" onclick="cancelAvatarRequest('${esc(req.id)}')">${t('cancelBtn')}</button></td></tr>`).join('');
+}
+/* Starting the game IS the answer to the request, so the request stops waiting.
+   The badge counts what the cloud's avatarRequests collection still has at 대기, and starting a
+   game only ever filtered DB.avatarRequests - the local demo copy nothing reads - so the alarm
+   went on ringing for a customer who was already at the table. This closes the real record, and
+   marks it 바인완료 rather than 종료 so the two are told apart in the history: one was played,
+   the other was called off. */
+async function completeAvatarRequestsFor(account, gameId){
+ if(!fbDb || !account) return;
+ const mine = pendingAvatarRequestsForBranch().filter(r=>(r.memberId||'').toUpperCase() === account.toUpperCase());
+ if(!mine.length) return;
+ try{
+  const batch = fbDb.batch();
+  mine.forEach(r=>batch.set(fbDb.collection('avatarRequests').doc(r.id),
+   {status:'바인완료', gameId, endedAt:new Date().toISOString()}, {merge:true}));
+  await batch.commit();
+ }catch(e){ console.error('completeAvatarRequestsFor failed:', account, e); return; }
+ toast(t('toastAvatarReqCompleted').replace('{account}', account));
 }
 async function cancelAvatarRequest(id){
  if(!fbDb) return;
@@ -8056,9 +8181,10 @@ async function _doAddBuyin(existing, buyin, workingChip){
  if(workingChip) existing.workingChip = (existing.workingChip||0) + workingChip;
  existing.staff = staffName;
  seedRollingFromBuyin(existing, buyin, workingChip, staffName);
- if(existing.startKind === 'avatar' && DB.avatarRequests && DB.avatarRequests.length){
-  DB.avatarRequests = DB.avatarRequests.filter(r=>r.account!==existing.account);
+ if(existing.startKind === 'avatar'){
+  DB.avatarRequests = (DB.avatarRequests||[]).filter(r=>r.account!==existing.account);
   renderAvatarReqBtn();
+  completeAvatarRequestsFor(existing.account, existing.gameId);
  }
  DB.gameNNAdjust = (DB.gameNNAdjust||0) - (buyin + workingChip);
  applyShift('buyinRollingShift', buyin, staffName);
@@ -8108,9 +8234,10 @@ async function _doStartGame(account, buyin, workingChip, enteredId){
  DB.games.unshift(newGame);
  if(startKind==='avatar' || startKind==='speed') ensureAvatarSpeedTableOpen(table, startKind, currentBranch());
  seedRollingFromBuyin(newGame, buyin, workingChip, staffName);
- if(startKind === 'avatar' && DB.avatarRequests && DB.avatarRequests.length){
-  DB.avatarRequests = DB.avatarRequests.filter(r=>r.account!==account);
+ if(startKind === 'avatar'){
+  DB.avatarRequests = (DB.avatarRequests||[]).filter(r=>r.account!==account);
   renderAvatarReqBtn();
+  completeAvatarRequestsFor(account, gameId);
  }
  DB.gameNNAdjust = (DB.gameNNAdjust||0) - (buyin + workingChip);
  applyShift('buyinRollingShift', buyin, staffName);

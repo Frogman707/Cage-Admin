@@ -93,6 +93,7 @@ const I18N_DICT = {
   casinoHann:{ko:'한 카지노',zhHans:'HANN 赌场',zhHant:'HANN 賭場',en:'HANN Casino',ja:'ハンカジノ',vi:'Sòng HANN'},
   casinoNustar:{ko:'누스타',zhHans:'NUSTAR',zhHant:'NUSTAR',en:'NuStar',ja:'ヌスター',vi:'NuStar'},
   casinoSolaire:{ko:'솔레어',zhHans:'索莱尔',zhHant:'索萊爾',en:'Solaire',ja:'ソレア',vi:'Solaire'},
+  casinoMidori:{ko:'미도리',zhHans:'美多利',zhHant:'美多利',en:'Midori',ja:'ミドリ',vi:'Midori'},
   allGameTypes:{ko:'전체',zhHans:'全部',zhHant:'全部',en:'All',ja:'すべて',vi:'Tất cả'},
   gameTypeAvatar:{ko:'아바타',zhHans:'代打',zhHant:'代打',en:'Avatar',ja:'アバター',vi:'Avatar'},
   gameTypeSpeed:{ko:'스피드',zhHans:'极速',zhHant:'極速',en:'Speed',ja:'スピード',vi:'Speed'},

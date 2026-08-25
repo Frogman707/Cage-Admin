@@ -189,7 +189,12 @@ function renderMyBetHistory(){
   el.innerHTML = MY_BET_LOG.slice(0, 20).map(b=>{
     const net = b.payout - b.amount;
     const cls = net > 0 ? 'pos' : net < 0 ? 'neg' : '';
-    return `<div class="row"><span>[${escapeHtml(b.tableName)}] #${b.roundNo} ${betLabel(b.betType)} ${fmtNum(b.amount)}</span><span class="${cls}">${net===0 ? t('push') : fmtSigned(net)}</span></div>`;
+    /* The table is named plainly, the way the history sheet names it. It used to be bracketed,
+       which put a [ ] in front of every round number - and a table that came through without a
+       name left the pair of them standing there as an empty box before the #. Dropped when there
+       is nothing to name. */
+    const where = b.tableName ? `${escapeHtml(b.tableName)} ` : '';
+    return `<div class="row"><span>${where}#${b.roundNo} ${betLabel(b.betType)} ${fmtNum(b.amount)}</span><span class="${cls}">${net===0 ? t('push') : fmtSigned(net)}</span></div>`;
   }).join('');
 }
 
@@ -2134,15 +2139,6 @@ function paintSpeedConfirmState(tableId){
       spot.classList.toggle('locked', dealt);
       spot.classList.toggle('bets-closed', signedOff);
     });
-    /* The lines that bound 플레이어 and 뱅커 where the arch laps over them are drawn on the board,
-       not on either spot - they have to be, because a spot clips its own children. So the dimming
-       the spots take when a round shuts does not reach them, and a closed board was left with two
-       bright curves on it. The board carries the same state, and dims them with it. */
-    const board = document.querySelector('#viewSpeedTable .bet-board');
-    if (board){
-      board.classList.toggle('board-locked', dealt);
-      board.classList.toggle('board-closed', signedOff);
-    }
   }
   setSpeedTileBetsLocked(tableId, dealt || signedOff);
   document.getElementById(`smrow-${tableId}`)?.classList.toggle('pending', pending);

@@ -696,6 +696,9 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:800;font-family:var(--sans);
 }
 .bead-road .bd-cell.overflow{background:none;box-shadow:none;color:var(--ink-faint);font-size:8px;}
+/* the place a bead will go, on a Plate nothing has been written on yet: it holds the Plate open
+   and draws nothing - a bare bd-cell still carries the bead's drop shadow */
+.bead-road .bd-cell.blank{background:none;box-shadow:none;}
 .bead-road .bd-cell.player{background:radial-gradient(circle at 34% 28%,#6BB2EA,var(--road-blue) 72%);}
 .bead-road .bd-cell.banker{background:radial-gradient(circle at 34% 28%,#EE8878,var(--road-red) 72%);}
 .bead-road .bd-cell.tie{background:radial-gradient(circle at 34% 28%,#6FD8BC,var(--road-green) 72%);}
@@ -942,7 +945,10 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    rather than showing a wrong answer. */
 .sd-road-legend-rail .rail-badge .red{color:var(--road-red);}
 .sd-road-legend-rail .rail-badge .blue{color:var(--road-blue);}
-.sd-road-legend-rail .rail-badge .none{color:#d8d8d8;}
+/* A road that has not started yet has no answer, and a board leaves that place empty rather than
+   standing a colourless mark in it. Hidden rather than removed, so the three places keep their
+   spacing and nothing shifts when the road opens. */
+.sd-road-legend-rail .rail-badge .none{visibility:hidden;}
 /* The size the reference gives the rail. Measured off the shot its two pills are 33 wide and 107
    deep in a road card 524 by 253 - about two fifths of the card's depth each - and the marks in
    them 16px across. The card is the same 252 deep on the page as it is fullscreen, so both take

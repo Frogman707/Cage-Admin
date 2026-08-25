@@ -626,7 +626,7 @@ function renderAvatarLobbyGrid(sortMode){
     return `
     <div class="lobby-card" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="handleAvatarCardClick('${tb.id}')" title="${t('openTable')}">
       <div class="thumb"></div>
-      <div class="mini-road br-grid">${renderBigRoad(cols, 4) || `<span class="hint" style="font-size:10px;">${t('noRecord')}</span>`}</div>
+      <div class="mini-road br-grid">${renderBigRoad(cols, 4)}</div>
       <div class="card-foot">
         <div class="card-line">
           <span class="name">${escapeHtml(tb.name)}</span>
@@ -760,18 +760,24 @@ function avatarScoreboardHtml(idSuffix){
    the B row sit exactly over the three in the P row - a stack of free-standing badges never did
    line up. The mark shapes say which road each column is, the way the board itself does.
 
-   Worth knowing when reading it: on the DERIVED roads red and blue do not mean banker and
-   player. Red means the shoe is repeating, blue that it is choppy - a different alphabet from
-   the Big Road's that happens to borrow the same two inks. For offset k the continuing answer
-   is red only when the column k back is deeper and the breaking answer only when it is equal,
-   which cannot both hold, so both-red never happens; but once the current run is longer than
-   the one k back neither holds and the road draws blue whichever way the hand falls. That is a
-   dragon, and on that road the answer is the same for banker and for player - the road is
-   describing the shoe, not separating the two hands, and it tells the player nothing about
-   which to back. A rail cannot say that in the Big Road's two inks without printing the same
-   colour on both rows, which reads as the board calling banker and player alike. So a road is
-   coloured only when it splits the two; when it agrees with itself both marks stand neutral and
-   the rail carries no colour for that road at all. */
+   How a real board reads, which is what this follows. On the DERIVED roads red and blue do not
+   mean banker and player: red means the shoe is repeating, blue that it is breaking - the same
+   two inks borrowed for a different alphabet. Write d for the depth of the run in play and e for
+   the depth of the column `offset` columns back, which is what that road compares against:
+
+     - the hand that CONTINUES the run lands at row d, and is red when the column behind reaches
+       that row: e > d.
+     - the hand that BREAKS it opens a column, and is red when the run just closed matched the
+       column `offset` back: e = d.
+
+   e > d and e = d cannot both hold, so a board never shows red against red. Both blue is a
+   different matter: it is exactly e < d - the run in play is already longer than the column it
+   is measured against - and a board shows blue against blue whenever that is so, which through
+   a dragon is most hands. Suppressing it would be inventing a state the boards do not have, so
+   the rail prints what the road prints. What a board does NOT do is stand a mark on a road that
+   has not started: Big Eye Boy cannot answer before Big Road column 2, Small Road before column
+   3, Cockroach Road before column 4, and until then that place on the rail is simply blank. So
+   every mark here is red or blue or nothing at all - never a colourless mark. */
 const ASK_MARKS = [['bigEye','ring'], ['smallRoad','dot'], ['cockroach','slash']];
 function roadAskHtml(idSuffix){
   const badge = side => `
@@ -788,29 +794,26 @@ function renderRoadPrediction(idSuffix, history){
   if (!document.getElementById(`ask-${idSuffix}`)) return;
   const p = predictNextRoads(history || []);
   for (const [key] of ASK_MARKS){
-    const pl = p.player[key], bk = p.banker[key];
-    // The road answers the question only when it answers it differently for the two hands. Both
-    // rows the same ink is the road drawing the shoe rather than choosing between banker and
-    // player, so neither row is coloured - the mark stays neutral and nothing is claimed.
-    const splits = pl && bk && pl !== bk;
-    for (const [side, mark] of [['player', pl], ['banker', bk]]){
+    for (const side of ['player','banker']){
       const el = document.getElementById(`ask-${idSuffix}-${side}-${key}`);
       if (!el) continue;
+      // the road's own answer, whatever it is; `none` is the road not having started, and draws
+      // nothing rather than a mark of its own
       el.classList.remove('red','blue','none');
-      el.classList.add(splits ? mark : 'none');
+      el.classList.add(p[side][key] || 'none');
     }
   }
 }
 function renderAvatarRoad(){
   const el = document.getElementById('road-avatar'); if (!el) return;
   const cols = buildBigRoad(AVATAR.history.slice(-90), (AVATAR.pairFlags||[]).slice(-90));
-  paintRoad(el, renderBigRoad(cols, 6) || `<span class="hint">${t('noRecord')}</span>`);
-  paintRoad(document.getElementById('bigeye-avatar'), renderDerivedRoad(deriveBigEyeBoy(cols)) || `<span class="hint">${t('noRecord')}</span>`);
-  paintRoad(document.getElementById('smallroad-avatar'), renderDerivedRoad(deriveSmallRoad(cols), 'filled') || `<span class="hint">${t('noRecord')}</span>`);
-  paintRoad(document.getElementById('cockroach-avatar'), renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`);
+  paintRoad(el, renderBigRoad(cols, 6));
+  paintRoad(document.getElementById('bigeye-avatar'), renderDerivedRoad(deriveBigEyeBoy(cols)));
+  paintRoad(document.getElementById('smallroad-avatar'), renderDerivedRoad(deriveSmallRoad(cols), 'filled'));
+  paintRoad(document.getElementById('cockroach-avatar'), renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal'));
   // Bead Plate shows the recent window left-aligned, as the board does - grouping runs into
   // columns makes the full shoe far wider than the panel.
-  paintRoad(document.getElementById('beadroad-avatar'), renderBeadRoad(AVATAR.history.slice(-BEAD_WINDOW), (AVATAR.pairFlags||[]).slice(-BEAD_WINDOW)) || `<span class="hint">${t('noRecord')}</span>`);
+  paintRoad(document.getElementById('beadroad-avatar'), renderBeadRoad(AVATAR.history.slice(-BEAD_WINDOW), (AVATAR.pairFlags||[]).slice(-BEAD_WINDOW)));
   renderRoadPrediction('avatar', AVATAR.history);
 }
 function renderAvatarTally(){
@@ -1491,7 +1494,7 @@ function paintSpeedMultiRoad(tableId){
   if (!road || !s || road.dataset.stale !== '1') return;
   road.dataset.stale = '0';
   const cols = buildBigRoad(s.history, s.pairFlags || []);
-  paintRoad(road, renderBigRoad(cols, 6) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`);
+  paintRoad(road, renderBigRoad(cols, 6));
 }
 /* Which rows are on the rail's screen. The margin means the next table along is drawn before it
    is swiped to, so it is never caught being painted. */
@@ -1551,7 +1554,7 @@ function renderSpeedTileRoad(tableId){
   const el = document.getElementById('road-'+tableId);
   if (el){
     const cols = buildBigRoad(SPEED.tstate[tableId].history.slice(-40), (SPEED.tstate[tableId].pairFlags||[]).slice(-40));
-    paintRoad(el, renderBigRoad(cols, 4) || `<span class="hint" style="font-size:9px;">${t('noRecord')}</span>`);
+    paintRoad(el, renderBigRoad(cols, 4));
   }
   renderSpeedMultiResult(tableId);   // the multi-bet panel keeps the same record
   if (SPEED.detailTableId===tableId) renderSpeedDetailRoad(tableId);
@@ -1560,11 +1563,11 @@ function renderSpeedDetailRoad(tableId){
   const history = SPEED.tstate[tableId].history;
   const pairFlags = SPEED.tstate[tableId].pairFlags || [];
   const cols = buildBigRoad(history.slice(-90), pairFlags.slice(-90));
-  paintRoad(document.getElementById('road-detail'), renderBigRoad(cols, 6) || `<span class="hint">${t('noRecord')}</span>`);
-  paintRoad(document.getElementById('bigeye-detail'), renderDerivedRoad(deriveBigEyeBoy(cols)) || `<span class="hint">${t('noRecord')}</span>`);
-  paintRoad(document.getElementById('smallroad-detail'), renderDerivedRoad(deriveSmallRoad(cols), 'filled') || `<span class="hint">${t('noRecord')}</span>`);
-  paintRoad(document.getElementById('cockroach-detail'), renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal') || `<span class="hint">${t('noRecord')}</span>`);
-  paintRoad(document.getElementById('beadroad-detail'), renderBeadRoad(history.slice(-BEAD_WINDOW), pairFlags.slice(-BEAD_WINDOW)) || `<span class="hint">${t('noRecord')}</span>`);
+  paintRoad(document.getElementById('road-detail'), renderBigRoad(cols, 6));
+  paintRoad(document.getElementById('bigeye-detail'), renderDerivedRoad(deriveBigEyeBoy(cols)));
+  paintRoad(document.getElementById('smallroad-detail'), renderDerivedRoad(deriveSmallRoad(cols), 'filled'));
+  paintRoad(document.getElementById('cockroach-detail'), renderDerivedRoad(deriveCockroachRoad(cols), 'diagonal'));
+  paintRoad(document.getElementById('beadroad-detail'), renderBeadRoad(history.slice(-BEAD_WINDOW), pairFlags.slice(-BEAD_WINDOW)));
   renderRoadPrediction('detail', history);
   renderSpeedDetailTally(tableId);
 }

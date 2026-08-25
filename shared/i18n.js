@@ -123,7 +123,6 @@ const I18N_DICT = {
   aiNoteHouse:{ko:'바카라는 양쪽 모두 기대값이 마이너스입니다. 이 표시는 참고용이며 수익을 보장하지 않습니다.',zhHans:'百家乐两边的期望值都是负数。此显示仅供参考，不保证盈利。',zhHant:'百家樂兩邊的期望值都是負數。此顯示僅供參考，不保證盈利。',en:'Both sides of baccarat carry a negative expectation. This is a reading, not advice, and guarantees nothing.',ja:'バカラは両者とも期待値がマイナスです。参考表示であり、利益を保証しません。',vi:'Cả hai bên baccarat đều có kỳ vọng âm. Đây là tham khảo, không đảm bảo lợi nhuận.'},
   noOtherTables:{ko:'다른 테이블이 없습니다',zhHans:'没有其他桌台',zhHant:'沒有其他桌檯',en:'No other tables',ja:'他のテーブルがありません',vi:'Không có bàn nào khác'},
   noSpeedTables:{ko:'열려있는 스피드 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.',zhHans:'暂无开放的极速桌台。请在合作伙伴管理后台生成演示数据。',zhHant:'暫無開放的極速桌臺。請在合作伙伴管理後臺生成演示資料。',en:'No open Speed tables. Please generate demo data in Partner Admin.',ja:'開いているスピードテーブルがありません。パートナー管理画面でデモデータを生成してください。',vi:'Không có bàn Speed nào đang mở. Vui lòng tạo dữ liệu demo trong Partner Admin.'},
-  noRecord:{ko:'기록 없음',zhHans:'暂无记录',zhHant:'暫無記錄',en:'No record',ja:'記録なし',vi:'Chưa có dữ liệu'},
   todayLabel:{ko:'오늘',zhHans:'今日',zhHant:'今日',en:'Today',ja:'本日',vi:'Hôm nay'},
   live:{ko:'LIVE',zhHans:'直播',zhHant:'直播',en:'LIVE',ja:'LIVE',vi:'TRỰC TIẾP'},
 

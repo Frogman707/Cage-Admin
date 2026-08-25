@@ -211,12 +211,18 @@ function isCageAccount(member){ return !!member && member.source === 'cage'; }
 async function writeCageLedger(db, {accountId, casino, type, amount, memo}){
   await cageLedgerWrite(db, {accountId, casino, type, amount, memo, staff:'avatar'});
 }
+/* The cage book is read either way, and having rows in it is itself proof the account is a cage
+   one - the same second opinion accountBalanceMap takes, so the player's header and the admin
+   panels cannot disagree about which book holds their money. Trusting only the member record
+   meant that if it was missing or had lost source:'cage', this summed memberLedger instead: for a
+   cage account that is bets and payouts with no deposits in it at all, so it reported the
+   player's running LOSS as their balance, negative. One extra equality query is the price. */
 async function getPlayerBalance(db, memberId, member){
-  const cage = isCageAccount(member || PLAYER);
   const [ledgerSnap, memberSnap] = await Promise.all([
-    cage ? db.collection('ledger').where('accountId','==',memberId).get() : Promise.resolve(null),
+    db.collection('ledger').where('accountId','==',memberId).get().catch(()=>null),
     db.collection('memberLedger').where('memberId','==',memberId).get(),
   ]);
+  const cage = isCageAccount(member || PLAYER) || !!(ledgerSnap && ledgerSnap.size > 0);
   let balance = 0, points = 0;
   memberSnap.forEach(d=>{
     const r = d.data();

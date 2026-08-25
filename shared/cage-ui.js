@@ -209,8 +209,23 @@ function isCageAccountMember(m){ return !!m && m.source === 'cage'; }
    Returns {[memberId]: {balance, points, deposit, withdraw, bet, payout}}.
    The four tallies beside the balance stay memberLedger's throughout - they are the record of
    what was played through the site, which is the same book for both kinds of member. */
+/* Which ids are cage accounts is asked of TWO sources, not one. The `members` projection says so,
+   and so does the cage book itself: a row in `ledger` carries an accountId, and money in the cage
+   book only ever belongs to a cage account. Reading only the projection made the answer depend on
+   a record kept somewhere else - and when it was missing, or had lost its source:'cage', the
+   account fell through to the wrong book.
+   That is not a cosmetic slip. A cage account's DEPOSITS live in the cage book; only its bets and
+   payouts are written to memberLedger, as the record of play. So summing memberLedger for one
+   gives its cumulative net loss and nothing else - a negative number, reported as a balance. An
+   account down 1,935,937 on the day showed exactly that, while its actual money sat in `ledger`.
+   The book is the thing that cannot be stale, so the book gets a vote. */
+function cageAccountIds(members, cageLedgerRows){
+  const ids = new Set((members||[]).filter(isCageAccountMember).map(m=>m.id));
+  (cageLedgerRows||[]).forEach(r=>{ if (r && r.accountId) ids.add(r.accountId); });
+  return ids;
+}
 function accountBalanceMap(memberLedgerRows, cageLedgerRows, members){
-  const cageIds = new Set((members||[]).filter(isCageAccountMember).map(m=>m.id));
+  const cageIds = cageAccountIds(members, cageLedgerRows);
   const map = {};
   const at = id => map[id] || (map[id] = {balance:0, points:0, deposit:0, withdraw:0, bet:0, payout:0});
   (memberLedgerRows||[]).forEach(r=>{

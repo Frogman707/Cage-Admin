@@ -1261,7 +1261,11 @@ async function renderAvatarRequests(){
       {key:'tableId', label:'테이블', render:r=>tableMap[r.tableId]?.name || r.tableId},
       {key:'casino', label:'카지노'},
       {key:'buyin', label:'바이인', type:'money'},
-      {key:'betSide', label:'베팅지시', render:r=>`${betSideLabel(r.betSide)} ${fmtNum(r.betAmount)}`},
+      /* A request carries a buy-in and nothing else now - the player gives the instruction at the
+         table, round by round. Older rows still have the standing one, so it is shown where it
+         exists rather than the column being dropped and their history with it. */
+      {key:'betSide', label:'베팅지시',
+       render:r=>r.betSide ? `${betSideLabel(r.betSide)} ${fmtNum(r.betAmount)}` : '테이블에서 직접'},
       {key:'avatarStaffId', label:'담당아바타', render:r=>r.avatarStaffId || '—'},
       {key:'status', label:'상태', type:'pill', pillMap:{'대기':'warn','진행중':'ok','종료':'mute'}},
     ],

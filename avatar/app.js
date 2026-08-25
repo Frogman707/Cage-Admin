@@ -640,16 +640,15 @@ function renderAvatarLobbyGrid(sortMode){
 let AVATAR_PENDING_TABLE = null;
 function openAvatarRequestModal(tableId){
   AVATAR_PENDING_TABLE = tableId;
+  // the buy-in comes out of this account, so the form says which one before it asks for an amount
+  const acct = document.getElementById('reqAccount');
+  if (acct) acct.textContent = PLAYER ? `${PLAYER.nickname || ''} (${PLAYER.id})`.trim() : '';
   document.getElementById('reqBuyin').value = '';
-  document.getElementById('reqAmount').value = '';
-  document.getElementById('reqSide').value = 'banker';
   openModal('modal-avatar-request');
 }
 async function submitAvatarRequest(){
   const buyin = rawNum(document.getElementById('reqBuyin').value);
-  const betSide = document.getElementById('reqSide').value;
-  const betAmount = rawNum(document.getElementById('reqAmount').value);
-  if (!buyin || !betAmount){ toast(t('suErrRequired'), true); return; }
+  if (!buyin){ toast(t('suErrRequired'), true); return; }
   // AVATAR.lobbyData may not be loaded if the request modal was opened from a table's own
   // screen (an active session's "아바타 신청" button) rather than the lobby - fall back to
   // whatever table info is on hand there instead
@@ -658,7 +657,7 @@ async function submitAvatarRequest(){
     || SPEED.tables[AVATAR_PENDING_TABLE];
   await db.collection('avatarRequests').doc(uuidv4()).set({
     memberId: PLAYER.id, tableId: AVATAR_PENDING_TABLE, casino: tbl?.casino || PLAYER.casino,
-    buyin, betSide, betAmount, status:'대기', avatarStaffId:null,
+    buyin, status:'대기', avatarStaffId:null,
     requestedAt: new Date().toISOString(), approvedAt:null, endedAt:null,
   });
   closeModal('modal-avatar-request');
@@ -871,7 +870,7 @@ function updateAvatarStatusPanel(){
   const r = AVATAR.request;
   el.innerHTML = `
     <span>${t('assignedAvatar')}</span><b>${r.avatarStaffId ? escapeHtml(r.avatarStaffId) : t('unassigned')}</b>
-    <span>${t('myInstruction')}</span><b>${betLabel(r.betSide)} ${fmtNum(r.betAmount)}</b>
+    <span>${t('buyinLabel')}</span><b class="num">${fmtNum(r.buyin)}</b>
     <span>${t('avatarTipTotal')}</span><b class="num">${fmtNum(AVATAR.tipTotals.avatar)}</b>
     <span>${t('dealerTipTotal')}</span><b class="num">${fmtNum(AVATAR.tipTotals.dealer)}</b>
   `;
@@ -916,20 +915,24 @@ function avatarTableShellHtml(){
       ${avatarScoreboardHtml('avatar')}
       <div class="sd-bets avatar-side">
         ${avatarBetBoardHtml()}
+        <!-- The instruction is given here now, not on the request form: pick a chip, put it on a
+             spot, and whatever is down when the clock runs out is what the avatar plays. -->
         <div class="sd-chip-tray">
+          <button class="btn btn-sm" onclick="clearAvatarBets()" data-i18n="cancelBet">취소</button>
+          ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
+          <span class="spacer"></span>
           <button class="btn btn-sm btn-gold" onclick="openTipModal()">${t('giveTip')}</button>
           <button class="btn btn-sm" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
-          <button class="btn btn-sm" onclick="openAvatarRequestModal('${tb.id}')">${t('btnRequestAvatar')}</button>
           <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
         </div>
         <div class="card avatar-bet-summary">
           <div class="row" style="justify-content:space-between;align-items:center;">
             <span class="hint" style="margin:0;">${t('betPlacedLabel')}</span>
-            <b style="font-family:var(--mono);color:var(--brass);">${betLabel(AVATAR.request.betSide)} ${fmtNum(AVATAR.request.betAmount)}</b>
+            <b style="font-family:var(--mono);color:var(--brass);" id="avatarStakedTotal">0</b>
           </div>
           <div class="row" style="justify-content:space-between;align-items:center;margin-top:8px;">
             <span class="hint" style="margin:0;">${t('chipUsedLabel')}</span>
-            <div class="chip-stack" style="height:auto;">${chipStackHtml(AVATAR.request.betAmount)}</div>
+            <div class="chip-stack" style="height:auto;" id="avatarStakedChips"></div>
           </div>
         </div>
         <div class="card avatar-status-card">
@@ -1068,8 +1071,11 @@ function beginAvatarBettingPhase(){
   AVATAR.secondsLeft = AVATAR_BETTING_SECONDS;
   AVATAR.currentRoundId = uuidv4();
   AVATAR.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
-  AVATAR.bets[AVATAR.request.betSide] = AVATAR.request.betAmount;
-  AVATAR.committed = true;   // this round's stake is spoken for from the moment betting opens
+  /* The round opens with nothing on it. The request used to carry a side and an amount and every
+     round was staked with them before the player could say anything; the instruction is given at
+     the table now, chip by chip, so what rides is whatever they put down before the clock runs
+     out. Nothing is spoken for until they do. */
+  AVATAR.committed = false;
   // the hand belongs to the round that just ended; clearing it is what lets "no hand, no result"
   // in beginAvatarResultPhase mean this round's hand rather than possibly a stale earlier one
   AVATAR._sim = null;
@@ -1135,7 +1141,7 @@ async function beginAvatarDealingPhase(){
   // switch and subtract the NEW round's total, or announce the wrong side, for a bet that was
   // actually placed under the OLD round entirely
   const myRound = AVATAR.currentRoundId;
-  const bets = AVATAR.bets, total = avatarTotalBet(), betSide = AVATAR.request.betSide, betAmount = AVATAR.request.betAmount;
+  const bets = AVATAR.bets, total = avatarTotalBet();
   AVATAR.phase = 'dealing';
   AVATAR.secondsLeft = AVATAR_DEALING_SECONDS;
   setAvatarPhaseBanner(t('phaseDealing'), AVATAR_DEALING_SECONDS);
@@ -1152,7 +1158,7 @@ async function beginAvatarDealingPhase(){
   if (total > 0){
     STATE.balance -= total;
     document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
-    toast(t('avatarPlacedBet', {side: betLabel(betSide), amount: fmtNum(betAmount)}));
+    toast(t('avatarPlacedTotal', {amount: fmtNum(total)}));
   }
   AVATAR.committed = false;   // the stake has actually left STATE.balance now, one way or the other
   AVATAR._sim = simulateRound(AVATAR.shoe);
@@ -1831,7 +1837,7 @@ function avatarBetBoardHtml(){
 }
 function avatarClassicBoardHtml(){
   const cell = (key, cls, i18n, ko, odds) =>
-    `<div class="bet-spot ${cls} locked" id="spot-avatar-${key}">
+    `<div class="bet-spot ${cls}" id="spot-avatar-${key}" onclick="placeAvatarBet('${key}')">
       <div class="label" data-i18n="${i18n}">${ko}</div>
       <div class="meta-row"><span>${PERSON_ICON}<b id="heads-avatar-${key}">0</b></span><span>${PESO}<b id="pool-avatar-${key}">0</b></span></div>
       <div class="odds">${odds}</div>
@@ -1850,7 +1856,7 @@ function avatarClassicBoardHtml(){
   </div>`;
 }
 function avatarBetSpotHtml(s){
-  return `<div class="bet-spot ${s.cls} ${s.side} locked" id="spot-avatar-${s.key}">
+  return `<div class="bet-spot ${s.cls} ${s.side}" id="spot-avatar-${s.key}" onclick="placeAvatarBet('${s.key}')">
     <div class="bb-meta">
       <span class="bb-pct" id="pct-avatar-${s.key}">0%</span>
       <span class="bb-stats"><i>${PERSON_ICON}<b id="heads-avatar-${s.key}">0</b></i><i>${PESO}<b id="pool-avatar-${s.key}">0</b></i></span>
@@ -1880,6 +1886,44 @@ function avatarFeltBoardHtml(){
 /* mirrors renderSpeedTileBets + paintBetBoardReadings, but reading AVATAR.bets - the .locked
    class in the markup above already keeps every spot inert, so there's no click state to track,
    only amounts to paint in as the avatar's auto-bet lands each round. */
+/* Putting a chip on the felt. The avatar plays what is on the board when the clock runs out, so
+   this is the instruction - and it is the same shape as Speed's placeSpeedBet: only while betting
+   is open, never past the table maximum, and a chip worth more than is left rides the rest of the
+   balance in rather than being refused. */
+function avatarTakesBets(){ return AVATAR.phase === 'betting' && !!AVATAR.request; }
+function placeAvatarBet(type){
+  if (!avatarTakesBets()){ toast(t('notBettingTime'), true); return; }
+  const free = STATE.balance - avatarCommittedAmount();
+  const max = Number(AVATAR.table?.betMax) || Infinity;
+  const headroom = Math.max(0, max - (AVATAR.bets[type] || 0));
+  const stake = Math.min(STATE.selectedChip, headroom, free);
+  if (stake <= 0){
+    toast(free <= 0 ? t('insufficientBalance') : t('aboveTableMax', {max: fmtNum(max)}), true);
+    return;
+  }
+  AVATAR.bets[type] = (AVATAR.bets[type] || 0) + stake;
+  AVATAR.committed = true;          // spoken for from the moment a chip lands
+  if (stake < STATE.selectedChip && stake === free) toast(t('allInStaked', {amount: fmtNum(stake)}));
+  document.getElementById(`spot-avatar-${type}`)?.classList.add('selected');
+  renderAvatarBetSpots();
+  projectAvatarBalance();
+}
+function clearAvatarBets(){
+  if (!avatarTakesBets()){ toast(t('notBettingTime'), true); return; }
+  AVATAR.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
+  AVATAR.committed = false;
+  ['player','tie','banker','playerPair','bankerPair'].forEach(k=>
+    document.getElementById(`spot-avatar-${k}`)?.classList.remove('selected'));
+  renderAvatarBetSpots();
+  projectAvatarBalance();
+}
+/* the header follows the chips, as it does on a Speed table - the stake has not left the balance
+   yet, so what is shown is what is left to stake */
+function projectAvatarBalance(){
+  const el = document.getElementById('hdrBalance');
+  if (el) el.textContent = fmtNum(STATE.balance - avatarCommittedAmount());
+  paintAvatarFsBars();
+}
 function renderAvatarBetSpots(){
   const total = Object.values(AVATAR.bets).reduce((a,b)=>a+b,0);
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
@@ -1890,6 +1934,10 @@ function renderAvatarBetSpots(){
     set(`heads-avatar-${k}`, amt ? 1 : 0);
     set(`pool-avatar-${k}`, fmtNum(amt));
   });
+  const tot = document.getElementById('avatarStakedTotal');
+  if (tot) tot.textContent = fmtNum(total);
+  const chips = document.getElementById('avatarStakedChips');
+  if (chips) chips.innerHTML = total ? chipStackHtml(total) : '';
 }
 /* the screen is not rebuilt when fullscreen is entered or left, so the board is swapped in
    place - mirrors renderBetBoard for Speed's own board */
@@ -2086,6 +2134,15 @@ function paintSpeedConfirmState(tableId){
       spot.classList.toggle('locked', dealt);
       spot.classList.toggle('bets-closed', signedOff);
     });
+    /* The lines that bound 플레이어 and 뱅커 where the arch laps over them are drawn on the board,
+       not on either spot - they have to be, because a spot clips its own children. So the dimming
+       the spots take when a round shuts does not reach them, and a closed board was left with two
+       bright curves on it. The board carries the same state, and dims them with it. */
+    const board = document.querySelector('#viewSpeedTable .bet-board');
+    if (board){
+      board.classList.toggle('board-locked', dealt);
+      board.classList.toggle('board-closed', signedOff);
+    }
   }
   setSpeedTileBetsLocked(tableId, dealt || signedOff);
   document.getElementById(`smrow-${tableId}`)?.classList.toggle('pending', pending);

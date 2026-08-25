@@ -1475,15 +1475,33 @@ body.faux-fs-lock{overflow:hidden;}
   top:68%;bottom:auto;right:40px;transform:translateY(-50%) scale(1.7);
 }
 .sd-live.is-fs .sd-stage .phase-banner{top:74px;bottom:auto;font-size:21px;padding:10px 30px;border-radius:6px;}
-/* The still fills the screen edge to edge, as the board it is drawn from has it - the table runs
-   off both sides and the floor shows at the foot. Fitted inside instead, the whole scene was on
-   the screen but the shape it did not fill was black, and a bar of it stood down either side.
-   The gradient over it keeps its own sizing, so it is named first. */
+/* The still is a 672x470 photograph. Stretched to cover the whole screen it is blown up better
+   than twice its own size and a sixth of the frame is cut away, the dealer's hands going off the
+   top - which is what reads as zoomed in. It is fitted into the band above the strip instead:
+   the whole frame, at close to the size it was taken at. Fitting it on its own left the shape it
+   did not fill standing black down either side, so what fills that room is the same photograph
+   blown up and blurred behind it, which is what the streams themselves do. The fitted copy is
+   dimmed by a filter rather than by a gradient laid over it, so the dimming stops where the
+   photograph stops and no rectangle of it shows against the blur. */
 .sd-live.is-fs .sd-stage{background:#000;}
-.sd-live.is-fs .table-felt{background-size:auto, cover;}
+.sd-live.is-fs .table-felt{background:none;}
+.sd-live.is-fs .table-felt::before,
+.sd-live.is-fs .table-felt::after{content:'';position:absolute;z-index:0;pointer-events:none;}
+.sd-live.is-fs .table-felt::before{
+  inset:0;background:url('assets/table-live.jpg?v=3') center/cover no-repeat;
+  filter:blur(30px) brightness(.5) saturate(.85);transform:scale(1.15);
+}
+.sd-live.is-fs .table-felt::after{
+  left:0;right:0;top:0;bottom:var(--sd-board);
+  background:url('assets/table-live.jpg?v=3') center/contain no-repeat;
+  filter:brightness(.9);
+}
 /* the hands deal in the middle of what is left of the still, not the middle of the screen -
-   centred on the whole of it they came out half behind the strip */
+   centred on the whole of it they came out half behind the strip - and they deal over the
+   photograph rather than under it, which the still being drawn in an ::after would otherwise
+   settle the other way round */
 .sd-live.is-fs .table-felt{padding-bottom:var(--sd-board);}
+.sd-live.is-fs .cards-area{position:relative;z-index:1;}
 .sd-live.is-fs .playing-card{height:110px;}
 .sd-live.is-fs .playing-card.third{margin:0 15px;}
 .sd-live.is-fs .cards-area{gap:60px;}
@@ -1579,6 +1597,10 @@ body.faux-fs-lock{overflow:hidden;}
                             --bb-fs-label:12px;--bb-fs-plabel:9px;--bb-fs-odds:9px;--bb-fs-mine:13px;}
   .sd-live.is-fs .bet-board .bb-meta{gap:4px;}
   .sd-live.is-fs .table-felt{padding-bottom:0;}
+  /* the phone's fullscreen stage keeps the photograph's own 672/470, so the still fits it exactly:
+     no band to fit into and nothing left over for a blur to fill */
+  .sd-live.is-fs .table-felt::before{display:none;}
+  .sd-live.is-fs .table-felt::after{bottom:0;}
   .sd-live.is-fs .cards-area{gap:12px;}
   .sd-live.is-fs .playing-card{height:66px;}
   .sd-live.is-fs .playing-card.third{margin:0 9px;}

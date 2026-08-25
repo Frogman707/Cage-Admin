@@ -762,12 +762,16 @@ function avatarScoreboardHtml(idSuffix){
 
    Worth knowing when reading it: on the DERIVED roads red and blue do not mean banker and
    player. Red means the shoe is repeating, blue that it is choppy - a different alphabet from
-   the Big Road's that happens to borrow the same two inks. So the two rows showing the same
-   colour is not a fault; for offset k the continuing answer is red only when the column k back
-   is deeper and the breaking answer only when it is equal, which cannot both hold - both-red is
-   impossible - while neither holds once the current run is longer than the one k back, and both
-   go blue. That is an ordinary dragon. The rail is laid out the way a real board lays it out,
-   rows labelled in the Big Road's colours. */
+   the Big Road's that happens to borrow the same two inks. For offset k the continuing answer
+   is red only when the column k back is deeper and the breaking answer only when it is equal,
+   which cannot both hold, so both-red never happens; but once the current run is longer than
+   the one k back neither holds and the road draws blue whichever way the hand falls. That is a
+   dragon, and on that road the answer is the same for banker and for player - the road is
+   describing the shoe, not separating the two hands, and it tells the player nothing about
+   which to back. A rail cannot say that in the Big Road's two inks without printing the same
+   colour on both rows, which reads as the board calling banker and player alike. So a road is
+   coloured only when it splits the two; when it agrees with itself both marks stand neutral and
+   the rail carries no colour for that road at all. */
 const ASK_MARKS = [['bigEye','ring'], ['smallRoad','dot'], ['cockroach','slash']];
 function roadAskHtml(idSuffix){
   const badge = side => `
@@ -783,12 +787,17 @@ function roadAskHtml(idSuffix){
 function renderRoadPrediction(idSuffix, history){
   if (!document.getElementById(`ask-${idSuffix}`)) return;
   const p = predictNextRoads(history || []);
-  for (const side of ['banker','player']){
-    for (const [key] of ASK_MARKS){
+  for (const [key] of ASK_MARKS){
+    const pl = p.player[key], bk = p.banker[key];
+    // The road answers the question only when it answers it differently for the two hands. Both
+    // rows the same ink is the road drawing the shoe rather than choosing between banker and
+    // player, so neither row is coloured - the mark stays neutral and nothing is claimed.
+    const splits = pl && bk && pl !== bk;
+    for (const [side, mark] of [['player', pl], ['banker', bk]]){
       const el = document.getElementById(`ask-${idSuffix}-${side}-${key}`);
       if (!el) continue;
       el.classList.remove('red','blue','none');
-      el.classList.add(p[side][key] || 'none');
+      el.classList.add(splits ? mark : 'none');
     }
   }
 }

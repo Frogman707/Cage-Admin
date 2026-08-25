@@ -76,19 +76,9 @@ const I18N_DICT = {
   points:{ko:'포인트',zhHans:'积分',zhHant:'積分',en:'Points',ja:'ポイント',vi:'Điểm'},
   gameHistory:{ko:'게임기록',zhHans:'游戏记录',zhHant:'遊戲記錄',en:'Game History',ja:'ゲーム記録',vi:'Lịch sử chơi'},
   tableList:{ko:'테이블 목록',zhHans:'桌台列表',zhHant:'桌臺列表',en:'Table List',ja:'テーブル一覧',vi:'Danh sách bàn'},
-  changeGame:{ko:'게임 변경',zhHans:'切换游戏',zhHant:'切換遊戲',en:'Change Game',ja:'ゲーム変更',vi:'Đổi trò chơi'},
   logout:{ko:'로그아웃',zhHans:'登出',zhHant:'登出',en:'Logout',ja:'ログアウト',vi:'Đăng xuất'},
-  pickerTitle:{ko:'게임을 선택하세요',zhHans:'请选择游戏',zhHant:'請選擇遊戲',en:'Choose a game',ja:'ゲームを選択してください',vi:'Chọn trò chơi'},
-  pickerSub:{ko:'아바타와 스피드는 같은 계정, 같은 보유금으로 언제든 자유롭게 오갈 수 있습니다.',zhHans:'代打和极速使用同一账号、同一余额，可随时自由切换。',zhHant:'代打和極速使用同一帳號、同一餘額，可隨時自由切換。',en:'Avatar and Speed share the same account and balance — switch between them anytime.',ja:'アバターとスピードは同じアカウント・同じ残高でいつでも自由に行き来できます。',vi:'Avatar và Speed dùng chung tài khoản, chung số dư — chuyển đổi bất cứ lúc nào.'},
-  pickerAvatarName:{ko:'아바타 (AVATAR)',zhHans:'代打 (AVATAR)',zhHant:'代打 (AVATAR)',en:'Avatar',ja:'アバター (AVATAR)',vi:'Avatar'},
-  pickerAvatarDesc:{ko:'전담 아바타가 대신 베팅해주는 대리 베팅 서비스',zhHans:'专属代打为您下注的代理投注服务',zhHant:'專屬代打為您下注的代理投注服務',en:'A dedicated avatar places bets on your behalf',ja:'専属アバターが代わりにベットする代理ベッティングサービス',vi:'Dịch vụ đặt cược thay bởi Avatar riêng'},
-  pickerSpeedName:{ko:'스피드 (SPEED)',zhHans:'极速 (SPEED)',zhHant:'極速 (SPEED)',en:'Speed',ja:'スピード (SPEED)',vi:'Speed'},
-  pickerSpeedDesc:{ko:'여러 테이블 동시 베팅 · 빠른 라운드',zhHans:'多桌同时投注 · 快速回合',zhHant:'多桌同時投注 · 快速回合',en:'Bet on multiple tables at once · fast rounds',ja:'複数テーブル同時ベット・スピーディーなラウンド',vi:'Đặt cược nhiều bàn cùng lúc · vòng chơi nhanh'},
 
   // ---- lobby ----
-  avatarLobbyTitle:{ko:'아바타 테이블',zhHans:'代打桌台',zhHant:'代打桌臺',en:'Avatar Tables',ja:'アバターテーブル',vi:'Bàn Avatar'},
-  speedLobbyTitle:{ko:'스피드 테이블',zhHans:'极速桌台',zhHant:'極速桌臺',en:'Speed Tables',ja:'スピードテーブル',vi:'Bàn Speed'},
-  speedLobbySub:{ko:'테이블을 선택해 입장하세요',zhHans:'请选择桌台进入',zhHant:'請選擇桌臺進入',en:'Pick a table to enter',ja:'テーブルを選んで入場してください',vi:'Chọn một bàn để vào'},
   allCasinos:{ko:'전체 게임',zhHans:'全部游戏',zhHant:'全部遊戲',en:'All Games',ja:'全ゲーム',vi:'Tất cả'},
   casinoHann:{ko:'한',zhHans:'HANN 赌场',zhHant:'HANN 賭場',en:'HANN Casino',ja:'ハンカジノ',vi:'Sòng HANN'},
   casinoNustar:{ko:'누스타',zhHans:'NUSTAR',zhHant:'NUSTAR',en:'NuStar',ja:'ヌスター',vi:'NuStar'},
@@ -103,7 +93,6 @@ const I18N_DICT = {
   sortToday:{ko:'오늘 베팅액순',zhHans:'今日投注额',zhHant:'今日投注額',en:"Today's volume",ja:'本日ベット額順',vi:'Cược hôm nay'},
   sortHot:{ko:'좋은 흐름순',zhHans:'热门走势',zhHant:'熱門走勢',en:'Hot streak',ja:'好調な流れ順',vi:'Chuỗi thắng'},
   sortName:{ko:'테이블명 순',zhHans:'桌台名称',zhHant:'桌臺名稱',en:'Table name',ja:'テーブル名順',vi:'Tên bàn'},
-  noAvatarTables:{ko:'열려있는 아바타 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.',zhHans:'暂无开放的代打桌台。请在合作伙伴管理后台生成演示数据。',zhHant:'暫無開放的代打桌臺。請在合作伙伴管理後臺生成演示資料。',en:'No open Avatar tables. Please generate demo data in Partner Admin.',ja:'開いているアバターテーブルがありません。パートナー管理画面でデモデータを生成してください。',vi:'Không có bàn Avatar nào đang mở. Vui lòng tạo dữ liệu demo trong Partner Admin.'},
   // ---- 다음 게임 예측 (AI panel). The wording is deliberately plain about what it is: a read
   // on the shoe, not a tip. See shared/baccarat-ai.js for why that matters.
   aiPredictTitle:{ko:'AI 예측',zhHans:'AI 预测',zhHant:'AI 預測',en:'AI Prediction',ja:'AI予測',vi:'Dự đoán AI'},
@@ -122,7 +111,6 @@ const I18N_DICT = {
   aiNoteUnresolved:{ko:'남은 카드 구성이 양쪽을 가를 만큼 기울지 않았습니다. 기본 확률과 같습니다.',zhHans:'剩余牌组成不足以区分两边，与基础概率相同。',zhHant:'剩餘牌組成不足以區分兩邊，與基礎機率相同。',en:'The remaining cards do not separate the two sides - this is the base rate.',ja:'残りカードでは両者を分けられません。基本確率と同じです。',vi:'Bài còn lại không tách được hai bên - đây là tỷ lệ cơ bản.'},
   aiNoteHouse:{ko:'바카라는 양쪽 모두 기대값이 마이너스입니다. 이 표시는 참고용이며 수익을 보장하지 않습니다.',zhHans:'百家乐两边的期望值都是负数。此显示仅供参考，不保证盈利。',zhHant:'百家樂兩邊的期望值都是負數。此顯示僅供參考，不保證盈利。',en:'Both sides of baccarat carry a negative expectation. This is a reading, not advice, and guarantees nothing.',ja:'バカラは両者とも期待値がマイナスです。参考表示であり、利益を保証しません。',vi:'Cả hai bên baccarat đều có kỳ vọng âm. Đây là tham khảo, không đảm bảo lợi nhuận.'},
   noOtherTables:{ko:'다른 테이블이 없습니다',zhHans:'没有其他桌台',zhHant:'沒有其他桌檯',en:'No other tables',ja:'他のテーブルがありません',vi:'Không có bàn nào khác'},
-  noSpeedTables:{ko:'열려있는 스피드 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.',zhHans:'暂无开放的极速桌台。请在合作伙伴管理后台生成演示数据。',zhHant:'暫無開放的極速桌臺。請在合作伙伴管理後臺生成演示資料。',en:'No open Speed tables. Please generate demo data in Partner Admin.',ja:'開いているスピードテーブルがありません。パートナー管理画面でデモデータを生成してください。',vi:'Không có bàn Speed nào đang mở. Vui lòng tạo dữ liệu demo trong Partner Admin.'},
   todayLabel:{ko:'오늘',zhHans:'今日',zhHant:'今日',en:'Today',ja:'本日',vi:'Hôm nay'},
   live:{ko:'LIVE',zhHans:'直播',zhHant:'直播',en:'LIVE',ja:'LIVE',vi:'TRỰC TIẾP'},
 
@@ -198,7 +186,6 @@ const I18N_DICT = {
   roundLabel:{ko:'라운드 번호',zhHans:'局號',zhHant:'局號',en:'Round',ja:'ラウンド番号',vi:'Số ván'},
   shoeLabel:{ko:'슈 번호',zhHans:'靴號',zhHant:'靴號',en:'Shoe',ja:'シュー番号',vi:'Số giày bài'},
   myBetHistory:{ko:'내 베팅내역',zhHans:'我的投注记录',zhHant:'我的投注記錄',en:'My Bet History',ja:'私のベット履歴',vi:'Lịch sử cược của tôi'},
-  noBetsYet:{ko:'아직 베팅 내역이 없습니다',zhHans:'暂无投注记录',zhHant:'暫無投注記錄',en:'No bets yet',ja:'まだベット履歴がありません',vi:'Chưa có lịch sử cược'},
   push:{ko:'푸시',zhHans:'走水',zhHant:'走水',en:'Push',ja:'プッシュ',vi:'Hòa cược'},
   chat:{ko:'채팅',zhHans:'聊天',zhHant:'聊天',en:'Chat',ja:'チャット',vi:'Trò chuyện'},
   chatPh:{ko:'메시지 입력...',zhHans:'输入消息...',zhHant:'輸入消息...',en:'Type a message...',ja:'メッセージを入力...',vi:'Nhập tin nhắn...'},
@@ -216,6 +203,9 @@ const I18N_DICT = {
   historyTabAvatar:{ko:'아바타 베팅',zhHans:'代打投注',zhHant:'代打投注',en:'Avatar Bets',ja:'アバターベット',vi:'Cược Avatar'},
   noHistory:{ko:'베팅 내역이 없습니다',zhHans:'暂无投注记录',zhHant:'暫無投注記錄',en:'No bet history',ja:'ベット履歴がありません',vi:'Chưa có lịch sử cược'},
   betLabel:{ko:'베팅',zhHans:'投注',zhHant:'投注',en:'Bet',ja:'ベット',vi:'Cược'},
+  lobbyTitle:{ko:'테이블',zhHans:'桌台',zhHant:'桌臺',en:'Tables',ja:'テーブル',vi:'Bàn chơi'},
+  noTablesAtAll:{ko:'열려있는 테이블이 없습니다. 파트너 어드민에서 테이블을 생성해주세요.',zhHans:'暂无开放的桌台。请在合作伙伴管理后台创建桌台。',zhHant:'暫無開放的桌臺。請在合作伙伴管理後臺建立桌臺。',en:'No open tables. Please create tables in Partner Admin.',ja:'開いているテーブルがありません。パートナー管理画面でテーブルを作成してください。',vi:'Không có bàn nào đang mở. Vui lòng tạo bàn trong Partner Admin.'},
+  noTablesMatch:{ko:'조건에 맞는 테이블이 없습니다',zhHans:'没有符合条件的桌台',zhHant:'沒有符合條件的桌臺',en:'No tables match',ja:'条件に合うテーブルがありません',vi:'Không có bàn nào phù hợp'},
   fullscreen:{ko:'전체화면',zhHans:'全屏',zhHant:'全屏',en:'Fullscreen',ja:'全画面',vi:'Toàn màn hình'},
   mute:{ko:'음소거',zhHans:'静音',zhHant:'靜音',en:'Mute',ja:'ミュート',vi:'Tắt tiếng'},
   viewToggle:{ko:'화면 보기 전환',zhHans:'切换视角',zhHant:'切換視角',en:'Toggle view',ja:'表示切替',vi:'Chuyển chế độ xem'},

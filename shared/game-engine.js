@@ -226,7 +226,15 @@ async function getPlayerBalance(db, memberId, member){
     db.collection('ledger').where('accountId','==',memberId).get().catch(()=>null),
     db.collection('memberLedger').where('memberId','==',memberId).get(),
   ]);
-  const cage = isCageAccount(member || PLAYER) || !!(ledgerSnap && ledgerSnap.size > 0);
+  const who = member || PLAYER;
+  const cage = isCageAccount(who) || !!(ledgerSnap && ledgerSnap.size > 0);
+  /* Settle the answer ON the player rather than leaving it here. Only this function took the
+     second opinion: placeBet and settleBet asked isCageAccount(PLAYER) alone, so an account whose
+     member projection was missing or had lost its source:'cage' was READ out of the cage book and
+     WRITTEN to memberLedger. Its balance then never moved - the stake was recorded in a book the
+     balance is not read from - so the figure sprang back to what it was on the next refresh, and
+     a losing bet was never taken off at all. Stamped here, every later read of it agrees. */
+  if (cage && who && who.source !== 'cage') who.source = 'cage';
   let balance = 0, points = 0;
   memberSnap.forEach(d=>{
     const r = d.data();

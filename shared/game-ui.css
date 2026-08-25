@@ -988,8 +988,11 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    in either, which is the only way one shape can belong to both.
    The arch is as wide as it is tall, so `50%` on its two bottom corners draws a true semicircle
    at any size - no fixed radius to keep in step with the board's width. */
-.bet-board{position:relative;display:flex;flex-direction:column;gap:3px;flex:1;min-height:200px;min-width:0;}
-.bb-row{display:grid;gap:3px;min-height:0;}
+/* Every gap on this board is --bb-seam and nothing else. The grid gaps used to be a flat 3px
+   while the arch's own seam was the variable, so on a phone - where the variable drops to 2px to
+   suit a third of the width - the board ran 3px between its rows and 2px around the arch. */
+.bet-board{position:relative;display:flex;flex-direction:column;gap:var(--bb-seam);flex:1;min-height:200px;min-width:0;}
+.bb-row{display:grid;gap:var(--bb-seam);min-height:0;}
 .bb-top{grid-template-columns:1fr var(--bb-arch) 1fr;flex:0 0 38%;}
 /* 플레이어 and 뱅커 take half the board each and meet in the middle, and the arch laps over the
    pair of them - it is not a third column here. Cutting a column out for it left the two of them
@@ -1017,34 +1020,14 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
      the row's own gap rather than adding to it, so every seam on the board is the one width. */
   outline:var(--bb-seam) solid var(--bb-seam-ink);
 }
-/* 플레이어 and 뱅커 run on underneath the arch, so where it laps over them their own outline
-   simply stopped: every other region on this board is bounded in its own colour, and along that
-   curve the two of them were raw felt meeting the arch's black seam. This draws the edge they
-   were missing - blue down the 플레이어 side, red down the 뱅커 side, meeting under the foot of
-   the arch where the two of them meet anyway.
-   It is drawn on the board rather than on the arch because the arch clips its own children
-   (.bet-spot carries overflow:hidden), and it takes the arch's exact box and radius so it can
-   only ever follow the same curve - offset outward by the seam so the black gap stays between
-   the two regions, as it is everywhere else. */
-.bet-board{--bb-lap:2px;}
-.bet-board::before,.bet-board::after{
-  content:'';position:absolute;pointer-events:none;z-index:1;
-  left:50%;margin-left:calc(var(--bb-arch) / -2);top:0;
-  width:var(--bb-arch);height:68%;
-  border-radius:10px 10px 50% 50% / 10px 10px var(--bb-arch-foot) var(--bb-arch-foot);
-  outline:var(--bb-lap) solid;outline-offset:var(--bb-seam);
-}
-/* Only the lapped part is wanted: above the row boundary the pair spots carry their own edge
-   already. The boundary is 38% of the board (the pair row) plus the 3px the rows sit apart, and
-   the arch is 68% of the board tall - so as a fraction of the arch's own height, 38/68. The
-   negative insets are what let the outline through, since it lies outside the border box. */
-.bet-board::before{outline-color:#2A8CB8;clip-path:inset(calc(55.882% + 3px) 50% -10px -10px);}
-.bet-board::after {outline-color:#A3180F;clip-path:inset(calc(55.882% + 3px) -10px -10px 50%);}
-/* and they shut with the board. The spots dim themselves when a round closes; these are not on a
-   spot, so they take the same two brightnesses here - otherwise a closed board kept two bright
-   curves running through it. */
-.bet-board.board-closed::before,.bet-board.board-closed::after{filter:brightness(.86);}
-.bet-board.board-locked::before,.bet-board.board-locked::after{filter:brightness(.62);}
+/* 플레이어 and 뱅커 run on underneath the arch, and where it laps over them the seam it keeps is
+   the whole of the edge: green rim, then the board's black, then their felt.
+   A blue line down the 플레이어 side and a red one down the 뱅커 side used to be drawn here, to
+   give the two of them the coloured edge they lose under the arch. It read as three lines stacked
+   where the rest of the board reads as one, it took the seam there to 5px against 3px everywhere
+   else, and neither line could end anywhere but in a square-cut tip - at the row boundary above
+   and under the foot below - which is the one corner on this board that was not rounded.
+   The felt does not draw them either. One seam, the same width all the way round. */
 .bet-board .bet-spot{
   position:relative;display:block;padding:0;margin:0;gap:0;
   border:2px solid;border-radius:10px;box-shadow:none;overflow:hidden;

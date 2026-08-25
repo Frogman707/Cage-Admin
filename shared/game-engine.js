@@ -344,8 +344,13 @@ function layoutRoadGrid(runs, maxRows){
    marks keep their row positions once a dragon tail has left holes above it - and so the board
    stays the same height whatever the shoe is doing. .br-cell's border is transparent until a
    side class colours it, so an empty cell is already an invisible spacer. */
+/* A road with nothing on it is still the sheet it will be written on. Rendered as nothing at all
+   the panel collapsed to a strip between shoes, which is why a "기록 없음" line used to be printed
+   into it to hold it open; one blank column does that instead, and it is the same empty cell that
+   pads out a short column, so it carries no ink and the board simply reads as not yet dealt. Its
+   depth is the six rows the road will have, on whatever screen, with nothing to keep in step. */
 function renderRoadGrid(grid, maxRows, cellHtmlFn){
-  return grid.map(col=>{
+  return (grid.length ? grid : [null]).map(col=>{
     let html = '';
     for (let r=0;r<maxRows;r++) html += cellHtmlFn((col && col[r]) || null);
     return `<div class="br-col">${html}</div>`;
@@ -405,6 +410,8 @@ function renderBeadRoad(results, pairFlags){
     if ((i+1) % BEAD_ROWS === 0){ html += `<div class="br-col">${colHtml}</div>`; colHtml = ''; }
   });
   if (colHtml) html += `<div class="br-col">${colHtml}</div>`;
+  // an unwritten Plate is a column of empty places, for the same reason the roads draw one
+  if (!html) html = `<div class="br-col">${'<div class="bd-cell blank"></div>'.repeat(BEAD_ROWS)}</div>`;
   return html;
 }
 

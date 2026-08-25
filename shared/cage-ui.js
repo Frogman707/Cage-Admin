@@ -50,21 +50,6 @@ function fmtSigned(n){
   n = Number(n)||0;
   return (n>0?'+':'') + fmtNum(n);
 }
-/* A money field that reads back the way it reads everywhere else on the page. Typed digits get
-   their thousands separators as they are typed; unformatThousands takes them off again for the
-   write. A leading minus survives, and so does an empty field - clearing one should not become 0
-   under the cursor. */
-function formatThousands(el){
-  const caretFromEnd = el.value.length - (el.selectionStart ?? el.value.length);
-  const neg = el.value.trim().startsWith('-');
-  const digits = el.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
-  el.value = digits === '' ? (neg ? '-' : '') : (neg ? '-' : '') + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  const pos = Math.max(0, el.value.length - caretFromEnd);
-  if (el.setSelectionRange) { try { el.setSelectionRange(pos, pos); } catch (e) { /* not a text input */ } }
-}
-function unformatThousands(v){
-  return Number(String(v ?? '').replace(/,/g, '')) || 0;
-}
 function fmtDt(d){
   if (!d) return '—';
   if (d.toDate) d = d.toDate();
@@ -87,9 +72,16 @@ function maskPhone(p){
   if (s.length < 7) return p;
   return `**-****-${s.slice(-4)}`;
 }
+/* Separators appear as the amount is typed. Rewriting the value moves the caret to the end, which
+   on a field being corrected in the middle sends the cursor away mid-keystroke - so the caret is
+   put back the same distance from the end it was, which is where it belongs whether or not a
+   comma has just appeared to its left. */
 function formatNumInput(el){
-  let v = el.value.replace(/[^0-9]/g,'');
+  const fromEnd = el.value.length - (el.selectionStart ?? el.value.length);
+  const v = el.value.replace(/[^0-9]/g,'');
   el.value = v ? Number(v).toLocaleString('en-US') : '';
+  const pos = Math.max(0, el.value.length - fromEnd);
+  try { el.setSelectionRange(pos, pos); } catch (e) { /* not a field with a caret */ }
 }
 function rawNum(v){ return Number(String(v||'').replace(/[^0-9.-]/g,'')) || 0; }
 

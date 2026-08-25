@@ -207,9 +207,13 @@ async function playerSignup(db, data){
    ledger to draw on, so they keep their own memberLedger balance, which is the only book they
    have. memberLedger is written either way: it is the partner admin's record of play. */
 function isCageAccount(member){ return !!member && member.source === 'cage'; }
-// the write itself is shared/cage-ui.js's, so the admin panels and this one append the same row
-async function writeCageLedger(db, {accountId, casino, type, amount, memo}){
-  await cageLedgerWrite(db, {accountId, casino, type, amount, memo, staff:'avatar'});
+/* the write itself is shared/cage-ui.js's, so the admin panels and this one append the same row.
+   담당자 says which side of the site the row came from - Speed for a speed table, Avatar for an
+   avatar session - because on the cage's 입출금 내역 that column is the only thing that says
+   where a row came from at all, and every one of these used to read 'avatar' whichever it was. */
+const CAGE_LEDGER_SOURCE = {avatar:'Avatar', speed:'Speed'};
+async function writeCageLedger(db, {accountId, casino, type, amount, memo, staff}){
+  await cageLedgerWrite(db, {accountId, casino, type, amount, memo, staff: staff || CAGE_LEDGER_SOURCE.avatar});
 }
 /* The cage book is read either way, and having rows in it is itself proof the account is a cage
    one - the same second opinion accountBalanceMap takes, so the player's header and the admin
@@ -243,13 +247,13 @@ async function placeBet(db, {memberId, casino, tableId, roundId, betType, amount
     relatedTableId: tableId, relatedRoundId: roundId, staff: staff||'system',
     createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
   });
-  // the stake leaves the cage account as it is placed
+  // the stake leaves the cage account as it is placed, marked with the same source
   if (isCageAccount(PLAYER)) await writeCageLedger(db, {
     accountId: memberId, casino, type:'OUT', amount,
-    memo: `${tableId} ${betType}`,
+    memo: `${tableId} ${betType}`, staff,
   });
 }
-async function settleBet(db, {memberId, casino, tableId, roundId, betType, amount, resultInfo}){
+async function settleBet(db, {memberId, casino, tableId, roundId, betType, amount, resultInfo, staff}){
   let mult = 0;
   if (betType==='player') mult = resultInfo.result==='player' ? PAYOUT.player : (resultInfo.result==='tie' ? 1 : 0);
   else if (betType==='banker') mult = resultInfo.result==='banker' ? PAYOUT.banker : (resultInfo.result==='tie' ? 1 : 0);
@@ -260,13 +264,13 @@ async function settleBet(db, {memberId, casino, tableId, roundId, betType, amoun
   if (payout > 0){
     await db.collection('memberLedger').doc(uuidv4()).set({
       memberId, casino, amount: payout, category:'payout',
-      relatedTableId: tableId, relatedRoundId: roundId, staff:'system',
+      relatedTableId: tableId, relatedRoundId: roundId, staff: staff||'system',
       createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
     });
-    // and the return comes back into it
+    // and the return comes back into it, from the same place the stake went
     if (isCageAccount(PLAYER)) await writeCageLedger(db, {
       accountId: memberId, casino, type:'IN', amount: payout,
-      memo: `${tableId} ${betType}`,
+      memo: `${tableId} ${betType}`, staff,
     });
   }
   return payout;

@@ -37,7 +37,7 @@ const I18N_DICT = {
   loginBtn:{ko:'로그인',zhHans:'登录',zhHant:'登入',en:'Login',ja:'ログイン',vi:'Đăng nhập'},
   noAccountQ:{ko:'계정이 없으신가요?',zhHans:'还没有账号？',zhHant:'還沒有帳號？',en:"Don't have an account?",ja:'アカウントをお持ちでない方',vi:'Chưa có tài khoản?'},
   signupLink:{ko:'회원가입',zhHans:'注册',zhHant:'註冊',en:'Sign up',ja:'会員登録',vi:'Đăng ký'},
-  demoHint:{ko:'데모 계정은 파트너 어드민에서 "데모 데이터 생성" 후 유저리스트의 ID (PW: 0000)로 로그인할 수 있습니다.',zhHans:'演示账号：在合作伙伴管理后台点击"生成演示数据"后，可用用户列表中的 ID（密码：0000）登录。',zhHant:'演示帳號：在合作伙伴管理後臺點選"生成演示資料"後，可用使用者列表中的 ID（密碼：0000）登入。',en:'Demo accounts: click "Generate Demo Data" in Partner Admin, then log in with any ID from the user list (password: 0000).',ja:'デモアカウント：パートナー管理画面で「デモデータ生成」後、ユーザーリストのID（PW: 0000）でログインできます。',vi:'Tài khoản demo: nhấn "Tạo dữ liệu demo" trong Partner Admin, sau đó đăng nhập bằng ID trong danh sách người dùng (mật khẩu: 0000).'},
+  demoHint:{ko:'데모 계정은 파트너 어드민에서 "데모 데이터 생성" 후 유저 리스트의 ID (PW: 0000)로 로그인할 수 있습니다.',zhHans:'演示账号：在合作伙伴管理后台点击"生成演示数据"后，可用用户列表中的 ID（密码：0000）登录。',zhHant:'演示帳號：在合作伙伴管理後臺點選"生成演示資料"後，可用使用者列表中的 ID（密碼：0000）登入。',en:'Demo accounts: click "Generate Demo Data" in Partner Admin, then log in with any ID from the user list (password: 0000).',ja:'デモアカウント：パートナー管理画面で「デモデータ生成」後、ユーザーリストのID（PW: 0000）でログインできます。',vi:'Tài khoản demo: nhấn "Tạo dữ liệu demo" trong Partner Admin, sau đó đăng nhập bằng ID trong danh sách người dùng (mật khẩu: 0000).'},
   haveAccountQ:{ko:'이미 계정이 있으신가요?',zhHans:'已有账号？',zhHant:'已有帳號？',en:'Already have an account?',ja:'すでにアカウントをお持ちですか？',vi:'Đã có tài khoản?'},
   loginErrNotfound:{ko:'존재하지 않는 계정입니다.',zhHans:'账号不存在。',zhHant:'帳號不存在。',en:'Account not found.',ja:'アカウントが存在しません。',vi:'Không tìm thấy tài khoản.'},
   loginErrBlocked:{ko:'이용이 제한된 계정입니다.',zhHans:'该账号已被限制使用。',zhHant:'該帳號已被限制使用。',en:'This account has been restricted.',ja:'このアカウントは利用制限されています。',vi:'Tài khoản này đã bị hạn chế.'},
@@ -81,7 +81,7 @@ const I18N_DICT = {
   pickerTitle:{ko:'게임을 선택하세요',zhHans:'请选择游戏',zhHant:'請選擇遊戲',en:'Choose a game',ja:'ゲームを選択してください',vi:'Chọn trò chơi'},
   pickerSub:{ko:'아바타와 스피드는 같은 계정, 같은 보유금으로 언제든 자유롭게 오갈 수 있습니다.',zhHans:'代打和极速使用同一账号、同一余额，可随时自由切换。',zhHant:'代打和極速使用同一帳號、同一餘額，可隨時自由切換。',en:'Avatar and Speed share the same account and balance — switch between them anytime.',ja:'アバターとスピードは同じアカウント・同じ残高でいつでも自由に行き来できます。',vi:'Avatar và Speed dùng chung tài khoản, chung số dư — chuyển đổi bất cứ lúc nào.'},
   pickerAvatarName:{ko:'아바타 (AVATAR)',zhHans:'代打 (AVATAR)',zhHant:'代打 (AVATAR)',en:'Avatar',ja:'アバター (AVATAR)',vi:'Avatar'},
-  pickerAvatarDesc:{ko:'전담 아바타가 대신 베팅해주는 대리 배팅 서비스',zhHans:'专属代打为您下注的代理投注服务',zhHant:'專屬代打為您下注的代理投注服務',en:'A dedicated avatar places bets on your behalf',ja:'専属アバターが代わりにベットする代理ベッティングサービス',vi:'Dịch vụ đặt cược thay bởi Avatar riêng'},
+  pickerAvatarDesc:{ko:'전담 아바타가 대신 베팅해주는 대리 베팅 서비스',zhHans:'专属代打为您下注的代理投注服务',zhHant:'專屬代打為您下注的代理投注服務',en:'A dedicated avatar places bets on your behalf',ja:'専属アバターが代わりにベットする代理ベッティングサービス',vi:'Dịch vụ đặt cược thay bởi Avatar riêng'},
   pickerSpeedName:{ko:'스피드 (SPEED)',zhHans:'极速 (SPEED)',zhHant:'極速 (SPEED)',en:'Speed',ja:'スピード (SPEED)',vi:'Speed'},
   pickerSpeedDesc:{ko:'여러 테이블 동시 베팅 · 빠른 라운드',zhHans:'多桌同时投注 · 快速回合',zhHant:'多桌同時投注 · 快速回合',en:'Bet on multiple tables at once · fast rounds',ja:'複数テーブル同時ベット・スピーディーなラウンド',vi:'Đặt cược nhiều bàn cùng lúc · vòng chơi nhanh'},
 
@@ -101,7 +101,7 @@ const I18N_DICT = {
   sortPopular:{ko:'인기순 (베팅총액)',zhHans:'热门（投注总额）',zhHant:'熱門（投注總額）',en:'Popular (total volume)',ja:'人気順（ベット総額）',vi:'Phổ biến (tổng cược)'},
   sortToday:{ko:'오늘 베팅액순',zhHans:'今日投注额',zhHant:'今日投注額',en:"Today's volume",ja:'本日ベット額順',vi:'Cược hôm nay'},
   sortHot:{ko:'좋은 흐름순',zhHans:'热门走势',zhHant:'熱門走勢',en:'Hot streak',ja:'好調な流れ順',vi:'Chuỗi thắng'},
-  sortName:{ko:'테이블명순',zhHans:'桌台名称',zhHant:'桌臺名稱',en:'Table name',ja:'テーブル名順',vi:'Tên bàn'},
+  sortName:{ko:'테이블명 순',zhHans:'桌台名称',zhHant:'桌臺名稱',en:'Table name',ja:'テーブル名順',vi:'Tên bàn'},
   noAvatarTables:{ko:'열려있는 아바타 테이블이 없습니다. 파트너 어드민에서 데모 데이터를 생성해주세요.',zhHans:'暂无开放的代打桌台。请在合作伙伴管理后台生成演示数据。',zhHant:'暫無開放的代打桌臺。請在合作伙伴管理後臺生成演示資料。',en:'No open Avatar tables. Please generate demo data in Partner Admin.',ja:'開いているアバターテーブルがありません。パートナー管理画面でデモデータを生成してください。',vi:'Không có bàn Avatar nào đang mở. Vui lòng tạo dữ liệu demo trong Partner Admin.'},
   // ---- 다음 게임 예측 (AI panel). The wording is deliberately plain about what it is: a read
   // on the shoe, not a tip. See shared/baccarat-ai.js for why that matters.
@@ -145,7 +145,7 @@ const I18N_DICT = {
   statusWaiting:{ko:'승인 대기중',zhHans:'等待批准',zhHant:'等待批准',en:'Awaiting approval',ja:'承認待ち',vi:'Đang chờ duyệt'},
   statusActive:{ko:'베팅 진행중',zhHans:'投注进行中',zhHant:'投注進行中',en:'Betting in progress',ja:'ベット進行中',vi:'Đang cược'},
   statusEnded:{ko:'종료됨',zhHans:'已结束',zhHant:'已結束',en:'Ended',ja:'終了しました',vi:'Đã kết thúc'},
-  betPlacedLabel:{ko:'배팅란',zhHans:'投注栏',zhHant:'投注欄',en:'Bet',ja:'ベット欄',vi:'Ô cược'},
+  betPlacedLabel:{ko:'베팅란',zhHans:'投注栏',zhHant:'投注欄',en:'Bet',ja:'ベット欄',vi:'Ô cược'},
   chipUsedLabel:{ko:'칩 선택란',zhHans:'筹码栏',zhHant:'籌碼欄',en:'Chip',ja:'チップ欄',vi:'Ô phỉnh'},
   assignedAvatar:{ko:'담당 아바타',zhHans:'负责代打',zhHant:'負責代打',en:'Assigned Avatar',ja:'担当アバター',vi:'Avatar phụ trách'},
   unassigned:{ko:'배정 대기중',zhHans:'待分配',zhHant:'待分配',en:'Not yet assigned',ja:'割当待ち',vi:'Chưa được gán'},
@@ -247,8 +247,8 @@ const I18N_DICT = {
   navMember:{ko:'회원관리',zhHans:'会员管理',zhHant:'會員管理',en:'Members',ja:'会員管理',vi:'Quản lý hội viên'},
   navAccount:{ko:'계정관리',zhHans:'账户管理',zhHant:'帳戶管理',en:'Accounts',ja:'アカウント管理',vi:'Quản lý tài khoản'},
   navBetHistory:{ko:'베팅내역',zhHans:'投注记录',zhHant:'投注記錄',en:'Bet History',ja:'ベット履歴',vi:'Lịch sử cược'},
-  navSettlement:{ko:'정산리포트',zhHans:'结算报表',zhHant:'結算報表',en:'Settlement Report',ja:'精算レポート',vi:'Báo cáo quyết toán'},
-  navRealtime:{ko:'실시간접속자',zhHans:'实时在线',zhHant:'即時在線',en:'Online Now',ja:'リアルタイム接続者',vi:'Đang trực tuyến'},
+  navSettlement:{ko:'정산 리포트',zhHans:'结算报表',zhHant:'結算報表',en:'Settlement Report',ja:'精算レポート',vi:'Báo cáo quyết toán'},
+  navRealtime:{ko:'실시간 접속자',zhHans:'实时在线',zhHant:'即時在線',en:'Online Now',ja:'リアルタイム接続者',vi:'Đang trực tuyến'},
   navMyInfo:{ko:'내정보 변경',zhHans:'我的信息',zhHant:'我的資訊',en:'My Info',ja:'マイ情報',vi:'Thông tin của tôi'},
 
   // ---- Agent Admin — login / topbar ----
@@ -300,7 +300,7 @@ const I18N_DICT = {
   accountSub:{ko:'하부 계정의 자금·요율·베팅한도·접속·비밀번호를 관리합니다.',zhHans:'管理下属账户的资金、费率、投注限额、登录状态与密码。',zhHant:'管理下屬帳戶的資金、費率、投注限額、登入狀態與密碼。',en:'Manage downline accounts’ funds, rate, bet limits, access, and password.',ja:'下位アカウントの資金・レート・ベット限度額・接続・パスワードを管理します。',vi:'Quản lý quỹ, tỷ lệ, hạn mức cược, quyền truy cập và mật khẩu của tài khoản tuyến dưới.'},
   colFundMgmt:{ko:'자금관리',zhHans:'资金管理',zhHant:'資金管理',en:'Funds',ja:'資金管理',vi:'Quản lý quỹ'},
   colRate:{ko:'요율',zhHans:'费率',zhHant:'費率',en:'Rate',ja:'レート',vi:'Tỷ lệ'},
-  colBetLimit:{ko:'배팅한도',zhHans:'投注限额',zhHant:'投注限額',en:'Bet Limit',ja:'ベット限度額',vi:'Hạn mức cược'},
+  colBetLimit:{ko:'베팅한도',zhHans:'投注限额',zhHant:'投注限額',en:'Bet Limit',ja:'ベット限度額',vi:'Hạn mức cược'},
   colAccessStatus:{ko:'접속상태',zhHans:'登录状态',zhHant:'登入狀態',en:'Access',ja:'接続状態',vi:'Trạng thái truy cập'},
   colPassword:{ko:'비밀번호',zhHans:'密码',zhHant:'密碼',en:'Password',ja:'パスワード',vi:'Mật khẩu'},
   transferBtn:{ko:'이체',zhHans:'转账',zhHant:'轉帳',en:'Transfer',ja:'移体',vi:'Chuyển'},
@@ -347,9 +347,9 @@ const I18N_DICT = {
   // ---- Agent Admin — 베팅내역 ----
   betHistoryTitle:{ko:'베팅내역',zhHans:'投注记录',zhHant:'投注記錄',en:'Bet History',ja:'ベット履歴',vi:'Lịch sử cược'},
   betHistorySub:{ko:'하부 회원의 베팅/페이아웃 내역',zhHans:'下属会员的投注/派彩记录',zhHant:'下屬會員的投注/派彩記錄',en:'Downline members’ bets and payouts',ja:'下位会員のベット/払戻履歴',vi:'Lịch sử cược/chi trả của tuyến dưới'},
-  statBetUsers:{ko:'배팅유저수',zhHans:'投注用户数',zhHant:'投注用戶數',en:'Betting users',ja:'ベットユーザー数',vi:'Số người cược'},
-  statBetCount:{ko:'배팅건수',zhHans:'投注笔数',zhHant:'投注筆數',en:'Bet count',ja:'ベット件数',vi:'Số lượt cược'},
-  statTotalBetAmount:{ko:'총 배팅금액',zhHans:'总投注金额',zhHant:'總投注金額',en:'Total bet amount',ja:'総ベット金額',vi:'Tổng tiền cược'},
+  statBetUsers:{ko:'베팅 유저 수',zhHans:'投注用户数',zhHant:'投注用戶數',en:'Betting users',ja:'ベットユーザー数',vi:'Số người cược'},
+  statBetCount:{ko:'베팅건수',zhHans:'投注笔数',zhHant:'投注筆數',en:'Bet count',ja:'ベット件数',vi:'Số lượt cược'},
+  statTotalBetAmount:{ko:'총 베팅금액',zhHans:'总投注金额',zhHant:'總投注金額',en:'Total bet amount',ja:'総ベット金額',vi:'Tổng tiền cược'},
   statWinLoss:{ko:'윈로스',zhHans:'输赢',zhHant:'輸贏',en:'Win/Loss',ja:'ウィンロス',vi:'Thắng/Thua'},
   colDatetime:{ko:'일시',zhHans:'日期时间',zhHant:'日期時間',en:'Date/Time',ja:'日時',vi:'Thời gian'},
   colCategory:{ko:'구분',zhHans:'类别',zhHant:'類別',en:'Type',ja:'区分',vi:'Loại'},
@@ -359,23 +359,23 @@ const I18N_DICT = {
   colBetMarket:{ko:'베팅마켓',zhHans:'投注市场',zhHant:'投注市場',en:'Bet Market',ja:'ベットマーケット',vi:'Thị trường cược'},
   colBeforeAmount:{ko:'이전금액',zhHans:'变动前金额',zhHant:'變動前金額',en:'Before',ja:'変動前金額',vi:'Trước'},
   colAfterAmount:{ko:'이후금액',zhHans:'变动后金额',zhHant:'變動後金額',en:'After',ja:'変動後金額',vi:'Sau'},
-  categoryBet:{ko:'배팅',zhHans:'投注',zhHant:'投注',en:'Bet',ja:'ベット',vi:'Cược'},
+  categoryBet:{ko:'베팅',zhHans:'投注',zhHant:'投注',en:'Bet',ja:'ベット',vi:'Cược'},
   categoryPayout:{ko:'페이아웃',zhHans:'派彩',zhHant:'派彩',en:'Payout',ja:'払戻',vi:'Chi trả'},
   noDataMsg:{ko:'데이터가 없습니다',zhHans:'暂无数据',zhHant:'暫無資料',en:'No data',ja:'データがありません',vi:'Không có dữ liệu'},
 
-  // ---- Agent Admin — 정산리포트 ----
-  settlementTitle:{ko:'정산리포트',zhHans:'结算报表',zhHant:'結算報表',en:'Settlement Report',ja:'精算レポート',vi:'Báo cáo quyết toán'},
+  // ---- Agent Admin — 정산 리포트 ----
+  settlementTitle:{ko:'정산 리포트',zhHans:'结算报表',zhHant:'結算報表',en:'Settlement Report',ja:'精算レポート',vi:'Báo cáo quyết toán'},
   settlementSub:{ko:'하부 회원 입출금/윈로스/롤링 정산 현황',zhHans:'下属会员出入金/输赢/滚存结算状况',zhHant:'下屬會員出入金/輸贏/滾存結算狀況',en:'Downline deposit/withdrawal, win/loss, and rolling settlement',ja:'下位会員の入出金/ウィンロス/ローリング精算状況',vi:'Tình trạng quyết toán nạp/rút, thắng/thua, rolling của tuyến dưới'},
   statDeposit:{ko:'입금',zhHans:'入金',zhHant:'入金',en:'Deposit',ja:'入金',vi:'Nạp tiền'},
   statWithdraw:{ko:'출금',zhHans:'出金',zhHant:'出金',en:'Withdraw',ja:'出金',vi:'Rút tiền'},
-  statRollingComm:{ko:'롤링커미션',zhHans:'滚存佣金',zhHant:'滾存佣金',en:'Rolling Commission',ja:'ローリングコミッション',vi:'Hoa hồng rolling'},
-  colParentAccount:{ko:'상위어카운트',zhHans:'上级账户',zhHant:'上級帳戶',en:'Parent Account',ja:'上位アカウント',vi:'Tài khoản cấp trên'},
+  statRollingComm:{ko:'롤링 커미션',zhHans:'滚存佣金',zhHant:'滾存佣金',en:'Rolling Commission',ja:'ローリングコミッション',vi:'Hoa hồng rolling'},
+  colParentAccount:{ko:'상위 어카운트',zhHans:'上级账户',zhHant:'上級帳戶',en:'Parent Account',ja:'上位アカウント',vi:'Tài khoản cấp trên'},
   colRolling:{ko:'롤링',zhHans:'滚存',zhHant:'滾存',en:'Rolling',ja:'ローリング',vi:'Rolling'},
   colMyRevenue:{ko:'내수익금',zhHans:'我的收益',zhHant:'我的收益',en:'My Revenue',ja:'私の収益',vi:'Doanh thu của tôi'},
   noSettlementData:{ko:'정산 데이터가 없습니다',zhHans:'暂无结算数据',zhHant:'暫無結算資料',en:'No settlement data',ja:'精算データがありません',vi:'Không có dữ liệu quyết toán'},
 
-  // ---- Agent Admin — 실시간접속자 ----
-  realtimeTitle:{ko:'실시간접속자',zhHans:'实时在线',zhHant:'即時在線',en:'Online Now',ja:'リアルタイム接続者',vi:'Đang trực tuyến'},
+  // ---- Agent Admin — 실시간 접속자 ----
+  realtimeTitle:{ko:'실시간 접속자',zhHans:'实时在线',zhHant:'即時在線',en:'Online Now',ja:'リアルタイム接続者',vi:'Đang trực tuyến'},
   realtimeSub:{ko:'최근 6시간 이내 로그인 기준 (데모)',zhHans:'以最近6小时内登录为准（演示）',zhHant:'以最近6小時內登入為準（演示）',en:'Based on logins within the last 6 hours (demo)',ja:'直近6時間以内のログイン基準（デモ）',vi:'Dựa trên đăng nhập trong 6 giờ qua (demo)'},
   statOnlineTotal:{ko:'총 접속자',zhHans:'在线总数',zhHant:'在線總數',en:'Total online',ja:'総接続者数',vi:'Tổng số đang online'},
   onlineMembersTitle:{ko:'접속중 회원',zhHans:'在线会员',zhHant:'在線會員',en:'Online Members',ja:'接続中の会員',vi:'Hội viên đang online'},
@@ -392,7 +392,7 @@ const I18N_DICT = {
   accountInfoCard:{ko:'계정 정보',zhHans:'账户信息',zhHant:'帳戶資訊',en:'Account Info',ja:'アカウント情報',vi:'Thông tin tài khoản'},
   nameLabel:{ko:'이름',zhHans:'姓名',zhHant:'姓名',en:'Name',ja:'名前',vi:'Tên'},
   agentCodeLabel:{ko:'에이전트 코드',zhHans:'代理商代码',zhHant:'代理商代碼',en:'Agent Code',ja:'エージェントコード',vi:'Mã đại lý'},
-  parentAccountLabel:{ko:'상위어카운트',zhHans:'上级账户',zhHant:'上級帳戶',en:'Parent Account',ja:'上位アカウント',vi:'Tài khoản cấp trên'},
+  parentAccountLabel:{ko:'상위 어카운트',zhHans:'上级账户',zhHant:'上級帳戶',en:'Parent Account',ja:'上位アカウント',vi:'Tài khoản cấp trên'},
   shareRateLabel:{ko:'쉐어율',zhHans:'分成比例',zhHant:'分成比例',en:'Share Rate',ja:'シェア率',vi:'Tỷ lệ share'},
   pwChangeCard:{ko:'비밀번호 변경',zhHans:'密码变更',zhHant:'密碼變更',en:'Change Password',ja:'パスワード変更',vi:'Đổi mật khẩu'},
   currentPwLabel:{ko:'현재 비밀번호',zhHans:'当前密码',zhHant:'目前密碼',en:'Current Password',ja:'現在のパスワード',vi:'Mật khẩu hiện tại'},

@@ -5400,7 +5400,7 @@ function pendingAvatarRequestsForBranch(){
  return fbAvatarRequestsCache.filter(r=>r.status==='대기' && r.casino===currentBranch());
 }
 /* ---- Avatar/Speed tables — real-time, same 'tables' collection /avatar and partner-admin's
-   아바타게임관리 already read/write (type:'avatar'|'speed', status:'open'|'closed' set by staff
+   아바타 게임 관리 already read/write (type:'avatar'|'speed', status:'open'|'closed' set by staff
    opening/closing a table for service). Cage Admin shows which tables are currently live per
    branch, and can also open/close them itself (see toggleTableStatus below). ---- */
 let fbTablesUnsub = null;
@@ -6109,7 +6109,7 @@ ko:{
  tableLabel:"테이블", gameType:"게임 타입", avatarId:"아바타 ID", buyinTotal:"바이인 총액", startBtn:"게임 시작",
  inGameTitle:"진행중인 게임", gameIdLabel:"게임 ID",
  ongoingGamesTitle:"롤링", dailyLabel:"당일", cumulativeLabel:"누적", ongoingCountLabel:"진행 건수",
- tableIdLabel:"테이블ID", avatarSpeedOngoingTitle:"아바타·스피드 테이블 관리", shoeNoLabel:"슈 번호", betLimitLabel:"배팅 한도", tableStatusOpen:"활성화", tableStatusClosed:"마감", tableOpenBtn:"영업 시작", tableCloseBtn:"마감", toastTableStatusChanged:"테이블 상태가 변경되었습니다.", expandBtn:"펼치기", collapseBtn:"접기",
+ tableIdLabel:"테이블ID", avatarSpeedOngoingTitle:"아바타·스피드 테이블 관리", shoeNoLabel:"슈 번호", betLimitLabel:"베팅 한도", tableStatusOpen:"활성화", tableStatusClosed:"마감", tableOpenBtn:"영업 시작", tableCloseBtn:"마감", toastTableStatusChanged:"테이블 상태가 변경되었습니다.", expandBtn:"펼치기", collapseBtn:"접기",
  colTime:"시간", colReqMember:"요청 회원", colKind:"구분", colPrevRolling:"이전 롤링", colRollingSub:"롤링누계", colRollingTotal:"롤링 합계",
  settlePageTitle:"롤링 커미션 정산", gameTypeFld:"게임 타입", rollingComm:"롤링 커미션", fbDiscount:"F&B 할인", resultLabel:"정산금", settleBtn:"정산 확정",
  receiptTitle:"정산 영수증", receiptEmptyHint:"게임을 선택하고 정산을 확정하면 영수증이 표시됩니다.", receiptGameNo:"게임 번호", receiptAccNo:"어카운트", receiptDate:"일자",
@@ -6166,7 +6166,7 @@ ko:{
  dashOverview:"리포트", dashAccounts:"어카운트", dashTotalAcc:"총 어카운트", dashNewToday:"당일 신규 어카운트", dashNewWeek:"주간 신규 어카운트", dashNewMonth:"월간 신규 어카운트",
  dashToday:"당일 통합 지표", dashVsYesterday:"(전일 대비 비교)", dashWeekly:"주간 누적 지표", dashVsLastWeek:"(금주 일 평균과 전주 일 평균 비교)",
  dashMonthly:"월간 누적 지표", dashVsLastMonth:"(당일 일 평균과 전일 일 평균 비교)", dashCumulative:"누적 통합 지표",
- dashBuyin:"바이인", dashRolling:"롤링", dashWinLoss:"윈로스", dashRollingComm:"롤링커미션", dashShareSettle:"쉐어정산금", dashEventComm:"이벤트 커미션", dashNetProfit:"순수익",
+ dashBuyin:"바이인", dashRolling:"롤링", dashWinLoss:"윈로스", dashRollingComm:"롤링 커미션", dashShareSettle:"쉐어 정산금", dashEventComm:"이벤트 커미션", dashNetProfit:"순수익",
  dashCageAssets:"케이지 자산", dashCageCash:"케이지 보유 현금", dashUserFunds:"유저 보유금", dashCashLabel:"현금", dashChips:"칩스", dashCageHeldAssets:"케이지 보유 자산", dashMarkerLabel:"마커",
  dailyIoTitle:"전체 입출금 내역", monthRecordTitle:"월간 기록", monthRecordListBtn:"기록",
  colMrCash:"현금", colMrCashChips:"현금칩", colMrRollingChips:"롤링칩", colMrCasinoCum:"카지노 누적", colMrGuestTotal:"고객 합계",
@@ -6198,7 +6198,7 @@ ko:{
  toastEventInactive:"먼저 이벤트를 활성화하세요.", toastEventPaid:"이벤트 커미션이 지급되었습니다.", notifEvent:"이벤트 커미션 지급",
  colPointsChange:"증감", colPointsBalance:"잔여 포인트", pointsEarn:"적립", pointsUse:"사용",
  notifTitle:"알림", notifMarkAll:"모두 읽음", notifEmpty:"새 알림이 없습니다.",
- avatarReqTitle:"아바타 요청 확인", toastNoAvatarReq:"대기중인 아바타 요청이 없습니다.", toastAvatarReqChecked:"아바타 요청을 확인했습니다.", avatarIdLabel:"아바타 ID", toastAvatarReqCancelled:"아바타 요청이 취소되었습니다.", themeToggleTitle:"다크모드/라이트모드 전환",
+ avatarReqTitle:"아바타 요청 확인", toastNoAvatarReq:"대기중인 아바타 요청이 없습니다.", toastAvatarReqChecked:"아바타 요청을 확인했습니다.", avatarIdLabel:"아바타 ID", toastAvatarReqCancelled:"아바타 요청이 취소되었습니다.", themeToggleTitle:"다크모드/라이트 모드 전환",
  notifDeposit:"입금 처리", notifWithdraw:"출금 처리", notifTransferT:"이체 완료", notifGameStart:"게임 시작", notifGameSettle:"정산 완료",
  notifBlock:"어카운트 차단", notifRegister:"신규 어카운트 등록", notifHotel:"호텔 예약", notifCar:"차량 예약", notifAero:"아로 서비스 요청", notifPoints:"포인트 사용",
  branch:"지점", close:"닫기", moreLabel:"더보기",
@@ -6223,7 +6223,7 @@ ko:{
  depositColShort:"디파짓", cashoutColShort:"캐쉬아웃", markerColShort:"마커 리딤", dealerTipsColShort:"딜러 팁", houseTipsColShort:"하우스 팁", workingChipsColShort:"워킹칩",
  specialRemark:"특이사항", floorStaffLabel:"근무자", nnDeductHint:"(캐쉬아웃·마커 리딤·워킹칩은 롤링에서 차감됩니다)",
  totalRollingLabel:"토탈 롤링",
- rollingReceiptTitle:"롤링커미션 정산서", receiptBuyinAmt:"바인금액", receiptCashoutAmt:"캐쉬아웃", rollingCommSettleAmt:"롤링 커미션 정산금", shiftManagerLabel:"Shift Manager",
+ rollingReceiptTitle:"롤링 커미션 정산서", receiptBuyinAmt:"바인금액", receiptCashoutAmt:"캐쉬아웃", rollingCommSettleAmt:"롤링 커미션 정산금", shiftManagerLabel:"Shift Manager",
  startKindLabel:"시작 종류", startKindLive:"라이브", startKindAvatar:"아바타", startKindSpeed:"스피드",
  avatarAccBtn:"아바타 계정 생성", avatarAccTitle:"아바타 계정 생성", avatarAccSub:"아바타 스피드 사이트 로그인 정보입니다. 아이디는 케이지 어카운트와 같아야 합니다 — 사이트에서 보이는 보유금이 그 어카운트의 케이지 원장이기 때문입니다.", avatarAccId:"아이디", avatarAccPw:"비밀번호", avatarAccCreateBtn:"생성", avatarAccNeedBoth:"아이디와 비밀번호를 모두 입력하세요.", avatarAccNoSuchAccount:"없는 어카운트입니다. 어카운트 목록에 있는 아이디를 입력하세요.", toastAvatarAccCreated:"{id} 아바타 계정이 생성되었습니다.",
  noBranchTablesHint:"이 지점에 등록된 아바타·스피드 테이블이 없습니다. 파트너 어드민의 '지점 테이블 생성'으로 만들어주세요.",
@@ -6232,7 +6232,7 @@ ko:{
  settleListBtn:"정산 목록", settleListTitle:"전체 롤링 커미션 정산 내역",
  midListBtn:"중간 정산 기록", midListTitle:"전체 중간정산 내역", gameEndListBtn:"게임 종료 기록", gameEndListTitle:"전체 게임 종료 기록",
  listSearchPh:"어카운트 또는 게임ID 검색", nnDepositCol:"NN 디파짓", nnCashoutCol:"NN 캐쉬아웃", nnMarkerCol:"NN 마커 리딤", nnWorkingColX:"NN 워킹칩", ongoingTag:"진행중",
- ccDepositColX:"CC 디파짓", ccCashoutColX:"CC 캐쉬아웃", ccMarkerColX:"CC 마커 리딤", ccDealerTipsColX:"CC 딜러팁", ccHouseTipsColX:"CC 하우스팁",
+ ccDepositColX:"CC 디파짓", ccCashoutColX:"CC 캐쉬아웃", ccMarkerColX:"CC 마커 리딤", ccDealerTipsColX:"CC 딜러팁", ccHouseTipsColX:"CC 하우스 팁",
 },
 en:{
  nfcConnected:"Online", lastBalancing:"Last Balancing", staff:"Staff",
@@ -6936,13 +6936,20 @@ function uppercaseInput(el){
  el.value = el.value.toUpperCase();
  if(pos !== null) el.setSelectionRange(pos, pos);
 }
+/* Separators appear as the amount is typed. Rewriting the value moves the caret to the end, which
+   on a field being corrected in the middle sends the cursor away mid-keystroke - so the caret is
+   put back the same distance from the end it was, which is where it belongs whether or not a
+   comma has just appeared to its left. */
 function formatNumInput(el){
+ const fromEnd = el.value.length - (el.selectionStart ?? el.value.length);
  let v = el.value;
  const neg = v.trim().startsWith('-');
  v = v.replace(/[^0-9]/g,'');
  v = v.replace(/^0+(?=\d)/,'');
- if(v===''){ el.value = neg ? '-' : ''; return; }
- el.value = (neg?'-':'') + v.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+ el.value = v==='' ? (neg ? '-' : '')
+                   : (neg?'-':'') + v.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+ const pos = Math.max(0, el.value.length - fromEnd);
+ try{ el.setSelectionRange(pos, pos); }catch(e){ /* not a field with a caret */ }
 }
 function t(key){ return (I18N[LANG] && I18N[LANG][key]) || I18N.ko[key] || key; }
 
@@ -8619,7 +8626,7 @@ async function _doConfirmMidSettle(){
  if(cashOutSum > 0){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + cashOutSum;
  }
- // NN 캐쉬아웃: 롤링 증가, 캐시 감소 / CC 캐쉬아웃·딜러팁·하우스팁: CC칩 증가 & 현금 감소가 상쇄되어 캐시 무변동(추적 불필요)
+ // NN 캐쉬아웃: 롤링 증가, 캐시 감소 / CC 캐쉬아웃·딜러팁·하우스 팁: CC칩 증가 & 현금 감소가 상쇄되어 캐시 무변동(추적 불필요)
  if(nn.cashout > 0){
   applyShift('nnCashoutShift', nn.cashout, floorStaff);
  }
@@ -9176,10 +9183,10 @@ function renderBalancingSummary(){
  document.getElementById('cageGameOut').textContent = fmt(gameOutAmount);
 
  // 케이지 합산금액 - 롤링
- // = 카지노누계롤링(메인케이지 바인+·롤링+·마커+·리딤-) − 롤링진행 이동분(NN감소) − 게임시작 바인금액
+ // = 카지노 누계 롤링(메인케이지 바인+·롤링+·마커+·리딤-) − 롤링진행 이동분(NN감소) − 게임시작 바인금액
  //   − 게임시작 워킹칩(롤링-) + 중간정산/게임종료 워킹칩(롤링+) + NN칩 디파짓(입고, 0이면 무변동)
  //   + 중간정산/게임종료 NN 캐쉬아웃(롤링+) + 중간정산/게임종료 NN 마커리딤(롤링+)
- const rollingCashShift = getShiftVal('rollingCashShift'); // 롤링 진행: NN칩 감소 → 케이지합산롤링 감소분
+ const rollingCashShift = getShiftVal('rollingCashShift'); // 롤링 진행: NN칩 감소 → 케이지 합산 롤링 감소분
  const nnChipInShift = getShiftVal('nnChipInShift'); // 중간정산·게임종료 NN칩 디파짓(입고) 누계
  const buyinRollingShift = getShiftVal('buyinRollingShift'); // 게임 시작(바이인) 누계
  const workingChipRollingShift = getShiftVal('workingChipRollingShift'); // 게임시작 워킹칩(+누계) − 중간정산·게임종료 워킹칩(-누계) — 공식에서는 부호 반전하여 반영
@@ -9190,10 +9197,10 @@ function renderBalancingSummary(){
  const combinedRolling = casinoCumRolling - rollingCashShift - buyinRollingShift - workingChipRollingShift + nnChipInShift + nnCashoutShift + nnMarkerShift + (bd().rollingCarryBaseline||0);
 
  // 케이지 합산금액 - 캐시
- // = 모든 어카운트 입출금 합(입금+ 출금-) + 게임시작 현금바이인(어카운트바이인은 무변동)
+ // = 모든 어카운트 입출금 합(입금+ 출금-) + 게임시작 현금 바이인(어카운트 바이인은 무변동)
  //   + CC칩 디파짓(입고, 0이면 무변동) + 롤링진행 이동분(CC칩 증가) + 중간정산/게임종료 CC 마커리딤(캐시+)
  //   − 중간정산/게임종료 NN 캐쉬아웃(캐시-, 실제 현금 지급분)
- //   (CC 캐쉬아웃·딜러팁·하우스팁은 CC칩 증가·현금 감소가 서로 상쇄되어 캐시 무변동이므로 반영하지 않음)
+ //   (CC 캐쉬아웃·딜러팁·하우스 팁은 CC칩 증가·현금 감소가 서로 상쇄되어 캐시 무변동이므로 반영하지 않음)
  let ledgerNetRaw = 0;
  Object.keys(DB.ledger||{}).forEach(acc=>{
   (DB.ledger[acc]||[]).forEach(e=>{ if((e.casino||'HANN')===currentBranch()) ledgerNetRaw += (e.inn||0) - (e.out||0); });
@@ -9771,7 +9778,7 @@ function confirmMonthSettleReset(){
   visibleGames().forEach(g=>{ g.rolling = 0; g.lastAdded = 0; });
  }
 
- // Snapshot current historical contributions as baselines so 케이지총계·케이지합산금액이 정산 직후 0이 되고,
+ // Snapshot current historical contributions as baselines so 케이지 총계·케이지 합산금액이 정산 직후 0이 되고,
  // 이후에는 새로 발생하는 활동만 반영됨 (과거 게임·입출금 기록 자체는 보존)
  const settleGameOutBaseline = visibleGames().reduce((s,g)=>s+(g.buyin||0)+(g.workingChip||0),0);
  const settleEndedRollingBaseline = visibleEndedGames().reduce((s,g)=>s+(g.rolling||0),0);

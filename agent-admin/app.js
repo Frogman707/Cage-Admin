@@ -269,9 +269,9 @@ async function renderMember(){
   return `
     ${pageHead(t('memberTitle'), t('memberSub'))}
     <div class="grid grid-4" style="margin-bottom:16px;">
-      <div class="stat-card"><div class="lbl">${t('statTotalDownline')}</div><div class="val">${members.length}</div></div>
-      <div class="stat-card"><div class="lbl">${t('statActive')}</div><div class="val">${members.filter(m=>m.status==='정상').length}</div></div>
-      <div class="stat-card"><div class="lbl">${t('statSuspended')}</div><div class="val">${members.filter(m=>m.status==='정지').length}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statTotalDownline')}</div><div class="val">${fmtNum(members.length)}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statActive')}</div><div class="val">${fmtNum(members.filter(m=>m.status==='정상').length)}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statSuspended')}</div><div class="val">${fmtNum(members.filter(m=>m.status==='정지').length)}</div></div>
       <div class="stat-card"><div class="lbl">${t('statBalanceSum')}</div><div class="val" data-bal-sum="${members.map(m=>m.id).join(',')}">${fmtNum(members.reduce((s,m)=>s+(balances[m.id]?.balance||0),0))}</div></div>
     </div>
     <div class="card">
@@ -338,7 +338,7 @@ async function logAction(memberId, action){
 }
 
 /* ============================================================
-   계정관리 — 하부리스트 / 요율변경 / 베팅한도 / 접속차단·허용
+   계정관리 — 하부 리스트 / 요율변경 / 베팅한도 / 접속차단·허용
    / 비밀번호 변경 / 자금 이체·회수
    ============================================================ */
 async function renderAccount(){
@@ -412,7 +412,7 @@ function editBetLimit(id, curMin, curMax){
     <div class="table-wrap"><table class="limit-table"><thead><tr><th>${t('colSelect')}</th><th>${t('colMin')}</th><th>${t('colMax')}</th></tr></thead><tbody>
       ${BET_LIMIT_PRESETS.map((p,i)=>`<tr><td><input type="radio" name="blPreset" value="${i}" ${curMax===p.max&&curMin===p.min?'checked':''}></td><td>${fmtNum(p.min)}</td><td>${fmtNum(p.max)}</td></tr>`).join('')}
       <tr><td><input type="radio" name="blPreset" value="custom" ${!BET_LIMIT_PRESETS.some(p=>p.max===curMax&&p.min===curMin)?'checked':''}></td>
-        <td><input id="blMin" value="${curMin}" style="width:90px;"></td><td><input id="blMax" value="${curMax}" style="width:90px;"></td></tr>
+        <td><input id="blMin" value="${fmtNum(curMin)}" oninput="formatNumInput(this)" style="width:90px;"></td><td><input id="blMax" value="${fmtNum(curMax)}" oninput="formatNumInput(this)" style="width:90px;"></td></tr>
     </tbody></table></div>
     <p class="hint" style="margin-top:8px;">${t('betLimitHint')}</p>
   `;
@@ -543,8 +543,8 @@ function applyBetHistoryFilter(){
     + ledger.filter(l=>l.category==='payout').reduce((s,l)=>s+(Number(l.amount)||0),0)
     - ledger.filter(l=>l.category==='bet').reduce((s,l)=>s+Math.abs(Number(l.amount)||0),0);
   document.getElementById('bhStats').innerHTML = `
-    <div class="stat-card"><div class="lbl">${t('statBetUsers')}</div><div class="val">${userCount}</div></div>
-    <div class="stat-card"><div class="lbl">${t('statBetCount')}</div><div class="val">${rounds.length}</div></div>
+    <div class="stat-card"><div class="lbl">${t('statBetUsers')}</div><div class="val">${fmtNum(userCount)}</div></div>
+    <div class="stat-card"><div class="lbl">${t('statBetCount')}</div><div class="val">${fmtNum(rounds.length)}</div></div>
     <div class="stat-card"><div class="lbl">${t('colRolling')}</div><div class="val">${fmtNum(totalRolling)}</div></div>
     <div class="stat-card${totalWinLoss<0?' danger':''}"><div class="lbl">${t('statWinLoss')}</div><div class="val">${fmtSigned(totalWinLoss)}</div></div>
   `;
@@ -561,7 +561,7 @@ function applyBetHistoryFilter(){
 }
 
 /* ============================================================
-   정산리포트
+   정산 리포트
    ============================================================ */
 let SETTLEMENT_RAW = {members:[], ledger:[]};
 async function renderSettlementReport(){
@@ -625,7 +625,7 @@ function applySettlementFilter(){
 }
 
 /* ============================================================
-   실시간접속자
+   실시간 접속자
    ============================================================ */
 async function renderRealtime(){
   const members = await getMembers(true);
@@ -637,8 +637,8 @@ async function renderRealtime(){
   return `
     ${pageHead(t('realtimeTitle'), t('realtimeSub'))}
     <div class="grid grid-4" style="margin-bottom:16px;">
-      <div class="stat-card"><div class="lbl">${t('statOnlineTotal')}</div><div class="val">${online.length}</div></div>
-      ${casinos.map(c=>`<div class="stat-card"><div class="lbl">${c}</div><div class="val">${byCasino[c]}</div></div>`).join('')}
+      <div class="stat-card"><div class="lbl">${t('statOnlineTotal')}</div><div class="val">${fmtNum(online.length)}</div></div>
+      ${casinos.map(c=>`<div class="stat-card"><div class="lbl">${c}</div><div class="val">${fmtNum(byCasino[c])}</div></div>`).join('')}
     </div>
     <div class="card"><h3>${t('onlineMembersTitle')}</h3>
       <div class="table-wrap"><table><thead><tr><th>${t('colId')}</th><th>${t('colNick')}</th><th>${t('colCasino')}</th><th>${t('colLocation')}</th><th>${t('colMemberType')}</th><th>${t('colLastLogin')}</th><th>${t('colStatus')}</th></tr></thead><tbody>
@@ -680,7 +680,7 @@ async function renderMyInfo(){
       </div>
     </div>
     <div class="grid grid-3" style="margin-top:16px;">
-      <div class="stat-card"><div class="lbl">${t('statTotalDownline')}</div><div class="val">${members.length}</div></div>
+      <div class="stat-card"><div class="lbl">${t('statTotalDownline')}</div><div class="val">${fmtNum(members.length)}</div></div>
       <div class="stat-card"><div class="lbl">${t('totalDownlineBalance')}</div><div class="val">${fmtNum(totalBal)}</div></div>
       <div class="stat-card"><div class="lbl">${t('avgBalance')}</div><div class="val">${fmtNum(members.length ? Math.round(totalBal/members.length) : 0)}</div></div>
     </div>
@@ -765,7 +765,7 @@ async function seedDemoData(){
     });
   }
   const gameTypes = ['라이브','아바타','스피드'];
-  const betMarkets = ['뱅커','플레이어','타이','뱅커페어','플레이어페어'];
+  const betMarkets = ['뱅커','플레이어','타이','뱅커페어','플레이어 페어'];
   memberIds.forEach(mid=>{
     const casino = randPick(casinos);
     let bal = randInt(0,500)*1000;

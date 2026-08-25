@@ -236,6 +236,8 @@ const I18N_DICT = {
   streakLabel:{ko:'연속',zhHans:'连',zhHant:'連',en:'streak',ja:'連続',vi:'liên tiếp'},
   roundFailed:{ko:'이번 라운드 처리에 실패했습니다. 연결을 확인해 주세요.',zhHans:'本局处理失败，请检查网络连接。',zhHant:'本局處理失敗，請檢查網路連線。',en:'This round could not be settled — check your connection.',ja:'このラウンドの処理に失敗しました。接続を確認してください。',vi:'Không xử lý được ván này — vui lòng kiểm tra kết nối.'},
   multiBet:{ko:'멀티 베팅',zhHans:'多桌投注',zhHant:'多桌投注',en:'Multi-bet',ja:'マルチベット',vi:'Cược nhiều bàn'},
+  // the same button in fullscreen, where it is a ring the size of a chip
+  multiBetShort:{ko:'멀티',zhHans:'多桌',zhHant:'多桌',en:'Multi',ja:'マルチ',vi:'Đa bàn'},
   enterShort:{ko:'입장',zhHans:'进入',zhHant:'進入',en:'Enter',ja:'入場',vi:'Vào'},
   allInStaked:{ko:'보유금 전액 {amount} 을 베팅했습니다',zhHans:'已投注全部余额 {amount}',zhHant:'已投注全部餘額 {amount}',en:'Staked your whole balance, {amount}',ja:'保有金全額 {amount} をベットしました',vi:'Đã cược toàn bộ số dư {amount}'},
   confirmToBet:{ko:'베팅완료를 눌러야 베팅이 확정됩니다',zhHans:'需按下"下注完成"才会生效',zhHant:'需按下"下注完成"才會生效',en:'Press Confirm or the bet will not be placed',ja:'「ベット完了」を押すと確定します',vi:'Nhấn Xác nhận để đặt cược'},

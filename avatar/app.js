@@ -1986,8 +1986,10 @@ function speedDetailShellHtml(tableId){
           <span class="spacer"></span>
           <button class="btn btn-sm btn-gold" id="speedConfirmBtn" onclick="confirmSpeedBetDetail('${tableId}')" data-i18n="betComplete">베팅완료</button>
           <button class="btn btn-sm" onclick="repeatLastSpeedBetDetail('${tableId}')" data-i18n="repeatBet">반복</button>
+          <!-- Two labels, one button. Fullscreen turns the tray's buttons into 46px rings, and
+               "멀티 베팅" does not go in one - so the short form is what shows there. -->
           <button class="btn btn-sm sd-multi-btn" id="speedMultiBtn" onclick="toggleSpeedMultiPanel()">
-            <span data-i18n="multiBet">멀티 베팅</span><b class="sm-count" id="speedMultiCount"></b>
+            <span class="mb-long" data-i18n="multiBet">멀티 베팅</span><span class="mb-short" data-i18n="multiBetShort">멀티</span><b class="sm-count" id="speedMultiCount"></b>
           </button>
         </div>
       </div>

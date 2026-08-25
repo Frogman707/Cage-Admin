@@ -1229,8 +1229,41 @@ async function renderTableList(){
     title:'테이블관리', coll:'tables', search:true, searchFields:['id','name'], onCreate:'openCreateTableForm()',
     filters:[{key:'type', label:'타입', options:['avatar','speed']}],
     columns:[{key:'id', label:'테이블ID'}, {key:'name', label:'이름'}, {key:'type', label:'타입', render:r=>r.type==='avatar'?'아바타':'스피드'}, {key:'casino', label:'카지노'}, {key:'betMin', label:'최소배팅', type:'money'}, {key:'betMax', label:'최대배팅', type:'money'}, {key:'status', label:'상태', type:'pill', pillMap:{open:'ok', closed:'mute'}}],
-    rowActions: r => `<button class="btn btn-xs" onclick="editTableSettings('${r.id}')">테이블설정</button>`,
+    rowActions: r => `<button class="btn btn-xs" onclick="editTableSettings('${r.id}')">테이블설정</button>
+      <button class="btn btn-xs btn-danger" onclick="deleteTable('${r.id}')">삭제</button>`,
   });
+}
+/* Deleting a table is not deleting its history: rounds and 베팅내역 are their own records, keyed
+   by table id, and they stay. What goes is the table itself - so a table that is still open
+   disappears out from under whoever is at it on the avatar/speed site, which the confirmation
+   says in as many words rather than leaving staff to find out. */
+async function deleteTable(id){
+  /* Read the table itself rather than the cached list. Whether it is open is the whole of what
+     the warning below turns on, and staff open and close tables from two other screens - a cache
+     filled before that would warn about a table that has since closed and, the way that matters,
+     stay quiet about one that has since opened. */
+  const t = await db.collection('tables').doc(id).get()
+    .then(d=>d.exists ? d.data() : null)
+    .catch(e=>{ console.error('deleteTable read failed:', e); return null; });
+  if (!t){ toast('테이블을 찾을 수 없습니다', true); invalidateCaches(); return; }
+  const label = t.name ? `${id} · ${t.name}` : id;
+  askConfirm('테이블 삭제',
+    `${label} 테이블을 삭제합니다. ` +
+    (t.status === 'open'
+      ? '이 테이블은 지금 영업중이라 아바타·스피드 로비에서 곧바로 사라집니다. '
+      : '') +
+    '지난 라운드와 베팅내역은 그대로 남습니다. 되돌릴 수 없습니다. 계속할까요?',
+    async ()=>{
+      try {
+        await db.collection('tables').doc(id).delete();
+      } catch (e) {
+        console.error('deleteTable failed:', e);
+        toast('테이블 삭제에 실패했습니다', true);
+        return;
+      }
+      invalidateCaches();
+      toast(`${id} 테이블이 삭제되었습니다`);
+    });
 }
 function openCreateTableForm(){
   document.getElementById('formModalTitle').textContent = '테이블 생성';

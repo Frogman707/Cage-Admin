@@ -453,11 +453,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
 .id-verify-grid .photo-box img{object-fit:contain;}
 .id-verify-label{font-size:11.5px;color:var(--ink-dim);text-align:center;margin-top:5px;text-transform:uppercase;letter-spacing:.3px;font-weight:600;}
 .balance-grid{margin-top:14px;}
-.balance-sub-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px;}
-.ticket-sm{position:relative;background:linear-gradient(155deg, var(--panel-hi), var(--panel) 70%);border:1px solid var(--brass-dim);border-radius:6px;padding:10px 6px;text-align:center;min-width:0;}
-.ticket-sm::before{content:'';position:absolute;top:0;left:6px;right:6px;height:1px;background:var(--grad-gold);opacity:.85;}
-.ticket-sm .lbl{font-size:9.5px;letter-spacing:.3px;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ticket-sm .amt{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--brass);margin-top:4px;white-space:nowrap;letter-spacing:-.3px;text-align:center;}
 .chip-section{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:rgba(217,178,106,.025);}
 .chip-section.nn{background:rgba(217,105,90,.035);}
 .chip-section.cc{background:rgba(47,169,140,.035);}
@@ -649,12 +644,6 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
     content width and overflow the column instead of the .row/.field flex-wrap inside it ever
     getting a chance to kick in. This is what was pushing Game Management's fields off-screen. */
  .grid>*,.grid-2>*,.grid-3>*,.grid-io>*{min-width:0;}
-
- /* A MAIN account's per-branch balance strip is a fixed 5-across grid (.ticket-sm .lbl already
-    ellipsis-truncates on overflow by design) - with 5 branches now instead of the original 3,
-    each cell got too narrow on a phone to show more than "HAN…"/"S…"/"MI…", indistinguishable
-    from one another. Two columns gives each label enough room to read in full. */
- .balance-sub-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 @media print{
  /* A non-zero @page margin leaves Chrome room to draw its own default header/footer (page title +
@@ -929,7 +918,8 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             </div>
             <div class="row">
               <div class="field"><label data-i18n="startKindLabel"></label>
-                <select id="gStartKind" onchange="refreshGameTableOptions()"><option value="live" data-i18n="startKindLive"></option><option value="avatar" data-i18n="startKindAvatar"></option><option value="speed" data-i18n="startKindSpeed"></option></select></div>
+                <select id="gStartKind" onchange="onStartKindChange()"><option value="live" data-i18n="startKindLive"></option><option value="avatar" data-i18n="startKindAvatar"></option><option value="speed" data-i18n="startKindSpeed"></option></select>
+                <button type="button" class="btn btn-sm" id="avatarAccBtn" style="display:none;margin-top:6px;" onclick="openAvatarAccountForm()" data-i18n="avatarAccBtn"></button></div>
               <div class="field"><label data-i18n="gameIdLabel"></label>
                 <div class="row" style="gap:6px;">
                   <input id="gGameIdPreview" class="num" style="flex:1;" list="ongoingGameIdList">
@@ -961,7 +951,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
           </div>
           <div id="avatarSpeedTablePanel" style="display:none;">
             <div class="table-wrap"><table>
-              <thead><tr><th data-i18n="tableLabel"></th><th data-i18n="colType"></th><th data-i18n="shoeNoLabel"></th><th data-i18n="colStatus"></th><th data-i18n="betLimitLabel"></th><th></th></tr></thead>
+              <thead><tr><th data-i18n="colCasino"></th><th data-i18n="tableIdLabel"></th><th data-i18n="tableLabel"></th><th data-i18n="colType"></th><th data-i18n="shoeNoLabel"></th><th data-i18n="colStatus"></th><th data-i18n="betLimitLabel"></th><th></th></tr></thead>
               <tbody id="avatarSpeedOngoingBody"></tbody>
             </table></div>
           </div>
@@ -1729,7 +1719,7 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <button class="modal-close" onclick="closeModal('modal-block-list')">×</button>
   <h3 data-i18n="blockTitle"></h3>
   <div class="row" style="margin-top:10px;">
-    <input id="blockAcc" placeholder="SE7419" data-i18n-ph="colAccount">
+    <input id="blockAcc" placeholder="PL0001" data-i18n-ph="colAccount">
     <input id="blockReason" placeholder="" data-i18n-ph="blockReason">
     <button class="btn btn-danger" onclick="applyBlock()" data-i18n="blockApplyBtn"></button>
   </div>
@@ -1769,6 +1759,18 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
   <p class="login-error" id="cagePinAuthError" data-i18n="wdAuthPinErrorMsg" style="display:none;"></p>
   <button class="btn btn-gold btn-block" style="margin-top:10px;" onclick="confirmCagePinAuth()" data-i18n="confirmBtn"></button>
   <button class="btn btn-block" style="margin-top:8px;" onclick="cancelCagePinAuth()" data-i18n="cancelBtn"></button>
+</div></div>
+
+<div class="modal-bg" id="modal-avatar-account"><div class="modal" style="width:420px;">
+  <button class="modal-close" onclick="closeModal('modal-avatar-account')">×</button>
+  <h3 data-i18n="avatarAccTitle"></h3>
+  <p class="hint" data-i18n="avatarAccSub"></p>
+  <div class="field" style="margin-top:10px;"><label data-i18n="avatarAccId"></label>
+    <input id="avatarAccId" oninput="uppercaseInput(this)"></div>
+  <div class="field"><label data-i18n="avatarAccPw"></label>
+    <input id="avatarAccPw" autocomplete="new-password"></div>
+  <p class="login-error" id="avatarAccError" style="display:none;"></p>
+  <button class="btn btn-gold btn-block" style="margin-top:10px;" onclick="createAvatarAccount()" data-i18n="avatarAccCreateBtn"></button>
 </div></div>
 
 <div class="modal-bg" id="modal-avatar-request"><div class="modal" style="width:760px;">
@@ -4761,12 +4763,60 @@ function syncSomeAccountsToAvatarSpeed(ids){
    already-synced `ledger` collection every time it changes, so writing a balance here would just
    be a second, staler copy of a number the ledger already owns. This collection only carries the
    profile fields: member/phone/rate/telegram/currency/remark/photos/passwords/telegramLinks/etc. ---- */
+/* ---- accounts that have been closed, and must stay closed ----
+   Deleting an account deletes its cloud doc, but every terminal keeps its own DB.accounts in
+   local storage, and seedAccountsToCloud below upserts anything the cloud is missing. So a
+   terminal that still held a closed account - one that was offline when it went, or simply had
+   not had its snapshot land yet - put it straight back on its next load, and the snapshot then
+   handed it to everyone else. That is why a withdrawn member kept reappearing on the list.
+   A closed id is written down here, and nothing re-seeds an id that is written down. The record
+   is one small doc per closed account and is never read except at seed time. */
+let closedAccountIds = new Set();
+/* Three accounts whose members withdrew before closedAccounts existed. They are seeded into the
+   cloud's own closed list on the first load that can reach it, so every terminal - including ones
+   that never open this page again until long after - stops re-seeding them. */
+const CLOSED_WITHDRAWN_ACCOUNTS = ['MK2201','PL9642','SE7419'];
+async function loadClosedAccountIds(){
+ if(!fbDb) return closedAccountIds;
+ try{
+  const snap = await fbDb.collection('closedAccounts').get();
+  closedAccountIds = new Set(snap.docs.map(d=>d.id));
+ }catch(e){ console.error('loadClosedAccountIds failed:', e); }
+ return closedAccountIds;
+}
+function markAccountClosed(id){
+ closedAccountIds.add(id);
+ if(!fbDb) return;
+ const staffName = (DB.onDutyStaff&&DB.onDutyStaff.length) ? DB.onDutyStaff.join(', ') : 'Eric';
+ fbDb.collection('closedAccounts').doc(id)
+  .set({id, dt: phNow().toISOString().slice(0,16).replace('T',' '), staff: staffName})
+  .catch(err=>console.error('markAccountClosed failed:', id, err));
+}
 async function seedAccountsToCloud(){
  if(!fbDb) return;
  try{
+  const closed = await loadClosedAccountIds();
+  // the three that were closed before this list existed, put on it once and for all
+  CLOSED_WITHDRAWN_ACCOUNTS.forEach(id=>{ if(!closed.has(id)) markAccountClosed(id); });
+  // and drop every closed id from this terminal's own copy, so nothing here goes on listing them
+  closed.forEach(id=>{ delete DB.accounts[id]; delete DB.ledger[id]; });
   const snap = await fbDb.collection('accounts').get();
   const existingIds = new Set(snap.docs.map(d=>d.id));
-  const missing = Object.keys(DB.accounts||{}).filter(id=>!existingIds.has(id));
+  // a closed account that some earlier terminal had already put in the cloud goes now
+  const stragglers = [...closed].filter(id=>existingIds.has(id));
+  if(stragglers.length){
+   const sweep = fbDb.batch();
+   stragglers.forEach(id=>{ sweep.delete(fbDb.collection('accounts').doc(id)); existingIds.delete(id); });
+   await sweep.commit();
+   // and the projection into `members` with them, or a closed account can still sign in to
+   // Avatar Speed and still stands on the roll in the two admin panels
+   stragglers.forEach(id=>{
+    fbDb.collection('members').doc(id).get()
+     .then(d=>{ if(d.exists && d.data().source === 'cage') return d.ref.delete(); })
+     .catch(err=>console.error('closed member projection delete failed:', id, err));
+   });
+  }
+  const missing = Object.keys(DB.accounts||{}).filter(id=>!existingIds.has(id) && !closed.has(id));
   if(!missing.length) return;
   // Every terminal's DB.accounts was local-only until now, so different terminals can each hold
   // accounts none of the others have - upsert only what Firestore doesn't already have (never
@@ -4793,7 +4843,10 @@ function subscribeAccountsCloud(){
  if(fbAccountsUnsub) fbAccountsUnsub();
  fbAccountsUnsub = fbDb.collection('accounts').onSnapshot(snap=>{
   const fresh = {};
-  snap.forEach(doc=>{ fresh[doc.id] = doc.data(); });
+  // A closed account never enters the list again, whatever a snapshot still carries - the sweep
+  // in seedAccountsToCloud clears the cloud doc, but this holds the line in the meantime and
+  // against any terminal that writes one back before it has read the closed list.
+  snap.forEach(doc=>{ if(!closedAccountIds.has(doc.id)) fresh[doc.id] = doc.data(); });
   DB.accounts = fresh;
   // The snapshot above just replaced every account object wholesale, including whatever balance
   // fields happened to still be attached to old cloud docs written before this rule existed -
@@ -4828,6 +4881,9 @@ function syncAccountToCloud(id){
  fbDb.collection('accounts').doc(id).set(accountForCloud(acc)).catch(err=>console.error('syncAccountToCloud failed:', id, err));
 }
 function deleteAccountFromCloud(id){
+ // written down before the delete, so an id can never be seeded back by a terminal that still
+ // holds it - including this one, if the delete below is the thing that fails
+ markAccountClosed(id);
  if(!fbDb) return;
  fbDb.collection('accounts').doc(id).delete().catch(err=>console.error('deleteAccountFromCloud failed:', id, err));
  /* The account's projection into `members` goes with it. Left behind it was a customer who no
@@ -5378,10 +5434,10 @@ function renderAvatarSpeedOngoingTables(){
  // Shows every avatar/speed table for the branch, open or closed, so staff can open/close them
  // from here - not just the ones currently live (that filter now happens per-row via the pill).
  const tables = fbTablesCache.filter(t=>(t.type==='avatar'||t.type==='speed') && t.casino===currentBranch());
- body.innerHTML = !tables.length ? `<tr class="empty-row"><td colspan="6">—</td></tr>` :
+ body.innerHTML = !tables.length ? `<tr class="empty-row"><td colspan="8">—</td></tr>` :
   tables.map(tb=>{
    const isOpen = tb.status==='open';
-   return `<tr><td>${esc(tb.name)||'—'}</td><td>${tb.type==='speed'?t('startKindSpeed'):t('startKindAvatar')}</td><td class="num">${esc(tb.shoeNo)||1}</td><td>${isOpen?t('tableStatusOpen'):t('tableStatusClosed')}</td><td class="num">${tb.betMin!=null?`${fmt(tb.betMin)} ~ ${fmt(tb.betMax)}`:'—'}</td>
+   return `<tr><td>${esc(tb.casino)||'—'}</td><td>${esc(tb.id)}</td><td>${esc(tb.name)||'—'}</td><td>${tb.type==='speed'?t('startKindSpeed'):t('startKindAvatar')}</td><td class="num">${esc(tb.shoeNo)||1}</td><td>${isOpen?t('tableStatusOpen'):t('tableStatusClosed')}</td><td class="num">${tb.betMin!=null?`${fmt(tb.betMin)} ~ ${fmt(tb.betMax)}`:'—'}</td>
     <td><button class="btn btn-sm ${isOpen?'btn-danger':'btn-jade'}" onclick="toggleTableStatus('${esc(tb.id)}', ${isOpen})">${isOpen?t('tableCloseBtn'):t('tableOpenBtn')}</button></td></tr>`;
   }).join('');
  refreshGameTableOptions();
@@ -5408,6 +5464,46 @@ function gameTableOptionsFor(kind){
   .filter(tb=>tb.type===kind && tb.casino===currentBranch())
   .map(tb=>tb.id)
   .sort();
+}
+/* 아바타 is the one kind of game the customer plays from the Avatar Speed site rather than at the
+   table, so it is the one kind that needs a login there. The button only stands under 시작 종류
+   while 아바타 is picked. */
+function onStartKindChange(){
+ refreshGameTableOptions();
+ const btn = document.getElementById('avatarAccBtn');
+ if(btn) btn.style.display = currentStartKind() === 'avatar' ? '' : 'none';
+}
+function openAvatarAccountForm(){
+ const acc = (document.getElementById('gAccount').value || '').trim().toUpperCase();
+ document.getElementById('avatarAccId').value = acc;
+ document.getElementById('avatarAccPw').value = '';
+ document.getElementById('avatarAccError').style.display = 'none';
+ openModal('modal-avatar-account');
+}
+/* The login is the cage account itself, carried across to Avatar Speed - not a second identity.
+   It has to be: the balance the customer sees there is read out of the cage's own ledger under
+   this exact id, so a login under any other id would sit on somebody else's book, or on none.
+   That is why the id is checked against the account list rather than taken as typed. */
+async function createAvatarAccount(){
+ const id = (document.getElementById('avatarAccId').value || '').trim().toUpperCase();
+ const pw = (document.getElementById('avatarAccPw').value || '').trim();
+ const err = document.getElementById('avatarAccError');
+ const fail = key => { err.textContent = t(key); err.style.display = 'block'; };
+ if(!id || !pw) return fail('avatarAccNeedBoth');
+ if(!DB.accounts[id] || isMainAccount(id)) return fail('avatarAccNoSuchAccount');
+ if(!fbDb) return fail('toastAvatarSyncOffline');
+ DB.accounts[id].pw = pw;
+ saveDB();
+ syncAccountToCloud(id);
+ try{
+  await fbDb.collection('members').doc(id).set(cageAccountAsMember(id), {merge:true});
+ }catch(e){
+  console.error('createAvatarAccount failed:', id, e);
+  return fail('toastAvatarSyncFailed');
+ }
+ closeModal('modal-avatar-account');
+ toast(t('toastAvatarAccCreated').replace('{id}', id));
+ pushNotification('avatarAccTitle', id);
 }
 function refreshGameTableOptions(){
  const sel = document.getElementById('gTable');
@@ -6013,7 +6109,7 @@ ko:{
  tableLabel:"테이블", gameType:"게임 타입", avatarId:"아바타 ID", buyinTotal:"바이인 총액", startBtn:"게임 시작",
  inGameTitle:"진행중인 게임", gameIdLabel:"게임 ID",
  ongoingGamesTitle:"롤링", dailyLabel:"당일", cumulativeLabel:"누적", ongoingCountLabel:"진행 건수",
- avatarSpeedOngoingTitle:"아바타·스피드 테이블 관리", shoeNoLabel:"슈 번호", betLimitLabel:"배팅 한도", tableStatusOpen:"활성화", tableStatusClosed:"마감", tableOpenBtn:"영업 시작", tableCloseBtn:"마감", toastTableStatusChanged:"테이블 상태가 변경되었습니다.", expandBtn:"펼치기", collapseBtn:"접기",
+ tableIdLabel:"테이블ID", avatarSpeedOngoingTitle:"아바타·스피드 테이블 관리", shoeNoLabel:"슈 번호", betLimitLabel:"배팅 한도", tableStatusOpen:"활성화", tableStatusClosed:"마감", tableOpenBtn:"영업 시작", tableCloseBtn:"마감", toastTableStatusChanged:"테이블 상태가 변경되었습니다.", expandBtn:"펼치기", collapseBtn:"접기",
  colTime:"시간", colReqMember:"요청 회원", colKind:"구분", colPrevRolling:"이전 롤링", colRollingSub:"롤링누계", colRollingTotal:"롤링 합계",
  settlePageTitle:"롤링 커미션 정산", gameTypeFld:"게임 타입", rollingComm:"롤링 커미션", fbDiscount:"F&B 할인", resultLabel:"정산금", settleBtn:"정산 확정",
  receiptTitle:"정산 영수증", receiptEmptyHint:"게임을 선택하고 정산을 확정하면 영수증이 표시됩니다.", receiptGameNo:"게임 번호", receiptAccNo:"어카운트", receiptDate:"일자",
@@ -6129,6 +6225,7 @@ ko:{
  totalRollingLabel:"토탈 롤링",
  rollingReceiptTitle:"롤링커미션 정산서", receiptBuyinAmt:"바인금액", receiptCashoutAmt:"캐쉬아웃", rollingCommSettleAmt:"롤링 커미션 정산금", shiftManagerLabel:"Shift Manager",
  startKindLabel:"시작 종류", startKindLive:"라이브", startKindAvatar:"아바타", startKindSpeed:"스피드",
+ avatarAccBtn:"아바타 계정 생성", avatarAccTitle:"아바타 계정 생성", avatarAccSub:"아바타 스피드 사이트 로그인 정보입니다. 아이디는 케이지 어카운트와 같아야 합니다 — 사이트에서 보이는 보유금이 그 어카운트의 케이지 원장이기 때문입니다.", avatarAccId:"아이디", avatarAccPw:"비밀번호", avatarAccCreateBtn:"생성", avatarAccNeedBoth:"아이디와 비밀번호를 모두 입력하세요.", avatarAccNoSuchAccount:"없는 어카운트입니다. 어카운트 목록에 있는 아이디를 입력하세요.", toastAvatarAccCreated:"{id} 아바타 계정이 생성되었습니다.",
  noBranchTablesHint:"이 지점에 등록된 아바타·스피드 테이블이 없습니다. 파트너 어드민의 '지점 테이블 생성'으로 만들어주세요.",
  memoHouseBuyin:"아바타·스피드 바이인(메인 어카운트)", memoHouseEndDeposit:"아바타·스피드 게임종료 디파짓(메인 어카운트)", toastMainInsufficient:"메인 어카운트 잔액이 부족합니다.", notifMainInsufficient:"메인 어카운트 잔액 부족",
  genBtn:"생성", walkinBtn:"워크인", addBuyinHint:"기존 게임 ID를 입력하고 바이인 총액을 넣은 뒤 게임 시작을 누르면 추가 바이인으로 처리됩니다.", notifAddBuyin:"추가 바이인", toastAddBuyin:"추가 바이인이 반영되었습니다.",
@@ -6154,7 +6251,7 @@ en:{
  tableLabel:"Table", gameType:"Game Type", avatarId:"Avatar ID", buyinTotal:"Buy-in Total", startBtn:"Start Game",
  inGameTitle:"Games In Progress", gameIdLabel:"Game ID",
  ongoingGamesTitle:"Rolling", dailyLabel:"Daily", cumulativeLabel:"Cumulative", ongoingCountLabel:"In Progress",
- avatarSpeedOngoingTitle:"Avatar/Speed Table Management", shoeNoLabel:"Shoe No.", betLimitLabel:"Bet Limit", tableStatusOpen:"Active", tableStatusClosed:"Closed", tableOpenBtn:"Open Table", tableCloseBtn:"Close Table", toastTableStatusChanged:"Table status updated.", expandBtn:"Expand", collapseBtn:"Collapse",
+ tableIdLabel:"Table ID", avatarSpeedOngoingTitle:"Avatar/Speed Table Management", shoeNoLabel:"Shoe No.", betLimitLabel:"Bet Limit", tableStatusOpen:"Active", tableStatusClosed:"Closed", tableOpenBtn:"Open Table", tableCloseBtn:"Close Table", toastTableStatusChanged:"Table status updated.", expandBtn:"Expand", collapseBtn:"Collapse",
  colTime:"Time", colReqMember:"Requested By", colKind:"Kind", colPrevRolling:"Prev. Rolling", colRollingSub:"Rolling Cumulative", colRollingTotal:"Rolling Total",
  settlePageTitle:"Rolling Commission Settlement", gameTypeFld:"Game Type", rollingComm:"Rolling Commission", fbDiscount:"F&B Discount", resultLabel:"Settlement Amount", settleBtn:"Confirm Settlement",
  receiptTitle:"Settlement Receipt", receiptEmptyHint:"Select a game and confirm settlement to see the receipt.", receiptGameNo:"Game No.", receiptAccNo:"Account No.", receiptDate:"Date",
@@ -6270,6 +6367,7 @@ en:{
  totalRollingLabel:"Total Rolling",
  rollingReceiptTitle:"Rolling Commission Settlement", receiptBuyinAmt:"Buy-in Amount", receiptCashoutAmt:"CashOut", rollingCommSettleAmt:"Rolling Commission Settlement", shiftManagerLabel:"Shift Manager",
  startKindLabel:"Start Kind", startKindLive:"Live", startKindAvatar:"Avatar", startKindSpeed:"Speed",
+ avatarAccBtn:"Create Avatar Account", avatarAccTitle:"Create Avatar Account", avatarAccSub:"Login for the Avatar Speed site. The ID must be the cage account itself - the balance shown there is that account's cage ledger.", avatarAccId:"ID", avatarAccPw:"Password", avatarAccCreateBtn:"Create", avatarAccNeedBoth:"Enter both an ID and a password.", avatarAccNoSuchAccount:"No such account. Use an ID from the account list.", toastAvatarAccCreated:"Avatar account created for {id}.",
  noBranchTablesHint:"This branch has no avatar or speed tables yet. Create them with '지점 테이블 생성' in Partner Admin.",
  memoHouseBuyin:"Avatar/Speed Buy-in (Main Account)", memoHouseEndDeposit:"Avatar/Speed Game End Deposit (Main Account)", toastMainInsufficient:"The main account has insufficient balance.", notifMainInsufficient:"Main Account Insufficient",
  genBtn:"Generate", walkinBtn:"Walk-in", addBuyinHint:"Enter an existing Game ID and a Buy-in Total, then press Start Game to add an additional buy-in.", notifAddBuyin:"Additional Buy-in", toastAddBuyin:"Additional buy-in recorded.",
@@ -6295,7 +6393,7 @@ en:{
  tableLabel:"賭桌", gameType:"局別", avatarId:"分身編號", buyinTotal:"買入總額", startBtn:"開始遊戲",
  inGameTitle:"進行中賽局", gameIdLabel:"局號",
  ongoingGamesTitle:"轉碼", dailyLabel:"當日", cumulativeLabel:"累計", ongoingCountLabel:"進行局數",
- avatarSpeedOngoingTitle:"電投·快速電投 桌台管理", shoeNoLabel:"靴號", betLimitLabel:"投注限額", tableStatusOpen:"啟用中", tableStatusClosed:"結束", tableOpenBtn:"開始營業", tableCloseBtn:"結束營業", toastTableStatusChanged:"桌台狀態已更新。", expandBtn:"展開", collapseBtn:"收合",
+ tableIdLabel:"賭桌編號", avatarSpeedOngoingTitle:"電投·快速電投 桌台管理", shoeNoLabel:"靴號", betLimitLabel:"投注限額", tableStatusOpen:"啟用中", tableStatusClosed:"結束", tableOpenBtn:"開始營業", tableCloseBtn:"結束營業", toastTableStatusChanged:"桌台狀態已更新。", expandBtn:"展開", collapseBtn:"收合",
  colTime:"時間", colReqMember:"申請會員", colKind:"類別", colPrevRolling:"先前轉碼", colRollingSub:"轉碼累計", colRollingTotal:"轉碼合計",
  settlePageTitle:"轉碼佣金結算", gameTypeFld:"局別", rollingComm:"轉碼佣金", fbDiscount:"F&B 折讓", resultLabel:"結算金額", settleBtn:"確認結算",
  receiptTitle:"結算收據", receiptEmptyHint:"選擇遊戲並確認結算後將顯示收據。", receiptGameNo:"局號", receiptAccNo:"帳號", receiptDate:"日期",
@@ -6411,6 +6509,7 @@ en:{
  totalRollingLabel:"總轉碼",
  rollingReceiptTitle:"轉碼佣金結算單", receiptBuyinAmt:"買入金額", receiptCashoutAmt:"兌現金額", rollingCommSettleAmt:"轉碼佣金結算金額", shiftManagerLabel:"班務經理",
  startKindLabel:"開局種類", startKindLive:"現場", startKindAvatar:"電投", startKindSpeed:"快速電投",
+ avatarAccBtn:"建立電投帳號", avatarAccTitle:"建立電投帳號", avatarAccSub:"Avatar Speed 網站的登入資料。帳號必須與賭場帳戶相同 — 網站顯示的餘額即該帳戶的賭場帳本。", avatarAccId:"帳號", avatarAccPw:"密碼", avatarAccCreateBtn:"建立", avatarAccNeedBoth:"請輸入帳號與密碼。", avatarAccNoSuchAccount:"查無此帳戶。請輸入帳戶清單中的帳號。", toastAvatarAccCreated:"已建立 {id} 的電投帳號。",
  noBranchTablesHint:"此分店尚無電投／快速電投賭桌。請於合作伙伴管理後臺的「지점 테이블 생성」建立。",
  memoHouseBuyin:"電投／快速電投買入（主帳戶）", memoHouseEndDeposit:"電投／快速電投結束賽局存入（主帳戶）", toastMainInsufficient:"主帳戶餘額不足。", notifMainInsufficient:"主帳戶餘額不足",
  genBtn:"產生", walkinBtn:"散客", addBuyinHint:"輸入現有的遊戲ID並填入買入總額，按下開始遊戲即可追加買入。", notifAddBuyin:"追加買入", toastAddBuyin:"追加買入已記錄。",
@@ -6436,7 +6535,7 @@ en:{
  tableLabel:"赌桌", gameType:"局别", avatarId:"分身编号", buyinTotal:"买入总额", startBtn:"开始游戏",
  inGameTitle:"进行中赛局", gameIdLabel:"局号",
  ongoingGamesTitle:"转码", dailyLabel:"当日", cumulativeLabel:"累计", ongoingCountLabel:"进行局数",
- avatarSpeedOngoingTitle:"电投·快速电投 桌台管理", shoeNoLabel:"靴号", betLimitLabel:"投注限额", tableStatusOpen:"启用中", tableStatusClosed:"结束", tableOpenBtn:"开始营业", tableCloseBtn:"结束营业", toastTableStatusChanged:"桌台状态已更新。", expandBtn:"展开", collapseBtn:"收起",
+ tableIdLabel:"赌桌编号", avatarSpeedOngoingTitle:"电投·快速电投 桌台管理", shoeNoLabel:"靴号", betLimitLabel:"投注限额", tableStatusOpen:"启用中", tableStatusClosed:"结束", tableOpenBtn:"开始营业", tableCloseBtn:"结束营业", toastTableStatusChanged:"桌台状态已更新。", expandBtn:"展开", collapseBtn:"收起",
  colTime:"时间", colReqMember:"申请会员", colKind:"类别", colPrevRolling:"先前转码", colRollingSub:"转码累计", colRollingTotal:"转码合计",
  settlePageTitle:"转码佣金结算", gameTypeFld:"局别", rollingComm:"转码佣金", fbDiscount:"F&B 折让", resultLabel:"结算金额", settleBtn:"确认结算",
  receiptTitle:"结算收据", receiptEmptyHint:"选择游戏并确认结算后将显示收据。", receiptGameNo:"局号", receiptAccNo:"账号", receiptDate:"日期",
@@ -6552,6 +6651,7 @@ en:{
  totalRollingLabel:"总转码",
  rollingReceiptTitle:"转码佣金结算单", receiptBuyinAmt:"买入金额", receiptCashoutAmt:"兑现金额", rollingCommSettleAmt:"转码佣金结算金额", shiftManagerLabel:"班务经理",
  startKindLabel:"开局种类", startKindLive:"现场", startKindAvatar:"电投", startKindSpeed:"快速电投",
+ avatarAccBtn:"创建电投账号", avatarAccTitle:"创建电投账号", avatarAccSub:"Avatar Speed 网站的登录信息。账号必须与赌场账户相同 — 网站显示的余额即该账户的赌场账本。", avatarAccId:"账号", avatarAccPw:"密码", avatarAccCreateBtn:"创建", avatarAccNeedBoth:"请输入账号与密码。", avatarAccNoSuchAccount:"查无此账户。请输入账户清单中的账号。", toastAvatarAccCreated:"已创建 {id} 的电投账号。",
  noBranchTablesHint:"此分店尚无电投／快速电投赌桌。请于合作伙伴管理后台的「지점 테이블 생성」建立。",
  memoHouseBuyin:"电投／快速电投买入（主账户）", memoHouseEndDeposit:"电投／快速电投结束赛局存入（主账户）", toastMainInsufficient:"主账户余额不足。", notifMainInsufficient:"主账户余额不足",
  genBtn:"生成", walkinBtn:"散客", addBuyinHint:"输入现有的游戏ID并填入买入总额，按下开始游戏即可追加买入。", notifAddBuyin:"追加买入", toastAddBuyin:"追加买入已记录。",
@@ -6664,14 +6764,10 @@ function seedDB(){
    "MAIN-MIDORI":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,MIDORI:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"MIDORI MAIN ACCOUNT", isMain:true, openedCasino:"MIDORI", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"MIDORI Branch Main Account"},
    "MAIN-NUSTAR":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,MIDORI:0,NUSTAR:50000000,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"NUSTAR MAIN ACCOUNT", isMain:true, openedCasino:"NUSTAR", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"NUSTAR Branch Main Account"},
    "MAIN-ONLINE":{member:"MAIN ACCOUNT", phone:"—", rate:"—", telegram:"—", balances:{HANN:0,SOLAIRE:0,MIDORI:0,NUSTAR:0,ONLINE:0}, passportPhoto:null, sitePhoto:null, signaturePhoto:null, engName:"ONLINE MAIN ACCOUNT", isMain:true, openedCasino:"ONLINE", openedDt:"2025-01-01 00:00", currency:"PHP", remark:"ONLINE Branch Main Account"},
-   "SE7419":{member:"52049817", phone:"+63 912 345 6789", rate:"1.45%", telegram:"@teddy_lee", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null,
-    telegramLinks:[{id:"@Sevip888", dt:"2025-09-17 16:25:29"}], openedCasino:"NUSTAR", openedDt:"2025-09-17 16:20", currency:"PHP", remark:"VIP"},
-   "MK2201":{member:"63182047", phone:"+82 10 2233 4455", rate:"1.20%", telegram:"—", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2025-11-02 14:10", currency:"PHP", remark:""},
    "PL0001":{member:"PL0001", phone:"+63 917 555 2210", rate:"1.35%", telegram:"@pl_member01", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2025-12-10 10:05", currency:"PHP", remark:""},
    "PL8888":{member:"PL8888", phone:"+63 917 555 8888", rate:"1.40%", telegram:"@pl8888", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-02-14 09:30", currency:"PHP", remark:""},
    "PL9999":{member:"PL9999", phone:"+63 917 555 9999", rate:"1.40%", telegram:"@pl9999", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-02-14 09:35", currency:"PHP", remark:""},
    "PL7777":{member:"PL7777", phone:"+63 917 555 7777", rate:"1.40%", telegram:"@pl7777", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-02-14 09:40", currency:"PHP", remark:""},
-   "PL9642":{member:"PL9642", phone:"+63 917 555 9642", rate:"1.45%", telegram:"@pl9642", balance:5000000, passportPhoto:null, sitePhoto:null, signaturePhoto:null, openedCasino:"NUSTAR", openedDt:"2026-03-01 11:15", currency:"PHP", remark:""},
   },
   ledger:{},
   games:[
@@ -6685,7 +6781,6 @@ function seedDB(){
    {account:"OLD8891",type:"Full",reason:"Chargeback risk",staff:"ADMIN",dt:"2026-06-02"},
   ],
   memos:[
-   {account:"SE7419",memo:"VIP guest, handle personally",staff:"TEDDY",dt:"2026-07-01"},
   ],
   hotels:[
   ],
@@ -6694,10 +6789,8 @@ function seedDB(){
   aero:[
   ],
   pointsByAccount:{
-   SE7419:128500,
   },
   pointsHistory:[
-   {dt:"2026-07-01 10:00", account:"SE7419", reason:"Monthly rolling bonus", change:15000, balance:128500},
   ],
   // Global (not per-branch) log of cash moved between branches' house accounts - see
   // processBranchTransfer/writeBranchTransferEntry.
@@ -6742,8 +6835,6 @@ function seedDB(){
   eventStart:"2026-07-25T00:00",
   eventEnd:"2026-08-05T23:59",
   avatarRequests:[
-   {dt:"2026-07-31 09:12", account:"SE7419", table:"NS004", buyin:2000000, avatarId:"AVT-2291"},
-   {dt:"2026-07-31 09:20", account:"MK2201", table:"NS007", buyin:1500000, avatarId:"AVT-2292"},
   ],
   memberCompanyDiffVal:0,
   combinedRollingSnapshot:0,
@@ -6804,6 +6895,23 @@ function migrateDB(saved){
    if(!saved.accounts[id]) saved.accounts[id] = fresh.accounts[id];
   });
   saved.migratedNustarPLAccounts2026 = true;
+ }
+ /* These three members withdrew, but the accounts kept coming back: they were in the seed, and
+    seedAccountsToCloud upserted whatever a terminal still held that the cloud was missing, so any
+    terminal that had not yet caught up put them back for everyone. They are out of the seed now,
+    and closedAccounts (see seedAccountsToCloud) stops them being re-seeded from here on - this
+    clears what installs are already carrying, once, along with everything hung off them. */
+ if(!saved.closedWithdrawnAccounts2026){
+  CLOSED_WITHDRAWN_ACCOUNTS.forEach(id=>{
+   delete saved.accounts[id];
+   delete saved.ledger[id];
+   if(saved.pointsByAccount) delete saved.pointsByAccount[id];
+  });
+  const gone = a => !CLOSED_WITHDRAWN_ACCOUNTS.includes(a);
+  saved.memos = (saved.memos||[]).filter(m=>gone(m.account));
+  saved.pointsHistory = (saved.pointsHistory||[]).filter(p=>gone(p.account));
+  saved.avatarRequests = (saved.avatarRequests||[]).filter(r=>gone(r.account));
+  saved.closedWithdrawnAccounts2026 = true;
  }
  // Backfill Authenticator secrets for installs saved before real TOTP existed. Each staff member
  // (and the master login) needs one; existing PINs/data are untouched.
@@ -7044,11 +7152,10 @@ function renderMemberCard(){
  // re-render arriving mid-withdrawal, or any other async gap right after deletion) - treat that
  // exactly like no account being selected instead of crashing below.
  if(!id || !acc){ box.innerHTML = `<p class="hint">${t('toastNoAcc')}</p>`; renderIdVerify(); return; }
- const isMain = isMainAccount(id);
  const total = accountTotalBalance(id);
- // MAIN accounts are still each branch's own siloed house float, so their HANN/NUSTAR/ONLINE
- // breakdown stays meaningful and is shown alongside the total. Guest accounts now carry one
- // unified balance usable from any branch, so only the single total ticket applies to them.
+ // One figure, for a MAIN account the same as for a guest. A MAIN account is still each branch's
+ // own float and the per-branch numbers behind this total are still what the ledger keeps and
+ // what every check runs against - they are simply not broken out here any more.
  box.innerHTML = `
   <div class="member-card">
     <div class="member-id">${esc(id)}</div>
@@ -7060,34 +7167,10 @@ function renderMemberCard(){
     </div>
     <div class="balance-grid">
       <div class="ticket"><div class="lbl">${t('balanceTotal')}</div><div class="amt num">${fmt(total)}</div></div>
-      ${isMain ? `
-      <div class="balance-sub-grid">
-        <div class="ticket-sm"><div class="lbl">${t('balanceHann')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.HANN)||0)}</div></div>
-        <div class="ticket-sm"><div class="lbl">${t('balanceSolaire')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.SOLAIRE)||0)}</div></div>
-        <div class="ticket-sm"><div class="lbl">${t('balanceMidori')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.MIDORI)||0)}</div></div>
-        <div class="ticket-sm"><div class="lbl">${t('balanceNustar')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.NUSTAR)||0)}</div></div>
-        <div class="ticket-sm"><div class="lbl">${t('balanceOnline')}</div><div class="amt num">${fmt((acc.balances&&acc.balances.ONLINE)||0)}</div></div>
-      </div>` : ''}
     </div>
   </div>`;
- fitTicketAmounts();
  renderIdVerify();
 }
-// A balance figure must never be visually cut off - unlike a label, a truncated number reads as
-// a DIFFERENT (wrong) amount rather than an ugly one. The 3-column HANN/NUSTAR/ONLINE grid has a
-// fixed width no CSS rule alone can guarantee fits every magnitude (a 9-figure MAIN account
-// balance overflowed its box here), so shrink the font just enough to make each one fit instead.
-function fitTicketAmounts(){
- document.querySelectorAll('.ticket-sm .amt').forEach(el=>{
-  el.style.fontSize = '';
-  let size = parseFloat(getComputedStyle(el).fontSize);
-  while(el.scrollWidth > el.clientWidth && size > 9){
-   size -= 1;
-   el.style.fontSize = size + 'px';
-  }
- });
-}
-if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitTicketAmounts).catch(()=>{});
 function renderIdVerify(){
  const box = document.getElementById('idVerifyBox');
  if(!box) return;
@@ -10700,6 +10783,11 @@ function startInactivityTimer(){
  const branchSelEl = document.getElementById('branchSel');
  if(branchSelEl) branchSelEl.value = currentBranch();
  initSig();
+ /* 입출금 처리 opens with 입금 selected and its remark already reading Cash Deposit. The two
+    toggles set that between them, but nothing ran them at startup - so the remark sat empty
+    until one was clicked, and a session that had last been left on 출금 came back showing 입금
+    highlighted while DB.ioType still said withdraw. */
+ setIoType(DB.ioType === 'withdraw' ? 'withdraw' : 'deposit');
  renderBreakdowns();
  renderStaffDropdowns();
  applyI18n();

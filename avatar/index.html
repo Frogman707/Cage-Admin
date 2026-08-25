@@ -41,7 +41,6 @@ body{overflow:auto;}
 .card-status.live{background:rgba(255,255,255,.07);color:var(--brass);font-family:var(--mono);}
 .card-status.live b{font-weight:800;}
 .speed-mybets{margin-top:20px;}
-.speed-mybets .bet-history-mini{max-height:200px;overflow-y:auto;}
 </style>
 </head>
 <body>
@@ -109,7 +108,7 @@ body{overflow:auto;}
     <div class="balance-ticket"><span class="lbl" data-i18n="balance">보유금</span><span id="hdrBalance">0</span></div>
     <div class="points-ticket"><span class="lbl" data-i18n="points">포인트</span><span id="hdrPoints">0</span></div>
     <button class="icon-btn" id="favoriteBtn" onclick="toggleHeaderFavorite()" data-i18n-title="favorites" title="즐겨찾기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
-    <button class="icon-btn" onclick="showPicker()" data-i18n-title="changeGame" title="메뉴"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="2.4" rx="1"/><rect x="3" y="11" width="18" height="2.4" rx="1"/><rect x="3" y="17" width="18" height="2.4" rx="1"/></svg></button>
+    <button class="icon-btn" id="hdrFsBtn" onclick="toggleAppFullscreen()" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/></svg></button>
     <div class="game-header-right">
       <span class="hdr-lang" id="hdrLangRow"></span>
       <button class="icon-btn theme-toggle-btn" onclick="toggleLoginTheme()" data-i18n-title="displaySettings" title="화면 설정">
@@ -119,42 +118,16 @@ body{overflow:auto;}
       <button class="icon-btn" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
       <span class="hdr-nick" style="font-size:12px;color:var(--ink-dim);" id="hdrNick">—</span>
       <button class="btn btn-sm hdr-action-btn" id="avatarLobbyBtn" onclick="backToAvatarLobby()" style="display:none;" data-i18n-title="tableList" title="테이블 목록"><svg class="hdr-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg><span class="hdr-lbl" data-i18n="tableList">테이블 목록</span></button>
-      <button class="btn btn-sm hdr-action-btn" id="changeGameBtn" onclick="showPicker()" style="display:none;" data-i18n-title="changeGame" title="게임 변경"><svg class="hdr-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span class="hdr-lbl" data-i18n="changeGame">게임 변경</span></button>
       <button class="btn btn-sm btn-ghost hdr-action-btn" onclick="onLogout()" data-i18n-title="logout" title="로그아웃"><svg class="hdr-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span class="hdr-lbl" data-i18n="logout">로그아웃</span></button>
     </div>
   </div>
 
-  <div id="viewPicker">
-    <div class="picker-wrap">
-      <div class="picker-title" data-i18n="pickerTitle">게임을 선택하세요</div>
-      <p class="picker-sub" data-i18n="pickerSub">아바타와 스피드는 같은 계정, 같은 보유금으로 언제든 자유롭게 오갈 수 있습니다.</p>
-      <div class="picker-grid">
-        <div class="picker-card" onclick="chooseAvatar()">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M8 10.5h.01M16 10.5h.01M8 15c1.2 1 2.6 1.5 4 1.5s2.8-.5 4-1.5"/></svg></div>
-          <div class="name" data-i18n="pickerAvatarName">아바타 (AVATAR)</div>
-          <div class="desc" data-i18n="pickerAvatarDesc">전담 딜러가 대신 베팅해주는 대리 베팅 서비스</div>
-        </div>
-        <div class="picker-card" onclick="chooseSpeed()">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div>
-          <div class="name" data-i18n="pickerSpeedName">스피드 (SPEED)</div>
-          <div class="desc" data-i18n="pickerSpeedDesc">여러 테이블 동시 베팅 · 빠른 라운드</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="viewAvatarLobby" style="display:none;"></div>
+  <!-- One lobby, listing every table there is. The two used to be separate screens reached
+       through a picker page, with a ☰ and a 게임 변경 button that both went back to it - three ways
+       of saying the same thing as the 전체 / 아바타 / 스피드 pills, which is what does it now. -->
+  <div id="viewLobby" style="display:none;"></div>
   <div id="viewAvatarTable" style="display:none;"></div>
   <div id="viewSpeedTable" style="display:none;"></div>
-
-  <div id="viewSpeedLobby" style="display:none;">
-    <div class="speed-wrap">
-      <div class="lobby-title"><span data-i18n="speedLobbyTitle">스피드 테이블</span> <span style="font-size:11px;color:var(--ink-faint);font-weight:400;">— <span data-i18n="speedLobbySub">여러 테이블을 동시에 베팅할 수 있습니다</span></span></div>
-      <div id="speedToolbar"></div>
-      <div class="lobby-grid" id="speedGrid"><div class="spin"></div></div>
-      <div class="card speed-mybets"><h3 data-i18n="myBetHistory">내 베팅내역</h3><div class="bet-history-mini" id="myBetHistory"></div></div>
-    </div>
-  </div>
 </div>
 
 <div class="modal-bg" id="modal-history" data-fs-follow><div class="modal modal-sheet">

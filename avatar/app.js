@@ -139,16 +139,35 @@ async function enterApp(){
   clearLoginFields();
   await refreshBalance();
   watchPlayerBalance();
+  // ?mode= still names one of the two, and lights that pill; without it the lobby opens on 전체
   const requestedMode = new URLSearchParams(location.search).get('mode');
-  if (requestedMode === 'speed') chooseSpeed();
-  else if (requestedMode === 'avatar') chooseAvatar();
-  else showPicker();
+  LOBBY_TYPE_FILTER = (requestedMode === 'speed' || requestedMode === 'avatar') ? requestedMode : 'all';
+  goLobby();
 }
 async function refreshBalance(){
   const b = await getPlayerBalance(db, PLAYER.id);
   STATE.balance = b.balance; STATE.points = b.points;
-  document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
+  /* What is shown is what is left to stake, not the raw figure - money already on a spot is spoken
+     for even before the round closes and it leaves STATE.balance. This painted the raw balance, so
+     any movement on the books mid-round (which is every round: the stake itself is a movement)
+     refreshed the header straight back up to the pre-bet figure while the chips were still on the
+     felt. paintPlayableBalance is what every other surface repaints through. */
+  paintPlayableBalance();
   document.getElementById('hdrPoints').textContent = fmtNum(STATE.points);
+}
+/* What is actually spendable right now: the stake already on a spot is spoken for even though it
+   has not left STATE.balance yet. Which figure that is depends on the mode - avatarCommittedAmount()
+   for a session, speedLockedTotal() for the speed tables. Every surface that shows a balance shows
+   this one, so a repaint from anywhere - a round settling, a tip, the books moving under the
+   player - cannot put the header back up to the pre-bet number while the chips are still down. */
+function playableBalance(){
+  return STATE.balance - (MODE === 'speed' ? speedLockedTotal() : avatarCommittedAmount());
+}
+function paintPlayableBalance(){
+  const el = document.getElementById('hdrBalance');
+  if (el) el.textContent = fmtNum(playableBalance());
+  if (MODE === 'speed'){ if (SPEED.detailTableId) paintSpeedFsBars(SPEED.detailTableId); }
+  else paintAvatarFsBars();
 }
 /* The balance is kept live rather than read the once. Money moves from outside this screen -
    the cage pays an account out at the window, an agent transfers to a member - and none of it
@@ -183,26 +202,41 @@ function selectChip(v){
   STATE.selectedChip = v;
   document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('selected', Number(c.dataset.chip)===v));
 }
-function renderMyBetHistory(){
-  const el = document.getElementById('myBetHistory'); if (!el) return;
-  if (!MY_BET_LOG.length){ el.innerHTML = `<span class="hint">${t('noBetsYet')}</span>`; return; }
-  el.innerHTML = MY_BET_LOG.slice(0, 20).map(b=>{
-    const net = b.payout - b.amount;
-    const cls = net > 0 ? 'pos' : net < 0 ? 'neg' : '';
-    /* The table is named plainly, the way the history sheet names it. It used to be bracketed,
-       which put a [ ] in front of every round number - and a table that came through without a
-       name left the pair of them standing there as an empty box before the #. Dropped when there
-       is nothing to name. */
-    const where = b.tableName ? `${escapeHtml(b.tableName)} ` : '';
-    return `<div class="row"><span>${where}#${b.roundNo} ${betLabel(b.betType)} ${fmtNum(b.amount)}</span><span class="${cls}">${net===0 ? t('push') : fmtSigned(net)}</span></div>`;
-  }).join('');
+/* 내 베팅내역 used to be a panel at the foot of the lobby as well as the 게임기록 sheet the clock
+   button at the top opens. Two lists of the same rounds, one of them below everything else on the
+   page; the sheet is the one that is read, so the panel went and this went with it. MY_BET_LOG
+   still feeds the sheet. */
+/* ---------------- 즐겨찾기 ----------------
+   Both hearts used to do nothing but colour themselves in: the one on a card marked no table, and
+   the one in the header filtered nothing. A card's heart names a table now, and the header's
+   narrows the lobby to the tables named. They are kept in this browser, under this player's id, so
+   one machine's list is not another player's - and a browser that refuses storage (a private
+   window, site data blocked) simply keeps them for the session instead of throwing. */
+const FAV_KEY = () => `avatarSpeed.favourites.${(PLAYER && PLAYER.id) || 'anon'}`;
+let FAVOURITES = null;
+let LOBBY_FAVOURITES_ONLY = false;
+function favourites(){
+  if (FAVOURITES) return FAVOURITES;
+  try{ FAVOURITES = new Set(JSON.parse(localStorage.getItem(FAV_KEY()) || '[]')); }
+  catch(e){ FAVOURITES = new Set(); }
+  return FAVOURITES;
 }
-
+function saveFavourites(){
+  try{ localStorage.setItem(FAV_KEY(), JSON.stringify([...favourites()])); }catch(e){ /* kept for the session */ }
+}
+function isFavouriteTable(tableId){ return !!tableId && favourites().has(tableId); }
+function toggleCardFavorite(btn, tableId){
+  const favs = favourites();
+  if (favs.has(tableId)) favs.delete(tableId); else favs.add(tableId);
+  saveFavourites();
+  btn.classList.toggle('active', favs.has(tableId));
+  // showing favourites only, un-hearting a table takes it off the screen there and then
+  if (LOBBY_FAVOURITES_ONLY) applyLobbyTileFilter();
+}
 function toggleHeaderFavorite(){
-  document.getElementById('favoriteBtn')?.classList.toggle('active');
-}
-function toggleCardFavorite(btn){
-  btn.classList.toggle('active');
+  LOBBY_FAVOURITES_ONLY = !LOBBY_FAVOURITES_ONLY;
+  document.getElementById('favoriteBtn')?.classList.toggle('active', LOBBY_FAVOURITES_ONLY);
+  applyLobbyTileFilter();
 }
 /* ---------------- 전체화면 ----------------
    The whole table goes fullscreen, not the video on its own. Fullscreening just the still left
@@ -249,6 +283,21 @@ function toggleStageFullscreen(btn){
   // a refusal comes back as a rejected promise on some browsers and a throw on others
   try { Promise.resolve(req.call(root)).catch(()=>enterFauxFullscreen(root)); }
   catch(e){ enterFauxFullscreen(root); }
+}
+/* The button in the header. On a table it is the table that goes fullscreen - the same screen the
+   ⛶ on the still opens, since a fullscreen still with the board left behind on a page nobody can
+   see is no game. Anywhere else it is the whole app, which is what the lobby wants. The two
+   buttons the header used to carry both went to a page asking 아바타 or 스피드; the pills say that
+   without leaving the lobby, so this took the room they were in. */
+function toggleAppFullscreen(){
+  const table = document.querySelector('.speed-detail-wrap');
+  if (table) return toggleStageFullscreen(null);
+  if (stageFsElement()){ exitStageFullscreen(); return; }
+  const root = document.documentElement;
+  const req = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (!req){ enterFauxFullscreen(document.getElementById('app')); return; }
+  try { Promise.resolve(req.call(root)).catch(()=>enterFauxFullscreen(document.getElementById('app'))); }
+  catch(e){ enterFauxFullscreen(document.getElementById('app')); }
 }
 function exitStageFullscreen(){
   if (FAUX_FS){ exitFauxFullscreen(); return; }
@@ -337,7 +386,7 @@ function renderGameHistory(btn, mode){
       const cls = net > 0 ? 'pos' : net < 0 ? 'neg' : '';
       return `<div class="history-row">
         <span class="t">${fmtDt(b.dt).slice(11)}</span>
-        <span class="g">${escapeHtml(b.tableName)} · ${betLabel(b.betType)}</span>
+        <span class="g">${b.tableName ? escapeHtml(b.tableName) + ' · ' : ''}${betLabel(b.betType)}</span>
         <span class="amt">${fmtNum(b.amount)}</span>
         <span class="wl ${cls}">${net===0?t('push'):fmtSigned(net)}</span>
       </div>`;
@@ -357,34 +406,27 @@ function stopAllLoops(){
   stopSpeedClock();
   SPEED.detailTableId = null;
   if (AVATAR.chatUnsub){ AVATAR.chatUnsub(); AVATAR.chatUnsub = null; }
-  // #viewAvatarTable holds a dynamically-built #myBetHistory / chip-tray that would otherwise
-  // collide with the static ids reused inside #viewSpeedLobby once both are simultaneously in the DOM.
+  // the table screens are built fresh each time they are opened, so what is left of the last one
+  // is cleared rather than left in the page with its ids still in it
   const avTable = document.getElementById('viewAvatarTable'); if (avTable) avTable.innerHTML = '';
   const spTable = document.getElementById('viewSpeedTable'); if (spTable) spTable.innerHTML = '';
 }
 function showView(name){
-  ['viewPicker','viewAvatarLobby','viewAvatarTable','viewSpeedLobby','viewSpeedTable'].forEach(id=>{
+  ['viewLobby','viewAvatarTable','viewSpeedTable'].forEach(id=>{
     document.getElementById(id).style.display = (id===name) ? 'block' : 'none';
   });
   /* The two table screens keep a chip tray across the foot - 베팅완료 and 반복 sit in it - and a
      toast is drawn at the foot too, so on a phone it landed squarely over them. The class lets
      the toast clear the tray on those screens and nowhere else, where the foot is empty. */
   document.body.classList.toggle('has-chip-tray', name==='viewAvatarTable' || name==='viewSpeedTable');
-  document.getElementById('changeGameBtn').style.display = name==='viewPicker' ? 'none' : 'inline-block';
   document.getElementById('avatarLobbyBtn').style.display = name==='viewAvatarTable' ? 'inline-block' : 'none';
 }
-function showPicker(){
-  stopAllLoops();
-  MODE = null;
-  showView('viewPicker');
-}
-async function chooseAvatar(){
-  stopAllLoops();
-  MODE = 'avatar';
-  LOBBY_CASINO_FILTER = 'ALL'; LOBBY_SEARCH = '';
-  showView('viewAvatarLobby');
-  await goAvatarLobby();
-}
+/* 아바타 and 스피드 are one lobby with a filter on it, not two screens with a page in front of them
+   asking which you wanted. Both of these are kept because the mode is still a real thing once a
+   table is open - and because ?mode= names one - but on the lobby all they do is set which pills
+   are lit. */
+async function chooseAvatar(){ LOBBY_TYPE_FILTER = 'avatar'; await goLobby(); }
+async function chooseSpeed(){ LOBBY_TYPE_FILTER = 'speed'; await goLobby(); }
 /* One clock for the room, and starting it always stops whatever was already running.
    It used to be assigned straight after `await loadSpeedTables()`, with the only clearInterval
    back at the top of chooseSpeed() - so two calls that overlapped that await both passed a stop
@@ -399,18 +441,7 @@ function startSpeedClock(){
 /* And the call that is overtaken drops out rather than finishing on top of the one that
    overtook it: it would otherwise paint its own (older) list of tables over the newer one and
    report a room that had already been replaced. */
-let speedEntry = 0;
-async function chooseSpeed(){
-  const mine = ++speedEntry;
-  stopAllLoops();
-  MODE = 'speed';
-  LOBBY_CASINO_FILTER = 'ALL'; LOBBY_SEARCH = '';
-  showView('viewSpeedLobby');
-  await loadSpeedTables();
-  if (mine !== speedEntry) return;
-  renderMyBetHistory();
-  startSpeedClock();
-}
+let lobbyEntry = 0;
 
 /* ---------------- lobby casino tabs + game-type filter + search (shared by avatar/speed) ---------------- */
 /* Each house picks its table by its own mark, the way the reference lobby lists them: the logo
@@ -441,6 +472,10 @@ const LOBBY_CASINOS = ['HANN','NUSTAR','SOLAIRE','MIDORI'];
 const CASINO_LABELS = {ALL:'allCasinos', HANN:'casinoHann', NUSTAR:'casinoNustar', SOLAIRE:'casinoSolaire', MIDORI:'casinoMidori'};
 let LOBBY_CASINO_FILTER = 'ALL';
 let LOBBY_SEARCH = '';
+// 전체 / 아바타 / 스피드. 전체 means every table there is, both kinds together - it used to mean
+// "every table of whichever kind you happened to be looking at", which on a screen that only ever
+// held one kind was no filter at all.
+let LOBBY_TYPE_FILTER = 'all';
 function casinoTabsHtml(){
   return `<div class="casino-tabs">
     ${['ALL', ...LOBBY_CASINOS].map(c=>`<button class="casino-tab ${LOBBY_CASINO_FILTER===c?'active':''}" data-c="${c}" onclick="setLobbyCasinoFilter('${c}')"><span class="cl-mark"><img src="${CASINO_MARK_SRC[c]}" alt=""></span><span class="cl-name">${t(CASINO_LABELS[c])}</span></button>`).join('')}
@@ -451,15 +486,17 @@ const GAME_TYPE_TABS = [
   {id:'avatar', label:'gameTypeAvatar'},
   {id:'speed', label:'gameTypeSpeed'},
 ];
-function gameTypeTabsHtml(activeType){
+function gameTypeTabsHtml(){
   return `<div class="game-type-tabs">
-    ${GAME_TYPE_TABS.map(ty=>`<button class="game-type-tab ${activeType===ty.id?'active':''}" data-t="${ty.id}" onclick="setGameTypeFilter('${ty.id}')">${t(ty.label)}</button>`).join('')}
+    ${GAME_TYPE_TABS.map(ty=>`<button class="game-type-tab ${LOBBY_TYPE_FILTER===ty.id?'active':''}" data-t="${ty.id}" onclick="setGameTypeFilter('${ty.id}')">${t(ty.label)}</button>`).join('')}
   </div>`;
 }
+/* Both kinds are already on the screen, so this hides and shows rather than loading anything -
+   which is what lets 전체 mean every table rather than sending you to one of two lists. */
 function setGameTypeFilter(id){
+  LOBBY_TYPE_FILTER = id;
   document.querySelectorAll('.game-type-tab').forEach(b=>b.classList.toggle('active', b.dataset.t===id));
-  if (id==='avatar' && MODE!=='avatar') chooseAvatar();
-  else if (id==='speed' && MODE!=='speed') chooseSpeed();
+  applyLobbyTileFilter();
 }
 function lobbySearchHtml(){
   return `<div class="lobby-search-wrap">
@@ -478,37 +515,41 @@ function setLobbySearch(v){
 }
 function applyLobbyTileFilter(){
   const q = LOBBY_SEARCH.trim().toLowerCase();
-  document.querySelectorAll('.lobby-card[data-casino], .speed-tile[data-casino]').forEach(el=>{
+  const favOnly = LOBBY_FAVOURITES_ONLY;
+  let shown = 0;
+  document.querySelectorAll('.lobby-card[data-casino]').forEach(el=>{
     const casinoOk = LOBBY_CASINO_FILTER==='ALL' || el.dataset.casino===LOBBY_CASINO_FILTER;
+    const typeOk = LOBBY_TYPE_FILTER==='all' || el.dataset.type===LOBBY_TYPE_FILTER;
     const nameOk = !q || (el.dataset.name||'').toLowerCase().includes(q);
-    el.style.display = (casinoOk && nameOk) ? '' : 'none';
+    const favOk = !favOnly || isFavouriteTable(el.dataset.table);
+    const on = casinoOk && typeOk && nameOk && favOk;
+    el.style.display = on ? '' : 'none';
+    if (on) shown++;
   });
+  // a filter that hides everything says so, rather than leaving a blank page to read as a fault
+  const none = document.getElementById('lobbyNoMatch');
+  if (none) none.style.display = shown ? 'none' : '';
 }
-function backToAvatarLobby(){
-  stopAvatarRoundLoop();
-  if (AVATAR.chatUnsub){ AVATAR.chatUnsub(); AVATAR.chatUnsub = null; }
-  goAvatarLobby();
-}
+function backToAvatarLobby(){ goLobby(); }
 function onLangChange(){
   // re-render whichever screen is currently visible so JS-generated text updates immediately
   if (MODE==='avatar'){
     if (document.getElementById('viewAvatarTable').style.display !== 'none' && AVATAR.table){
       if (AVATAR.request){
         paintScreen(document.getElementById('viewAvatarTable'), avatarTableShellHtml());
-        renderAvatarRoad(); renderAvatarTally(); renderMyBetHistory(); updateAvatarStatusPanel();
+        renderAvatarRoad(); renderAvatarTally(); updateAvatarStatusPanel();
         renderAvatarBetSpots(); paintAvatarFsBars();
       } else {
         paintScreen(document.getElementById('viewAvatarTable'), avatarPreviewShellHtml(avatarRequestStateForTable(AVATAR.previewTableId).state));
         renderAvatarRoad(); renderAvatarTally();
       }
     } else if (AVATAR.lobbyData){
-      goAvatarLobby();
+      goLobby();
     }
   } else if (MODE==='speed'){
-    const toolbar = document.getElementById('speedToolbar');
-    if (toolbar && document.getElementById('viewSpeedLobby').style.display !== 'none') toolbar.innerHTML = casinoTabsHtml() + gameTypeTabsHtml('speed') + `<div class="lobby-toolbar">${lobbySearchHtml()}</div>`;
     Object.keys(SPEED.tables||{}).forEach(id=>{ renderSpeedTileStats(id); setSpeedTilePhaseText(id, SPEED.tstate[id].phase==='betting'?t('phaseBetting'):SPEED.tstate[id].phase==='dealing'?t('phaseDealing'):''); });
     if (SPEED.detailTableId) openSpeedTableDetail(SPEED.detailTableId, true);
+    else if (document.getElementById('viewLobby').style.display !== 'none') goLobby();
   }
 }
 
@@ -528,29 +569,45 @@ let AVATAR = {
   lobbyData: null, myRequests: [], request: null, tipTotals: {avatar:0, dealer:0},
 };
 
-async function goAvatarLobby(){
+/* The lobby. One list, every table - avatar tables and speed tables together - with the pills
+   above it choosing which of them to show. Both sets are fetched before anything is painted: the
+   two loads used to own a screen each, and appending one to the other as it arrived meant
+   whichever finished second painted over the first. */
+async function goLobby(){
+  const mine = ++lobbyEntry;
   stopAvatarRoundLoop();
+  stopSpeedClock();
+  SPEED.detailTableId = null;
   if (AVATAR.chatUnsub){ AVATAR.chatUnsub(); AVATAR.chatUnsub = null; }
-  showView('viewAvatarLobby');
-  const lobby = document.getElementById('viewAvatarLobby');
+  showView('viewLobby');
+  const lobby = document.getElementById('viewLobby');
   lobby.innerHTML = `
     <div class="lobby-wrap">
-      <div class="lobby-title" data-i18n="avatarLobbyTitle">아바타 테이블</div>
+      <div class="lobby-title" data-i18n="lobbyTitle">테이블</div>
       ${casinoTabsHtml()}
-      ${gameTypeTabsHtml('avatar')}
+      ${gameTypeTabsHtml()}
       <div class="lobby-toolbar">
         ${lobbySearchHtml()}
         <label class="hint" style="margin:0 0 0 auto;" data-i18n="sortLabel">정렬</label>
-        <select id="lobbySort" onchange="renderAvatarLobbyGrid(this.value)">
+        <select id="lobbySort" onchange="renderLobbyGrid(this.value)">
           <option value="popular" data-i18n="sortPopular">인기순 (베팅총액)</option>
           <option value="today" data-i18n="sortToday">오늘 베팅액순</option>
           <option value="hot" data-i18n="sortHot">좋은 흐름순</option>
           <option value="name" data-i18n="sortName">테이블명 순</option>
         </select>
       </div>
-      <div class="lobby-grid" id="lobbyGrid"><div class="spin"></div></div>
+      <div class="lobby-grid" id="lobbyGrid"><div class="table-loading" style="grid-column:1/-1;height:200px;"><div class="spin-lg"></div><div>${t('connectingTable')}</div></div></div>
+      <p class="hint" id="lobbyNoMatch" style="display:none;" data-i18n="noTablesMatch">조건에 맞는 테이블이 없습니다</p>
     </div>`;
   applyI18n(lobby);
+  await Promise.all([loadAvatarLobbyData(), loadSpeedLobbyData()]);
+  if (mine !== lobbyEntry) return;   // overtaken; the newer call owns the screen
+  renderLobbyGrid('popular');
+  startSpeedClock();
+}
+// kept: the table screens and the request form both come back this way
+async function goAvatarLobby(){ return goLobby(); }
+async function loadAvatarLobbyData(){
   const [tableSnap, roundsSnap, betSnap, reqSnap, allReqSnap] = await Promise.all([
     db.collection('tables').where('type','==','avatar').get(),
     db.collection('rounds').where('tableType','==','avatar').get(),
@@ -562,8 +619,19 @@ async function goAvatarLobby(){
   AVATAR.lobbyData = { tables, rounds: roundsSnap.docs.map(d=>d.data()), bets: betSnap.docs.map(d=>d.data()) };
   AVATAR.myRequests = reqSnap.docs.map(d=>({id:d.id, ...d.data()}));
   AVATAR.allRequests = allReqSnap.docs.map(d=>({id:d.id, ...d.data()}));
-  if (!tables.length){ document.getElementById('lobbyGrid').innerHTML = `<p class="hint">${t('noAvatarTables')}</p>`; return; }
-  renderAvatarLobbyGrid('popular');
+}
+/* The grid: avatar cards then speed tiles, in one place. The sort is the avatar side's own - a
+   speed table has no betting record of its own to rank by - so the speed tiles keep their order
+   and follow. */
+function renderLobbyGrid(sortMode){
+  const grid = document.getElementById('lobbyGrid');
+  if (!grid) return;
+  const html = avatarLobbyCardsHtml(sortMode) + Object.values(SPEED.tables).map(tb=>speedTileHtml(tb)).join('');
+  grid.innerHTML = html || `<p class="hint">${t('noTablesAtAll')}</p>`;
+  // a speed tile's road and counts are painted into it once it is on the page
+  Object.keys(SPEED.tstate).forEach(id=>{ renderSpeedTileRoad(id); renderSpeedTileStats(id); });
+  pinRoadsIn(grid);
+  applyLobbyTileFilter();
 }
 function avatarRequestStateForTable(tableId){
   const todayStr = fmtDate(new Date());
@@ -589,6 +657,9 @@ function avatarTableOccupancy(tableId){
 // (approved) session that's the live proxy-betting session; otherwise it's a
 // read-only preview of the table, with the 아바타 신청 action living inside it.
 function handleAvatarCardClick(tableId){
+  // the mode is settled by which table is opened, not by which list it was picked from - there
+  // is only the one list now
+  MODE = 'avatar';
   const {state} = avatarRequestStateForTable(tableId);
   if (state==='active') enterAvatarSession(tableId);
   else openAvatarTablePreview(tableId, state);
@@ -607,9 +678,8 @@ function avatarCardStatusHtml(tableId){
   return '';
 }
 
-function renderAvatarLobbyGrid(sortMode){
-  if (!AVATAR.lobbyData) return;
-  const grid = document.getElementById('lobbyGrid');
+function avatarLobbyCardsHtml(sortMode){
+  if (!AVATAR.lobbyData) return '';
   const rows = AVATAR.lobbyData.tables.map(t=>{
     const allRounds = AVATAR.lobbyData.rounds.filter(r=>r.tableId===t.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
     // the card's counts and its streak are this shoe's, the same as the board inside the table
@@ -624,11 +694,11 @@ function renderAvatarLobbyGrid(sortMode){
     if (sortMode==='name') return a.t.name.localeCompare(b.t.name);
     return b.volume.total - a.volume.total; // popular (default)
   });
-  grid.innerHTML = sorted.map(({t:tb, results, wins, streak, volume})=>{
+  return sorted.map(({t:tb, results, wins, streak, volume})=>{
     const cols = buildBigRoad(results.slice(-40));
     const isHot = streak.len >= 3;
     return `
-    <div class="lobby-card" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="handleAvatarCardClick('${tb.id}')" title="${t('openTable')}">
+    <div class="lobby-card" data-casino="${tb.casino}" data-type="avatar" data-table="${tb.id}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="handleAvatarCardClick('${tb.id}')" title="${t('openTable')}">
       <div class="thumb"></div>
       <div class="mini-road br-grid">${renderBigRoad(cols, 4)}</div>
       <div class="card-foot">
@@ -636,14 +706,12 @@ function renderAvatarLobbyGrid(sortMode){
           <span class="name">${escapeHtml(tb.name)}</span>
           ${avatarCardStatusHtml(tb.id)}
           ${isHot ? `<span class="card-hot">🔥 ${streak.len}연속 ${streak.side==='player'?t('player'):t('banker')}</span>` : ''}
-          <button class="card-favorite" onclick="event.stopPropagation();toggleCardFavorite(this)" title="${t('favorites')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
+          <button class="card-favorite ${isFavouriteTable(tb.id)?'active':''}" onclick="event.stopPropagation();toggleCardFavorite(this,'${tb.id}')" title="${t('favorites')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
         </div>
         <div class="card-line meta"><span class="limits">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</span><span class="counts">P <b>${wins.player}</b> · B <b>${wins.banker}</b> · T <b>${wins.tie}</b></span></div>
       </div>
     </div>`;
   }).join('');
-  pinRoadsIn(grid);
-  applyLobbyTileFilter();
 }
 
 /* ---------------- avatar request modal ---------------- */
@@ -759,29 +827,31 @@ function avatarScoreboardHtml(idSuffix){
       </div>
     </div>`;
 }
-/* The board's prediction rail: what Big Eye Boy, Small Road and Cockroach Road would each draw
-   if the next hand went Banker, and if it went Player. Laid out as a grid so the three marks in
-   the B row sit exactly over the three in the P row - a stack of free-standing badges never did
-   line up. The mark shapes say which road each column is, the way the board itself does.
+/* The board's prediction rail. Laid out as a grid so the three marks in the B row sit exactly over
+   the three in the P row - a stack of free-standing badges never did line up. The mark shapes say
+   which road each column is, the way the board itself does.
 
-   How a real board reads, which is what this follows. On the DERIVED roads red and blue do not
-   mean banker and player: red means the shoe is repeating, blue that it is breaking - the same
-   two inks borrowed for a different alphabet. Write d for the depth of the run in play and e for
-   the depth of the column `offset` columns back, which is what that road compares against:
+   WHAT IT SAYS, and why it says it that way. Underneath, each derived road answers a question
+   about the shoe rather than about a side: write d for the depth of the run in play and e for the
+   depth of the column `offset` columns back, which is what that road compares against.
 
-     - the hand that CONTINUES the run lands at row d, and is red when the column behind reaches
-       that row: e > d.
-     - the hand that BREAKS it opens a column, and is red when the run just closed matched the
-       column `offset` back: e = d.
+     - the hand that CONTINUES the run lands at row d, and the road draws red when the column
+       behind reaches that row: e > d.
+     - the hand that BREAKS it opens a column, and the road draws red when the run just closed
+       matched the column behind: e = d.
 
-   e > d and e = d cannot both hold, so a board never shows red against red. Both blue is a
-   different matter: it is exactly e < d - the run in play is already longer than the column it
-   is measured against - and a board shows blue against blue whenever that is so, which through
-   a dragon is most hands. Suppressing it would be inventing a state the boards do not have, so
-   the rail prints what the road prints. What a board does NOT do is stand a mark on a road that
-   has not started: Big Eye Boy cannot answer before Big Road column 2, Small Road before column
-   3, Cockroach Road before column 4, and until then that place on the rail is simply blank. So
-   every mark here is red or blue or nothing at all - never a colourless mark. */
+   e > d and e = d cannot both hold, so a road never answers red to both. But at e < d - the run in
+   play already longer than the column it is measured against, which is an ordinary dragon - it
+   answers BLUE to both, and a board prints that. Printed straight onto a rail whose rows are
+   labelled P and B in the Big Road's own colours it reads as the board calling banker and player
+   alike, which is not what the road means at all and is not something a player can act on.
+
+   So the rail states the road's LEAN rather than its ink: red on the side the road points to, blue
+   on the other. Which side it points to is the road's own answer - the side whose hand the road
+   would draw red for, since red is the road staying in its run. At e < d neither hand draws red;
+   there the run in play is longer than the one behind it, which is a dragon, and a dragon is a
+   repeat, so the road points at the hand that continues it. Every road therefore reads one red and
+   one blue: never blank once it has opened, and never the same on both rows. */
 const ASK_MARKS = [['bigEye','ring'], ['smallRoad','dot'], ['cockroach','slash']];
 function roadAskHtml(idSuffix){
   const badge = side => `
@@ -794,17 +864,35 @@ function roadAskHtml(idSuffix){
     ${badge('banker')}
   </div>`;
 }
+// which side the run in play belongs to - a tie decides nothing and is skipped over
+function runningSide(history){
+  for (let i = (history||[]).length - 1; i >= 0; i--){
+    if (history[i] === 'player' || history[i] === 'banker') return history[i];
+  }
+  return null;
+}
 function renderRoadPrediction(idSuffix, history){
   if (!document.getElementById(`ask-${idSuffix}`)) return;
   const p = predictNextRoads(history || []);
+  const cont = runningSide(history);
+  const brk = cont === 'player' ? 'banker' : 'player';
   for (const [key] of ASK_MARKS){
+    const contMark = cont ? p[cont][key] : null;
+    const brkMark = cont ? p[brk][key] : null;
+    // the road it points at: the hand it would draw red for, and on a dragon - neither red - the
+    // hand that keeps the run going
+    const pointsAtContinue = contMark === 'red' ? true : brkMark === 'red' ? false : true;
+    const ink = {};
+    if (contMark && brkMark){
+      ink[cont] = pointsAtContinue ? 'red' : 'blue';
+      ink[brk] = pointsAtContinue ? 'blue' : 'red';
+    }
     for (const side of ['player','banker']){
       const el = document.getElementById(`ask-${idSuffix}-${side}-${key}`);
       if (!el) continue;
-      // the road's own answer, whatever it is; `none` is the road not having started, and draws
-      // nothing rather than a mark of its own
+      // `none` is the road not having started yet, and draws nothing at all
       el.classList.remove('red','blue','none');
-      el.classList.add(p[side][key] || 'none');
+      el.classList.add(ink[side] || 'none');
     }
   }
 }
@@ -864,7 +952,6 @@ async function enterAvatarSession(tableId){
   paintScreen(view, avatarTableShellHtml());
   renderAvatarRoad();
   renderAvatarTally();
-  renderMyBetHistory();
   updateAvatarStatusPanel();
   mountAvatarChat(tableId);
   paintAvatarFsBars();
@@ -984,9 +1071,7 @@ function tipTotal(){ return TIP.chips.reduce((a,b)=>a+b, 0); }
 /* What is actually spendable right now: the stake already committed to this round is spoken for
    even though it has not left STATE.balance yet. Which figure that is depends on the mode -
    avatarCommittedAmount() for a session, speedLockedTotal() for the speed tables. */
-function tipFreeBalance(){
-  return STATE.balance - (MODE === 'speed' ? speedLockedTotal() : avatarCommittedAmount());
-}
+function tipFreeBalance(){ return playableBalance(); }
 function renderTipChips(){
   const row = document.getElementById('tipChips');
   const stack = document.getElementById('tipStack');
@@ -1052,7 +1137,7 @@ async function submitTip(){
     staff: speed ? CAGE_LEDGER_SOURCE.speed : CAGE_LEDGER_SOURCE.avatar,
   });
   STATE.balance -= amount;
-  document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
+  paintPlayableBalance();
   TIP.chips = [];
   if (!speed){ await refreshTipTotals(); updateAvatarStatusPanel(); }
   closeModal('modal-tip');
@@ -1180,7 +1265,7 @@ async function beginAvatarDealingPhase(){
   }
   if (total > 0){
     STATE.balance -= total;
-    document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
+    paintPlayableBalance();
     toast(t('avatarPlacedTotal', {amount: fmtNum(total)}));
   }
   AVATAR.committed = false;   // the stake has actually left STATE.balance now, one way or the other
@@ -1230,7 +1315,6 @@ async function beginAvatarResultPhase(){
     MY_BET_LOG.unshift({tableName, roundNo, betType, amount, payout, mode:'avatar', dt:new Date().toISOString()});
   }
   const staked = Object.values(bets).reduce((a,x)=>a+x, 0);
-  if (MY_BET_LOG.length) renderMyBetHistory();
   if (AVATAR.currentRoundId !== myRound){
     // moved on to a new round while this settlement was in flight - the payout still landed
     // correctly in the member's ledger under the old round, so the real balance is re-read
@@ -1241,7 +1325,7 @@ async function beginAvatarResultPhase(){
   }
   if (totalPayout > 0) STATE.balance += totalPayout;
   if (staked > 0) toast(roundOutcomeText(staked, totalPayout));
-  document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
+  paintPlayableBalance();
   refreshPointsQuiet();
 
   await writeRoundDoc(db, {tableId, tableType:'avatar', roundNo, shoeNo:shoe.no, sim, startedAt:new Date(Date.now()-(AVATAR_BETTING_SECONDS+AVATAR_DEALING_SECONDS)*1000).toISOString()});
@@ -1288,24 +1372,18 @@ async function sendAvatarChat(){
 let SPEED = { tables:{}, tstate:{}, allBets:[], tick:null, detailTableId:null };
 
 
-async function loadSpeedTables(){
-  const grid = document.getElementById('speedGrid');
-  const toolbar = document.getElementById('speedToolbar');
-  if (toolbar) toolbar.innerHTML = casinoTabsHtml() + gameTypeTabsHtml('speed') + `<div class="lobby-toolbar">${lobbySearchHtml()}</div>`;
-  grid.innerHTML = `<div class="table-loading" style="grid-column:1/-1;height:200px;"><div class="spin-lg"></div><div>${t('connectingTable')}</div></div>`;
+/* The speed side of the lobby's data. It used to own a screen - painting a toolbar and a grid of
+   its own - and now it only gathers, so the one grid can hold both kinds of table. */
+async function loadSpeedLobbyData(){
   const [tableSnap, roundsSnap, betSnap] = await Promise.all([
     db.collection('tables').where('type','==','speed').get(),
     db.collection('rounds').where('tableType','==','speed').get(),
     db.collection('memberLedger').where('category','==','bet').get(),
   ]);
   const tables = tableSnap.docs.map(d=>({id:d.id, ...d.data()})).filter(t=>t.status==='open');
-  if (!tables.length){ grid.innerHTML = `<p class="hint">${t('noSpeedTables')}</p>`; return; }
   const allRounds = roundsSnap.docs.map(d=>d.data());
   SPEED.allBets = betSnap.docs.map(d=>d.data());
   SPEED.tables = {}; SPEED.tstate = {};
-
-  grid.innerHTML = tables.map(tb=>speedTileHtml(tb)).join('');
-  applyLobbyTileFilter();
   tables.forEach(tb=>{
     SPEED.tables[tb.id] = tb;
     const all = allRounds.filter(r=>r.tableId===tb.id).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
@@ -1324,8 +1402,6 @@ async function loadSpeedTables(){
         ? {p: rounds[rounds.length-1].playerScore, b: rounds[rounds.length-1].bankerScore, side: rounds[rounds.length-1].result}
         : null,
     };
-    renderSpeedTileRoad(tb.id);
-    renderSpeedTileStats(tb.id);
   });
 }
 // Built from the same pieces as the avatar lobby card - same classes, same order - so the
@@ -1333,7 +1409,7 @@ async function loadSpeedTables(){
 // which takes the slot the avatar card gives its request/state pill.
 function speedTileHtml(tb){
   return `
-  <div class="lobby-card speed-tile" id="tile-${tb.id}" data-casino="${tb.casino}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}">
+  <div class="lobby-card speed-tile" id="tile-${tb.id}" data-casino="${tb.casino}" data-type="speed" data-table="${tb.id}" data-name="${escapeHtml(tb.name).toLowerCase()}" onclick="openSpeedTableDetail('${tb.id}')" title="${t('openTable')}">
     <div class="thumb"></div>
     <div class="mini-road br-grid" id="road-${tb.id}"></div>
     <div class="card-foot">
@@ -1342,7 +1418,7 @@ function speedTileHtml(tb){
         <span class="card-status live">⏱ <b id="timer-${tb.id}">15</b></span>
         <span class="card-hot" id="score-${tb.id}"></span>
         <span class="card-hot" id="hotbadge-${tb.id}"></span>
-        <button class="card-favorite" onclick="event.stopPropagation();toggleCardFavorite(this)" title="${t('favorites')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
+        <button class="card-favorite ${isFavouriteTable(tb.id)?'active':''}" onclick="event.stopPropagation();toggleCardFavorite(this,'${tb.id}')" title="${t('favorites')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.35-9.5-8.8C.7 7.9 2 4.5 5.4 4c2-.3 3.7.6 4.6 2.2C10.9 4.6 12.6 3.7 14.6 4c3.4.5 4.7 3.9 2.9 7.2C15 15.65 12 20 12 20z"/></svg></button>
       </div>
       <div class="card-line meta"><span class="limits">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</span><span class="counts" id="stats-${tb.id}"></span></div>
     </div>
@@ -1942,11 +2018,7 @@ function clearAvatarBets(){
 }
 /* the header follows the chips, as it does on a Speed table - the stake has not left the balance
    yet, so what is shown is what is left to stake */
-function projectAvatarBalance(){
-  const el = document.getElementById('hdrBalance');
-  if (el) el.textContent = fmtNum(STATE.balance - avatarCommittedAmount());
-  paintAvatarFsBars();
-}
+function projectAvatarBalance(){ paintPlayableBalance(); }
 function renderAvatarBetSpots(){
   const total = Object.values(AVATAR.bets).reduce((a,b)=>a+b,0);
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
@@ -1977,6 +2049,7 @@ function renderAvatarBetBoard(){
 function openSpeedTableDetail(tableId, preserveScroll){
   const s = SPEED.tstate[tableId], tb = SPEED.tables[tableId];
   if (!s || !tb) return;
+  MODE = 'speed';
   SPEED.detailTableId = tableId;
   showView('viewSpeedTable');
   releaseFsFollowers();     // whatever is on loan to the old screen, before it is thrown away
@@ -2005,7 +2078,7 @@ function closeSpeedTableDetail(){
   exitStageFullscreen();
   releaseFsFollowers();
   document.getElementById('viewSpeedTable').innerHTML = '';
-  showView('viewSpeedLobby');
+  showView('viewLobby');
 }
 function speedDetailShellHtml(tableId){
   const tb = SPEED.tables[tableId];
@@ -2281,10 +2354,7 @@ function repeatLastSpeedBetDetail(tableId){
    the change up on the next clock tick, so in fullscreen - which is where the table is actually
    played - money placed did not come off the balance until as much as a second later. Stake three
    chips quickly and the number stood still and then jumped. It moves with the chips now. */
-function projectSpeedBalance(){
-  document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance - speedLockedTotal());
-  if (SPEED.detailTableId) paintSpeedFsBars(SPEED.detailTableId);
-}
+function projectSpeedBalance(){ paintPlayableBalance(); }
 /* One loop drives every table's clock, so it must never wait on any of them. It used to await
    the phase changes, and a phase change is not quick: closing betting writes each staked spot to
    the cage over the network and then deals the cards one at a time, a second and a half of
@@ -2468,10 +2538,9 @@ async function beginSpeedResult(tableId){
   }
   logAiPrediction(tableId, sim.result);   // the paper-betting record, win or lose
   const staked = Object.values(s.bets).reduce((a,x)=>a+x, 0);
-  if (MY_BET_LOG.length) renderMyBetHistory();
   if (totalPayout > 0) STATE.balance += totalPayout;
   if (staked > 0) toast(`[${tb.name}] ${roundOutcomeText(staked, totalPayout)}`);
-  document.getElementById('hdrBalance').textContent = fmtNum(STATE.balance);
+  paintPlayableBalance();
 
   await writeRoundDoc(db, {tableId, tableType:'speed', roundNo:s.roundNo, shoeNo:s.shoe.no, sim, startedAt:new Date(Date.now()-(SPEED_BETTING_SECONDS+SPEED_DEALING_SECONDS)*1000).toISOString()});
   s.history.push(sim.result);

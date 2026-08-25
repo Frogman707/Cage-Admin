@@ -733,12 +733,19 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   grid-template-areas:
     "stage bets"
     "board board";
+  /* ...and below that height the roads went off the bottom of it, which on the avatar table is
+     the half a player is reading. What the stage may take is capped at what is actually left once
+     the board strip has its own depth: the app header above it, this grid's own padding and row
+     gap, and the strip. So the still and the roads are on the screen together at any height, the
+     still giving up what has to be given up rather than the board. */
+  --sd-chrome:103px;
+  --sd-stage-max:calc(100vh - var(--sd-chrome) - var(--sd-board));
 }
 /* The stage carries the live still's own 672x470 proportions, so the photo fills it corner to
    corner at full size instead of being cropped top and bottom to fit a wider box. Its width is
    the column's and its height follows from that, which is what keeps the still the same size on
    every screen rather than trading it away for the screen's height. */
-.sd-stage{grid-area:stage;position:relative;border-radius:16px;aspect-ratio:672/470;min-height:300px;display:flex;align-items:center;justify-content:center;overflow:hidden;
+.sd-stage{grid-area:stage;position:relative;border-radius:16px;aspect-ratio:672/470;min-height:300px;max-height:var(--sd-stage-max,none);display:flex;align-items:center;justify-content:center;overflow:hidden;
   border:1px solid var(--line);
   background:radial-gradient(ellipse 140% 100% at 50% -20%, rgba(217,178,106,.10) 0%, transparent 45%),
              radial-gradient(ellipse at 50% 22%, #123c2f 0%, #07130e 78%);
@@ -1425,7 +1432,10 @@ body.faux-fs-lock{overflow:hidden;}
 .sd-live.is-fs .speed-detail-grid{display:block;position:relative;flex:1;min-height:0;gap:0;}
 .sd-live.is-fs .sd-stage{
   position:absolute;inset:0;width:100%;height:100%;
-  aspect-ratio:auto;min-height:0;border:none;border-radius:0;
+  /* max-height too: outside fullscreen the stage is capped at what the screen has left once the
+     board strip is served, and in here there is no strip to leave room for - the whole screen is
+     the stage */
+  aspect-ratio:auto;min-height:0;max-height:none;border:none;border-radius:0;
 }
 /* the strip: the wrapper becomes a three-column grid and the row that normally holds the two
    board cards dissolves into it, which is what lets the betting board sit between the Bead

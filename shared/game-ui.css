@@ -1020,14 +1020,46 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
      the row's own gap rather than adding to it, so every seam on the board is the one width. */
   outline:var(--bb-seam) solid var(--bb-seam-ink);
 }
-/* 플레이어 and 뱅커 run on underneath the arch, and where it laps over them the seam it keeps is
-   the whole of the edge: green rim, then the board's black, then their felt.
-   A blue line down the 플레이어 side and a red one down the 뱅커 side used to be drawn here, to
-   give the two of them the coloured edge they lose under the arch. It read as three lines stacked
-   where the rest of the board reads as one, it took the seam there to 5px against 3px everywhere
-   else, and neither line could end anywhere but in a square-cut tip - at the row boundary above
-   and under the foot below - which is the one corner on this board that was not rounded.
-   The felt does not draw them either. One seam, the same width all the way round. */
+/* 플레이어 and 뱅커 run on underneath the arch, so along its curve their own border is not there
+   to bound them: it runs straight down the middle of the board, hidden, and their outline simply
+   broke off where the arch's seam began and picked up again below its foot.
+   This carries it round. It is the arch's own box and radius pushed out by exactly the seam, so
+   the black between stays the width every other gap on the board is, drawn in the neighbour's
+   colour at the neighbour's 2px - one line against the seam, the same as any two spots that meet.
+   It is on the board rather than on the arch because a spot clips its own children. */
+.bet-board::before,.bet-board::after{
+  content:'';position:absolute;pointer-events:none;z-index:1;
+  left:50%;margin-left:calc(var(--bb-arch) / -2);top:0;
+  width:var(--bb-arch);height:68%;
+  border-radius:10px 10px 50% 50% / 10px 10px var(--bb-arch-foot) var(--bb-arch-foot);
+  outline:2px solid;outline-offset:var(--bb-seam);
+}
+/* Both ends are cut to land on a border, not on a round number - that is the whole of what makes
+   the line join rather than stop.
+   Above: where 플레이어/뱅커 start. The pair row is 38% of the board and the rows sit --bb-seam
+   apart, the arch is 68% of the board tall, so against the arch's own height that is 38/68 plus
+   the seam. It meets the end of their top border there at a right angle. Higher up nothing is
+   needed - the pair spots' own borders already run in this exact place, in these exact colours.
+   Inward: where their middle border starts, which is half a seam short of the board's centre and
+   not the centre itself. Cut at the centre, the two curves ran on into the gap between 플레이어
+   and 뱅커 and ended in mid-air - the square tip the foot used to wear.
+   The negative insets are what let the outline through at all, since it lies outside the box. */
+.bet-board::before{outline-color:#2A8CB8;
+  clip-path:inset(calc(55.882% + var(--bb-seam)) calc(50% + var(--bb-seam) / 2) -10px -10px);}
+.bet-board::after {outline-color:#A3180F;
+  clip-path:inset(calc(55.882% + var(--bb-seam)) -10px -10px calc(50% + var(--bb-seam) / 2));}
+/* Money on the spot turns its border brass, and this stretch of that border has to turn with it -
+   a staked 플레이어 was outlined in gold everywhere except round the arch, where the line it hands
+   over to went on being blue. Asked of the spot itself rather than tracked in a class of its own,
+   so the two can never fall out of step; where :has is not understood the line simply stays the
+   felt colour, which is where it started. */
+.bet-board:has(.bb-pl.selected)::before{outline-color:var(--brass);}
+.bet-board:has(.bb-bk.selected)::after {outline-color:var(--brass);}
+/* and they shut with the board. The spots dim themselves when a round closes; these are not on a
+   spot, so they take the same two brightnesses here - otherwise a closed board kept two bright
+   curves running through it. */
+.bet-board.board-closed::before,.bet-board.board-closed::after{filter:brightness(.86);}
+.bet-board.board-locked::before,.bet-board.board-locked::after{filter:brightness(.62);}
 .bet-board .bet-spot{
   position:relative;display:block;padding:0;margin:0;gap:0;
   border:2px solid;border-radius:10px;box-shadow:none;overflow:hidden;

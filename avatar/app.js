@@ -427,13 +427,14 @@ async function chooseSpeed(){
    shipped; the headers now make images revalidate, and bumping this number pulls a replacement
    through immediately rather than waiting the hour out. Bump it whenever a file here changes. */
 const CASINO_MARK_SRC = {
-  ALL: '../shared/assets/logo-all.svg?v=3',
-  HANN: '../shared/assets/logo-hann.svg?v=3',
-  NUSTAR: '../shared/assets/logo-nustar.svg?v=3',
-  SOLAIRE: '../shared/assets/logo-solaire.svg?v=3',
+  ALL: '../shared/assets/logo-all.svg?v=4',
+  HANN: '../shared/assets/logo-hann.svg?v=4',
+  NUSTAR: '../shared/assets/logo-nustar.svg?v=4',
+  SOLAIRE: '../shared/assets/logo-solaire.svg?v=4',
+  MIDORI: '../shared/assets/logo-midori.svg?v=4',
 };
-const LOBBY_CASINOS = ['HANN','NUSTAR','SOLAIRE'];
-const CASINO_LABELS = {ALL:'allCasinos', HANN:'casinoHann', NUSTAR:'casinoNustar', SOLAIRE:'casinoSolaire'};
+const LOBBY_CASINOS = ['HANN','NUSTAR','SOLAIRE','MIDORI'];
+const CASINO_LABELS = {ALL:'allCasinos', HANN:'casinoHann', NUSTAR:'casinoNustar', SOLAIRE:'casinoSolaire', MIDORI:'casinoMidori'};
 let LOBBY_CASINO_FILTER = 'ALL';
 let LOBBY_SEARCH = '';
 function casinoTabsHtml(){

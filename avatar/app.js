@@ -36,7 +36,44 @@ let MY_BET_LOG = []; // {tableName, roundNo, betType, amount, payout, mode, dt} 
 let STATE = { balance: 0, points: 0, selectedChip: CHIP_VALUES[0] };
 
 /* ---------------- boot / auth ---------------- */
+/* A page the browser kept and a script the server just sent are not the same app. Hosting says
+   no-store on the HTML, but that header only reaches a fetch: a phone that reopens a tab restores
+   the shell it had, and the scripts inside it are then pulled fresh - so yesterday's markup runs
+   today's code. It shows: the picker page was left standing with its captions reading as bare
+   i18n keys, and its two cards led nowhere because the view they now open is not in that shell.
+   Every build is built around #viewLobby, so its absence is the shell being old. Reload once, off
+   the network; the flag is what stops that becoming a loop if the reload comes back the same. */
+const STALE_FLAG = 'avatarSpeed.staleReload';
+function shellMatchesBuild(){
+  if (document.getElementById('viewLobby')){
+    try{ sessionStorage.removeItem(STALE_FLAG); }catch(e){ /* storage refused; nothing to clear */ }
+    return true;
+  }
+  let tried = false;
+  try{ tried = sessionStorage.getItem(STALE_FLAG) === '1'; }catch(e){ /* no storage: one reload, then on */ }
+  // reloaded once and it came back the same: say so, rather than leaving a page that does nothing
+  if (tried){ showStaleShellNotice(); return false; }
+  try{ sessionStorage.setItem(STALE_FLAG, '1'); }catch(e){ /* best effort */ }
+  location.reload();
+  return false;
+}
+function showStaleShellNotice(){
+  const say = (typeof t === 'function' && t('staleShell')) || '이전 버전 화면입니다. 새로고침해 주세요.';
+  const el = document.createElement('div');
+  el.setAttribute('style', 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;'
+    + 'justify-content:center;flex-direction:column;gap:16px;padding:24px;text-align:center;'
+    + 'background:#0a1420;color:#e8e8e8;font-size:15px;line-height:1.6;');
+  const p = document.createElement('p'); p.textContent = say; p.style.margin = '0';
+  const btn = document.createElement('button');
+  btn.textContent = '↻';
+  btn.setAttribute('style', 'font-size:22px;width:56px;height:56px;border-radius:50%;cursor:pointer;'
+    + 'background:none;border:1.5px solid #d9b26a;color:#d9b26a;');
+  btn.onclick = ()=>{ try{ sessionStorage.removeItem(STALE_FLAG); }catch(e){} location.reload(); };
+  el.appendChild(p); el.appendChild(btn);
+  document.body.appendChild(el);
+}
 window.addEventListener('DOMContentLoaded', ()=>{
+  if (!shellMatchesBuild()) return;
   db = cageInitFirebase();
   document.getElementById('liPw').addEventListener('keydown', e=>{ if (e.key==='Enter') onLogin(); });
   document.getElementById('loginLangRow').innerHTML = langSwitcherHtml('loginLangSwitch');

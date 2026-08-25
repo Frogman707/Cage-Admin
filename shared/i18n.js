@@ -203,6 +203,7 @@ const I18N_DICT = {
   historyTabAvatar:{ko:'아바타 베팅',zhHans:'代打投注',zhHant:'代打投注',en:'Avatar Bets',ja:'アバターベット',vi:'Cược Avatar'},
   noHistory:{ko:'베팅 내역이 없습니다',zhHans:'暂无投注记录',zhHant:'暫無投注記錄',en:'No bet history',ja:'ベット履歴がありません',vi:'Chưa có lịch sử cược'},
   betLabel:{ko:'베팅',zhHans:'投注',zhHant:'投注',en:'Bet',ja:'ベット',vi:'Cược'},
+  staleShell:{ko:'이전 버전 화면입니다. 새로고침해 주세요.',zhHans:'页面为旧版本，请刷新。',zhHant:'頁面為舊版本，請重新整理。',en:'This page is an older version. Please refresh.',ja:'古いバージョンの画面です。再読み込みしてください。',vi:'Trang này là phiên bản cũ. Vui lòng tải lại.'},
   lobbyTitle:{ko:'테이블',zhHans:'桌台',zhHant:'桌臺',en:'Tables',ja:'テーブル',vi:'Bàn chơi'},
   noTablesAtAll:{ko:'열려있는 테이블이 없습니다. 파트너 어드민에서 테이블을 생성해주세요.',zhHans:'暂无开放的桌台。请在合作伙伴管理后台创建桌台。',zhHant:'暫無開放的桌臺。請在合作伙伴管理後臺建立桌臺。',en:'No open tables. Please create tables in Partner Admin.',ja:'開いているテーブルがありません。パートナー管理画面でテーブルを作成してください。',vi:'Không có bàn nào đang mở. Vui lòng tạo bàn trong Partner Admin.'},
   noTablesMatch:{ko:'조건에 맞는 테이블이 없습니다',zhHans:'没有符合条件的桌台',zhHant:'沒有符合條件的桌臺',en:'No tables match',ja:'条件に合うテーブルがありません',vi:'Không có bàn nào phù hợp'},

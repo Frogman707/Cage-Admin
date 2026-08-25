@@ -922,13 +922,14 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
             </div>
             <div class="row">
               <div class="field"><label data-i18n="tableLabel"></label>
-                <select id="gTable"><option value=""></option></select></div>
+                <select id="gTable"><option value=""></option></select>
+                <div class="hint" id="gTableHint" style="display:none;"></div></div>
               <div class="field"><label data-i18n="gameType"></label>
                 <select id="gType"><option>Rolling 1.5%</option><option>Share 40%</option><option>Rolling 1% + Share 10%</option></select></div>
             </div>
             <div class="row">
               <div class="field"><label data-i18n="startKindLabel"></label>
-                <select id="gStartKind"><option value="live" data-i18n="startKindLive"></option><option value="avatar" data-i18n="startKindAvatar"></option><option value="speed" data-i18n="startKindSpeed"></option></select></div>
+                <select id="gStartKind" onchange="refreshGameTableOptions()"><option value="live" data-i18n="startKindLive"></option><option value="avatar" data-i18n="startKindAvatar"></option><option value="speed" data-i18n="startKindSpeed"></option></select></div>
               <div class="field"><label data-i18n="gameIdLabel"></label>
                 <div class="row" style="gap:6px;">
                   <input id="gGameIdPreview" class="num" style="flex:1;" list="ongoingGameIdList">
@@ -5383,24 +5384,45 @@ function renderAvatarSpeedOngoingTables(){
    return `<tr><td>${esc(tb.name)||'—'}</td><td>${tb.type==='speed'?t('startKindSpeed'):t('startKindAvatar')}</td><td class="num">${esc(tb.shoeNo)||1}</td><td>${isOpen?t('tableStatusOpen'):t('tableStatusClosed')}</td><td class="num">${tb.betMin!=null?`${fmt(tb.betMin)} ~ ${fmt(tb.betMax)}`:'—'}</td>
     <td><button class="btn btn-sm ${isOpen?'btn-danger':'btn-jade'}" onclick="toggleTableStatus('${esc(tb.id)}', ${isOpen})">${isOpen?t('tableCloseBtn'):t('tableOpenBtn')}</button></td></tr>`;
   }).join('');
+ refreshGameTableOptions();
 }
-// Each branch has its own physical table numbering (NUSTAR NS001-010, HANN HN001-010, SOLAIRE
-// SL001-010, MIDORI MI001-010) - the Game Start tab's table dropdown must switch to match
-// whichever branch is currently selected, not show one branch's tables while working in another.
+/* The 테이블 picker on 게임 시작 follows both the branch and 시작 종류, because the two kinds of
+   table are two different things.
+   라이브 is a physical table on the floor, and each branch numbers its own: NUSTAR NS001-010,
+   HANN HN001-010, SOLAIRE SL001-010, MIDORI MI001-010. Nothing describes those but the branch
+   they stand in, so the list is generated here.
+   아바타 and 스피드 are tables in the tables collection - the same ones the avatar and speed apps
+   open and the panel above opens and closes - so that collection is the list, not a rule here.
+   They are created and retired in Partner Admin (지점 테이블 생성), and a branch that has none yet
+   says where they are made rather than offering another branch's. */
 const BRANCH_TABLE_PREFIX = {NUSTAR:'NS', HANN:'HN', SOLAIRE:'SL', MIDORI:'MI'};
-function gameTablesForBranch(branch){
+function liveTablesForBranch(branch){
  const prefix = BRANCH_TABLE_PREFIX[branch] || BRANCH_TABLE_PREFIX.HANN;
  const list = [];
  for(let i=1;i<=10;i++) list.push(prefix + String(i).padStart(3,'0'));
  return list;
 }
-function renderGameTableOptions(){
+function gameTableOptionsFor(kind){
+ if(kind !== 'avatar' && kind !== 'speed') return liveTablesForBranch(currentBranch());
+ return fbTablesCache
+  .filter(tb=>tb.type===kind && tb.casino===currentBranch())
+  .map(tb=>tb.id)
+  .sort();
+}
+function refreshGameTableOptions(){
  const sel = document.getElementById('gTable');
  if(!sel) return;
- const prevValue = sel.value;
- const tables = gameTablesForBranch(currentBranch());
- sel.innerHTML = `<option value=""></option>` + tables.map(id=>`<option>${id}</option>`).join('');
- if(tables.includes(prevValue)) sel.value = prevValue;
+ const kind = (document.getElementById('gStartKind')||{}).value || 'live';
+ const ids = gameTableOptionsFor(kind);
+ const keep = sel.value;
+ sel.innerHTML = `<option value=""></option>` + ids.map(id=>`<option>${esc(id)}</option>`).join('');
+ sel.value = ids.includes(keep) ? keep : '';
+ const hint = document.getElementById('gTableHint');
+ if(hint){
+  const empty = (kind === 'avatar' || kind === 'speed') && !ids.length;
+  hint.style.display = empty ? '' : 'none';
+  if(empty) hint.textContent = t('noBranchTablesHint');
+ }
 }
 // Starting an avatar/speed game must make its table actually show up live on the Avatar Speed
 // site (it reads the same 'tables' collection) - so open (or, the first time that branch's table
@@ -5585,7 +5607,6 @@ function switchBranch(branch){
  const avatarReqModal = document.getElementById('modal-avatar-request');
  if(avatarReqModal && avatarReqModal.classList.contains('open')) renderAvatarReqList();
  renderAvatarSpeedOngoingTables();
- renderGameTableOptions();
  const topBalEl = document.getElementById('lastBalTime');
  if(topBalEl) topBalEl.textContent = bd().lastBalancingDt || '—';
  const lastCutoffEl = document.getElementById('lastCutoff');
@@ -6108,6 +6129,8 @@ ko:{
  totalRollingLabel:"토탈 롤링",
  rollingReceiptTitle:"롤링커미션 정산서", receiptBuyinAmt:"바인금액", receiptCashoutAmt:"캐쉬아웃", rollingCommSettleAmt:"롤링 커미션 정산금", shiftManagerLabel:"Shift Manager",
  startKindLabel:"시작 종류", startKindLive:"라이브", startKindAvatar:"아바타", startKindSpeed:"스피드",
+ noBranchTablesHint:"이 지점에 등록된 아바타·스피드 테이블이 없습니다. 파트너 어드민의 '지점 테이블 생성'으로 만들어주세요.",
+ memoHouseBuyin:"아바타·스피드 바이인(메인 어카운트)", memoHouseEndDeposit:"아바타·스피드 게임종료 디파짓(메인 어카운트)", toastMainInsufficient:"메인 어카운트 잔액이 부족합니다.", notifMainInsufficient:"메인 어카운트 잔액 부족",
  genBtn:"생성", walkinBtn:"워크인", addBuyinHint:"기존 게임 ID를 입력하고 바이인 총액을 넣은 뒤 게임 시작을 누르면 추가 바이인으로 처리됩니다.", notifAddBuyin:"추가 바이인", toastAddBuyin:"추가 바이인이 반영되었습니다.",
  settleListBtn:"정산 목록", settleListTitle:"전체 롤링 커미션 정산 내역",
  midListBtn:"중간 정산 기록", midListTitle:"전체 중간정산 내역", gameEndListBtn:"게임 종료 기록", gameEndListTitle:"전체 게임 종료 기록",
@@ -6247,6 +6270,8 @@ en:{
  totalRollingLabel:"Total Rolling",
  rollingReceiptTitle:"Rolling Commission Settlement", receiptBuyinAmt:"Buy-in Amount", receiptCashoutAmt:"CashOut", rollingCommSettleAmt:"Rolling Commission Settlement", shiftManagerLabel:"Shift Manager",
  startKindLabel:"Start Kind", startKindLive:"Live", startKindAvatar:"Avatar", startKindSpeed:"Speed",
+ noBranchTablesHint:"This branch has no avatar or speed tables yet. Create them with '지점 테이블 생성' in Partner Admin.",
+ memoHouseBuyin:"Avatar/Speed Buy-in (Main Account)", memoHouseEndDeposit:"Avatar/Speed Game End Deposit (Main Account)", toastMainInsufficient:"The main account has insufficient balance.", notifMainInsufficient:"Main Account Insufficient",
  genBtn:"Generate", walkinBtn:"Walk-in", addBuyinHint:"Enter an existing Game ID and a Buy-in Total, then press Start Game to add an additional buy-in.", notifAddBuyin:"Additional Buy-in", toastAddBuyin:"Additional buy-in recorded.",
  settleListBtn:"Settlement List", settleListTitle:"All Rolling Commission Settlements",
  midListBtn:"Mid-Settlement Records", midListTitle:"All Mid-Settlement History", gameEndListBtn:"Game End Records", gameEndListTitle:"All Game End Records",
@@ -6386,6 +6411,8 @@ en:{
  totalRollingLabel:"總轉碼",
  rollingReceiptTitle:"轉碼佣金結算單", receiptBuyinAmt:"買入金額", receiptCashoutAmt:"兌現金額", rollingCommSettleAmt:"轉碼佣金結算金額", shiftManagerLabel:"班務經理",
  startKindLabel:"開局種類", startKindLive:"現場", startKindAvatar:"電投", startKindSpeed:"快速電投",
+ noBranchTablesHint:"此分店尚無電投／快速電投賭桌。請於合作伙伴管理後臺的「지점 테이블 생성」建立。",
+ memoHouseBuyin:"電投／快速電投買入（主帳戶）", memoHouseEndDeposit:"電投／快速電投結束賽局存入（主帳戶）", toastMainInsufficient:"主帳戶餘額不足。", notifMainInsufficient:"主帳戶餘額不足",
  genBtn:"產生", walkinBtn:"散客", addBuyinHint:"輸入現有的遊戲ID並填入買入總額，按下開始遊戲即可追加買入。", notifAddBuyin:"追加買入", toastAddBuyin:"追加買入已記錄。",
  settleListBtn:"結算清單", settleListTitle:"全部轉碼佣金結算紀錄",
  midListBtn:"中途結算紀錄", midListTitle:"全部中途結算紀錄", gameEndListBtn:"結束賽局紀錄", gameEndListTitle:"全部結束賽局紀錄",
@@ -6525,6 +6552,8 @@ en:{
  totalRollingLabel:"总转码",
  rollingReceiptTitle:"转码佣金结算单", receiptBuyinAmt:"买入金额", receiptCashoutAmt:"兑现金额", rollingCommSettleAmt:"转码佣金结算金额", shiftManagerLabel:"班务经理",
  startKindLabel:"开局种类", startKindLive:"现场", startKindAvatar:"电投", startKindSpeed:"快速电投",
+ noBranchTablesHint:"此分店尚无电投／快速电投赌桌。请于合作伙伴管理后台的「지점 테이블 생성」建立。",
+ memoHouseBuyin:"电投／快速电投买入（主账户）", memoHouseEndDeposit:"电投／快速电投结束赛局存入（主账户）", toastMainInsufficient:"主账户余额不足。", notifMainInsufficient:"主账户余额不足",
  genBtn:"生成", walkinBtn:"散客", addBuyinHint:"输入现有的游戏ID并填入买入总额，按下开始游戏即可追加买入。", notifAddBuyin:"追加买入", toastAddBuyin:"追加买入已记录。",
  settleListBtn:"结算清单", settleListTitle:"全部转码佣金结算记录",
  midListBtn:"中途结算记录", midListTitle:"全部中途结算记录", gameEndListBtn:"结束赛局记录", gameEndListTitle:"全部结束赛局记录",
@@ -7549,8 +7578,9 @@ async function withdrawAcrossBranches(accountId, casino, amt, staffName, memo){
 // it happened on, so it needs the table number baked in (live/speed games keep the plain memo,
 // since GAME# already ties those back to a specific table via the game record).
 function gameLedgerMemoSuffix(g){
- if(!g || g.startKind !== 'avatar') return '';
- return ` · ${t('startKindAvatar')} · ${t('tableLabel')}: ${g.table||'—'}`;
+ if(!g || !isHouseFundedKind(g.startKind)) return '';
+ const kind = g.startKind === 'speed' ? t('startKindSpeed') : t('startKindAvatar');
+ return ` · ${kind} · ${t('tableLabel')}: ${g.table||'—'}`;
 }
 async function applyAccountTransaction(accountId, type, amount, memo){
  const acc = DB.accounts[accountId];
@@ -7837,18 +7867,33 @@ function enforceThousand(el){
  const rounded = Math.round(raw/1000)*1000;
  el.value = fmt(rounded);
 }
+/* ---- who pays for the chips ----
+   A live game is bought in by the guest: the money leaves their account and the branch's MAIN
+   account takes it in (applyAccountTransaction writes both sides).
+   An avatar or speed game is not played at the window. The guest's money moves in the app, on
+   their member ledger, and never touches the cage; what the cage does is float the table. So the
+   buy-in comes OUT of the branch's MAIN account and the game-end deposit goes back IN to it, and
+   the guest's own account is not touched at all. */
+function isHouseFundedKind(kind){ return kind === 'avatar' || kind === 'speed'; }
+function currentStartKind(){ return (document.getElementById('gStartKind')||{}).value || 'live'; }
 function startGame(){
  const account = document.getElementById('gAccount').value.trim().toUpperCase();
  const buyin = unformatNum(document.getElementById('gBuyin').value);
  const workingChip = unformatNum(document.getElementById('gWorkingChip').value);
  const enteredId = document.getElementById('gGameIdPreview').value.trim();
  const startType = document.getElementById('gStartType').value;
+ const houseFunded = isHouseFundedKind(currentStartKind());
 
  // If the entered Game ID matches an ongoing game, treat this as an additional buy-in instead of a new game.
  const existing = enteredId ? visibleGames().find(g=>g.gameId===enteredId) : null;
  if(existing){
   if(buyin<=0 && workingChip<=0) return;
-  if(startType==='account' && account && buyin>0){
+  // An added buy-in is funded the way the game it belongs to was funded, not the way the form
+  // happens to be set now.
+  if(isHouseFundedKind(existing.startKind) && buyin>0){
+   if(!checkMainBuyinBalance(buyin)) return;
+   requestPinAuth(()=>_doAddBuyin(existing, buyin, workingChip));
+  } else if(startType==='account' && account && buyin>0){
    if(!checkAccountBuyinBalance(account, buyin)) return;
    requestWithdrawAuth(account, ()=>_doAddBuyin(existing, buyin, workingChip));
   } else {
@@ -7858,7 +7903,12 @@ function startGame(){
  }
 
  if(!account){ toast(t('toastNoAcc')); return; }
- if(startType==='account'){
+ // The house float goes out on the staff PIN, not the guest's withdrawal password - the guest is
+ // in the app, not at the window, and nothing is leaving their account to ask them about.
+ if(houseFunded){
+  if(buyin>0 && !checkMainBuyinBalance(buyin)) return;
+  requestPinAuth(()=>_doStartGame(account, buyin, workingChip, enteredId));
+ } else if(startType==='account'){
   if(!checkAccountBuyinBalance(account, buyin)) return;
   requestWithdrawAuth(account, ()=>_doStartGame(account, buyin, workingChip, enteredId));
  } else {
@@ -7870,6 +7920,16 @@ function checkAccountBuyinBalance(account, buyin){
  if(!hasSufficientBalance(account, casino, buyin)){
   toast(t('toastInsufficientBalance'));
   pushNotification('notifInsufficientBalance', `${account} · ${casino}`);
+  return false;
+ }
+ return true;
+}
+function checkMainBuyinBalance(buyin){
+ const casino = currentBranch();
+ const mainId = mainAccountIdForCasino(casino);
+ if(!DB.accounts[mainId] || !hasSufficientBalance(mainId, casino, buyin)){
+  toast(t('toastMainInsufficient'));
+  pushNotification('notifMainInsufficient', `${mainId} · ${fmt(buyin)}`);
   return false;
  }
  return true;
@@ -7916,7 +7976,16 @@ async function _doAddBuyin(existing, buyin, workingChip){
  const {date, time} = nowDateTimeParts();
  const remarkNo = last3Digits(existing.gameId);
  let acctWriteFailed = false;
- if(existing.startType === 'cash'){
+ // Funded the way the game itself was funded - an avatar/speed table's chips come off the branch
+ // MAIN account, the added ones the same as the first.
+ if(isHouseFundedKind(existing.startKind)){
+  if(buyin > 0){
+   const txn = await applyAccountTransaction(mainAccountIdForCasino(currentBranch()), 'OUT', buyin,
+    `${t('memoHouseBuyin')} (${existing.gameId})${gameLedgerMemoSuffix(existing)} — ${existing.account}`);
+   renderMemberCard(); renderLedger();
+   if(!txn) acctWriteFailed = true;
+  }
+ } else if(existing.startType === 'cash'){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + buyin;
   applyShift('cashBuyinShift', buyin, staffName);
   sendCageNotification(existing.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${existing.account}`, `GAME#: ${existing.gameId}`, `CURR.: ${existing.cur||'PHP'}`, `ADD B/I: (CASH) ${fmt(buyin)}`, `REMARKS: ADD B/I#${remarkNo}`]);
@@ -7958,12 +8027,23 @@ async function _doStartGame(account, buyin, workingChip, enteredId){
  if(workingChip) applyShift('workingChipRollingShift', workingChip, staffName);
  const {date, time} = nowDateTimeParts();
  const remarkNo = last3Digits(gameId);
- if(startType === 'cash'){
+ /* The house floats an avatar/speed table: the chips leave the branch's MAIN account and no cash
+    or marker is taken at the window, so this comes before the startType branches rather than
+    inside one of them. No cage receipt goes to the guest either - their own account did not
+    move, and the balance on that slip would be the house's. */
+ var txn = null;
+ if(isHouseFundedKind(startKind)){
+  if(buyin > 0){
+   txn = await applyAccountTransaction(mainAccountIdForCasino(currentBranch()), 'OUT', buyin,
+    `${t('memoHouseBuyin')} (${gameId})${gameLedgerMemoSuffix(newGame)} — ${account}`);
+   renderMemberCard(); renderLedger();
+  }
+ } else if(startType === 'cash'){
   DB.gameCashAdjust = (DB.gameCashAdjust||0) + buyin;
   applyShift('cashBuyinShift', buyin, staffName);
   sendCageNotification(account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${account}`, `GAME#: ${gameId}`, `CURR.: ${cur||'PHP'}`, `B/I: (CASH) ${fmt(buyin)}`, `REMARKS: B/I #${remarkNo}`]);
  } else if(startType === 'account'){
-  var txn = await applyAccountTransaction(account, 'OUT', buyin, `${t('memoGameBuyin')} (${gameId})${gameLedgerMemoSuffix(newGame)}`);
+  txn = await applyAccountTransaction(account, 'OUT', buyin, `${t('memoGameBuyin')} (${gameId})${gameLedgerMemoSuffix(newGame)}`);
   renderMemberCard(); renderLedger();
   if(txn) sendCageNotification(account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${account}`, `GAME#: ${gameId}`, `CURR.: ${cur||'PHP'}`, `B/I: (D/P) ${fmt(buyin)}`, `BAL: ${fmt(txn.balance)}`, `REMARKS: B/I #${remarkNo}`]);
  }
@@ -7973,8 +8053,10 @@ async function _doStartGame(account, buyin, workingChip, enteredId){
  pushNotification('notifGameStart', `${account} · ${gameId} · ${table}`);
  // The buy-in chips are already recorded on the game (that reflects physical reality at the
  // table), but if the account-side ledger write failed, say so clearly instead of the normal
- // success toast.
- toast((startType === 'account' && !txn) ? t('toastStaffSyncFailed') : t('toastGameStarted'));
+ // success toast. The house float out of MAIN is an account write the same as the guest's, so it
+ // gets the same signal.
+ const wantedLedgerWrite = buyin > 0 && (isHouseFundedKind(startKind) || startType === 'account');
+ toast((wantedLedgerWrite && !txn) ? t('toastStaffSyncFailed') : t('toastGameStarted'));
 }
 async function cancelGame(gameId){
  const g = DB.games.find(x=>x.gameId===gameId);
@@ -8690,11 +8772,20 @@ async function _doConfirmGameEnd(){
  const depositSum = cc.deposit + nn.deposit;
  let depositFailed = false;
  if(depositSum > 0){
-  const txn = await applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoGameEndDeposit')} (${g.gameId})${gameLedgerMemoSuffix(g)}`);
+  /* The chips come back to whoever put them out. An avatar/speed table was floated by the branch
+     MAIN account, so they return to it and the guest gets no cage receipt - their own account
+     never moved, and the balance on that slip would be the house's. */
+  const houseFunded = isHouseFundedKind(g.startKind);
+  const txn = houseFunded
+   ? await applyAccountTransaction(mainAccountIdForCasino(currentBranch()), 'IN', depositSum,
+      `${t('memoHouseEndDeposit')} (${g.gameId})${gameLedgerMemoSuffix(g)} — ${g.account}`)
+   : await applyAccountTransaction(g.account, 'IN', depositSum, `${t('memoGameEndDeposit')} (${g.gameId})${gameLedgerMemoSuffix(g)}`);
   renderMemberCard(); renderLedger();
   if(txn){
-   const {date, time} = nowDateTimeParts();
-   sendCageNotification(g.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${g.account}`, `GAME#: ${g.gameId}`, `CURR.: ${g.cur||'PHP'}`, `B/I: ${fmt(g.buyin||0)}`, `DEP.: ${fmt(depositSum)}`, `TIP: 0`, `F/C: 0`, `BAL: ${fmt(txn.balance)}`, `REMARKS: F/G #${last3Digits(g.gameId)}`]);
+   if(!houseFunded){
+    const {date, time} = nowDateTimeParts();
+    sendCageNotification(g.account, [branchLabel(), `DATE: ${date}`, `TIME: ${time}`, `ACC.: ${g.account}`, `GAME#: ${g.gameId}`, `CURR.: ${g.cur||'PHP'}`, `B/I: ${fmt(g.buyin||0)}`, `DEP.: ${fmt(depositSum)}`, `TIP: 0`, `F/C: 0`, `BAL: ${fmt(txn.balance)}`, `REMARKS: F/G #${last3Digits(g.gameId)}`]);
+   }
   } else {
    depositFailed = true;
   }
@@ -10279,7 +10370,7 @@ function renderAll(){
  renderHotels(); renderCars(); renderAero(); renderPoints(); renderNotifications();
  renderEndedGames(); renderShiftStaff(); renderMemberCompanyDiff(); renderBalancingSummary();
  renderDashboard(); updateAccSearchBtn(); renderEventToggle(); renderEventHistory(); renderAvatarReqBtn();
- renderTotalDeposit(); renderReportCards(); renderAvatarSpeedOngoingTables(); renderGameTableOptions();
+ renderTotalDeposit(); renderReportCards(); renderAvatarSpeedOngoingTables();
 }
 function renderTotalDeposit(){
  const allInEl = document.getElementById('totalDepositAllIn');

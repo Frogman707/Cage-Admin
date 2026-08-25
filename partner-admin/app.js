@@ -8,7 +8,32 @@ let db = null;
 let CURRENT_STAFF = null;
 let CURRENT_VIEW = 'dashboard';
 let CASINO_FILTER = 'ALL';
-const CASINOS = ['NUSTAR','HANN','ONLINE'];
+/* SOLAIRE and MIDORI are branches of the business the same as the other two - Cage Admin has
+   carried them in its own branch list all along - so they belong in every casino picker here as
+   well. ONLINE is not a floor; it stays in the list because members are registered under it. */
+const CASINOS = ['NUSTAR','HANN','SOLAIRE','MIDORI','ONLINE'];
+
+/* ---------------- the tables each branch runs ----------------
+   Ten speed and ten avatar per branch, id <branch code><S|A><nn> - NUS01..NUS10 for NuStar speed,
+   NUA01..NUA10 for its avatar tables, and so on. This is the only place they are written down:
+   the avatar and speed apps, Cage Admin's game-start screen and its 아바타·스피드 테이블 관리 all
+   read them back out of the tables collection.
+   ONLINE has no floor, so it has no tables. */
+const BRANCH_TABLE_CODES = {NUSTAR:'NU', HANN:'HN', SOLAIRE:'SL', MIDORI:'MI'};
+const BRANCH_TABLE_KINDS = [{type:'speed', letter:'S', word:'Speed'}, {type:'avatar', letter:'A', word:'Avatar'}];
+const BRANCH_TABLES_PER_KIND = 10;
+function branchTableDefs(){
+  const out = [];
+  Object.entries(BRANCH_TABLE_CODES).forEach(([casino, code])=>{
+    BRANCH_TABLE_KINDS.forEach(({type, letter, word})=>{
+      for (let i = 1; i <= BRANCH_TABLES_PER_KIND; i++){
+        const no = String(i).padStart(2, '0');
+        out.push({id:`${code}${letter}${no}`, name:`${casino} ${word} ${no}`, type, casino});
+      }
+    });
+  });
+  return out;
+}
 
 /* ---------------- icons ---------------- */
 const ICONS = {
@@ -121,6 +146,7 @@ function buildNav(){
     <div class="nav-foot">
       Partner Cage Ops<br>CAGE ADMIN 5.0
       <div class="nav-foot-btns">
+        <button onclick="confirmCreateBranchTables()">지점 테이블 생성</button>
         <button onclick="confirmSeed()">데모 데이터 생성</button>
         <button onclick="confirmWipe()">데이터 초기화</button>
       </div>
@@ -503,6 +529,39 @@ function confirmSeed(){
 }
 function confirmWipe(){
   askConfirm('데이터 초기화', '이 사이트가 생성한 모든 데모 컬렉션을 삭제합니다. 되돌릴 수 없습니다. 계속할까요?', wipeDemoData);
+}
+function confirmCreateBranchTables(){
+  const defs = branchTableDefs();
+  const branches = Object.keys(BRANCH_TABLE_CODES).join(', ');
+  askConfirm('지점 테이블 생성',
+    `${branches} 각 지점에 스피드 ${BRANCH_TABLES_PER_KIND}개 · 아바타 ${BRANCH_TABLES_PER_KIND}개, 모두 ${defs.length}개의 테이블을 만듭니다. ` +
+    '이미 있는 테이블은 이름과 타입만 맞추고 배팅 한도·슈 번호·영업 상태는 그대로 둡니다. 계속할까요?',
+    createBranchTables);
+}
+/* Safe to run again: an existing table keeps whatever limits, shoe number and open/closed state
+   staff have set on it, and only has its identity (name, type, casino) brought back into line.
+   Only a table being created for the first time gets the defaults. */
+async function createBranchTables(){
+  toast('지점 테이블 생성 중...');
+  const defs = branchTableDefs();
+  const existing = new Set((await getTables(true)).map(t=>t.id));
+  const batch = db.batch();
+  let made = 0;
+  defs.forEach(d=>{
+    const data = existing.has(d.id) ? d : {...d, status:'open', betMin:5000, betMax:3000000, shoeNo:1};
+    if (!existing.has(d.id)) made++;
+    batch.set(db.collection('tables').doc(d.id), data, {merge:true});
+  });
+  try {
+    await batch.commit();
+  } catch (e) {
+    console.error('createBranchTables failed:', e);
+    toast('지점 테이블 생성에 실패했습니다', true);
+    return;
+  }
+  toast(`지점 테이블 ${defs.length}개 반영 완료 (신규 ${made}개)`);
+  invalidateCaches();
+  switchView(CURRENT_VIEW);
 }
 
 /* ============================================================
@@ -1804,15 +1863,11 @@ async function seedDemoData(){
   partners.forEach(p => set('partners', p.id, {...p, casino: randPick(CASINOS), status:'active', createdAt: randDateWithin(200)}));
   partners.forEach(p => { for (let i=0;i<4;i++){ set('shareLedger', uuidv4(), {partnerCode:p.id, amount: randInt(1000,80000), category:'share_accum', memo:'롤링 쉐어 적립', createdAt: randDateWithin(30)}); } });
 
-  // tables
-  const tableDefs = [
-    {id:'HN-A01', name:'Avatar Table A01', type:'avatar', casino:'HANN'},
-    {id:'HN-A02', name:'Avatar Table A02', type:'avatar', casino:'HANN'},
-    {id:'NU-A01', name:'Avatar Table A01', type:'avatar', casino:'NUSTAR'},
-    {id:'HN-S01', name:'Speed Table S01', type:'speed', casino:'HANN'},
-    {id:'HN-S02', name:'Speed Table S02', type:'speed', casino:'HANN'},
-    {id:'NU-S01', name:'Speed Table S01', type:'speed', casino:'NUSTAR'},
-  ];
+  /* tables — a handful of the branch tables above, not all 80: each one seeded here also gets 25
+     rounds and their bets, so the whole set would be two thousand rounds of demo data. The full
+     set is created by 지점 테이블 생성, which makes tables and nothing else. */
+  const seededTableIds = ['HNA01','HNA02','NUA01','HNS01','HNS02','NUS01'];
+  const tableDefs = branchTableDefs().filter(t=>seededTableIds.includes(t.id));
   tableDefs.forEach(t => set('tables', t.id, {...t, status:'open', betMin:5000, betMax:3000000, shoeNo: randInt(1,8)}));
 
   // members

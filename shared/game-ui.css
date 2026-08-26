@@ -973,28 +973,11 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   .sd-road-legend-rail .rail-badge .slash::before{height:2.5px;}
 }
 .sd-bets{grid-area:bets;background:radial-gradient(ellipse at 50% 0%, #0f3a2c 0%, #071f18 70%);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
-/* ---- the board on the page: flat cells on the dark green, as this screen has always had it.
-   The felt below is fullscreen's, and only fullscreen draws it. ---- */
-.bb-classic{display:flex;flex-direction:column;flex:1;min-height:0;}
-.sd-bets .pair-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:0;flex:0 0 auto;}
-.sd-bets .bet-rail.two-up{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;flex:1;}
-.sd-bets .bet-spot{
-  background:none;border:none;border-radius:0;box-shadow:none;
-  border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-  padding:16px 8px;position:relative;
-}
-.sd-bets .bet-spot::before{display:none;}
-.sd-bets .bet-spot:hover{transform:none;background:rgba(255,255,255,.03);}
-.sd-bets .pair-row .bet-spot:last-child,.sd-bets .bet-rail .bet-spot:last-child{border-right:none;}
-.sd-bets .bet-rail .bet-spot{border-bottom:none;padding:14px 8px;}
-.sd-bets .bet-rail .bet-spot .label{font-size:20px;}
-.sd-bets .bet-spot.selected{background:rgba(217,178,106,.1);box-shadow:inset 0 0 0 2px var(--brass);}
-.sd-bets .bet-spot .meta-row{display:flex;gap:10px;font-size:9.5px;color:rgba(255,255,255,.5);font-family:var(--mono);}
-.sd-bets .bet-spot .meta-row span{display:inline-flex;align-items:center;gap:3px;}
-.sd-bets .bet-spot .odds{font-size:9.5px;opacity:.7;}
+/* A table used to have a second, flatter board - cells on the dark green - for the screen where
+   the table sat on a page. There is no such screen now: a table is the fullscreen screen, and the
+   board is the felt below, everywhere. */
 
-/* ---- fullscreen's board: the felt, as it is painted ----
+/* ---- the board: the felt, as it is painted ----
    Two rows: the pairs across the top at 38% of the board, 플레이어 and 뱅커 across the bottom
    in half each; and 타이 standing between them as a green column that ends in a semicircle over
    the line where the two meet. The arch is a third child laid over the rows rather than a cell
@@ -1089,9 +1072,8 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
    On the felt the mark is brightness and NEVER opacity, for the reason above this: 타이 is an
    arch laid over 플레이어 and 뱅커, so anything translucent shows the two of them straight
    through it - the seam between them ran across the middle of the arch the moment a round was
-   confirmed. The flat board has no overlapping spot, so a dim there is safe. */
+   confirmed. */
 .bet-spot.bets-closed,.bet-spot.bets-closed:hover{cursor:not-allowed;transform:none;}
-.bb-classic .bet-spot.bets-closed,.bb-classic .bet-spot.bets-closed:hover{opacity:.8;}
 .bet-board .bet-spot.bets-closed,.bet-board .bet-spot.bets-closed:hover{
   opacity:1;filter:brightness(.86);cursor:not-allowed;
 }
@@ -1342,8 +1324,10 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 }
 
 /* ================= 전체화면 (fullscreen) =================
-   The button fullscreens the whole table, so this is the table's second layout rather than a
-   coat of paint on the first one. Two screens, chosen by the same 860px the ordinary screen is:
+   This is the table screen - the only one there is. It used to be the second of two, reached by a
+   ⛶ from a table sitting on a page; opening a table is entering this now, and the ⛶ is left
+   asking the browser for its own fullscreen on top of it. Two screens still, chosen by the same
+   860px the rest of the app is:
 
    Desktop - the still fills the screen and everything else rides over its foot: the counts and
    the Bead Plate on the left, the betting board in the middle, the roads and the P/B prediction
@@ -1360,25 +1344,24 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   position:relative;width:100%;height:100%;max-width:none;margin:0;padding:0;
   background:#05100c;display:flex;flex-direction:column;overflow:hidden;
 }
-/* Fullscreen where the browser has no fullscreen to give. Safari on iOS will only ever put a
-   <video> fullscreen, never an element, so the table covers the viewport itself instead. It is
-   the same screen - .is-fs above lays it out either way - and all this adds is the box holding
-   it, which is why it has to come after that rule and outrank it: the real one is positioned by
-   the fullscreen viewport it already fills, this one has to go and cover the page. dvh rather
-   than vh so a phone's collapsing address bar doesn't leave the foot of the table under it. */
+/* The box that holds the screen over the page. Every table gets it: the browser's own fullscreen
+   cannot be asked for without a gesture, and Safari on iOS will only ever put a <video>
+   fullscreen, never an element - so covering the viewport is the app's own doing, and the
+   browser's fullscreen, when it is granted, only takes the chrome off the top. It comes after the
+   rule above and outranks it because the two are positioned differently: a real fullscreen
+   element is placed by the viewport it already fills, this one has to go and cover the page. dvh
+   rather than vh so a phone's collapsing address bar doesn't leave the foot of the table under
+   it. */
 .speed-detail-wrap.is-fs.faux-fs{
   position:fixed;inset:0;z-index:9000;
   height:100vh;height:100dvh;
 }
 body.faux-fs-lock{overflow:hidden;}
-/* the bars are fullscreen's; the ordinary page has its own header */
+/* the bars belong to the table screen; the lobby behind it has the page header */
 .sd-fs-bar{display:none;}
-/* The avatar table has no betting board of its own - its side column is the dealer's status and
-   the chat - so it gets no strip. Fullscreen there is simply the table screen on the whole
-   screen, scrolling if the screen is short. */
-.speed-detail-wrap.is-fs:not(.sd-live){padding:14px;overflow:auto;background:var(--bg);}
-/* The wrapper around the board and the spots costs the ordinary screen nothing: it is not a box
-   at all, so its children land on the table grid exactly as they did before it existed. */
+/* The wrapper around the board and the spots is not a box on a phone: its children land on the
+   stack exactly as they would without it. It becomes the strip over the foot of the still only on
+   a desktop, below. */
 .sd-underbar{display:contents;}
 
 /* ---- the bar under the table ---- */
@@ -1684,17 +1667,28 @@ body.faux-fs-lock{overflow:hidden;}
 }
 
 /* ---- the toast clears the chip tray ----
-   shared/cage-ui.css puts a toast at the foot of the screen, centred. On the two table screens
-   the foot is the chip tray - 베팅완료 and 반복 and 멀티 베팅 are in it - and on a phone the
-   toast landed squarely over them, which is exactly when a round's result is being announced and
-   the next bet is being placed. It stands above the tray on those screens; everywhere else the
-   foot is empty and the toast stays where it was. */
+   shared/cage-ui.css puts a toast at the foot of the screen, centred. On a table the foot is the
+   chip tray - 베팅완료 and 반복 and 멀티 베팅 are in it - and the toast landed squarely over
+   them, which is exactly when a round's result is being announced and the next bet is being
+   placed. It stands above the tray there; everywhere else the foot is empty and the toast stays
+   where it was.
+   The desktop's tray is the middle of the 62px bar at the foot, so clearing the bar clears it. */
 body.has-chip-tray .toast{bottom:84px;}
 body.has-chip-tray .toast.show{bottom:94px;}
 @media (max-width:860px){
-  /* the phone's tray is deeper: it wraps the chips onto their own line */
-  body.has-chip-tray .toast{bottom:104px;}
-  body.has-chip-tray .toast.show{bottom:114px;}
+  /* The phone's is two rows standing on top of the 52px bar rather than inside it - six chips
+     across and 취소 / 베팅완료 / 반복 / 멀티 베팅 under them, 98px of tray - so the toast clears
+     150 rather than the bar's own height. Measured at 390x844: the tray's top edge is 145 above
+     the foot of the screen, and the screen is 11px from being able to scroll at all, so there is
+     no reading of it that puts the tray any lower. */
+  body.has-chip-tray .toast{bottom:150px;}
+  body.has-chip-tray .toast.show{bottom:160px;}
+  /* and with the multi-bet sheet up it clears that instead. The sheet is a bottom sheet - it owns
+     the foot of the screen while it is open - and the line the toast would otherwise land on is
+     its header, which carries the 베팅완료 that signs off every table at once. 210px of sheet at
+     390x844: a header that never wraps over one rail of table cards. */
+  body.has-chip-tray:has(.speed-multi.open) .toast{bottom:230px;}
+  body.has-chip-tray:has(.speed-multi.open) .toast.show{bottom:240px;}
 }
 
 /* ---- 다음 게임 예측: the AI panel ----

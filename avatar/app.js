@@ -276,29 +276,45 @@ function toggleHeaderFavorite(){
   applyLobbyTileFilter();
 }
 /* ---------------- 전체화면 ----------------
-   The whole table goes fullscreen, not the video on its own. Fullscreening just the still left
-   the board, the spots and the chips behind on a page nobody could see, so there was no game to
-   play once you were in it. The screen the button opens now is the table itself:
+   A table is only ever the fullscreen screen. It used to be two screens - a card on a page with a
+   ⛶ on it that swapped the page for the screen the game is actually played on - and the one on
+   the page was the poorer of the two everywhere: the still small in a box with the room around it
+   spent on the page's own furniture, and the board a flat grid rather than the felt. Nobody who
+   found the ⛶ went back. So opening a table is entering that screen:
      - on a desktop the still fills the screen corner to corner and everything else rides over
        its foot as one strip - the counts and the Bead Plate on the left, the betting spots in
        the middle, the roads and the P/B prediction on the right;
      - on a phone there is no room to lay anything over anything, so the same pieces stack down
        the screen with a bar naming the round and the shoe above them and a bar carrying the
        balance below.
-   Which of the two you get is the screen's own width, exactly as it is outside fullscreen. */
-/* Not every browser has the fullscreen API this used to call, and the ones that don't were left
-   with a button that did nothing at all: it asked for `requestFullscreen?.()`, and optional
-   chaining on a method that isn't there is silence, not an error. Safari on iOS has no element
-   fullscreen at all (only a video can go fullscreen there), and others carry it webkit-prefixed
-   only. So: the prefixed names are tried too, and where there is no such API - or the browser
-   refuses the request - the table goes fullscreen the only way left, by covering the viewport
-   itself. The layout is already driven by the .is-fs class rather than :fullscreen, so the faux
-   one is the same screen; all it adds is the fixed box holding it. */
+   Which of the two you get is the screen's own width. The lobby is still the page it was: it is a
+   list of tables, and a list has nothing to gain from covering the screen. */
+/* Covering the viewport is the app's own doing rather than the browser's, because the browser's
+   cannot be asked for here: element fullscreen needs a gesture to grant it, and there is no
+   gesture in "a table was opened" - and Safari on iOS has no element fullscreen at all, only a
+   <video> can have it. So the screen is laid out by the .is-fs class and held over the page by a
+   fixed box, which every browser has. The browser's own fullscreen is a second thing on top of
+   that, offered by the ⛶: all it adds is taking the browser's chrome off the top of the screen,
+   and leaving it drops back to this, not to a page. */
 let FAUX_FS = null;
+const TABLE_VIEWS = ['viewAvatarTable','viewSpeedTable'];
 function nativeFsElement(){ return document.fullscreenElement || document.webkitFullscreenElement || null; }
 function stageFsElement(){ return nativeFsElement() || FAUX_FS; }
+/* The screen a table is open on, if one is. Both table views keep whatever was last painted in
+   them until something replaces it, so a wrapper being in the page is not the same as a table
+   being open - the view it is in has to be the one on the screen. */
+function tableWrap(){
+  for (const id of TABLE_VIEWS){
+    const v = document.getElementById(id);
+    if (!v || v.style.display === 'none') continue;
+    const w = v.querySelector('.speed-detail-wrap');
+    if (w) return w;
+  }
+  return null;
+}
 function enterFauxFullscreen(root){
-  if (FAUX_FS) return;
+  if (FAUX_FS === root) return;
+  if (FAUX_FS) FAUX_FS.classList.remove('faux-fs');
   FAUX_FS = root;
   root.classList.add('faux-fs');
   document.body.classList.add('faux-fs-lock');
@@ -311,35 +327,50 @@ function exitFauxFullscreen(){
   document.body.classList.remove('faux-fs-lock');
   onStageFullscreenChanged();
 }
-function toggleStageFullscreen(btn){
-  const root = (btn && btn.closest('.speed-detail-wrap')) || document.querySelector('.speed-detail-wrap');
-  if (!root) return;
-  if (stageFsElement()){ exitStageFullscreen(); return; }
-  const req = root.requestFullscreen || root.webkitRequestFullscreen;
-  if (!req){ enterFauxFullscreen(root); return; }
-  // a refusal comes back as a rejected promise on some browsers and a throw on others
-  try { Promise.resolve(req.call(root)).catch(()=>enterFauxFullscreen(root)); }
-  catch(e){ enterFauxFullscreen(root); }
+/* Put the screen on the screen. The table screen is rebuilt from scratch every time it is opened -
+   and again when the language changes, or when a request is approved and the watched table becomes
+   a played one - so this is called after each of those paints rather than once on the way in, and
+   it has to be able to move the covering box from the wrapper that has just been thrown away to
+   the one that replaced it. */
+function mountTableFullscreen(wrap){
+  wrap = wrap || tableWrap();
+  if (!wrap) return;
+  wrap.classList.add('is-fs');
+  // where the browser has granted the real thing, it is already the box; a second one over it
+  // would only take the screen back off the fullscreen element
+  if (nativeFsElement() === wrap){
+    if (FAUX_FS) exitFauxFullscreen();
+    adoptFsFollowers(wrap);
+    return;
+  }
+  enterFauxFullscreen(wrap);
+  adoptFsFollowers(wrap);
 }
-/* The button in the header. On a table it is the table that goes fullscreen - the same screen the
-   ⛶ on the still opens, since a fullscreen still with the board left behind on a page nobody can
-   see is no game. Anywhere else it is the whole app, which is what the lobby wants. The two
-   buttons the header used to carry both went to a page asking 아바타 or 스피드; the pills say that
-   without leaving the lobby, so this took the room they were in. */
-function toggleAppFullscreen(){
-  const table = document.querySelector('.speed-detail-wrap');
-  if (table) return toggleStageFullscreen(null);
-  if (stageFsElement()){ exitStageFullscreen(); return; }
-  const root = document.documentElement;
-  const req = root.requestFullscreen || root.webkitRequestFullscreen;
-  if (!req){ enterFauxFullscreen(document.getElementById('app')); return; }
-  try { Promise.resolve(req.call(root)).catch(()=>enterFauxFullscreen(document.getElementById('app'))); }
-  catch(e){ enterFauxFullscreen(document.getElementById('app')); }
+/* and take it off again on the way back to the lobby, which is a page */
+function unmountTableFullscreen(){
+  exitNativeFullscreen();
+  exitFauxFullscreen();
+  releaseFsFollowers();
 }
-function exitStageFullscreen(){
-  if (FAUX_FS){ exitFauxFullscreen(); return; }
+/* The ⛶, on the still and in the header alike. The screen it used to open is the screen you are
+   already on, so what is left for it to ask for is the browser's own fullscreen - the address bar
+   and the tabs off the top - and to give it back. Where there is no such API, or the browser
+   refuses, nothing changes and nothing needs to: the table already has the whole viewport. */
+function toggleBrowserFullscreen(){
+  if (nativeFsElement()){ exitNativeFullscreen(); return; }
+  const root = tableWrap() || document.documentElement;
+  const req = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (!req) return;
+  try { Promise.resolve(req.call(root)).catch(()=>{}); } catch(e){ /* refused: already fullscreen enough */ }
+}
+function exitNativeFullscreen(){
   const ex = document.exitFullscreen || document.webkitExitFullscreen;
   if (nativeFsElement() && ex) ex.call(document);
+}
+/* the way out of a table is the lobby, whichever of the two it was */
+function closeTableScreen(){
+  if (SPEED.detailTableId) closeSpeedTableDetail();
+  else backToAvatarLobby();
 }
 /* The layout swap is a class rather than :fullscreen so the pieces that have to move in JS -
    the roads, which are pinned to their newest column and have to be re-pinned once the panel
@@ -357,24 +388,27 @@ function fsFollowHost(){
   const fs = stageFsElement();
   return fs && fs.classList.contains('speed-detail-wrap') ? fs : document.body;
 }
+/* A table is laid out fullscreen for as long as it is open, so this no longer decides that - it
+   only re-pins what is measured from the width of the panel it sits in, which the browser's own
+   fullscreen coming and going does change. */
 function onStageFullscreenChanged(){
-  const fs = stageFsElement();
-  document.querySelectorAll('.speed-detail-wrap').forEach(w=>w.classList.toggle('is-fs', w === fs));
   adoptFsFollowers(fsFollowHost());
   if (SPEED.detailTableId){
-    renderBetBoard(SPEED.detailTableId);   // the page's board and the felt are not the same board
     paintSpeedFsBars(SPEED.detailTableId);
     renderSpeedDetailRoad(SPEED.detailTableId);
   } else if (AVATAR.table && document.getElementById('viewAvatarTable').style.display !== 'none'){
-    renderAvatarBetBoard();
     paintAvatarFsBars();
     renderAvatarRoad(); renderAvatarTally();
   }
 }
-document.addEventListener('fullscreenchange', onStageFullscreenChanged);
-document.addEventListener('webkitfullscreenchange', onStageFullscreenChanged);
-/* Escape leaves the real fullscreen without anyone wiring it up; the faux one has to be told. */
-document.addEventListener('keydown', e=>{ if (e.key === 'Escape' && FAUX_FS) exitFauxFullscreen(); });
+/* Leaving the browser's fullscreen - by the ⛶, or by the Escape it honours without being asked -
+   leaves a table screen with no box holding it over the page, so it takes its own back. */
+function onNativeFullscreenChanged(){
+  if (tableWrap()) mountTableFullscreen();
+  onStageFullscreenChanged();
+}
+document.addEventListener('fullscreenchange', onNativeFullscreenChanged);
+document.addEventListener('webkitfullscreenchange', onNativeFullscreenChanged);
 /* the round, the shoe and the balance the fullscreen bars carry - by class, because the head and
    the foot both carry them and only one of the two is on the screen at a time */
 function paintSpeedFsBars(tableId){
@@ -445,6 +479,7 @@ function stopAllLoops(){
   if (AVATAR.chatUnsub){ AVATAR.chatUnsub(); AVATAR.chatUnsub = null; }
   // the table screens are built fresh each time they are opened, so what is left of the last one
   // is cleared rather than left in the page with its ids still in it
+  releaseFsFollowers();     // the sheets go home before the screens holding them are emptied
   const avTable = document.getElementById('viewAvatarTable'); if (avTable) avTable.innerHTML = '';
   const spTable = document.getElementById('viewSpeedTable'); if (spTable) spTable.innerHTML = '';
 }
@@ -455,8 +490,10 @@ function showView(name){
   /* The two table screens keep a chip tray across the foot - 베팅완료 and 반복 sit in it - and a
      toast is drawn at the foot too, so on a phone it landed squarely over them. The class lets
      the toast clear the tray on those screens and nowhere else, where the foot is empty. */
-  document.body.classList.toggle('has-chip-tray', name==='viewAvatarTable' || name==='viewSpeedTable');
+  document.body.classList.toggle('has-chip-tray', TABLE_VIEWS.includes(name));
   document.getElementById('avatarLobbyBtn').style.display = name==='viewAvatarTable' ? 'inline-block' : 'none';
+  // the lobby is a page: whatever was holding a table over it comes off on the way back
+  if (!TABLE_VIEWS.includes(name)) unmountTableFullscreen();
 }
 /* 아바타 and 스피드 are one lobby with a filter on it, not two screens with a page in front of them
    asking which you wanted. Both of these are kept because the mode is still a real thing once a
@@ -788,6 +825,7 @@ async function openAvatarTablePreview(tableId, state){
   AVATAR.previewTableId = tableId;
   showView('viewAvatarTable');
   const view = document.getElementById('viewAvatarTable');
+  releaseFsFollowers();     // whatever is on loan to the old screen, before it is thrown away
   view.innerHTML = `<div class="table-loading"><div class="spin-lg"></div><div>${t('connectingTable')}</div></div>`;
 
   const doc = await db.collection('tables').doc(tableId).get();
@@ -840,7 +878,7 @@ function avatarStageHtml(tb, state){
         </div>
         <div class="phase-banner" id="phase-avatar">${state === 'active' ? t('phaseBetting') : t(avatarWatchLabel(state))}</div>
         <div class="sd-stage-icons">
-          <button onclick="toggleStageFullscreen(this)" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+          <button onclick="toggleBrowserFullscreen()" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
           <button onclick="this.classList.toggle('muted')" data-i18n-title="mute" title="음소거">
             <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a9 9 0 0 1 0 12"/></svg>
             <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/></svg>
@@ -1063,6 +1101,7 @@ async function enterAvatarSession(tableId){
 
   showView('viewAvatarTable');
   const view = document.getElementById('viewAvatarTable');
+  releaseFsFollowers();     // whatever is on loan to the old screen, before it is thrown away
   view.innerHTML = `<div class="table-loading"><div class="spin-lg"></div><div>${t('connectingTable')}</div></div>`;
 
   const doc = await db.collection('tables').doc(tableId).get();
@@ -1083,12 +1122,6 @@ async function enterAvatarSession(tableId){
   updateAvatarStatusPanel();
   mountAvatarChat(tableId);
   paintAvatarFsBars();
-  // the screen is rebuilt from scratch on every open, so one opened while already fullscreen
-  // needs the class - and the loans - put back on the new wrapper (mirrors openSpeedTableDetail)
-  if (stageFsElement()){
-    document.querySelector('#viewAvatarTable .speed-detail-wrap')?.classList.add('is-fs');
-    adoptFsFollowers(fsFollowHost());
-  }
   startAvatarRoundLoop();
 }
 async function refreshTipTotals(){
@@ -1865,6 +1898,13 @@ function paintScreen(el, html){
   if (!el) return null;
   el.innerHTML = html;
   applyI18n(el);
+  /* A table is the fullscreen screen, and it is painted from four places - opened from the lobby,
+     opened while one was already open, re-painted when the language changes, re-painted when a
+     request is approved and a watched table becomes a played one. Doing it here means none of
+     them can forget, and none of them can leave the covering box on a wrapper that has just been
+     thrown away. */
+  const wrap = el.querySelector('.speed-detail-wrap');
+  if (wrap) mountTableFullscreen(wrap);
   return el;
 }
 
@@ -1887,7 +1927,7 @@ function fsBarHtml(tb, where, mode){
     <span class="fs-stat shoe"><i>${t('shoeLabel')}</i><b class="fs-shoe">1</b></span>`;
   if (where === 'top'){
     return `<div class="sd-fs-bar sd-fs-top">${mark}${stats}
-      <button class="fs-x" onclick="exitStageFullscreen()" data-i18n-title="fullscreen" title="전체화면">✕</button>
+      <button class="fs-x" onclick="closeTableScreen()" data-i18n-title="backToList" title="목록으로">✕</button>
     </div>`;
   }
   // Speed's second icon opens the multi-bet sheet - several tables at once, which is Speed's own
@@ -1912,28 +1952,23 @@ const PERSON_ICON = '<svg class="ic-person" viewBox="0 0 24 24" fill="currentCol
 const PESO = '<span class="cur-peso">₱</span>';
 
 /* ---------------- the betting board ----------------
-   There are two of them, and which one is drawn is whether the table is fullscreen.
+   The felt itself: 플레이어 페어 and 뱅커 페어 across the top, 플레이어 and 뱅커 across the
+   bottom in half the board each, and 타이 as a green arch standing between them - a column
+   through the top row that ends in a semicircle over the line where 플레이어 meets 뱅커. Every
+   spot carries the four readings a live board carries: the share of the round's money on it, how
+   many are on it, what is on it, and what it pays. They face inwards - the player side reads from
+   the outer edge, the banker side mirrors it - so the two names sit either side of the arch
+   rather than at the far ends of the board.
 
-   On the page it is the board this screen has always had: the two pairs and 타이 across the top
-   of the card, 플레이어 and 뱅커 under them, flat cells divided by hairlines on the dark green.
-
-   In fullscreen it is the felt itself: 플레이어 페어 and 뱅커 페어 across the top, 플레이어 and
-   뱅커 across the bottom in half the board each, and 타이 as a green arch standing between them
-   - a column through the top row that ends in a semicircle over the line where 플레이어 meets
-   뱅커. Every spot carries the four readings a live board carries: the share of the round's
-   money on it, how many are on it, what is on it, and what it pays. They face inwards - the
-   player side reads from the outer edge, the banker side mirrors it - so the two names sit
-   either side of the arch rather than at the far ends of the board.
-
-   Both carry the same ids, so everything that paints a spot paints either of them. */
-function betBoardHtml(tableId){
-  return stageFsElement() ? feltBoardHtml(tableId) : classicBoardHtml(tableId);
-}
-/* the screen is not rebuilt when fullscreen is entered or left, so the board is swapped in place */
+   There used to be a second, flatter board for the table-on-a-page screen: the pairs and 타이 in
+   a row of cells with 플레이어 and 뱅커 under them. That screen is gone - a table is the
+   fullscreen screen now - so the felt is the board. */
+function betBoardHtml(tableId){ return feltBoardHtml(tableId); }
+/* the screen is not rebuilt for every change to it, so the board is swapped in place */
 function renderBetBoard(tableId){
   const host = document.querySelector('#viewSpeedTable .sd-bets');
   if (!host) return;
-  const old = host.querySelector('.bet-board, .bb-classic');
+  const old = host.querySelector('.bet-board');
   if (old) old.outerHTML = betBoardHtml(tableId);
   applyI18n?.(host);
   renderSpeedTileBets(tableId);
@@ -1943,26 +1978,6 @@ function renderBetBoard(tableId){
     if (spot) spot.classList.toggle('selected', s.bets[k]>0);
   });
   if (s) paintSpeedConfirmState(tableId);   // which is what puts the lock on, confirmed or dealt
-}
-function classicBoardHtml(tableId){
-  const cell = (key, cls, i18n, ko, odds) =>
-    `<div class="bet-spot ${cls}" id="spot-detail-${key}" onclick="placeSpeedBet('${tableId}','${key}')">
-      <div class="label" data-i18n="${i18n}">${ko}</div>
-      <div class="meta-row"><span>${PERSON_ICON}<b id="heads-detail-${key}">0</b></span><span>${PESO}<b id="pool-detail-${key}">0</b></span></div>
-      <div class="odds">${odds}</div>
-      <div class="my-bet" id="mybet-detail-${key}"></div>
-    </div>`;
-  return `<div class="bb-classic">
-    <div class="pair-row">
-      ${cell('playerPair','pair player','playerPair','플레이어 페어','11:1')}
-      ${cell('tie','tie','tie','타이','8:1')}
-      ${cell('bankerPair','pair banker','bankerPair','뱅커 페어','11:1')}
-    </div>
-    <div class="bet-rail two-up" style="margin-top:0;">
-      ${cell('player','player','player','플레이어','1:1')}
-      ${cell('banker','banker','banker','뱅커','0.95:1')}
-    </div>
-  </div>`;
 }
 const BET_SPOTS = [
   {key:'playerPair', cls:'bb-pp', side:'player', i18n:'playerPair', ko:'플레이어 페어', odds:'11:1'},
@@ -2001,33 +2016,11 @@ function feltBoardHtml(tableId){
 }
 
 /* ---------------- avatar's board is Speed's, read-only ----------------
-   Same shape/classes as Speed's board (classic or felt, whichever fullscreen calls for), kept
-   as its own small set of functions with an -avatar id suffix rather than parametrizing Speed's
+   The same felt as Speed's board, kept as its own
+   small set of functions with an -avatar id suffix rather than parametrizing Speed's
    (which take a clickable tableId throughout) - no onclick, filled from AVATAR.bets instead of
    a chip tray, since the avatar places the bet automatically rather than the player. */
-function avatarBetBoardHtml(){
-  return stageFsElement() ? avatarFeltBoardHtml() : avatarClassicBoardHtml();
-}
-function avatarClassicBoardHtml(){
-  const cell = (key, cls, i18n, ko, odds) =>
-    `<div class="bet-spot ${cls}" id="spot-avatar-${key}" onclick="placeAvatarBet('${key}')">
-      <div class="label" data-i18n="${i18n}">${ko}</div>
-      <div class="meta-row"><span>${PERSON_ICON}<b id="heads-avatar-${key}">0</b></span><span>${PESO}<b id="pool-avatar-${key}">0</b></span></div>
-      <div class="odds">${odds}</div>
-      <div class="my-bet" id="mybet-avatar-${key}"></div>
-    </div>`;
-  return `<div class="bb-classic">
-    <div class="pair-row">
-      ${cell('playerPair','pair player','playerPair','플레이어 페어','11:1')}
-      ${cell('tie','tie','tie','타이','8:1')}
-      ${cell('bankerPair','pair banker','bankerPair','뱅커 페어','11:1')}
-    </div>
-    <div class="bet-rail two-up" style="margin-top:0;">
-      ${cell('player','player','player','플레이어','1:1')}
-      ${cell('banker','banker','banker','뱅커','0.95:1')}
-    </div>
-  </div>`;
-}
+function avatarBetBoardHtml(){ return avatarFeltBoardHtml(); }
 function avatarBetSpotHtml(s){
   return `<div class="bet-spot ${s.cls} ${s.side}" id="spot-avatar-${s.key}" onclick="placeAvatarBet('${s.key}')">
     <div class="bb-meta">
@@ -2108,12 +2101,12 @@ function renderAvatarBetSpots(){
   const chips = document.getElementById('avatarStakedChips');
   if (chips) chips.innerHTML = total ? chipStackHtml(total) : '';
 }
-/* the screen is not rebuilt when fullscreen is entered or left, so the board is swapped in
+/* the screen is not rebuilt for every change to it, so the board is swapped in
    place - mirrors renderBetBoard for Speed's own board */
 function renderAvatarBetBoard(){
   const host = document.querySelector('#viewAvatarTable .sd-bets');
   if (!host) return;
-  const old = host.querySelector('.bet-board, .bb-classic');
+  const old = host.querySelector('.bet-board');
   if (old) old.outerHTML = avatarBetBoardHtml();
   applyI18n?.(host);
   renderAvatarBetSpots();
@@ -2131,12 +2124,6 @@ function openSpeedTableDetail(tableId, preserveScroll){
   renderSpeedTileBets(tableId);
   renderSpeedDetailRoad(tableId);
   paintSpeedFsBars(tableId);
-  // the screen is rebuilt from scratch on every open, so one opened while already fullscreen
-  // needs the class - and the loans - put back on the new wrapper
-  if (stageFsElement()){
-    document.querySelector('.speed-detail-wrap')?.classList.add('is-fs');
-    adoptFsFollowers(fsFollowHost());
-  }
   setSpeedTilePhaseText(tableId, s.phase==='betting'?t('phaseBetting'):s.phase==='dealing'?t('phaseDealing'):'');
   setSpeedTileTimer(tableId, Math.max(0, s.secondsLeft));
   ['player','tie','banker','playerPair','bankerPair'].forEach(k=>{
@@ -2149,8 +2136,8 @@ function openSpeedTableDetail(tableId, preserveScroll){
 }
 function closeSpeedTableDetail(){
   SPEED.detailTableId = null;
-  exitStageFullscreen();
-  releaseFsFollowers();
+  // the loans go home before the screen holding them is thrown away
+  unmountTableFullscreen();
   document.getElementById('viewSpeedTable').innerHTML = '';
   showView('viewLobby');
 }
@@ -2171,7 +2158,7 @@ function speedDetailShellHtml(tableId){
         </div>
         <div class="phase-banner" id="phase-detail">${t('phaseBetting')}</div>
         <div class="sd-stage-icons">
-          <button onclick="toggleStageFullscreen(this)" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+          <button onclick="toggleBrowserFullscreen()" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
           <button onclick="this.classList.toggle('muted')" data-i18n-title="mute" title="음소거">
             <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a9 9 0 0 1 0 12"/></svg>
             <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/></svg>

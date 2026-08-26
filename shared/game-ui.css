@@ -16,38 +16,11 @@
   --road-blue:#0F5C9E;
   --road-red:#BE2E20;
   --road-green:#17886B;
-  /* A road is white paper wherever it is drawn - a lobby card's strip, the board on a table -
-     so the "+N" that stands for the columns scrolled past it is ink on paper and never takes the
-     app's own, which is white. */
+  /* A road is white paper wherever it is drawn - a lobby card's strip, the board on a table - so
+     the "+N" that stands for the columns scrolled past it is ink on paper rather than the app's
+     own faint ink, which answers to the theme and has been white. */
   --paper-ink-faint:#8A8A8A;
 }
-
-/* ---- the app's ground: the table screen's black, everywhere ----
-   The table is played on black - a black stage with near-black bars over it, white on them, and
-   the brass kept for the house's own marks and for money. The rest of the app was the navy the
-   admin screens are built in, so the two halves of the same app did not look like each other:
-   picking a table happened on blue, playing it happened on black.
-   This is the app's palette rather than the admin's, so it is set here - cage-ui.css is shared
-   with Partner and Agent Admin and keeps its navy; this stylesheet is loaded by /avatar alone.
-   Only the dark theme is restated. Light stays light: :root[data-theme="light"] in cage-ui.css
-   outranks a bare :root, so every value below is the dark one and nothing here reaches it. */
-:root{
-  --void:#000000;          /* the page's own ground - the stage is black, so this is */
-  --panel:#0B0B0D;         /* the bars at the head and foot of a table, and every card */
-  --panel-raised:#141419;
-  --panel-hi:#1A1A21;
-  --ink:#FFFFFF;
-  --ink-dim:rgba(255,255,255,.72);
-  --ink-faint:rgba(255,255,255,.45);
-  --line:rgba(255,255,255,.12);
-}
-/* and no navy behind it: the body carried a blue wash at the top of the page and a gold hatch
-   over the whole of it, both of which are what made a black card look like it had been cut out
-   of something else. The sign-in screen is its own full-page box with the same wash and the same
-   hatch of its own, so it is said there too - it is the first screen anyone sees. */
-:root:not([data-theme="light"]) body{background-color:var(--void);background-image:none;}
-:root:not([data-theme="light"]) #login-gate{background:var(--void);}
-:root:not([data-theme="light"]) #login-gate::before{display:none;}
 
 /* Dragging the mouse (or a finger) anywhere on the game screens must never fall through to
    native text selection - a swipe across the felt, a roadmap, or the multi-bet rail shouldn't
@@ -56,19 +29,17 @@
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
 
-/* The same bar a table carries at its foot: near-black, a hairline under it rather than a brass
-   rule, and nothing bleeding through from behind. It was a navy gradient with a gold edge, which
-   is the one thing on the lobby you could not miss was a different app to the table. */
 .game-header{
   display:flex;align-items:center;gap:16px;padding:11px 22px;
-  background:var(--panel);
+  background:linear-gradient(180deg, rgba(21,48,79,.92), rgba(15,32,56,.92));
   backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--line);flex-shrink:0;position:relative;z-index:20;
+  border-bottom:1px solid var(--brass-dim);flex-shrink:0;position:relative;z-index:20;
   box-shadow:0 2px 18px -4px rgba(0,0,0,.5);
 }
-/* in light mode it is a plain white bar, like the rest of the light surfaces */
+/* The navy gradient above is the dark-theme table-felt look; in light mode the header
+   switches to a plain white bar like the rest of the light surfaces, instead of staying navy. */
 :root[data-theme="light"] .game-header{
-  background:var(--void);border-bottom-color:var(--brass-dim);
+  background:var(--void);
 }
 /* The wordmark reads the same as the Partner Admin one: full-size on a single line with
    its tag set small alongside, rather than shrunk and stacked over a second line. */

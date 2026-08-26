@@ -190,6 +190,10 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 /* the short label is for the fullscreen tray only - see the is-fs block further down */
 .sd-multi-btn .mb-short{display:none;}
 .sd-multi-btn.active{border-color:var(--brass);color:var(--brass);background:rgba(217,178,106,.14);}
+/* No count, no element. Empty, it was still a flex item, so it took the row's gap with it and
+   pushed 멀티 베팅 half a gap off its own centre - every other pill in the tray reads centred
+   and this one did not. */
+.sd-multi-btn .sm-count:empty{display:none;}
 .sd-multi-btn .sm-count:not(:empty){
   min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--brass);color:#1b1206;
   font-family:var(--mono);font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
@@ -1076,6 +1080,67 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   clip-path:inset(calc(55.882% + var(--bb-seam)) calc(50% + var(--bb-seam) / 2) -10px -10px);}
 .bet-board::after {outline-color:#A3180F;
   clip-path:inset(calc(55.882% + var(--bb-seam)) -10px -10px calc(50% + var(--bb-seam) / 2));}
+/* ---- the four corners where the arch cuts in ----
+   Where the arch crosses 플레이어 and 뱅커, their edge and its edge meet at a right angle, and a
+   right angle is what it looked like: three hard corners against a board whose every other corner
+   is a radius - two where the arch passes the pair row, and the point at its foot where the two
+   spots part company. None of them is a corner of any box, so no border-radius anywhere can round
+   them: they are two elements' edges crossing.
+   Each is drawn over with the corner it should have. The patch is a square of --j on a side, laid
+   into the corner, painted with one radial gradient: nothing inside --j less the line's own 2px,
+   the line's colour in the 2px ring, and the board's seam ink beyond. The spot shows through the
+   inside untouched, the ring is the corner's arc, and the ink takes off the square tip. Both ends
+   of the arc land exactly on the lines it joins - at the square's edges the ring is exactly where
+   their own 2px runs - so it reads as one line turning rather than a patch.
+   The positions are the arch's own numbers: its sides at 50% ∓ half its width, its seam and the
+   2px line outside those, the pair row's foot at 38% + the seam, its own foot at 68%. */
+.bet-board{--j:9px;--j-pl:#2A8CB8;--j-bk:#A3180F;}
+.bet-board:has(.bb-pl.selected){--j-pl:var(--brass);}
+.bet-board:has(.bb-bk.selected){--j-bk:var(--brass);}
+.bb-joins{position:absolute;inset:0;z-index:2;pointer-events:none;}
+/* The patch is exactly --j on a side and sits in the corner of the coloured region - which
+   begins at the OUTER edge of the 2px line, not at the fill behind it. Laid there, the ring meets
+   both lines exactly: along the patch's far edges the ring is precisely the 2px they run in. */
+.bb-joins::before,.bb-joins::after{
+  content:'';position:absolute;width:var(--j);height:var(--j);
+}
+/* the two where the pair row ends: the corner is the top of 플레이어 / 뱅커, and the arc turns
+   up into the line running down the arch's side */
+.bb-joins-row::before{
+  left:calc(50% - var(--bb-arch) / 2 - var(--bb-seam) - var(--j));
+  top:calc(38% + var(--bb-seam));
+  background:radial-gradient(circle var(--j) at 0 100%,
+    transparent calc(var(--j) - 2px), var(--j-pl) calc(var(--j) - 2px),
+    var(--j-pl) var(--j), var(--bb-seam-ink) var(--j));
+}
+.bb-joins-row::after{
+  left:calc(50% + var(--bb-arch) / 2 + var(--bb-seam));
+  top:calc(38% + var(--bb-seam));
+  background:radial-gradient(circle var(--j) at 100% 100%,
+    transparent calc(var(--j) - 2px), var(--j-bk) calc(var(--j) - 2px),
+    var(--j-bk) var(--j), var(--bb-seam-ink) var(--j));
+}
+/* and the two at the arch's foot, where 플레이어 and 뱅커 part company under it. The arch's own
+   line is curving there rather than straight, so the corner is tighter than the two above. */
+.bb-joins-foot{--j:7px;}
+.bb-joins-foot::before{
+  left:calc(50% - var(--bb-seam) / 2 - var(--j));
+  top:calc(68% + var(--bb-seam));
+  background:radial-gradient(circle var(--j) at 0 100%,
+    transparent calc(var(--j) - 2px), var(--j-pl) calc(var(--j) - 2px),
+    var(--j-pl) var(--j), var(--bb-seam-ink) var(--j));
+}
+.bb-joins-foot::after{
+  left:calc(50% + var(--bb-seam) / 2);
+  top:calc(68% + var(--bb-seam));
+  background:radial-gradient(circle var(--j) at 100% 100%,
+    transparent calc(var(--j) - 2px), var(--j-bk) calc(var(--j) - 2px),
+    var(--j-bk) var(--j), var(--bb-seam-ink) var(--j));
+}
+/* they shut with the board, the way the two curves either side of the arch do */
+.bet-board.board-closed .bb-joins{filter:brightness(.86);}
+.bet-board.board-locked .bb-joins{filter:brightness(.62);}
+
 /* Money on the spot turns its border brass, and this stretch of that border has to turn with it -
    a staked 플레이어 was outlined in gold everywhere except round the arch, where the line it hands
    over to went on being blue. Asked of the spot itself rather than tracked in a class of its own,
@@ -1374,9 +1439,10 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .speed-detail-wrap.is-fs{
   --fs-bar:62px;
   position:relative;width:100%;height:100%;max-width:none;margin:0;padding:0;
-  /* the app's ground, so the room around the stacked panels on a phone is the same black the
-     lobby behind it is - it was its own near-black green */
-  background:var(--void);display:flex;flex-direction:column;overflow:hidden;
+  /* Black, and not the theme's ground. A table is a black screen whatever the app around it is -
+     its bars are #0B0B0D, its stage is black, and every control on it is drawn white-on-dark, so
+     in light mode a white ground here left 취소 / 반복 / 멀티 베팅 as white pills on white. */
+  background:#000;display:flex;flex-direction:column;overflow:hidden;
 }
 /* The box that holds the screen over the page. Every table gets it: the browser's own fullscreen
    cannot be asked for without a gesture, and Safari on iOS will only ever put a <video>

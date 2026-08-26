@@ -633,11 +633,16 @@ tr.row-click:hover td{background:rgba(217,178,106,.06);}
  /* Account I/O's 3-equal-column layout sets grid-template-columns inline, which beats any
     non-!important override - same reason .grid-2/.grid-3/.grid-io needed !important above. */
  .grid{grid-template-columns:1fr !important;}
- /* Identity Verification's 3 fixed 260px photo columns (780px+ minimum) never fit a phone width. */
- .id-verify-grid{grid-template-columns:1fr;justify-items:center;}
- /* Each .photo-box inside is also individually fixed at 260px - on a phone narrower than
-    ~326px (260px box + this breakpoint's padding) that still overflows even in one column. */
- .id-verify-grid .photo-box{width:100%;max-width:260px;}
+ /* Identity Verification's 3 fixed 260px photo columns (780px+ minimum) never fit a phone width.
+    They used to stack into one centred column, and centring makes a grid item shrink to fit what
+    is in it: an empty slot came out the width of its "등록된 사진 없음" caption, while the signature
+    grew to the natural width of the canvas it was drawn on - several times the size of the
+    photographs above it, which is what it looked like on the phone. Three equal columns across
+    instead, each stretched to its share of the width, so every slot is the passport slot's box
+    and the signature is one of the three rather than a page of its own. */
+ .id-verify-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+ .id-verify-grid .photo-box{width:auto;max-width:none;}
+ .id-verify-label{font-size:10.5px;letter-spacing:0;}
 
  /* A grid item's default min-width is auto (content-based), not 0 - so once a grid collapses to
     one column above, its card can still refuse to shrink below its widest child's natural

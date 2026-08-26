@@ -79,6 +79,7 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 /* four to a row needs the room for four: below this the cards come out too narrow for a table
    name and its badges on one line, so the row drops to three rather than truncating everything */
 @media (max-width:1180px){ .lobby-grid{grid-template-columns:repeat(3,1fr);} }
+@media (max-width:640px){ .lobby-grid{grid-template-columns:repeat(2,1fr);} }
 .lobby-card{
   background:linear-gradient(165deg,var(--panel-hi) 0%,var(--panel) 55%);
   border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;
@@ -317,8 +318,15 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .casino-tab.active{color:var(--brass);border-bottom-color:var(--brass);}
 .casino-tab.active .cl-mark{filter:none;opacity:1;}
 @media (max-width:640px){
-  .casino-tabs{gap:16px;}
-  .casino-tab{font-size:11.5px;padding:8px 4px 7px;gap:5px;min-width:64px;}
+  /* Six houses do not fit across a phone, and centred they were being cut off at both ends: the
+     last one was half a mark wide at 360px and there was no way to reach it - the row had no
+     scroll of its own and the page does not scroll sideways. It scrolls itself now, from the
+     left rather than the centre, so the first house is where the eye starts and the rest are a
+     swipe away. */
+  .casino-tabs{gap:16px;justify-content:flex-start;overflow-x:auto;scrollbar-width:none;
+               -webkit-overflow-scrolling:touch;}
+  .casino-tabs::-webkit-scrollbar{display:none;}
+  .casino-tab{font-size:11.5px;padding:8px 4px 7px;gap:5px;min-width:64px;flex-shrink:0;}
   .casino-tab .cl-mark{height:26px;}
   .casino-tab .cl-mark img{max-width:60px;}
 }
@@ -598,11 +606,21 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 
 /* ================= MOBILE ================= */
 @media (max-width:860px){
-  /* Header: nowrap + flex-shrink:0 on every child stops buttons/text from breaking mid-word;
-     overflow-x:auto is the safety net on very narrow phones instead of visually breaking. */
-  .game-header{padding:8px 10px;gap:8px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;}
-  .game-header::-webkit-scrollbar{display:none;}
-  .game-header .brand,.balance-ticket,.points-ticket,.icon-btn,.game-header-right{flex-shrink:0;}
+  /* The header goes onto two lines rather than off the side of the screen. It used to be one row
+     that scrolled sideways when it ran out of width, and it ran out on every phone there is: at
+     390px the last 93px of it - 게임기록, 화면 설정, 로그아웃 - stood outside the screen, on a bar
+     with nothing about it that says it can be dragged. Measured on the row it carries: the mark,
+     the two tickets and the two round buttons come to about 360px, so the group on the right is
+     given a line of its own and everything is reachable at 320px up.
+     The page is what scrolls, and the only screen this header is on is the lobby - a table has
+     bars of its own - so the second line costs a list nothing. */
+  .game-header{padding:8px 10px;gap:8px;flex-wrap:wrap;}
+  .game-header .brand,.balance-ticket,.points-ticket,.icon-btn{flex-shrink:0;}
+  .game-header-right{flex-basis:100%;justify-content:flex-end;margin-left:0;}
+  /* Below this the first line runs about 358px and the ⛶ was being pushed onto a line of its own,
+     which is three lines of header on the smallest screen there is. The wordmark is the piece
+     that gives - the crest still names the app, and the app is one you have just signed in to. */
+  @media (max-width:374px){ .game-header .brand .mark{display:none;} }
   .game-header .brand .mark{font-size:14px;white-space:nowrap;}
   .balance-ticket,.points-ticket{padding:5px 10px 5px 5px;font-size:11px;white-space:nowrap;}
   .balance-ticket .lbl,.points-ticket .lbl{display:none;}
@@ -619,16 +637,36 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   .lobby-wrap{padding:14px 12px 50px;}
   .lobby-title{font-size:17px;margin-bottom:10px;}
   .lobby-toolbar{position:sticky;top:0;z-index:15;background:var(--void);padding:8px 0;margin:0 0 10px;}
-  .lobby-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+  /* two to a row is a phone's answer, not a tablet's: this block starts at 860 because that is
+     where the table screen stacks, and a 768px tablet was being given a phone's grid with half
+     its width spent on gutters. Three to a row down to 640, two below it. */
+  .lobby-grid{gap:10px;}
   .lobby-card .mini-road{padding:5px 7px;height:39px;}
   .lobby-card .mini-road .br-cell{width:6px;height:6px;}
   .lobby-card .card-foot{padding:7px 10px 9px;}
   .lobby-card .card-line{gap:5px;}
   .lobby-card .name{font-size:12.5px;}
   .lobby-card .card-line.meta{font-size:9px;}
-  /* two cards to a phone's width is 166px of card - the limits and the countdown are what a
-     player picks a table on, so the streak badge and the P/B/T tally stand down rather than
-     everything being squeezed to an ellipsis */
+  /* Two cards to a phone's width is 150px of card, and the name was the piece that gave way: the
+     countdown and the heart took 66 of the 125px inside the card, leaving 45 for a table name -
+     "Speed T…", which is the same for every Speed table there is, on the one line a player picks
+     a table by. Both of them go onto the still instead, where a live lobby puts them anyway: the
+     heart in the top corner, the countdown in the other. The name then has the line to itself and
+     reads in full from 360px up. */
+  .lobby-card{position:relative;}
+  .lobby-card .card-favorite{
+    position:absolute;top:6px;right:6px;z-index:2;width:30px;height:30px;border-radius:50%;
+    background:rgba(6,10,16,.62);border:1px solid rgba(255,255,255,.28);color:#fff;
+  }
+  .lobby-card .card-favorite svg{width:15px;height:15px;}
+  .lobby-card .card-favorite.active{color:var(--danger);border-color:var(--danger-dim);}
+  /* both of these are read against a photograph rather than the card, so they carry a ground of
+     their own - the still is a lit table and anything translucent over it disappears into it */
+  .lobby-card .card-status{
+    position:absolute;top:7px;left:7px;z-index:2;border-radius:9px;padding:2px 8px;
+    background:rgba(6,10,16,.72);border:1px solid rgba(255,255,255,.2);color:#fff;
+  }
+  .lobby-card .card-status.live b{color:var(--brass);}
   .lobby-card .card-hot,.lobby-card .counts{display:none;}
   .card-status{font-size:10px;padding:2px 7px;}
   .card-hot{font-size:9px;}
@@ -1735,6 +1773,70 @@ body.faux-fs-lock{overflow:hidden;}
   .sd-live.is-fs .sd-fs-bar .fs-ico svg{width:17px;height:17px;}
   /* the head carries the way out, so the ✕ over the video would say the same thing twice */
   .sd-live.is-fs .speed-detail-close{display:none;}
+
+  /* ---- the still's own furniture on a small screen ----
+     The icons run down the right edge in one column: five of them at 32px with 8px between comes
+     to 202px, and the still is only 217 tall on a 320px screen and 264 on an iPhone 14 - so the
+     column ran into the countdown at the foot of it on every phone up to 393px. Measured: the
+     ring starts at 145 on the smallest and 194 on the largest of them.
+     Two columns instead. Three rows of two is 112px, which clears the ring on all of them, and it
+     is the icons that give way rather than the ring: a countdown is read at a glance from across
+     a room and these are pressed deliberately. The caption steps aside for the wider block, and
+     its three parts wrap rather than running underneath it - at 320px "5,000 ~ 3,000,000" was
+     printing straight through the ⛶.
+     400px because the still's height follows its width (672x470): below that there is not enough
+     of it for one column, above it there is. */
+  @media (max-width:400px){
+    .sd-live.is-fs .sd-stage-icons{
+      display:grid;grid-template-columns:repeat(2,32px);gap:8px;justify-items:center;
+    }
+    /* an odd one out goes under the column against the edge rather than the one inside it, so
+       the block reads as a block and not as a step */
+    .sd-live.is-fs .sd-stage-icons button:last-child:nth-child(odd){grid-column:2;}
+    .sd-live.is-fs .sd-stage-top{right:92px;flex-wrap:wrap;gap:6px;}
+    .sd-live.is-fs .sd-limit-text{font-size:11px;}
+    .sd-live.is-fs .sd-stage .phase-banner{top:64px;}
+  }
+
+  /* ---- narrow phones ----
+     The tray is six chips over four pills, and neither line fits under about 390px: the chips are
+     321px of chip against 310 of screen at 320px, and the pills 360 against 347 at 375. Both
+     wrapped, and the tray took three lines and then four - on the phones with the least screen to
+     give. Smaller chips and the short label on 멀티 베팅 put both lines back to one each, and the
+     tray to the 84px it is everywhere else. Measured at 320, 360 and 375; 390 up has the room and
+     keeps the roomier sizes. */
+  @media (max-width:389px){
+    .sd-live.is-fs .sd-chip-tray{gap:7px;}
+    .sd-live.is-fs .sd-chip-tray .chip{width:38px;height:38px;}
+    .sd-live.is-fs .sd-chip-tray .btn{height:32px;min-width:62px;padding:0 10px;font-size:12px;}
+    /* and the four of them are 320px of pill against 310px of screen, so the longest takes the
+       short label it already has - 취소, 베팅완료 and 반복 have nothing to give */
+    .sd-live.is-fs .sd-chip-tray .sd-multi-btn .mb-long{display:none;}
+    .sd-live.is-fs .sd-chip-tray .sd-multi-btn .mb-short{display:block;}
+    .sd-live.is-fs .sd-bets{min-height:auto;}
+  }
+  /* ---- short phones ----
+     A 568px screen cannot hold the still, the results, the board and the tray at once whatever is
+     done to them - it scrolls, and the two bars stay put while it does. What these take off is
+     the reaching: the board keeps its shape at a smaller floor, the bars lose ten pixels each,
+     and the still stops insisting on a minimum it does not need at this height. */
+  /* ---- a tablet in the phone's layout ----
+     Everything from 600 to 860 gets the stacked screen, and at 768 the still took its own
+     672x470 across the whole width - 529px of it - which put the board below the fold on a
+     screen with room for all of it. Capped, the still letterboxes into a band and the game is on
+     one screen again. */
+  @media (min-width:600px){
+    .sd-live.is-fs .sd-stage{max-height:42vh;}
+  }
+  @media (max-height:700px){
+    .sd-live.is-fs .bet-board{min-height:150px;}
+    .sd-live.is-fs .sd-bets{min-height:auto;}
+    .sd-live.is-fs .sd-stage{min-height:0;}
+    .sd-live.is-fs .sd-fs-bar{height:44px;}
+    .sd-live.is-fs .speed-detail-grid{padding:5px;gap:5px;}
+    .sd-live.is-fs .sd-board-row{min-height:132px;}
+    .sd-live.is-fs .sd-road{--rc:11px;}
+  }
 }
 
 /* ---- the toast clears the chip tray ----

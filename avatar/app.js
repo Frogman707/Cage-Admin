@@ -1979,6 +1979,11 @@ function renderBetBoard(tableId){
   });
   if (s) paintSpeedConfirmState(tableId);   // which is what puts the lock on, confirmed or dealt
 }
+/* The four corners where the arch cuts into 플레이어 and 뱅커. They are junctions rather than
+   corners of any box - two elements' edges crossing - so nothing on either of them can round
+   them; each is drawn over instead, in shared/game-ui.css. Two elements, four corners: each
+   carries one at ::before and its mirror at ::after. */
+const BB_JOINS = '<i class="bb-joins bb-joins-row"></i><i class="bb-joins bb-joins-foot"></i>';
 const BET_SPOTS = [
   {key:'playerPair', cls:'bb-pp', side:'player', i18n:'playerPair', ko:'플레이어 페어', odds:'11:1'},
   {key:'bankerPair', cls:'bb-bp', side:'banker', i18n:'bankerPair', ko:'뱅커 페어',     odds:'11:1'},
@@ -2012,6 +2017,7 @@ function feltBoardHtml(tableId){
       ${spot('banker')}
     </div>
     ${spot('tie')}
+    ${BB_JOINS}
   </div>`;
 }
 
@@ -2047,6 +2053,7 @@ function avatarFeltBoardHtml(){
       ${spot('banker')}
     </div>
     ${spot('tie')}
+    ${BB_JOINS}
   </div>`;
 }
 /* mirrors renderSpeedTileBets + paintBetBoardReadings, but reading AVATAR.bets - the .locked

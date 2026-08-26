@@ -802,16 +802,35 @@ async function openAvatarTablePreview(tableId, state){
   renderAvatarRoad();
   renderAvatarTally();
 }
-function avatarPreviewRequestPanelHtml(state){
-  if (state==='pending') return `<div class="hint" style="margin-bottom:10px;">${t('btnPending')}</div><button class="btn btn-sm btn-block" disabled style="opacity:.6;">${t('btnPending')}</button>`;
-  if (state==='full') return `<div class="hint" style="margin-bottom:10px;">${t('btnFullToday')}</div><button class="btn btn-sm btn-block" disabled style="opacity:.5;">${t('btnFullToday')}</button>`;
-  return `<button class="btn btn-gold btn-block" onclick="openAvatarRequestModal('${AVATAR.previewTableId}')">${t('btnRequestAvatar')}</button>`;
-}
+/* The avatar table, watched: no session approved yet, so the board takes no chips. It is the
+   Speed screen all the same - the same stage, the same chrome over it, the same board and the same
+   scoreboard under it - because it is the same table, and it used to be a bare still with a card
+   beside it holding one button. What differs is only what can be done: the spots and the tray are
+   held closed until an avatar is approved, and where Speed's tray ends in 멀티 베팅 - which is
+   Speed's own thing, several tables at once - this one ends in 아바타 신청. */
 function avatarPreviewShellHtml(state){
   const tb = AVATAR.table;
   return `
-  <div class="speed-detail-wrap">
+  <div class="speed-detail-wrap sd-live sd-watching">
+    ${fsBarHtml(tb, 'top', 'avatar')}
     <div class="speed-detail-grid">
+      ${avatarStageHtml(tb, state)}
+      <div class="sd-underbar">
+      ${avatarScoreboardHtml('avatar')}
+      <div class="sd-bets">
+        ${avatarBetBoardHtml()}
+        ${avatarChipTrayHtml(state)}
+      </div>
+      </div>
+    </div>
+    ${fsBarHtml(tb, 'bottom', 'avatar')}
+  </div>`;
+}
+/* The stage, shared by the two avatar shells so the screen is one screen whether or not a session
+   is running - the watched table used to carry a single icon (게임기록) against Speed's six, and no
+   banner, no clock and no cards at all. */
+function avatarStageHtml(tb, state){
+  return `
       <div class="sd-stage">
         <button class="icon-btn speed-detail-close" onclick="backToAvatarLobby()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
         <div class="sd-stage-top">
@@ -819,21 +838,93 @@ function avatarPreviewShellHtml(state){
           <div class="sd-table-id-mini">${escapeHtml(tb.name)}</div>
           <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
         </div>
+        <div class="phase-banner" id="phase-avatar">${state === 'active' ? t('phaseBetting') : t(avatarWatchLabel(state))}</div>
         <div class="sd-stage-icons">
+          <button onclick="toggleStageFullscreen(this)" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+          <button onclick="this.classList.toggle('muted')" data-i18n-title="mute" title="음소거">
+            <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a9 9 0 0 1 0 12"/></svg>
+            <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/></svg>
+          </button>
+          <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button onclick="openTipModal()" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
           <button class="sd-ico-history" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
+          <button class="sd-ico-ai" id="aiToggleBtn" onclick="toggleAiPanel()" data-i18n-title="aiPredictTitle" title="AI 예측"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.4"/></svg></button>
+          ${state === 'active' ? `<button class="sd-ico-avatar" id="avatarPanelBtn" onclick="toggleAvatarPanel()" data-i18n-title="avatarStatusTitle" title="${t('avatarStatusTitle')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></button>` : ''}
         </div>
-        <div class="table-felt"></div>
+        ${aiPanelHtml()}
+        ${state === 'active' ? avatarPanelHtml() : ''}
+        <div class="table-felt">
+          <div class="cards-area">
+            <div class="hand player"><div class="cards" id="playerCardsAvatar"></div><div class="score" id="playerScoreAvatar"></div></div>
+            <div class="hand banker"><div class="cards" id="bankerCardsAvatar"></div><div class="score" id="bankerScoreAvatar"></div></div>
+          </div>
+        </div>
+        <div class="timer-ring-wrap" id="timerRingWrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArc" cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-avatar">–</div></div>
+      </div>`;
+}
+// what the banner over a watched table says: waiting on the request, or that today is spoken for
+function avatarWatchLabel(state){
+  if (state === 'pending') return 'btnPending';
+  if (state === 'full') return 'btnFullToday';
+  return 'btnWatching';
+}
+/* The tray, in the same shape as Speed's, with 아바타 신청 in the slot Speed gives 멀티 베팅 - which
+   is Speed's own thing, several tables at once. There is no 베팅완료 because there is nothing to
+   sign off: whatever is on a spot when the clock runs out is what the avatar plays. The session's
+   own actions - the shoe, ending it - are in the panel the stage icon opens, so this column holds
+   the board and the tray and nothing else, as Speed's does. */
+function avatarChipTrayHtml(state){
+  const live = state === 'active';
+  const tableId = AVATAR.previewTableId || (AVATAR.table && AVATAR.table.id) || '';
+  return `
+        <div class="sd-chip-tray">
+          <button class="btn btn-sm" onclick="clearAvatarBets()"${live?'':' disabled'} data-i18n="cancelBet">취소</button>
+          ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
+          <span class="spacer"></span>
+          <!-- Two labels, one button, as Speed's is: fullscreen turns the tray's buttons into
+               46px rings and "아바타 신청" does not go in one. -->
+          <button class="btn btn-sm btn-gold sd-multi-btn" id="avatarRequestBtn" onclick="openAvatarRequestModal('${tableId}')">
+            <span class="mb-long" data-i18n="btnRequestAvatar">아바타 신청</span><span class="mb-short" data-i18n="btnRequestAvatarShort">신청</span>
+          </button>
+        </div>`;
+}
+/* The avatar's own panel - who is playing for you, what is on the table this round, the line to
+   them, and the two things a session can be told to do. It rides over the still the way the AI
+   panel does rather than being stacked under the board, because stacked there it made this column
+   a different shape to Speed's and clipped at the bottom of it. */
+function avatarPanelHtml(){
+  return `<div class="ai-panel avatar-panel${AVATAR_PANEL_OPEN?' open':''}" id="avatarPanel">
+    <div class="ai-head"><b data-i18n="avatarStatusTitle">${t('avatarStatusTitle')}</b>
+      <button class="ai-close" onclick="toggleAvatarPanel(false)" aria-label="close">✕</button></div>
+    <div class="ai-body">
+      <div class="row" style="justify-content:space-between;align-items:center;">
+        <span class="hint" style="margin:0;">${t('betPlacedLabel')}</span>
+        <b style="font-family:var(--mono);color:var(--brass);" id="avatarStakedTotal">0</b>
       </div>
-      ${avatarScoreboardHtml('avatar')}
-      <div class="sd-bets avatar-side">
-        <div class="card avatar-status-card">
-          <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
-          <p class="hint" style="margin:0 0 12px;">${tb.casino} · ${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</p>
-          ${avatarPreviewRequestPanelHtml(state)}
-        </div>
+      <div class="row" style="justify-content:space-between;align-items:center;margin-top:8px;">
+        <span class="hint" style="margin:0;">${t('chipUsedLabel')}</span>
+        <div class="chip-stack" style="height:auto;" id="avatarStakedChips"></div>
+      </div>
+      <div class="kv-grid" id="avatarStatusGrid" style="margin-top:12px;"></div>
+      <div class="chat-panel" style="margin-top:12px;">
+        <h3>${t('chat')}</h3>
+        <div class="chat-log" id="chatLog"></div>
+        <div class="chat-input-row"><input id="chatInput" placeholder="${t('chatPh')}" onkeydown="if(event.key==='Enter')sendAvatarChat()"><button class="btn btn-sm btn-gold" onclick="sendAvatarChat()">${t('send')}</button></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:12px;">
+        <button class="btn btn-sm" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
+        <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
       </div>
     </div>
   </div>`;
+}
+let AVATAR_PANEL_OPEN = false;
+function toggleAvatarPanel(open){
+  const el = document.getElementById('avatarPanel');
+  if (!el) return;
+  AVATAR_PANEL_OPEN = open === undefined ? !el.classList.contains('open') : !!open;
+  el.classList.toggle('open', AVATAR_PANEL_OPEN);
+  document.getElementById('avatarPanelBtn')?.classList.toggle('active', AVATAR_PANEL_OPEN);
 }
 // Shared by the avatar preview/active-session shells and the Speed detail screen. Mirrors
 // the board's own arrangement: tally + Bead Plate (육매) on the left, and on the right three
@@ -1021,75 +1112,21 @@ function updateAvatarStatusPanel(){
     <span>${t('dealerTipTotal')}</span><b class="num">${fmtNum(AVATAR.tipTotals.dealer)}</b>
   `;
 }
+/* The avatar table with a session running. The same screen as the watched one above and as
+   Speed's - one stage builder, one tray - with the board live and the avatar's own panels under
+   it: what is staked this round, who the avatar is, and the line to them. */
 function avatarTableShellHtml(){
   const tb = AVATAR.table;
   return `
   <div class="speed-detail-wrap sd-live">
-    <!-- ported from Speed's screen (speedDetailShellHtml) - same fullscreen bars, felt, timer
-         ring and board chrome. The board here is read-only (avatarBetBoardHtml/renderAvatarBetSpots)
-         since the avatar places the bet automatically; its chip-tray slot below carries the
-         avatar's own actions instead of chips. -->
     ${fsBarHtml(tb, 'top', 'avatar')}
     <div class="speed-detail-grid">
-      <div class="sd-stage">
-        <button class="icon-btn speed-detail-close" onclick="backToAvatarLobby()" style="position:absolute;top:14px;left:14px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border-color:rgba(255,255,255,.15);" data-i18n-title="backToList" title="목록으로">✕</button>
-        <div class="sd-stage-top">
-          <div class="sd-type-badge">AVATAR</div>
-          <div class="sd-table-id-mini">${escapeHtml(tb.name)}</div>
-          <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
-        </div>
-        <div class="phase-banner" id="phase-avatar">${t('phaseBetting')}</div>
-        <div class="sd-stage-icons">
-          <button onclick="toggleStageFullscreen(this)" data-i18n-title="fullscreen" title="전체화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
-          <button onclick="this.classList.toggle('muted')" data-i18n-title="mute" title="음소거">
-            <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a9 9 0 0 1 0 12"/></svg>
-            <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/></svg>
-          </button>
-          <button onclick="this.classList.toggle('active')" data-i18n-title="viewToggle" title="화면 보기 전환"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
-          <button onclick="openTipModal()" data-i18n-title="giveTip" title="팁"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="5"/><path d="M9 21l3-4 3 4"/><path d="M12 21v-4"/></svg></button>
-          <button class="sd-ico-history" onclick="openGameHistory()" data-i18n-title="gameHistory" title="게임기록"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></button>
-        </div>
-        <div class="table-felt">
-          <div class="cards-area">
-            <div class="hand player"><div class="cards" id="playerCardsAvatar"></div><div class="score" id="playerScoreAvatar"></div></div>
-            <div class="hand banker"><div class="cards" id="bankerCardsAvatar"></div><div class="score" id="bankerScoreAvatar"></div></div>
-          </div>
-        </div>
-        <div class="timer-ring-wrap" id="timerRingWrap"><svg width="64" height="64"><circle cx="32" cy="32" r="27" stroke="var(--line)" stroke-width="5" fill="none"/><circle id="timerArc" cx="32" cy="32" r="27" stroke="var(--jade)" stroke-width="5" fill="none" stroke-dasharray="169.6" stroke-dashoffset="0" stroke-linecap="round"/></svg><div class="txt" id="timer-avatar">30</div></div>
-      </div>
+      ${avatarStageHtml(tb, 'active')}
       <div class="sd-underbar">
       ${avatarScoreboardHtml('avatar')}
-      <div class="sd-bets avatar-side">
+      <div class="sd-bets">
         ${avatarBetBoardHtml()}
-        <!-- The instruction is given here now, not on the request form: pick a chip, put it on a
-             spot, and whatever is down when the clock runs out is what the avatar plays. -->
-        <div class="sd-chip-tray">
-          <button class="btn btn-sm" onclick="clearAvatarBets()" data-i18n="cancelBet">취소</button>
-          ${CHIP_VALUES.map(v=>`<div class="chip ${v===STATE.selectedChip?'selected':''}" data-chip="${v}" onclick="selectChip(${v})" style="background-image:url('${chipFaceUrl(v)}')" aria-label="${chipLabel(v)}"></div>`).join('')}
-          <span class="spacer"></span>
-          <button class="btn btn-sm btn-gold" onclick="openTipModal()">${t('giveTip')}</button>
-          <button class="btn btn-sm" onclick="requestShoeChange()">${t('requestShoeChange')}</button>
-          <button class="btn btn-sm btn-danger" onclick="endAvatarSession()">${t('endSession')}</button>
-        </div>
-        <div class="card avatar-bet-summary">
-          <div class="row" style="justify-content:space-between;align-items:center;">
-            <span class="hint" style="margin:0;">${t('betPlacedLabel')}</span>
-            <b style="font-family:var(--mono);color:var(--brass);" id="avatarStakedTotal">0</b>
-          </div>
-          <div class="row" style="justify-content:space-between;align-items:center;margin-top:8px;">
-            <span class="hint" style="margin:0;">${t('chipUsedLabel')}</span>
-            <div class="chip-stack" style="height:auto;" id="avatarStakedChips"></div>
-          </div>
-        </div>
-        <div class="card avatar-status-card">
-          <h3 style="margin:0 0 12px;color:var(--brass);font-weight:700;font-size:14px;">${t('avatarStatusTitle')}</h3>
-          <div class="kv-grid" id="avatarStatusGrid"></div>
-        </div>
-        <div class="card chat-panel">
-          <h3>${t('chat')}</h3>
-          <div class="chat-log" id="chatLog"></div>
-          <div class="chat-input-row"><input id="chatInput" placeholder="${t('chatPh')}" onkeydown="if(event.key==='Enter')sendAvatarChat()"><button class="btn btn-sm btn-gold" onclick="sendAvatarChat()">${t('send')}</button></div>
-        </div>
+        ${avatarChipTrayHtml('active')}
       </div>
       </div>
     </div>
@@ -1853,10 +1890,10 @@ function fsBarHtml(tb, where, mode){
       <button class="fs-x" onclick="exitStageFullscreen()" data-i18n-title="fullscreen" title="전체화면">✕</button>
     </div>`;
   }
-  // Speed's second icon opens the multi-bet sheet, which has no avatar equivalent (nothing to
-  // bet manually there) - it opens the tip modal instead.
+  // Speed's second icon opens the multi-bet sheet - several tables at once, which is Speed's own
+  // thing. The avatar's opens the request, the same swap the tray makes.
   const secondIcon = mode === 'avatar'
-    ? `<button class="fs-ico" onclick="openTipModal()" data-i18n-title="giveTip" title="팁">${FS_BAR_ICONS.menu}</button>`
+    ? `<button class="fs-ico" onclick="openAvatarRequestModal('${(AVATAR.previewTableId || (AVATAR.table && AVATAR.table.id) || '')}')" data-i18n-title="btnRequestAvatar" title="아바타 신청">${FS_BAR_ICONS.menu}</button>`
     : `<button class="fs-ico" onclick="toggleSpeedMultiPanel()" data-i18n-title="multiBet" title="멀티 베팅">${FS_BAR_ICONS.menu}</button>`;
   return `<div class="sd-fs-bar sd-fs-bottom">
     ${mark}${stats}
@@ -2308,18 +2345,29 @@ function toggleAiPanel(open){
   AI_PANEL_OPEN = open === undefined ? !el.classList.contains('open') : !!open;
   el.classList.toggle('open', AI_PANEL_OPEN);
   document.getElementById('aiToggleBtn')?.classList.toggle('active', AI_PANEL_OPEN);
-  if (AI_PANEL_OPEN && SPEED.detailTableId) renderAiPrediction(SPEED.detailTableId);
+  if (AI_PANEL_OPEN) renderAiPrediction(aiSourceTableId());
 }
 /* Run once when betting opens, not on every tick: the sampling is a few thousand hands of work
    and the answer cannot change until a card leaves the shoe. */
+/* Which table the panel is reading: a speed table keeps its shoe on SPEED.tstate, an avatar
+   session keeps its own on AVATAR. Both have a shoe and a history, which is all the model wants -
+   and until this took either, opening the panel on the avatar screen drew an empty box. */
+function aiSource(tableId){
+  if (tableId && SPEED.tstate[tableId]) return SPEED.tstate[tableId];
+  if (MODE === 'avatar' && AVATAR.shoe) return AVATAR;
+  return null;
+}
+function aiSourceTableId(){
+  return SPEED.detailTableId || (MODE === 'avatar' && AVATAR.table ? AVATAR.table.id : null);
+}
 function renderAiPrediction(tableId){
-  const s = SPEED.tstate[tableId];
+  const s = aiSource(tableId);
   const body = document.getElementById('aiBody');
   if (!s || !body) return;
   if (!AI_PANEL_OPEN){ AI_LAST = null; return; }
   const p = predictNextHand(s.shoe, s.history, {decks:8});
   if (!p.ok){ body.innerHTML = `<p class="hint">${t('aiNoShoe')}</p>`; AI_LAST = null; return; }
-  AI_LAST = {tableId, roundId: s.currentRoundId, roundNo: s.roundNo, shoeNo: s.shoe?.no,
+  AI_LAST = {tableId: tableId || aiSourceTableId(), roundId: s.currentRoundId, roundNo: s.roundNo, shoeNo: s.shoe?.no,
              player:p.player, banker:p.banker, tie:p.tie, side:p.rec.side, ev:p.rec.edge,
              resolved:p.rec.resolved, cardsLeft:p.cardsLeft};
   const pctOf = v => (v*100).toFixed(1) + '%';

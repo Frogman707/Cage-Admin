@@ -1,6 +1,11 @@
 name: Deploy to Firebase Hosting
 
 on:
+  # A push does not always reach Actions: the squash merge of #181 landed on the deploy branch and
+  # no run was ever created for it, so the site sat on the previous commit with nothing to re-run.
+  # This gives the deploy a handle to be started by, on whichever ref needs it, without inventing a
+  # commit to carry it.
+  workflow_dispatch:
   push:
     branches:
       - main

@@ -116,6 +116,8 @@ const I18N_DICT = {
 
   // ---- avatar lobby action buttons / status ----
   btnRequestAvatar:{ko:'아바타 신청',zhHans:'申请代打',zhHant:'申請代打',en:'Request Avatar',ja:'アバター申請',vi:'Yêu cầu Avatar'},
+  btnRequestAvatarShort:{ko:'신청',zhHans:'申请',zhHant:'申請',en:'Request',ja:'申請',vi:'Yêu cầu'},
+  btnWatching:{ko:'관전 중',zhHans:'观战中',zhHant:'觀戰中',en:'Watching',ja:'観戦中',vi:'Đang xem'},
   btnReenter:{ko:'재입장',zhHans:'重新进入',zhHant:'重新進入',en:'Re-enter',ja:'再入場',vi:'Vào lại'},
   btnSpectate:{ko:'관전',zhHans:'观战',zhHant:'觀戰',en:'Spectate',ja:'観戦',vi:'Xem'},
   btnFullToday:{ko:'금일 예약 완료',zhHans:'今日预约已满',zhHant:'今日預約已滿',en:"Today's slots full",ja:'本日予約完了',vi:'Hết chỗ hôm nay'},

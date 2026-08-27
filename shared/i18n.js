@@ -60,7 +60,6 @@ const I18N_DICT = {
   suCasino:{ko:'카지노',zhHans:'赌场',zhHant:'賭場',en:'Casino',ja:'カジノ',vi:'Sòng bạc'},
   suAgent:{ko:'추천인 코드 (선택)',zhHans:'推荐人代码（可选）',zhHant:'推薦人代碼（可選）',en:'Referral code (optional)',ja:'紹介者コード（任意）',vi:'Mã giới thiệu (tùy chọn)'},
   suSubmit:{ko:'가입하기',zhHans:'注册',zhHant:'註冊',en:'Sign up',ja:'登録する',vi:'Đăng ký'},
-  suCancel:{ko:'취소',zhHans:'取消',zhHant:'取消',en:'Cancel',ja:'キャンセル',vi:'Hủy'},
   suErrGenId:{ko:'ID를 먼저 생성해 주세요.',zhHans:'请先生成账号。',zhHant:'請先生成帳號。',en:'Please generate an ID first.',ja:'先にIDを発行してください。',vi:'Vui lòng tạo ID trước.'},
   suErrVerify:{ko:'휴대폰 인증을 완료해 주세요.',zhHans:'请先完成手机验证。',zhHant:'請先完成手機驗證。',en:'Please complete phone verification.',ja:'携帯電話認証を完了してください。',vi:'Vui lòng hoàn tất xác thực điện thoại.'},
   suErrRequired:{ko:'필수 항목을 입력하세요.',zhHans:'请填写必填项。',zhHant:'請填寫必填項。',en:'Please fill in all required fields.',ja:'必須項目を入力してください。',vi:'Vui lòng nhập đầy đủ thông tin bắt buộc.'},
@@ -69,7 +68,6 @@ const I18N_DICT = {
   suCodeOk:{ko:'휴대폰 인증이 완료되었습니다.',zhHans:'手机验证完成。',zhHant:'手機驗證完成。',en:'Phone verified.',ja:'携帯電話認証が完了しました。',vi:'Xác thực điện thoại thành công.'},
   suCodeBad:{ko:'인증번호가 일치하지 않습니다.',zhHans:'验证码不正确。',zhHant:'驗證碼不正確。',en:'Incorrect verification code.',ja:'認証番号が一致しません。',vi:'Mã xác thực không đúng.'},
   suSignupDone:{ko:'회원가입이 완료되었습니다. 가입 축하 포인트 100,000이 지급되었습니다.',zhHans:'注册完成。已赠送注册奖励积分 100,000。',zhHant:'註冊完成。已贈送註冊獎勵積分 100,000。',en:'Sign-up complete. You received a 100,000 welcome bonus point.',ja:'会員登録が完了しました。登録記念ポイント100,000が付与されました。',vi:'Đăng ký hoàn tất. Bạn nhận được 100,000 điểm thưởng chào mừng.'},
-  verified:{ko:'인증완료',zhHans:'已验证',zhHant:'已驗證',en:'Verified',ja:'認証済み',vi:'Đã xác thực'},
 
   // ---- header / picker ----
   balance:{ko:'보유금',zhHans:'余额',zhHant:'餘額',en:'Balance',ja:'保有金',vi:'Số dư'},
@@ -111,7 +109,6 @@ const I18N_DICT = {
   aiNoteUnresolved:{ko:'남은 카드 구성이 양쪽을 가를 만큼 기울지 않았습니다. 기본 확률과 같습니다.',zhHans:'剩余牌组成不足以区分两边，与基础概率相同。',zhHant:'剩餘牌組成不足以區分兩邊，與基礎機率相同。',en:'The remaining cards do not separate the two sides - this is the base rate.',ja:'残りカードでは両者を分けられません。基本確率と同じです。',vi:'Bài còn lại không tách được hai bên - đây là tỷ lệ cơ bản.'},
   aiNoteHouse:{ko:'바카라는 양쪽 모두 기대값이 마이너스입니다. 이 표시는 참고용이며 수익을 보장하지 않습니다.',zhHans:'百家乐两边的期望值都是负数。此显示仅供参考，不保证盈利。',zhHant:'百家樂兩邊的期望值都是負數。此顯示僅供參考，不保證盈利。',en:'Both sides of baccarat carry a negative expectation. This is a reading, not advice, and guarantees nothing.',ja:'バカラは両者とも期待値がマイナスです。参考表示であり、利益を保証しません。',vi:'Cả hai bên baccarat đều có kỳ vọng âm. Đây là tham khảo, không đảm bảo lợi nhuận.'},
   noOtherTables:{ko:'다른 테이블이 없습니다',zhHans:'没有其他桌台',zhHant:'沒有其他桌檯',en:'No other tables',ja:'他のテーブルがありません',vi:'Không có bàn nào khác'},
-  todayLabel:{ko:'오늘',zhHans:'今日',zhHant:'今日',en:'Today',ja:'本日',vi:'Hôm nay'},
   live:{ko:'LIVE',zhHans:'直播',zhHant:'直播',en:'LIVE',ja:'LIVE',vi:'TRỰC TIẾP'},
 
   // ---- avatar lobby action buttons / status ----
@@ -132,9 +129,6 @@ const I18N_DICT = {
 
   // ---- avatar status panel (in-session) ----
   avatarStatusTitle:{ko:'아바타 대리베팅 현황',zhHans:'代打投注状况',zhHant:'代打投注狀況',en:'Avatar Betting Status',ja:'アバター代理ベット状況',vi:'Trạng thái cược Avatar'},
-  statusWaiting:{ko:'승인 대기중',zhHans:'等待批准',zhHant:'等待批准',en:'Awaiting approval',ja:'承認待ち',vi:'Đang chờ duyệt'},
-  statusActive:{ko:'베팅 진행중',zhHans:'投注进行中',zhHant:'投注進行中',en:'Betting in progress',ja:'ベット進行中',vi:'Đang cược'},
-  statusEnded:{ko:'종료됨',zhHans:'已结束',zhHant:'已結束',en:'Ended',ja:'終了しました',vi:'Đã kết thúc'},
   betPlacedLabel:{ko:'베팅란',zhHans:'投注栏',zhHant:'投注欄',en:'Bet',ja:'ベット欄',vi:'Ô cược'},
   chipUsedLabel:{ko:'칩 선택란',zhHans:'筹码栏',zhHant:'籌碼欄',en:'Chip',ja:'チップ欄',vi:'Ô phỉnh'},
   assignedAvatar:{ko:'담당 아바타',zhHans:'负责代打',zhHant:'負責代打',en:'Assigned Avatar',ja:'担当アバター',vi:'Avatar phụ trách'},
@@ -154,14 +148,11 @@ const I18N_DICT = {
   tipUndo:{ko:'되돌리기',zhHans:'撤回',zhHant:'撤回',en:'Undo',ja:'戻す',vi:'Hoàn tác'},
   tipClear:{ko:'지우기',zhHans:'清除',zhHant:'清除',en:'Clear',ja:'クリア',vi:'Xóa'},
   tipSentAmount:{ko:'{amount} 팁이 지급되었습니다.',zhHans:'已发送 {amount} 小费。',zhHant:'已傳送 {amount} 小費。',en:'Tip of {amount} sent.',ja:'{amount} のチップを渡しました。',vi:'Đã gửi tip {amount}.'},
-  tipSent:{ko:'팁이 지급되었습니다.',zhHans:'小费已发送。',zhHant:'小費已傳送。',en:'Tip sent.',ja:'チップを渡しました。',vi:'Đã gửi tip.'},
   shoeChangeSent:{ko:'슈 체인지가 요청되었습니다.',zhHans:'已申请换靴。',zhHant:'已申請換靴。',en:'Shoe-change requested.',ja:'シューチェンジを要請しました。',vi:'Đã gửi yêu cầu đổi giày bài.'},
   shoeChanged:{ko:'슈 체인지 — {no}번 슈가 시작됩니다',zhHans:'换靴 — 第 {no} 靴开始',zhHant:'換靴 — 第 {no} 靴開始',en:'Shoe change — shoe #{no} begins',ja:'シューチェンジ — {no}番シュー開始',vi:'Đổi giày bài — giày #{no} bắt đầu'},
-  belowTableMin:{ko:'테이블 최소 베팅은 {min} 입니다',zhHans:'本桌最低投注为 {min}',zhHant:'本桌最低投注為 {min}',en:'Table minimum is {min}',ja:'テーブル最低ベットは {min} です',vi:'Mức cược tối thiểu của bàn là {min}'},
   aboveTableMax:{ko:'테이블 최대 베팅은 {max} 입니다',zhHans:'本桌最高投注为 {max}',zhHant:'本桌最高投注為 {max}',en:'Table maximum is {max}',ja:'テーブル最高ベットは {max} です',vi:'Mức cược tối đa của bàn là {max}'},
   betReturnedBelowMin:{ko:'최소 베팅 미만이라 {amount} 이 반환되었습니다',zhHans:'低于最低投注，已退还 {amount}',zhHant:'低於最低投注，已退還 {amount}',en:'{amount} returned — below the table minimum',ja:'最低ベット未満のため {amount} が返却されました',vi:'Đã hoàn {amount} — dưới mức cược tối thiểu'},
   sessionEnded:{ko:'대리베팅이 종료되었습니다.',zhHans:'代打已结束。',zhHant:'代打已結束。',en:'Session ended.',ja:'代理ベットが終了しました。',vi:'Đã kết thúc phiên cược.'},
-  roundInfo:{ko:'라운드',zhHans:'局数',zhHant:'局數',en:'Round',ja:'ラウンド',vi:'Vòng'},
 
   // ---- table / betting ----
   player:{ko:'플레이어',zhHans:'闲',zhHant:'閒',en:'Player',ja:'プレイヤー',vi:'Player'},
@@ -187,7 +178,6 @@ const I18N_DICT = {
   dealsLabel:{ko:'게임 횟수',zhHans:'局數',zhHant:'局數',en:'Deals',ja:'ゲーム回数',vi:'Số ván'},
   roundLabel:{ko:'라운드 번호',zhHans:'局號',zhHant:'局號',en:'Round',ja:'ラウンド番号',vi:'Số ván'},
   shoeLabel:{ko:'슈 번호',zhHans:'靴號',zhHant:'靴號',en:'Shoe',ja:'シュー番号',vi:'Số giày bài'},
-  myBetHistory:{ko:'내 베팅내역',zhHans:'我的投注记录',zhHant:'我的投注記錄',en:'My Bet History',ja:'私のベット履歴',vi:'Lịch sử cược của tôi'},
   push:{ko:'푸시',zhHans:'走水',zhHant:'走水',en:'Push',ja:'プッシュ',vi:'Hòa cược'},
   chat:{ko:'채팅',zhHans:'聊天',zhHant:'聊天',en:'Chat',ja:'チャット',vi:'Trò chuyện'},
   chatPh:{ko:'메시지 입력...',zhHans:'输入消息...',zhHant:'輸入消息...',en:'Type a message...',ja:'メッセージを入力...',vi:'Nhập tin nhắn...'},
@@ -224,14 +214,12 @@ const I18N_DICT = {
   repeatBet:{ko:'반복',zhHans:'重复',zhHant:'重複',en:'Repeat',ja:'繰り返し',vi:'Lặp lại'},
   betCompleteToast:{ko:'베팅이 접수되었습니다',zhHans:'投注已提交',zhHant:'投注已提交',en:'Bet placed',ja:'ベットを受け付けました',vi:'Đã đặt cược'},
   repeatNoPrev:{ko:'반복할 이전 베팅이 없습니다',zhHans:'没有可重复的上一次投注',zhHant:'沒有可重複的上一次投注',en:'No previous bet to repeat',ja:'繰り返すベットがありません',vi:'Không có cược trước để lặp lại'},
-  streakLabel:{ko:'연속',zhHans:'连',zhHant:'連',en:'streak',ja:'連続',vi:'liên tiếp'},
   roundFailed:{ko:'이번 라운드 처리에 실패했습니다. 연결을 확인해 주세요.',zhHans:'本局处理失败，请检查网络连接。',zhHant:'本局處理失敗，請檢查網路連線。',en:'This round could not be settled — check your connection.',ja:'このラウンドの処理に失敗しました。接続を確認してください。',vi:'Không xử lý được ván này — vui lòng kiểm tra kết nối.'},
   multiBet:{ko:'멀티 베팅',zhHans:'多桌投注',zhHant:'多桌投注',en:'Multi-bet',ja:'マルチベット',vi:'Cược nhiều bàn'},
   // the same button in fullscreen, where it is a ring the size of a chip
   multiBetShort:{ko:'멀티',zhHans:'多桌',zhHant:'多桌',en:'Multi',ja:'マルチ',vi:'Đa bàn'},
   enterShort:{ko:'입장',zhHans:'进入',zhHant:'進入',en:'Enter',ja:'入場',vi:'Vào'},
   allInStaked:{ko:'보유금 전액 {amount} 을 베팅했습니다',zhHans:'已投注全部余额 {amount}',zhHant:'已投注全部餘額 {amount}',en:'Staked your whole balance, {amount}',ja:'保有金全額 {amount} をベットしました',vi:'Đã cược toàn bộ số dư {amount}'},
-  confirmToBet:{ko:'베팅완료를 눌러야 베팅이 확정됩니다',zhHans:'需按下"下注完成"才会生效',zhHant:'需按下"下注完成"才會生效',en:'Press Confirm or the bet will not be placed',ja:'「ベット完了」を押すと確定します',vi:'Nhấn Xác nhận để đặt cược'},
   betNotConfirmed:{ko:'베팅완료를 누르지 않아 {amount} 이 반환되었습니다',zhHans:'未按下注完成，已退还 {amount}',zhHant:'未按下注完成，已退還 {amount}',en:'{amount} returned — never confirmed',ja:'ベット完了を押さなかったため {amount} が返却されました',vi:'Đã hoàn {amount} — chưa xác nhận'},
   nothingToConfirm:{ko:'베팅할 금액이 없습니다',zhHans:'没有可确认的投注',zhHant:'沒有可確認的投注',en:'Nothing staked to confirm',ja:'確定するベットがありません',vi:'Chưa có cược nào để xác nhận'},
   betConfirmedCount:{ko:'{n}개 테이블 베팅이 확정되었습니다',zhHans:'{n} 张桌台的投注已确认',zhHant:'{n} 張桌臺的投注已確認',en:'Bets confirmed on {n} tables',ja:'{n}卓のベットが確定しました',vi:'Đã xác nhận cược trên {n} bàn'},
@@ -342,7 +330,6 @@ const I18N_DICT = {
   betHistorySub:{ko:'하부 회원의 베팅/페이아웃 내역',zhHans:'下属会员的投注/派彩记录',zhHant:'下屬會員的投注/派彩記錄',en:'Downline members’ bets and payouts',ja:'下位会員のベット/払戻履歴',vi:'Lịch sử cược/chi trả của tuyến dưới'},
   statBetUsers:{ko:'베팅 유저 수',zhHans:'投注用户数',zhHant:'投注用戶數',en:'Betting users',ja:'ベットユーザー数',vi:'Số người cược'},
   statBetCount:{ko:'베팅건수',zhHans:'投注笔数',zhHant:'投注筆數',en:'Bet count',ja:'ベット件数',vi:'Số lượt cược'},
-  statTotalBetAmount:{ko:'총 베팅금액',zhHans:'总投注金额',zhHant:'總投注金額',en:'Total bet amount',ja:'総ベット金額',vi:'Tổng tiền cược'},
   statWinLoss:{ko:'윈로스',zhHans:'输赢',zhHant:'輸贏',en:'Win/Loss',ja:'ウィンロス',vi:'Thắng/Thua'},
   colDatetime:{ko:'일시',zhHans:'日期时间',zhHant:'日期時間',en:'Date/Time',ja:'日時',vi:'Thời gian'},
   colCategory:{ko:'구분',zhHans:'类别',zhHant:'類別',en:'Type',ja:'区分',vi:'Loại'},

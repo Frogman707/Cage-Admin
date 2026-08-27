@@ -93,9 +93,14 @@ function toast(msg, isErr){
     t.className = 'toast';
     t.setAttribute('data-fs-follow', '');
   }
-  /* A toast is only drawn over the page it is in. On a fullscreen table that page is the table
-     itself, so the toast goes in there - left on the body it fired invisibly behind it. */
-  const host = document.fullscreenElement || document.body;
+  /* A toast is only drawn over the page it is in. On a table that page is the table itself, so
+     the toast goes in there - left on the body it fired invisibly behind it. The table screen is
+     held over the page by the app rather than by the browser, so asking for document
+     .fullscreenElement alone missed every table that had not also been given the browser's own
+     fullscreen - which is all of them. fsFollowHost() is the app's answer to the same question;
+     the admin screens have no such thing, and fall back to the page. */
+  const host = (typeof fsFollowHost === 'function' ? fsFollowHost() : null)
+            || document.fullscreenElement || document.body;
   if (t.parentElement !== host) host.appendChild(t);
   t.textContent = msg;
   t.classList.toggle('err', !!isErr);

@@ -163,6 +163,11 @@ function onLogout(){
   playerLogout(db); // clears the active-session marker in the background; UI resets immediately
   MODE = null;
   MY_BET_LOG = [];
+  /* Signing out from a table went straight to the sign-in screen with the table's own hold still
+     on the page: the box that covers the viewport locks the body's scroll, and nothing took it
+     off, so the sign-in card - and the taller sign-up form behind it - could not be scrolled on a
+     short screen. Leaving a table is leaving a table, however you leave it. */
+  unmountTableFullscreen();
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-gate').style.display = 'flex';
   showPane('login');

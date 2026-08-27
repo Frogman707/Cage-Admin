@@ -14,11 +14,10 @@ function setTheme(v){
   applyDisplaySettings();
   if (typeof onDisplaySettingsChange === 'function') onDisplaySettingsChange();
 }
-function syncDisplayToggleUI(){
-  document.querySelectorAll('#themeToggle .seg-btn').forEach(b=> b.classList.toggle('active', b.dataset.v===THEME));
-}
+/* The theme used to be picked from a segmented control, #themeToggle, which every screen has
+   since replaced with the sun/moon button - so the function that kept that control in step was
+   walking an empty list on every call. The button shows its own state through CSS. */
 function toggleLoginTheme(){
   setTheme(THEME === 'dark' ? 'light' : 'dark');
-  syncDisplayToggleUI();
 }
 applyDisplaySettings();

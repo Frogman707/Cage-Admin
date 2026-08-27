@@ -1280,6 +1280,26 @@ function avatarTotalBet(){ return Object.values(AVATAR.bets).reduce((a,b)=>a+b,0
    false again once the deduction has actually happened (or the round turned out to have nothing
    staked). */
 function avatarCommittedAmount(){ return AVATAR.committed ? avatarTotalBet() : 0; }
+/* A table posts a minimum and a maximum and both of them apply, to each betting position, at
+   either kind of table. This one only ever applied the maximum: the avatar card and the avatar
+   table's own header both print "5,000 ~ 1,000,000", and a 100 chip left on 타이 was placed by
+   the avatar and settled against it - the one posted rule of the two the table did not keep.
+   Speed has enforced this since it was written (returnUnderMinSpeedBets); this is the same rule
+   said the same way, and it is checked when betting closes rather than as a chip lands, because
+   a player builds up to the minimum out of the chips they have. */
+function returnUnderMinAvatarBets(){
+  const min = Number(AVATAR.table?.betMin) || 0;
+  let returned = 0;
+  for (const [k, v] of Object.entries(AVATAR.bets)){
+    if (v > 0 && v < min){ returned += v; AVATAR.bets[k] = 0; }
+  }
+  if (returned > 0){
+    renderAvatarBetSpots();
+    projectAvatarBalance();
+    toast(t('betReturnedBelowMin', {amount: fmtNum(returned)}), true);
+  }
+  return returned;
+}
 function stopAvatarRoundLoop(){ if (AVATAR.timerHandle){ clearInterval(AVATAR.timerHandle); AVATAR.timerHandle = null; } }
 function startAvatarRoundLoop(){
   stopAvatarRoundLoop();
@@ -1361,6 +1381,7 @@ async function beginAvatarDealingPhase(){
   // switch and subtract the NEW round's total, or announce the wrong side, for a bet that was
   // actually placed under the OLD round entirely
   const myRound = AVATAR.currentRoundId;
+  returnUnderMinAvatarBets();     // a short bet never reaches the felt, here as at a Speed table
   const bets = AVATAR.bets, total = avatarTotalBet();
   AVATAR.phase = 'dealing';
   AVATAR.secondsLeft = AVATAR_DEALING_SECONDS;
@@ -2539,12 +2560,16 @@ async function beginSpeedDealing(tableId){
   s.settling = true;
   paintSpeedConfirmState(tableId);          // betting is shut: both boards take the lock
   setSpeedTilePhaseText(tableId, t('phaseDealing'));
-  returnUnderMinSpeedBets(tableId);   // a short bet never reaches the felt
   // Only what was confirmed rides. Chips left on a spot without pressing 베팅완료 are pushed
   // back untouched - they were never actually placed.
   const unconfirmed = speedBetsTotal(s.bets) - speedBetsTotal(s.confirmed);
   s.bets = s.confirmed ? {...s.confirmed} : {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
   s.confirmed = null;
+  /* The minimum is applied to what is actually riding, which is the confirmed set - it used to
+     run a line earlier, against a felt that was about to be replaced by that set wholesale. It
+     could only ever reach chips that were being handed back anyway for not having been confirmed,
+     and it announced them as short of the minimum, which was not why they were coming back. */
+  returnUnderMinSpeedBets(tableId);   // a short bet never reaches the felt
   if (unconfirmed > 0){
     renderSpeedTileBets(tableId);
     renderSpeedStakedTotal();

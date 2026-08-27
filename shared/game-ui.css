@@ -29,8 +29,14 @@
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
 
+/* The bar's gutter is the page's gutter. The list under it is a 1400px column centred in the
+   window with 24px of padding, so on a wide screen its title and its cards start 44px in while
+   the wordmark above them started at 22 - two left edges a finger apart, which is the one
+   misalignment on the screen the eye does catch. The max() gives the same 24px on any window
+   narrower than the column and follows the column's own margin above it. */
 .game-header{
-  display:flex;align-items:center;gap:16px;padding:11px 22px;
+  display:flex;align-items:center;gap:16px;
+  padding:11px max(24px, calc((100% - 1400px) / 2 + 24px));
   background:linear-gradient(180deg, rgba(21,48,79,.92), rgba(15,32,56,.92));
   backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
   border-bottom:1px solid var(--brass-dim);flex-shrink:0;position:relative;z-index:20;
@@ -112,9 +118,18 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .card-hot{font-size:10px;font-weight:700;color:var(--brass);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 /* The board under the still is the scoreboard's own paper, as it is everywhere else in the app
    and as the reference draws it - not the card's dark panel with marks floating on it. */
+/* Ruled like every other paper in the app - the Bead Plate, the Big Road, the derived roads all
+   carry the same hairline squares. This was the one that did not, and a table whose shoe has just
+   been changed showed a blank white slab where the others show an empty board. The ruling is under
+   the marks, on their own 9px pitch (an 8px ring with a 1px gutter), so a full card looks the same
+   as it did and an empty one reads as a scoreboard with nothing on it yet. */
 .lobby-card .mini-road{
   display:flex;gap:1px;padding:6px 8px;overflow-x:hidden;height:49px;box-sizing:border-box;align-items:flex-start;
   background:#fafafa;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  background-image:linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
+                   linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
+  background-size:9px 9px;background-origin:content-box;background-position:0 0;
+  background-attachment:local;
 }
 .lobby-card .mini-road .br-col{gap:1px;}
 .lobby-card .mini-road .br-cell{width:8px;height:8px;border-width:1.5px;}
@@ -197,8 +212,14 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .sm-top > b{font-size:12.5px;color:var(--brass);letter-spacing:.3px;flex-shrink:0;}
 .sm-top .btn{flex-shrink:0;}
 /* the strip can cover the table's tray, so it brings its own chips */
+/* The row scrolls, and a scroller clips at its padding box - so the gold ring the chosen chip
+   wears was being sliced off its top on every width, and off its left as well as soon as the row
+   was long enough to scroll. The chosen chip rises 4px and its ring is drawn 4px outside it, so
+   it needs 8 above and 4 either side; the padding is that room and the equal negative margin
+   takes it back out of the layout, so every chip stays exactly where it was and the bar keeps
+   its own height. */
 .sm-chips{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;flex:1 1 auto;min-width:0;
-  overflow-x:auto;scrollbar-width:none;}
+  overflow-x:auto;scrollbar-width:none;padding:9px 6px;margin:-9px -6px;}
 .sm-chips::-webkit-scrollbar{display:none;}
 .sm-chips .chip{width:34px;height:34px;flex-shrink:0;}
 .sm-total{margin-left:auto;display:flex;align-items:baseline;gap:6px;font-size:11.5px;color:var(--ink-faint);}
@@ -266,6 +287,12 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   display:flex;gap:1px;padding:5px 6px;box-sizing:border-box;align-items:flex-start;
   flex:0 0 104px;width:104px;height:100%;min-width:0;
   overflow-x:auto;overflow-y:hidden;background:#fafafa;border:1px solid var(--line);border-radius:6px;
+  /* ruled like every other paper in the app, on this road's own 11px pitch - a 10px mark with a
+     1px gutter. Without it a table whose shoe has just been changed showed a blank white box. */
+  background-image:linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
+                   linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
+  background-size:11px 11px;background-origin:content-box;background-position:0 0;
+  background-attachment:local;
 }
 .sm-road .br-col{gap:1px;}
 .sm-road .br-cell{width:10px;height:10px;border-width:1.6px;}
@@ -297,10 +324,15 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 }
 .lobby-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
 .lobby-toolbar select{background:var(--panel-raised);color:var(--ink);border:1px solid var(--line);padding:7px 10px;border-radius:var(--radius);font-size:12.5px;}
-/* Each house is picked by its own mark with its name under it, centred on the rule, as the
+/* Each house is picked by its own mark with its name under it, standing on the rule, as the
    reference lobby lists them. The one that is not selected reads back: its mark goes to grey
    and half strength, so the house in play is the only one in colour. */
-.casino-tabs{display:flex;align-items:flex-end;justify-content:center;gap:34px;border-bottom:1px solid var(--line);margin-bottom:16px;}
+/* The row starts where the page starts. Centred, five houses sat in the middle third of a
+   1400px rule with a third of it empty either side, and they were the only block on the lobby
+   not lined up with the title, the filter pills, the search and the cards - all of which begin
+   at the gutter. The phone already scrolled them from the left for its own reasons; this is the
+   same edge on every width - the tab's own box on the gutter, as the filter pills under it are. */
+.casino-tabs{display:flex;align-items:flex-end;justify-content:flex-start;gap:34px;border-bottom:1px solid var(--line);margin-bottom:16px;}
 .casino-tab{
   display:flex;flex-direction:column;align-items:center;gap:7px;
   background:none;border:none;color:var(--ink-faint);padding:10px 8px 9px;
@@ -604,7 +636,8 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
      given a line of its own and everything is reachable at 320px up.
      The page is what scrolls, and the only screen this header is on is the lobby - a table has
      bars of its own - so the second line costs a list nothing. */
-  .game-header{padding:8px 10px;gap:8px;flex-wrap:wrap;}
+  /* 12px is the phone's page gutter, so the bar keeps sharing it */
+  .game-header{padding:8px 12px;gap:8px;flex-wrap:wrap;}
   .game-header .brand,.balance-ticket,.points-ticket,.icon-btn{flex-shrink:0;}
   .game-header-right{flex-basis:100%;justify-content:flex-end;margin-left:0;}
   /* Below this the first line runs about 358px and the ⛶ was being pushed onto a line of its own,
@@ -631,7 +664,7 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
      where the table screen stacks, and a 768px tablet was being given a phone's grid with half
      its width spent on gutters. Three to a row down to 640, two below it. */
   .lobby-grid{gap:10px;}
-  .lobby-card .mini-road{padding:5px 7px;height:39px;}
+  .lobby-card .mini-road{padding:5px 7px;height:39px;background-size:7px 7px;}
   .lobby-card .mini-road .br-cell{width:6px;height:6px;}
   .lobby-card .card-foot{padding:7px 10px 9px;}
   .lobby-card .card-line{gap:5px;}
@@ -1555,6 +1588,19 @@ body.faux-fs-lock{overflow:hidden;}
   top:68%;bottom:auto;right:40px;transform:translateY(-50%) scale(1.7);
 }
 .sd-live.is-fs .sd-stage .phase-banner{top:74px;bottom:auto;font-size:21px;padding:10px 30px;border-radius:6px;}
+/* The two panels that ride the still - the AI reading and the avatar's chat - hang from the foot
+   of the stage, and on this screen the stage is the whole screen: 12px off the foot put them over
+   the strip, the reading covering the Bead Plate and the chat covering the roads. They stand on
+   the strip instead, and their ceiling comes down with them so a long reading still scrolls
+   inside the panel rather than growing under the bar at the top.
+   Only here: on a phone the strip is not a layer over the still, it is a block under it, and the
+   panel rides the top of the still on purpose. */
+@media (min-width:861px){
+  .sd-live.is-fs .ai-panel{
+    bottom:calc(var(--sd-board) + 12px);
+    max-height:calc(100% - var(--sd-board) - 24px);
+  }
+}
 /* The still is a 672x470 photograph. Stretched to cover the whole screen it is blown up better
    than twice its own size and a sixth of the frame is cut away, the dealer's hands going off the
    top - which is what reads as zoomed in. It is fitted into the band above the strip instead:

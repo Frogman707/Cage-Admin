@@ -195,7 +195,13 @@ tr:hover td{background:var(--panel-raised);}
 
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(8,9,4,.72);z-index:100;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow-y:auto;opacity:0;transition:opacity .18s ease;}
 .modal-bg.open{display:flex;opacity:1;}
-.modal{background:var(--panel);border:1px solid var(--brass-dim);border-radius:6px;width:560px;max-width:100%;padding:22px 24px;transform:translateY(-10px) scale(.98);transition:transform .18s ease;}
+/* margin:auto rather than align-items:center on the backdrop. A short dialog - 팁 지급 is a third
+   of a screen - was pinned 6vh from the top with the rest of the screen empty under it, which
+   reads as a sheet that has slipped rather than one that has been placed. An auto margin centres
+   it when there is room and collapses to nothing when there is not, so a dialog taller than the
+   screen still starts at the top and scrolls; centring it with align-items would have put its
+   head above the backdrop, out of reach. */
+.modal{background:var(--panel);border:1px solid var(--brass-dim);border-radius:6px;width:560px;max-width:100%;margin:auto;padding:22px 24px;transform:translateY(-10px) scale(.98);transition:transform .18s ease;}
 .modal-bg.open .modal{transform:translateY(0) scale(1);}
 .modal.modal-lg{width:820px;}
 .modal h3{font-weight:700;color:var(--brass);font-size:17px;margin:0 0 4px;}
@@ -220,6 +226,16 @@ tr:hover td{background:var(--panel-raised);}
 .login-mark{font-weight:800;font-size:24px;color:var(--brass);letter-spacing:-.3px;}
 .login-ver{font-size:11px;color:var(--ink-faint);letter-spacing:2px;margin-top:2px;text-transform:uppercase;}
 .login-card .field{text-align:left;margin-top:16px;}
+/* The three rows on the signup card that pair a field with a button - 신규 ID 생성, 인증번호 발송,
+   인증번호 확인 - were each as wide as their own label, so the fields they sat beside ended at
+   three different places, none of them the edge the full-width fields end at. The buttons are
+   floored to a common width instead, which is wider than the longest of the six languages carries
+   (Vietnamese, 110px), so the rows line up in every one of them rather than only in Korean.
+   They also take the field's own height: the row is bottom-aligned and a btn-sm is six pixels
+   shorter, so the pair read as two boxes of different sizes sharing a baseline. */
+.login-card .field .row .btn{margin-top:0;min-width:112px;align-self:stretch;}
+/* A placeholder longer than the field ends in an ellipsis rather than mid-syllable. */
+.field input,.field select{text-overflow:ellipsis;}
 .login-error{color:var(--danger);font-size:11.5px;margin:10px 0 0;}
 .login-hint{font-size:10.5px;color:var(--ink-faint);margin-top:10px;}
 .login-card .btn{margin-top:18px;}

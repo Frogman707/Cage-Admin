@@ -645,7 +645,23 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
      that gives - the crest still names the app, and the app is one you have just signed in to. */
   @media (max-width:374px){ .game-header .brand .mark{display:none;} }
   .game-header .brand .mark{font-size:14px;white-space:nowrap;}
-  .balance-ticket,.points-ticket{padding:5px 10px 5px 5px;font-size:11px;white-space:nowrap;}
+  /* The two values stand on the same line as the ♡ and the ⛶, so they are those buttons' own
+     height and their numbers stand in the middle of them. The padding here was written while the
+     pills still carried their 보유금 / 포인트 labels and hugged them to the left edge; with the
+     labels off - they cost the bar a third line, measured at 320, 375, 390, 393 and 412 - the
+     number was left sitting 6px from one end of the pill and 11px from the other, which on 포인트
+     is a single digit visibly off-centre in a ring. The floor under the width is so that a short
+     value - 포인트 reads 0 until one is earned - is still a pill beside the balance rather than a
+     circle the size of the ♡ next to it, which is what it looked like: a third button.
+     The room this costs is measured, because the line has little to give: the pills carry the
+     balance, and a player with 1,000,000 of it needs 78px for the number alone. So the padding
+     is 14px split evenly rather than the 15 it spent lopsidedly - the pair is a pixel narrower
+     at every value than it was - and the floor only binds on a value too short to need it, which
+     is where the ring was. */
+  .balance-ticket,.points-ticket{
+    height:30px;padding:0 7px;min-width:46px;box-sizing:border-box;justify-content:center;
+    font-size:11px;white-space:nowrap;
+  }
   .balance-ticket .lbl,.points-ticket .lbl{display:none;}
   .hdr-nick{display:none;}
   .game-header-right{gap:6px;}

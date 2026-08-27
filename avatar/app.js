@@ -1396,12 +1396,19 @@ async function beginAvatarDealingPhase(){
     await refreshBalance();
     return;
   }
+  /* The flag comes off with the subtraction, not after the repaint that follows it. AVATAR.committed
+     means "staked, but not yet out of STATE.balance", and the header subtracts it on top of
+     STATE.balance for exactly that reason - so a repaint taken between the subtraction and the
+     clearing charges the stake twice. It was taken there: the line below used to paint while the
+     flag was still up, and a player who staked 1,000,000 watched 2,000,000 leave the header and
+     sit wrong for the whole of dealing, until the result phase repainted it. The books were never
+     wrong - one bet row, one stake - but the figure the player was reading was. */
+  AVATAR.committed = false;   // the stake has actually left STATE.balance now, one way or the other
   if (total > 0){
     STATE.balance -= total;
     paintPlayableBalance();
     toast(t('avatarPlacedTotal', {amount: fmtNum(total)}));
   }
-  AVATAR.committed = false;   // the stake has actually left STATE.balance now, one way or the other
   AVATAR._sim = simulateRound(AVATAR.shoe);
   await revealAvatarCards(AVATAR._sim);
 }

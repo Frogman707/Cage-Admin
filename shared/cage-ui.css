@@ -110,8 +110,6 @@ a{color:var(--brass);}
 @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
 h2.page-title{font-weight:800;font-size:22px;color:var(--brass);margin:0 0 4px;letter-spacing:-.3px;}
 .page-sub{font-size:12px;color:var(--ink-faint);margin:0 0 16px;}
-.crumb{font-size:11px;color:var(--ink-faint);margin:0 0 14px;}
-.crumb b{color:var(--ink-dim);}
 
 .grid{display:grid;gap:14px;}
 .grid-2{grid-template-columns:1fr 1fr;}
@@ -159,7 +157,6 @@ h2.page-title{font-weight:800;font-size:22px;color:var(--brass);margin:0 0 4px;l
 .btn-danger{background:transparent;border-color:var(--danger-dim);color:var(--danger);}
 .btn-danger:hover{background:rgba(217,105,90,.1);border-color:var(--danger);}
 .btn-danger-fill{background:var(--danger);border-color:var(--danger);color:#2a0f0b;}
-.btn-info{background:transparent;border-color:var(--info);color:var(--info);}
 .btn-ghost{background:transparent;}
 .btn-sm{padding:5px 10px;font-size:11px;}
 .btn-xs{padding:3px 8px;font-size:10.5px;border-radius:4px;}
@@ -221,7 +218,6 @@ tr:hover td{background:var(--panel-raised);}
 :root[data-theme="light"] .theme-toggle-btn .ic-sun{display:block;}
 :root[data-theme="light"] .theme-toggle-btn .ic-moon{display:none;}
 .login-mark{font-weight:800;font-size:24px;color:var(--brass);letter-spacing:-.3px;}
-.login-sub{font-size:12px;color:var(--ink-dim);margin-top:4px;font-weight:600;}
 .login-ver{font-size:11px;color:var(--ink-faint);letter-spacing:2px;margin-top:2px;text-transform:uppercase;}
 .login-card .field{text-align:left;margin-top:16px;}
 .login-error{color:var(--danger);font-size:11.5px;margin:10px 0 0;}

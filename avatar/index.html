@@ -10,37 +10,11 @@
 <style>
 body{overflow:auto;}
 .shell-app{display:none;flex-direction:column;height:100%;}
-/* ---- game picker ---- */
-.picker-wrap{padding:60px 24px;max-width:760px;margin:0 auto;text-align:center;}
-.picker-title{font-weight:800;font-size:22px;color:var(--brass);margin:0 0 8px;}
-.picker-sub{font-size:12.5px;color:var(--ink-faint);margin:0 0 34px;}
-.picker-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
-@media (max-width:640px){.picker-grid{grid-template-columns:1fr;}}
-.picker-card{
-  background:linear-gradient(155deg,var(--panel-hi),var(--panel) 70%);border:1px solid var(--line);border-radius:16px;
-  padding:34px 22px;cursor:pointer;transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease, border-color .22s ease;
-  text-align:center;position:relative;overflow:hidden;
-}
-.picker-card:hover{border-color:var(--brass-dim);transform:translateY(-5px);box-shadow:0 26px 50px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(217,178,106,.15);}
-.picker-card .ic{
-  width:58px;height:58px;margin:0 auto 16px;border-radius:50%;position:relative;
-  background:radial-gradient(circle at 35% 30%, var(--panel-hi), var(--void) 75%);
-  border:1px solid var(--brass-dim);display:flex;align-items:center;justify-content:center;
-  box-shadow:0 8px 18px -8px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05);
-}
-.picker-card:hover .ic{box-shadow:0 8px 22px -6px rgba(217,178,106,.35), inset 0 1px 0 rgba(255,255,255,.08);}
-.picker-card .ic svg{width:27px;height:27px;color:var(--brass);}
-.picker-card .name{font-weight:800;font-size:18px;color:var(--ink);letter-spacing:.6px;}
-.picker-card .desc{font-size:12px;color:var(--ink-faint);margin-top:7px;line-height:1.55;}
-/* speed lobby's fixed bottom chip tray - only shown while playing speed */
-/* same page box as the avatar lobby, so the two grids lay out identical cards */
-.speed-wrap{padding:22px 24px 60px;max-width:1400px;margin:0 auto;}
-/* the Speed list reuses .lobby-grid / .lobby-card wholesale - only the live countdown pill
-   is its own, and the page box matches the avatar lobby's */
-.speed-wrap{padding:22px 24px 60px;max-width:1400px;margin:0 auto;}
+/* The page's own styles are the two the shell needs; everything else it draws comes from
+   shared/game-ui.css. The game picker and the separate speed lobby that used to be styled here
+   are both gone - one lobby lists every table now. */
 .card-status.live{background:rgba(255,255,255,.07);color:var(--brass);font-family:var(--mono);}
 .card-status.live b{font-weight:800;}
-.speed-mybets{margin-top:20px;}
 </style>
 </head>
 <body>
@@ -141,7 +115,7 @@ body{overflow:auto;}
 </div></div>
 
 <!-- avatar request modal -->
-<div class="modal-bg" id="modal-avatar-request"><div class="modal">
+<div class="modal-bg" id="modal-avatar-request" data-fs-follow><div class="modal">
   <button class="modal-close" onclick="closeModal('modal-avatar-request')">×</button>
   <h3 data-i18n="requestModalTitle">아바타 대리베팅 신청</h3>
   <p class="hint" data-i18n="requestModalDesc">전담 아바타가 배정되면 테이블에서 라운드마다 직접 베팅하실 수 있습니다. 보유금에서 실시간으로 차감/지급됩니다.</p>
@@ -154,7 +128,7 @@ body{overflow:auto;}
 </div></div>
 
 <!-- tip modal -->
-<div class="modal-bg" id="modal-tip"><div class="modal" style="width:380px;">
+<div class="modal-bg" id="modal-tip" data-fs-follow><div class="modal" style="width:380px;">
   <button class="modal-close" onclick="closeModal('modal-tip')">×</button>
   <h3 data-i18n="tipModalTitle">팁 지급</h3>
   <!-- hidden on a speed table: there is no avatar there, so the dealer is the only recipient -->

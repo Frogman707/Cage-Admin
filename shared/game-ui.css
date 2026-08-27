@@ -443,10 +443,6 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   padding:8px 22px;font-size:14px;font-weight:700;color:#fff;letter-spacing:.4px;
   box-shadow:0 4px 14px -4px rgba(0,0,0,.5);
 }
-/* ---- betting rail ---- */
-.bet-rail{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
-.bet-rail.with-pairs{grid-template-columns:1fr 1.4fr 1fr;}
-.bet-rail.two-up{grid-template-columns:1fr 1fr;}
 .bet-spot{
   background:linear-gradient(165deg,var(--panel-hi),var(--panel));border:2px solid var(--line);border-radius:14px;
   padding:14px 10px;text-align:center;cursor:pointer;position:relative;overflow:hidden;
@@ -472,8 +468,6 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .bet-spot.pair.banker .label{color:#FF6B5C;}
 .bet-spot .odds{font-size:10.5px;color:var(--ink-faint);margin-top:3px;font-family:var(--mono);}
 .bet-spot .my-bet{margin-top:9px;font-family:var(--mono);font-weight:700;color:var(--brass);font-size:13.5px;min-height:18px;}
-.pair-row{display:flex;gap:10px;margin-top:8px;}
-.pair-row .bet-spot{flex:1;padding:9px 6px;}
 .chip-stack{display:flex;justify-content:center;align-items:flex-end;height:0;margin-top:6px;transition:height .15s ease;}
 .chip-stack:not(:empty){height:16px;}
 /* the chips in a betting spot are the same artwork at bead size, overlapped into a stack */
@@ -499,8 +493,6 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .chip:hover{transform:translateY(-4px);}
 .chip.selected{transform:translateY(-4px);filter:drop-shadow(0 8px 14px rgba(217,178,106,.55));}
 .chip.selected::after{opacity:1;}
-.bet-controls{margin-left:auto;display:flex;gap:8px;flex-shrink:0;align-items:center;}
-.current-bet-total{font-family:var(--mono);font-weight:800;color:var(--brass);font-size:16px;}
 
 /* The account the buy-in will come out of. Read-only, so it takes the shape of a field without
    being one - same box as the inputs above and below it, in the mono the ids are set in. */
@@ -582,8 +574,6 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .derived-road-grid .dr-cell.diagonal::before{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:currentColor;transform:rotate(-45deg);}
 .derived-road-grid .dr-cell.diagonal.red{color:var(--road-red);}
 .derived-road-grid .dr-cell.diagonal.blue{color:var(--road-blue);}
-.bet-history-mini{font-size:11.5px;}
-.bet-history-mini .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1a2c4a;}
 .chat-panel{display:flex;flex-direction:column;flex:1;min-height:140px;}
 .chat-log{flex:1;overflow-y:auto;font-size:11.5px;display:flex;flex-direction:column;gap:7px;padding-right:4px;}
 .chat-log .msg{background:rgba(255,255,255,.025);border-radius:8px;padding:6px 9px;}
@@ -678,9 +668,6 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   .playing-card{height:66px;}
   .playing-card.third{margin:0 9px;}   /* (66 - 66*225/314)/2 */
   .hand .score{min-width:28px;height:28px;font-size:15px;}
-  .bet-rail{gap:8px;}
-  .bet-rail.with-pairs{grid-template-columns:1fr 1.15fr 1fr;}
-  .pair-row{gap:6px;}
   .bet-spot{padding:10px 6px;border-radius:11px;}
   .bet-spot .label{font-size:13.5px;}
   .chip{width:44px;height:44px;}
@@ -693,10 +680,6 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   .modal-bg:has(.modal-sheet){align-items:flex-end;padding:0;}
   .modal-bg.open .modal-sheet{transform:translateY(0);}
 
-  .picker-wrap{padding:36px 16px;}
-  .picker-grid{grid-template-columns:1fr;gap:14px;}
-
-  .tally-bar{font-size:11.5px;padding:9px 12px;gap:10px;flex-wrap:wrap;}
   /* the .speed-detail-* phone overrides live in the media block at the end of this file -
      they have to come after the base rules they narrow, which are declared further down. */
 }
@@ -721,17 +704,12 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 }
 
 /* ---- avatar proxy-betting status panel ---- */
-.avatar-status-card{margin-top:12px;}
 .kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;font-size:12.5px;align-items:center;}
 .kv-grid span{color:var(--ink-faint);}
 .kv-grid b{color:var(--ink);font-weight:600;}
 .kv-grid b.num{color:var(--brass);font-variant-numeric:tabular-nums;}
 
 /* ---- display settings (theme / skin segmented toggle) ---- */
-.seg-toggle{display:flex;background:var(--void);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;}
-.seg-btn{flex:1;padding:9px 10px;border-radius:7px;font-size:12.5px;font-weight:700;color:var(--ink-faint);background:none;border:none;cursor:pointer;transition:.15s;}
-.seg-btn:hover{color:var(--ink);}
-.seg-btn.active{background:var(--grad-gold);color:#071120;box-shadow:0 3px 10px -3px rgba(217,178,106,.5);}
 
 /* ---- P/B/T tally bar + bead road (single-table detail screens) ---- */
 .bead-road{display:flex;gap:3px;overflow-x:auto;padding-bottom:4px;}
@@ -756,9 +734,6 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 /* 18 at the foot rather than 24: the screen comes to 898px at a 1440x900, which is the
    commonest desktop there is, and four pixels of padding are not worth a scrollbar on it */
 .speed-detail-wrap{padding:16px 18px 18px;max-width:1400px;margin:0 auto;box-sizing:border-box;}
-.speed-detail-head{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
-.speed-detail-head .name{font-weight:800;font-size:16px;color:var(--brass);}
-.speed-detail-head .meta{font-size:11.5px;color:var(--ink-faint);font-family:var(--mono);}
 .speed-detail-close{margin-left:auto;}
 .speed-detail-grid{
   /* --sd-board is the results row, ruled the way the reference board is: a full-size Big Road

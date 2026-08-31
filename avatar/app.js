@@ -460,11 +460,19 @@ function renderGameHistory(btn, mode){
     const rowsHtml = list.map(b=>{
       const net = b.payout - b.amount;
       const cls = net > 0 ? 'pos' : net < 0 ? 'neg' : '';
+      /* The two figures the line reconciles between. Rounds played before this was recorded
+         have no balances on them, so the line simply goes without rather than inventing one. */
+      const hasBal = Number.isFinite(b.balanceBefore) && Number.isFinite(b.balanceAfter);
+      const balHtml = hasBal
+        ? `<span class="bal"><i>${t('balBefore')}</i> ${fmtNum(b.balanceBefore)}
+             <em>→</em> <i>${t('balAfter')}</i> <b>${fmtNum(b.balanceAfter)}</b></span>`
+        : '';
       return `<div class="history-row">
         <span class="t">${fmtDt(b.dt).slice(11)}</span>
         <span class="g">${b.tableName ? escapeHtml(b.tableName) + ' · ' : ''}${betLabel(b.betType)}</span>
         <span class="amt">${fmtNum(b.amount)}</span>
         <span class="wl ${cls}">${net===0?t('push'):fmtSigned(net)}</span>
+        ${balHtml}
       </div>`;
     }).join('');
     return `<div class="history-day">
@@ -1386,6 +1394,8 @@ async function beginAvatarDealingPhase(){
   AVATAR.phase = 'dealing';
   AVATAR.secondsLeft = AVATAR_DEALING_SECONDS;
   setAvatarPhaseBanner(t('phaseDealing'), AVATAR_DEALING_SECONDS);
+  // the figure the player was reading when the chips went down - see the note in beginSpeedDealing
+  AVATAR.openingBalance = STATE.balance;
   for (const [betType, amount] of Object.entries(bets)){
     if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId:AVATAR.table.id, roundId:myRound, betType, amount, staff:CAGE_LEDGER_SOURCE.avatar});
   }
@@ -1448,11 +1458,15 @@ async function beginAvatarResultPhase(){
   setAvatarPhaseBanner(sim.result==='player' ? t('phasePlayerWin') : sim.result==='banker' ? t('phaseBankerWin') : t('phaseTie'), AVATAR_RESULT_SECONDS);
 
   let totalPayout = 0;
+  // one line per spot, each starting where the last ended - see the note in beginSpeedResult
+  let running = Number.isFinite(AVATAR.openingBalance) ? AVATAR.openingBalance : STATE.balance;
   for (const [betType, amount] of Object.entries(bets)){
     if (amount <= 0) continue;
     const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:myRound, betType, amount, resultInfo:sim, staff:CAGE_LEDGER_SOURCE.avatar});
     totalPayout += payout;
-    MY_BET_LOG.unshift({tableName, roundNo, betType, amount, payout, mode:'avatar', dt:new Date().toISOString()});
+    const balanceBefore = running, balanceAfter = running - amount + payout;
+    running = balanceAfter;
+    MY_BET_LOG.unshift({tableName, roundNo, betType, amount, payout, balanceBefore, balanceAfter, mode:'avatar', dt:new Date().toISOString()});
   }
   const staked = Object.values(bets).reduce((a,x)=>a+x, 0);
   if (AVATAR.currentRoundId !== myRound){
@@ -2590,6 +2604,10 @@ async function beginSpeedDealing(tableId){
     toast(t('betNotConfirmed', {amount: fmtNum(unconfirmed)}), true);
   }
   paintSpeedConfirmState(tableId);
+  /* What the player had before this round took anything, kept for the record: the stakes have
+     not been written yet, so this is the figure they were reading when they put the chips down.
+     The record then chains from it, one line per spot. */
+  s.openingBalance = STATE.balance;
   for (const [betType, amount] of Object.entries(s.bets)){
     if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, staff:CAGE_LEDGER_SOURCE.speed});
   }
@@ -2656,11 +2674,18 @@ async function beginSpeedResult(tableId){
   paintSpeedMultiRow(tableId);
 
   let totalPayout = 0;
+  /* Each line of the record carries what the player had going into it and what they had coming
+     out, so a round reconciles on its own without arithmetic. With more than one spot on the
+     felt the lines chain: each starts where the one before it ended, and the last one ends on
+     the balance the bar is showing. */
+  let running = Number.isFinite(s.openingBalance) ? s.openingBalance : STATE.balance;
   for (const [betType, amount] of Object.entries(s.bets)){
     if (amount <= 0) continue;
     const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, resultInfo:sim, staff:CAGE_LEDGER_SOURCE.speed});
     totalPayout += payout;
-    MY_BET_LOG.unshift({tableName:tb.name, roundNo:s.roundNo, betType, amount, payout, mode:'speed', dt:new Date().toISOString()});
+    const balanceBefore = running, balanceAfter = running - amount + payout;
+    running = balanceAfter;
+    MY_BET_LOG.unshift({tableName:tb.name, roundNo:s.roundNo, betType, amount, payout, balanceBefore, balanceAfter, mode:'speed', dt:new Date().toISOString()});
     SPEED.allBets.push({relatedTableId:tableId, amount:-amount, category:'bet', createdAt:new Date().toISOString()});
   }
   logAiPrediction(tableId, sim.result);   // the paper-betting record, win or lose

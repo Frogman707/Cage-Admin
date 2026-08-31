@@ -617,6 +617,17 @@ function applyLobbyTileFilter(){
   const none = document.getElementById('lobbyNoMatch');
   if (none) none.style.display = shown ? 'none' : '';
 }
+/* 실시간 접속자 asks which page a player is on, not only which branch they belong to. That is
+   something only the client knows, so it is written as they move - the admin reads it back on the
+   member's own record. A failed write is not worth interrupting a player over: the column falls
+   back to their branch, which is what it showed before. */
+function markPresence(tableId, gameType){
+  if (!db || !PLAYER) return;
+  db.collection('members').doc(PLAYER.id).set({
+    currentTableId: tableId || null, currentGameType: gameType || null,
+    lastLoginAt: new Date().toISOString(),
+  }, {merge:true}).catch(()=>{});
+}
 function backToAvatarLobby(){ goLobby(); }
 function onLangChange(){
   // re-render whichever screen is currently visible so JS-generated text updates immediately
@@ -747,6 +758,7 @@ function handleAvatarCardClick(tableId){
   // the mode is settled by which table is opened, not by which list it was picked from - there
   // is only the one list now
   MODE = 'avatar';
+  markPresence(tableId, 'avatar');
   const {state} = avatarRequestStateForTable(tableId);
   if (state==='active') enterAvatarSession(tableId);
   else openAvatarTablePreview(tableId, state);
@@ -887,7 +899,7 @@ function avatarStageHtml(tb, state){
         <div class="sd-stage-top">
           <div class="sd-type-badge">AVATAR</div>
           <div class="sd-table-id-mini">${escapeHtml(tb.name)}</div>
-          <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
+          ${limitLineHtml(tb)}
         </div>
         <div class="phase-banner" id="phase-avatar">${state === 'active' ? t('phaseBetting') : t(avatarWatchLabel(state))}</div>
         <div class="sd-stage-icons">
@@ -1296,10 +1308,11 @@ function avatarCommittedAmount(){ return AVATAR.committed ? avatarTotalBet() : 0
    said the same way, and it is checked when betting closes rather than as a chip lands, because
    a player builds up to the minimum out of the chips they have. */
 function returnUnderMinAvatarBets(){
-  const min = Number(AVATAR.table?.betMin) || 0;
   let returned = 0;
   for (const [k, v] of Object.entries(AVATAR.bets)){
-    if (v > 0 && v < min){ returned += v; AVATAR.bets[k] = 0; }
+    // each spot group posts its own minimum, so a 타이 short of the 타이 minimum is what is
+    // pushed back - not whatever the main bet happens to ask for
+    if (v > 0 && v < effectiveLimits(AVATAR.table, PLAYER, k).min){ returned += v; AVATAR.bets[k] = 0; }
   }
   if (returned > 0){
     renderAvatarBetSpots();
@@ -1922,9 +1935,12 @@ function placeSpeedBet(tableId, type){
   if (!s || s.phase !== 'betting'){ toast(t('notBettingTime'), true); return; }
   if (s.confirmed){ toast(t('alreadyConfirmed'), true); return; }
   const free = STATE.balance - speedLockedTotal();
-  // the table's limits apply to each betting position, not to the round as a whole
-  const max = tableBetMax(tableId);
-  const headroom = Math.max(0, max - s.bets[type]);
+  /* The table's limits apply per betting position, not to the round as a whole - and 타이 and
+     페어 carry their own, while the main bet is capped on the difference between the two sides.
+     Both rules live in shared/payout.js so the felt and the admin agree on them. */
+  const tb = SPEED.tables[tableId];
+  const max = effectiveLimits(tb, PLAYER, type).max;
+  const headroom = spotHeadroom(tb, s.bets, type, PLAYER);
   // A chip worth more than is left rides the rest of the balance in rather than being refused:
   // the click still lands, for whatever the player actually has. The table maximum still caps it.
   const stake = Math.min(STATE.selectedChip, headroom, free);
@@ -2117,11 +2133,28 @@ function avatarFeltBoardHtml(){
    is open, never past the table maximum, and a chip worth more than is left rides the rest of the
    balance in rather than being refused. */
 function avatarTakesBets(){ return AVATAR.phase === 'betting' && !!AVATAR.request; }
+/* What the table posts on the felt. The main range is always shown; 타이 and 페어 appear beside
+   it only when the table actually sets them apart, so a table running one set of limits reads
+   exactly as it always did. */
+function limitRangeText(l){
+  return `${fmtNum(l.min)} ~ ${Number.isFinite(l.max) ? fmtNum(l.max) : '\u221e'}`;
+}
+function limitLineHtml(tb){
+  const main = tableLimits(tb, 'player'), tie = tableLimits(tb, 'tie'), pair = tableLimits(tb, 'playerPair');
+  const apart = l => l.min !== main.min || l.max !== main.max;
+  const extra = [];
+  if (apart(tie))  extra.push(`T ${limitRangeText(tie)}`);
+  if (apart(pair)) extra.push(`P ${limitRangeText(pair)}`);
+  return `<div class="sd-limit-text">${limitRangeText(main)}</div>`
+       + (extra.length ? `<div class="sd-limit-sub">${extra.join(' \u00b7 ')}</div>` : '');
+}
 function placeAvatarBet(type){
   if (!avatarTakesBets()){ toast(t('notBettingTime'), true); return; }
   const free = STATE.balance - avatarCommittedAmount();
-  const max = Number(AVATAR.table?.betMax) || Infinity;
-  const headroom = Math.max(0, max - (AVATAR.bets[type] || 0));
+  // 타이 and 페어 carry their own maximum, and the main bet is capped on the difference between
+  // the two sides rather than on each of them - shared/payout.js holds both rules
+  const max = effectiveLimits(AVATAR.table, PLAYER, type).max;
+  const headroom = spotHeadroom(AVATAR.table, AVATAR.bets, type, PLAYER);
   const stake = Math.min(STATE.selectedChip, headroom, free);
   if (stake <= 0){
     toast(free <= 0 ? t('insufficientBalance') : t('aboveTableMax', {max: fmtNum(max)}), true);
@@ -2177,6 +2210,7 @@ function openSpeedTableDetail(tableId, preserveScroll){
   const s = SPEED.tstate[tableId], tb = SPEED.tables[tableId];
   if (!s || !tb) return;
   MODE = 'speed';
+  markPresence(tableId, 'speed');
   SPEED.detailTableId = tableId;
   showView('viewSpeedTable');
   releaseFsFollowers();     // whatever is on loan to the old screen, before it is thrown away
@@ -2195,6 +2229,7 @@ function openSpeedTableDetail(tableId, preserveScroll){
   if (s.phase==='result' && s._sim) revealSpeedDetailCards(s._sim, true);
 }
 function closeSpeedTableDetail(){
+  markPresence(null, null);
   SPEED.detailTableId = null;
   // the loans go home before the screen holding them is thrown away
   unmountTableFullscreen();
@@ -2214,7 +2249,7 @@ function speedDetailShellHtml(tableId){
         <div class="sd-stage-top">
           <div class="sd-type-badge">SPEED</div>
           <div class="sd-table-id-mini">${escapeHtml(tb.name)}</div>
-          <div class="sd-limit-text">${fmtNum(tb.betMin)} ~ ${fmtNum(tb.betMax)}</div>
+          ${limitLineHtml(tb)}
         </div>
         <div class="phase-banner" id="phase-detail">${t('phaseBetting')}</div>
         <div class="sd-stage-icons">
@@ -2628,10 +2663,11 @@ async function beginSpeedDealing(tableId){
 function tableBetMax(tableId){ return Number(SPEED.tables[tableId]?.betMax) || Infinity; }
 function tableBetMin(tableId){ return Number(SPEED.tables[tableId]?.betMin) || 0; }
 function returnUnderMinSpeedBets(tableId){
-  const s = SPEED.tstate[tableId], min = tableBetMin(tableId);
+  const s = SPEED.tstate[tableId], tb = SPEED.tables[tableId];
   let returned = 0;
   for (const [k, v] of Object.entries(s.bets)){
-    if (v > 0 && v < min){ returned += v; s.bets[k] = 0; }
+    // per spot group, as at an avatar table
+    if (v > 0 && v < effectiveLimits(tb, PLAYER, k).min){ returned += v; s.bets[k] = 0; }
   }
   if (returned > 0){
     renderSpeedTileBets(tableId);

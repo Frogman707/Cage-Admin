@@ -102,13 +102,18 @@
 
 <!-- generic balance adjust modal -->
 <div class="modal-bg" id="modal-balance"><div class="modal">
-  <button class="modal-close" onclick="closeModal('modal-balance')">×</button>
+  <button class="modal-close" onclick="closeBalanceModal()">×</button>
   <h3 id="balanceModalTitle">보유금 지급</h3>
   <p class="hint" id="balanceModalSub"></p>
+  <!-- the member's balance as it stands right now, read live: an operator adjusting a figure
+       should not have to leave the popup to find out what they are adjusting -->
+  <div class="stat-card" id="balanceModalNow" style="margin-bottom:12px;">
+    <div class="lbl">현재 보유금</div><div class="val" id="balanceModalNowVal">—</div>
+  </div>
   <div class="field"><label>금액</label><input id="balanceAmt" type="text" inputmode="numeric" placeholder="0" oninput="formatNumInput(this)"></div>
   <div class="field"><label>메모</label><textarea id="balanceMemo" placeholder="사유를 입력하세요"></textarea></div>
   <div class="modal-foot">
-    <button class="btn" onclick="closeModal('modal-balance')">취소</button>
+    <button class="btn" onclick="closeBalanceModal()">취소</button>
     <button class="btn btn-gold" onclick="submitBalanceAdjust()">처리</button>
   </div>
 </div></div>

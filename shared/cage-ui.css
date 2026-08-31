@@ -82,7 +82,7 @@ a{color:var(--brass);}
 .topbar select{background:var(--panel-raised);color:var(--ink);border:1px solid var(--line);padding:6px 10px;border-radius:var(--radius);font-weight:600;font-size:13px;}
 
 /* ===== Shell / nav ===== */
-.shell{flex:1;display:flex;min-height:0;}
+.shell{flex:1;display:flex;min-height:0;position:relative;}
 .nav{width:210px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:10px 0;overflow-y:auto;}
 .nav-group{display:flex;flex-direction:column;}
 .nav-group-head{display:flex;align-items:center;gap:11px;background:none;border:none;color:var(--ink-dim);padding:11px 18px;font-size:13px;font-weight:600;text-align:left;width:100%;border-left:3px solid transparent;transition:.15s;}
@@ -279,5 +279,125 @@ tr:hover td{background:var(--panel-raised);}
 .checkbox-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-dim);}
 .badge-dot{width:7px;height:7px;border-radius:50%;background:var(--jade);box-shadow:0 0 6px var(--jade);display:inline-block;}
 .badge-dot.off{background:var(--danger);box-shadow:0 0 6px var(--danger);}
+
+/* Everything below is scoped to body.admin-app - the partner admin - because this stylesheet is
+   also what the player app is built from, and turning every table into cards and every dialog into
+   a bottom sheet is right for an operator's phone and not something to do to the felt by accident. */
+/* =========================================================================
+   The phone
+
+   One admin, not two. Below 900px the sidebar becomes a drawer over the page, the tables are read
+   down instead of across, and everything that was only wide because it had the room gives it back.
+   Nothing here is a separate mobile build - it is the same markup, told what to do with less.
+   ========================================================================= */
+body.admin-app .nav-toggle{display:none;align-items:center;justify-content:center;width:34px;height:34px;
+  flex-shrink:0;background:var(--panel-raised);border:1px solid var(--line);border-radius:6px;color:var(--ink);}
+body.admin-app .nav-toggle svg{width:18px;height:18px;}
+body.admin-app .nav-scrim{display:none;}
+
+@media (max-width:900px){
+  /* --- the drawer --- */
+  body.admin-app .nav-toggle{display:inline-flex;}
+  /* the drawer sits inside the shell rather than over the whole window, so the bar across the
+     top - and the handle that opened it - stay where they are and stay tappable */
+  body.admin-app .nav{position:absolute;top:0;bottom:0;left:0;width:248px;max-width:82vw;z-index:120;
+       transform:translateX(-102%);transition:transform .22s ease;
+       box-shadow:0 0 44px rgba(0,0,0,.6);}
+  body.admin-app.nav-open .nav{transform:none;}
+  body.admin-app .nav-scrim{position:absolute;inset:0;background:rgba(4,8,16,.62);z-index:110;}
+  body.admin-app.nav-open .nav-scrim{display:block;}
+  /* a drawer item is tapped, not clicked at, so it is given something to tap */
+  body.admin-app .nav-single,body.admin-app .nav-group-head{padding:13px 18px;font-size:14px;}
+  body.admin-app .nav-sub button{padding:11px 18px 11px 46px;font-size:13.5px;}
+
+  /* --- the bar across the top --- */
+  body.admin-app .topbar{gap:9px;padding:9px 11px;}
+  body.admin-app .brand .mark{font-size:15px;}
+  body.admin-app .brand .ver,body.admin-app .divider-v,body.admin-app #clockTxt,body.admin-app .hide-sm{display:none;}
+  body.admin-app .topbar-meta{gap:9px;font-size:11px;}
+  body.admin-app .topbar .btn{white-space:nowrap;padding:7px 10px;font-size:11.5px;}
+
+  body.admin-app .main{padding:14px 12px 56px;}
+  body.admin-app h2.page-title{font-size:19px;}
+
+  /* --- figures --- */
+  body.admin-app .grid{gap:9px;}
+  body.admin-app .stat-card{padding:12px 13px;}
+  .grid-3>.stat-card:last-child:nth-child(odd),
+  .grid-4>.stat-card:last-child:nth-child(odd),
+  .grid-5>.stat-card:last-child:nth-child(odd),
+  .grid-6>.stat-card:last-child:nth-child(odd),
+  body.admin-app .grid-7>.stat-card:last-child:nth-child(odd){grid-column:1 / -1;}
+  body.admin-app .stat-card .val{font-size:19px;margin-top:5px;}
+  body.admin-app .stat-card .staircase{display:none;}
+  body.admin-app .card{padding:13px 12px;}
+
+  /* --- the toolbar above a list --- */
+  body.admin-app .toolbar{gap:8px;}
+  body.admin-app .toolbar .field{min-width:0;flex:1 1 calc(50% - 4px);}
+  body.admin-app .toolbar .search-box{flex:1 1 100%;max-width:none;}
+  /* a 기간 field is two boxes in one, so it takes the row that a single box can share */
+  .toolbar .field:has(input[type="date"]),
+  body.admin-app .toolbar .field:has(input[type="datetime-local"]){flex:1 1 100%;}
+  body.admin-app .toolbar-right{margin-left:0;flex:1 1 100%;}
+  body.admin-app .toolbar-right .btn{flex:1;}
+  body.admin-app .tabs-mini{flex-wrap:nowrap;overflow-x:auto;}
+
+  /* --- a table, read down the page ---
+     Each cell prints the column it came from (stamped by labelTableCells) and one row becomes one
+     card. An eighteen-column row is eighteen lines rather than eighteen columns off the side of
+     the screen, which is the difference between long and unreadable. */
+  body.admin-app .table-wrap{overflow-x:visible;border:none;border-radius:0;}
+  body.admin-app table,body.admin-app thead,body.admin-app tbody,body.admin-app tr,body.admin-app th,body.admin-app td{display:block;}
+  body.admin-app thead{display:none;}
+  body.admin-app tbody tr{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+           margin-bottom:9px;overflow:hidden;}
+  body.admin-app tbody tr:nth-child(even) td,body.admin-app tr:hover td{background:none;}
+  body.admin-app td{display:flex;align-items:center;justify-content:space-between;gap:14px;
+     padding:8px 12px;text-align:right;white-space:normal;word-break:break-word;
+     border-bottom:1px solid rgba(255,255,255,.05);}
+  body.admin-app tr td:last-child{border-bottom:none;}
+  body.admin-app td::before{content:attr(data-label);flex:0 0 auto;white-space:nowrap;text-align:left;
+             color:var(--ink-faint);font-size:10.5px;font-weight:600;letter-spacing:.3px;}
+  body.admin-app td:not([data-label]){justify-content:flex-end;}
+  /* the first cell is what the row is - a number, an id, a date - so it heads the card */
+  body.admin-app tbody tr td:first-child{background:var(--panel-hi);font-weight:700;color:var(--brass);}
+  body.admin-app .empty-row td{justify-content:center;text-align:center;padding:24px;}
+  body.admin-app .empty-row td::before{content:none;}
+  body.admin-app .row-actions{flex-wrap:wrap;justify-content:flex-end;}
+
+  /* --- a dialog comes up from the bottom, where the thumb is --- */
+  body.admin-app .modal-bg{padding:0;align-items:flex-end;}
+  body.admin-app .modal{width:100%;max-width:100%;margin:auto 0 0;padding:18px 15px 22px;
+         border-radius:12px 12px 0 0;max-height:92vh;overflow-y:auto;}
+  body.admin-app .modal-foot{position:sticky;bottom:-22px;background:var(--panel);padding-top:10px;}
+  body.admin-app .modal-foot .btn{flex:1;}
+  body.admin-app .detail-tabs-body{max-height:none;}
+  body.admin-app .kv-grid{grid-template-columns:1fr;}
+
+  /* --- something to actually hit --- */
+  body.admin-app .btn{padding:10px 15px;}
+  body.admin-app .btn-sm{padding:7px 11px;font-size:11.5px;}
+  body.admin-app .btn-xs{padding:6px 10px;font-size:11px;}
+  /* 16px is the size below which iOS Safari zooms the page in on focus */
+  body.admin-app .field input,body.admin-app .field select,body.admin-app .field textarea{font-size:16px;padding:10px;}
+}
+
+/* Three headline figures still fit a tablet; a phone takes two. */
+@media (max-width:620px){
+  body.admin-app .grid-4,body.admin-app .grid-5,body.admin-app .grid-6,body.admin-app .grid-7{grid-template-columns:repeat(2,1fr);}
+}
+
+/* A phone held upright, where two stat cards side by side is already a squeeze */
+@media (max-width:420px){
+  body.admin-app .grid-3,body.admin-app .grid-4,body.admin-app .grid-5,body.admin-app .grid-6,body.admin-app .grid-7{grid-template-columns:repeat(2,1fr);}
+  body.admin-app .stat-card .val{font-size:17px;}
+  /* the brand is the one thing on the bar you can work out without reading it, so it is what
+     gives way when the bar runs out of room */
+  body.admin-app .brand{min-width:0;}
+  body.admin-app .brand .mark{font-size:13.5px;display:block;overflow:hidden;text-overflow:ellipsis;}
+  body.admin-app .topbar{gap:7px;padding:8px 9px;}
+  body.admin-app .field label{font-size:10.5px;}
+}
 
 ::selection{background:rgba(217,178,106,.35);}

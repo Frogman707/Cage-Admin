@@ -152,7 +152,9 @@ function svgBarChart(el, labels, series, opts={}){
     });
   });
   let xlabels = '';
+  const barStride = labelStride(labels, w - pad*2);
   labels.forEach((lb,i)=>{
+    if (i % barStride) return;
     const x = pad + i*bw + bw/2;
     xlabels += `<text x="${x.toFixed(1)}" y="${h-8}" font-size="9.5" fill="var(--ink-faint)" text-anchor="middle">${lb}</text>`;
   });
@@ -161,6 +163,15 @@ function svgBarChart(el, labels, series, opts={}){
     return `<line x1="${pad}" y1="${y.toFixed(1)}" x2="${w-8}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
   }).join('');
   el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" style="overflow:visible;">${gridY}${bars}${xlabels}</svg>`;
+}
+/* How many of these labels will actually fit across the axis without running into each other. A
+   sixteen-day axis is legible on a desktop card and a smear of digits on a phone, so the stride is
+   worked out from the width actually in front of it rather than fixed. */
+function labelStride(labels, plotWidth){
+  const longest = labels.reduce((m,l)=>Math.max(m, String(l).length), 0);
+  const per = longest * 6.2 + 12;          // 9.5px type is about 6.2px a character, plus a gap
+  const fits = Math.max(1, Math.floor(plotWidth / per));
+  return Math.max(1, Math.ceil(labels.length / fits));
 }
 function svgLineChart(el, labels, series, opts={}){
   const w = el.clientWidth || 560, h = opts.height || 200, pad = 28;
@@ -180,8 +191,9 @@ function svgLineChart(el, labels, series, opts={}){
     return `<line x1="${pad}" y1="${y.toFixed(1)}" x2="${w-8}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
   }).join('');
   let xlabels = '';
+  const lineStride = labelStride(labels, w - pad*2);
   labels.forEach((lb,i)=>{
-    if (labels.length>10 && i%Math.ceil(labels.length/8)!==0) return;
+    if (i % lineStride) return;
     const x = pad + i*stepX;
     xlabels += `<text x="${x.toFixed(1)}" y="${h-8}" font-size="9.5" fill="var(--ink-faint)" text-anchor="middle">${lb}</text>`;
   });

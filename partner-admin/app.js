@@ -127,6 +127,45 @@ function buildNav(){
       </div>
     </div>`;
 }
+/* ---- the phone ----
+   There is one admin, not a desktop one and a phone one. Below the breakpoint the sidebar becomes
+   a drawer over the page rather than a column beside it, because 210px of a 390px screen is most
+   of the screen. Picking anything from it closes it, which is what a drawer is for. */
+function toggleNavDrawer(){ document.body.classList.toggle('nav-open'); }
+function closeNavDrawer(){ document.body.classList.remove('nav-open'); }
+
+/* Every table here is a header row plus body rows, and on a phone there is no room to keep the
+   header above them. So each cell is stamped with the column it came from and the phone stylesheet
+   prints that beside the value - the same table, read down the page instead of across it.
+
+   Stamping is done by watching the main area rather than by each screen remembering to ask: there
+   are some forty of them, they redraw on every snapshot, and one that forgot would quietly print a
+   column of unlabelled figures. */
+function labelTableCells(root){
+  (root || document).querySelectorAll('table').forEach(t=>{
+    const heads = [...t.querySelectorAll('thead th')].map(th=>th.textContent.trim());
+    if (!heads.length) return;
+    t.querySelectorAll('tbody tr').forEach(tr=>{
+      [...tr.children].forEach((td,i)=>{ if (heads[i]) td.setAttribute('data-label', heads[i]); });
+    });
+  });
+}
+let CELL_LABEL_OBSERVER = null;
+function watchTableCells(){
+  if (CELL_LABEL_OBSERVER) return;
+  const host = document.getElementById('shell');
+  if (!host || typeof MutationObserver === 'undefined') return;
+  let queued = false;
+  CELL_LABEL_OBSERVER = new MutationObserver(()=>{
+    // attributes are not watched, so stamping from in here cannot set the observer off again
+    if (queued) return;
+    queued = true;
+    setTimeout(()=>{ queued = false; labelTableCells(host); }, 0);
+  });
+  CELL_LABEL_OBSERVER.observe(host, {childList:true, subtree:true});
+  labelTableCells(host);
+}
+
 function toggleNavGroup(id){
   const el = document.getElementById('navgrp-'+id);
   const wasOpen = el.classList.contains('open');
@@ -197,6 +236,7 @@ async function doLogin(){
   document.getElementById('login-gate').style.display='none';
   document.getElementById('topbar').style.display='flex';
   document.getElementById('shell').style.display='flex';
+  watchTableCells();
   document.getElementById('staffNameTxt').textContent = staff.name || staff.id;
   document.getElementById('hdrLangRow').innerHTML = langSwitcherHtml('hdrLangSwitch');
   startLiveSync();
@@ -220,6 +260,7 @@ async function switchView(viewId){
   if (LIST_UNSUB){ LIST_UNSUB(); LIST_UNSUB = null; }
   CURRENT_VIEW = viewId;
   setActiveNav(viewId);
+  closeNavDrawer();   // picking a screen from the drawer is the last thing the drawer is for
   const main = document.getElementById('mainArea');
   main.innerHTML = `<div class="loading-wrap"><div class="spin"></div></div>`;
   try{

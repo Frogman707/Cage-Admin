@@ -625,6 +625,17 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .history-row .wl{font-family:var(--mono);text-align:right;font-weight:700;}
 .history-row .wl.pos{color:var(--jade);}
 .history-row .wl.neg{color:var(--danger);}
+/* The balance either side of the bet, on a line of its own under the row. It is a reconciliation
+   rather than a headline - the row above already says what the round did - so it is set small and
+   quiet, and only the figure the player ends on is given the full ink. Its own line because the
+   row is four columns already and a phone has no room for six. */
+.history-row .bal{
+  grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px;
+  font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);margin-top:3px;
+}
+.history-row .bal i{font-style:normal;font-family:var(--sans);font-size:10px;opacity:.75;}
+.history-row .bal em{font-style:normal;opacity:.55;padding:0 1px;}
+.history-row .bal b{color:var(--ink-dim);font-weight:700;}
 
 /* ================= MOBILE ================= */
 @media (max-width:860px){

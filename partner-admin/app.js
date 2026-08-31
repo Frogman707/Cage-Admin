@@ -317,17 +317,29 @@ let LIST_UNSUB = null;
 // regenerating the whole shell (including the search input), which would drop whatever the staff
 // member is mid-typing into the search box on every incoming snapshot. Stats catch up next time the
 // screen is (re)mounted.
+/* mapRow turns one document into one row, which is what almost every screen wants. 일자별 정산
+   wants the opposite: many ledger rows folded into one line per member per day. reduceRows is that
+   - it is handed the whole set and returns whatever rows the page is actually made of.
+
+   A page whose rows depend on its own filters (a settlement window is a filter that changes what
+   is aggregated, not which of the finished rows survive) sets rowsFromFilters, and the raw
+   documents are kept so the rows can be rebuilt whenever a filter moves. */
+function buildListRows(cfg, docs){
+  let rows = cfg.reduceRows ? cfg.reduceRows(docs) : (cfg.mapRow ? docs.map(cfg.mapRow) : docs);
+  if (cfg.sortKey) rows = rows.slice().sort((a,b)=> cfg.sortDir==='asc'
+    ? (a[cfg.sortKey]>b[cfg.sortKey]?1:-1) : (a[cfg.sortKey]<b[cfg.sortKey]?1:-1));
+  return rows;
+}
 async function mountListView(cfg){
-  LIST_STATE = {cfg, rows: [], filtered: [], page:1, pageSize:20, q:'', activeFilters:{}};
+  LIST_STATE = {cfg, rows: [], raw: [], filtered: [], page:1, pageSize:20, q:'', activeFilters:{}};
   let resolveFirst;
   const firstSnapshot = new Promise(res=>{ resolveFirst = res; });
   LIST_UNSUB = db.collection(cfg.coll).onSnapshot(snap=>{
     let docs = snap.docs.map(d=>({id:d.id, ...d.data()}));
     if (cfg.extraFilter) docs = docs.filter(cfg.extraFilter);
     if (CASINO_FILTER!=='ALL' && cfg.casinoField) docs = docs.filter(d=>d[cfg.casinoField]===CASINO_FILTER);
-    let rows = cfg.mapRow ? docs.map(cfg.mapRow) : docs;
-    if (cfg.sortKey) rows.sort((a,b)=> cfg.sortDir==='asc' ? (a[cfg.sortKey]>b[cfg.sortKey]?1:-1) : (a[cfg.sortKey]<b[cfg.sortKey]?1:-1));
-    LIST_STATE.rows = rows;
+    LIST_STATE.raw = docs;
+    LIST_STATE.rows = buildListRows(cfg, docs);
     reapplyListFilters();
     if (resolveFirst){ resolveFirst(); resolveFirst = null; }
   }, err=>{
@@ -385,6 +397,14 @@ function filterControl(f){
       + `<input type="date" style="min-width:0;" onchange="onListFilter('${k}__to', this.value)">`
       + `</div></div>`;
   }
+  if (f.type === 'datetime'){
+    // 일자별 정산 searches a moment, not a day - "09:00 to 18:00 yesterday" is a real question
+    return `<div class="field"><label>${f.label}</label>`
+      + `<div class="row" style="gap:6px;flex-wrap:nowrap;">`
+      + `<input type="datetime-local" style="min-width:0;" onchange="onListFilter('${k}__from', this.value)">`
+      + `<input type="datetime-local" style="min-width:0;" onchange="onListFilter('${k}__to', this.value)">`
+      + `</div></div>`;
+  }
   if (f.type === 'text'){
     return `<div class="field"><label>${f.label}</label>`
       + `<input placeholder="${f.ph||''}" oninput="onListFilter('${k}', this.value)"></div>`;
@@ -421,12 +441,16 @@ function applyListFilters(){
 // action) and by mountListView()'s onSnapshot handler (an incoming live update shouldn't yank a
 // staff member back to page 1 while they're browsing page 3).
 function reapplyListFilters(){
-  const {cfg, rows, q, activeFilters} = LIST_STATE;
-  let out = rows;
+  const {cfg, q, activeFilters} = LIST_STATE;
+  // a page whose rows are aggregated under its own filters rebuilds them before narrowing
+  if (cfg.rowsFromFilters) LIST_STATE.rows = buildListRows(cfg, LIST_STATE.raw || []);
+  let out = LIST_STATE.rows;
   if (q) out = out.filter(r => (cfg.searchFields||[]).some(f => String(r[f]??'').toLowerCase().includes(q)));
   Object.entries(activeFilters||{}).forEach(([k,v])=>{
     const base = k.replace(/__(from|to)$/, '');
     const f = (cfg.filters||[]).find(x=>x.key===base);
+    // a datetime window is consumed when the rows are built, not by narrowing finished ones
+    if (f && f.type === 'datetime') return;
     if (f && f.type === 'date'){
       const edge = k.endsWith('__from') ? 'from' : 'to';
       out = out.filter(r=>{
@@ -512,6 +536,7 @@ async function creditMember({memberId, casino, amount, category, memo, extra, do
 
 /* ---------------- balance adjust modal (reused by many screens) ---------------- */
 let BALANCE_CTX = null;
+let BALANCE_UNSUB = null;
 function openBalanceModal(memberId, mode, label){
   BALANCE_CTX = {memberId, mode};
   document.getElementById('balanceModalTitle').textContent = label || (mode==='deposit' ? '보유금 지급' : '보유금 차감');
@@ -519,6 +544,26 @@ function openBalanceModal(memberId, mode, label){
   document.getElementById('balanceAmt').value = '';
   document.getElementById('balanceMemo').value = '';
   openModal('modal-balance');
+  watchBalanceInModal(memberId);
+}
+/* Closing the popup drops the listener with it - nothing else on the screen is reading it. */
+function closeBalanceModal(){
+  if (BALANCE_UNSUB){ BALANCE_UNSUB(); BALANCE_UNSUB = null; }
+  closeModal('modal-balance');
+}
+/* The figure in the popup follows the member's book while the popup is open - a player at a table
+   is moving it, and an operator deciding how much to add should be reading what they have now
+   rather than what they had when the screen was last painted. */
+function watchBalanceInModal(memberId){
+  if (BALANCE_UNSUB){ BALANCE_UNSUB(); BALANCE_UNSUB = null; }
+  const el = document.getElementById('balanceModalNowVal');
+  if (el) el.textContent = '…';
+  const paint = total => { const e = document.getElementById('balanceModalNowVal');
+                           if (e) e.textContent = fmtNum(total); };
+  BALANCE_UNSUB = db.collection('memberLedger').where('memberId','==',memberId).onSnapshot(
+    snap => paint(snap.docs.reduce((a,d)=>a + (Number(d.data().amount)||0), 0)),
+    err => { console.error('balance watch failed:', err);
+             getBalances().then(b=>paint(b[memberId]?.balance || 0)).catch(()=>paint(0)); });
 }
 async function submitBalanceAdjust(){
   const amt = rawNum(document.getElementById('balanceAmt').value);
@@ -534,7 +579,7 @@ async function submitBalanceAdjust(){
     memberId: BALANCE_CTX.memberId, action: `${BALANCE_CTX.mode==='withdraw'?'차감':'지급'} ${fmtNum(amt)}`,
     staff: CURRENT_STAFF?.id||'—', dt: new Date().toISOString()
   });
-  closeModal('modal-balance');
+  closeBalanceModal();
   toast('처리되었습니다');
   invalidateCaches();
   switchView(CURRENT_VIEW);
@@ -721,23 +766,51 @@ async function changeMyPw(){
 /* ============================================================
    실시간 접속자 (realtime)
    ============================================================ */
+/* 카지노 on this screen is not the member's home branch - it is the page they are on right now, so
+   an operator can see who is sitting at HN-S01 rather than only that they are somewhere at HANN.
+   The member's own live table is written on their record as they open one; where nothing has been
+   written the branch is all we know, and that is what is shown. */
+function currentLocationText(m){
+  return m.currentTableId || m.currentPage || m.casino || '—';
+}
+/* 회원유형 here is what they are logged into: an 어카운트 holder browsing, or someone actually at an
+   아바타 or 스피드 table. */
+function sessionTypeText(m){
+  const tid = String(m.currentTableId || '');
+  if (m.currentGameType === 'avatar' || /-A\d/i.test(tid)) return '아바타';
+  if (m.currentGameType === 'speed'  || /-S\d/i.test(tid)) return '스피드';
+  return '어카운트';
+}
 async function renderRealtime(){
   const members = await getMembers(true);
-  const now = Date.now();
-  const online = members.filter(m => m.lastLoginAt && (now - new Date(m.lastLoginAt).getTime()) < 1000*60*60*6);
+  const balances = await getBalances(true);
+  const online = members.filter(isOnline);
   const byCasino = {};
   CASINOS.forEach(c=>byCasino[c]=online.filter(m=>m.casino===c).length);
+  const byType = {};
+  ['어카운트','아바타','스피드'].forEach(k=>byType[k]=online.filter(m=>sessionTypeText(m)===k).length);
   return `
-    ${pageHead('실시간 접속자', '최근 6시간 이내 로그인 기준 (데모)')}
+    ${pageHead('실시간 접속자', '최근 6시간 이내 로그인 기준. 카지노 열은 현재 접속 중인 페이지를 표시합니다.')}
     <div class="grid grid-4" style="margin-bottom:16px;">
       <div class="stat-card"><div class="lbl">총 접속자</div><div class="val">${fmtNum(online.length)}</div></div>
+      ${['아바타','스피드','어카운트'].map(k=>`<div class="stat-card"><div class="lbl">${k}</div><div class="val">${fmtNum(byType[k])}</div></div>`).join('')}
+    </div>
+    <div class="grid grid-4" style="margin-bottom:16px;">
       ${CASINOS.map(c=>`<div class="stat-card"><div class="lbl">${c}</div><div class="val">${fmtNum(byCasino[c])}</div></div>`).join('')}
     </div>
     <div class="card"><h3>접속중 회원</h3>
-      <div class="table-wrap"><table><thead><tr><th>ID</th><th>닉네임</th><th>카지노</th><th>회원유형</th><th>최근접속</th><th>상태</th></tr></thead><tbody>
-      ${online.length ? online.sort((a,b)=>new Date(b.lastLoginAt)-new Date(a.lastLoginAt)).map(m=>`
-        <tr><td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td><td>${escapeHtml(m.casino)}</td><td>${escapeHtml(m.memberType)}</td><td>${fmtDt(m.lastLoginAt)}</td><td><span class="badge-dot"></span> 온라인</td></tr>
-      `).join('') : `<tr class="empty-row"><td colspan="6">접속 중인 회원이 없습니다</td></tr>`}
+      <div class="table-wrap"><table><thead><tr>
+        <th>ID</th><th>닉네임</th><th>카지노</th><th>회원유형</th><th>보유금</th><th>가입일</th><th>최근접속</th><th>상태</th>
+      </tr></thead><tbody>
+      ${online.length ? online.sort((a,b)=>new Date(b.lastLoginAt)-new Date(a.lastLoginAt)).map(m=>{
+        const bal = balances[m.id]?.balance || 0;
+        return `<tr><td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td>
+          <td>${escapeHtml(currentLocationText(m))}</td>
+          <td>${escapeHtml(sessionTypeText(m))}</td>
+          <td><span class="num ${bal<0?'neg':bal>0?'pos':''}">${fmtNum(bal)}</span></td>
+          <td>${fmtDt(m.createdAt)}</td><td>${fmtDt(m.lastLoginAt)}</td>
+          <td>${m.status==='정상' ? `<span class="badge-dot"></span> 온라인` : pill(m.status, {정지:'bad'})}</td></tr>`;
+      }).join('') : `<tr class="empty-row"><td colspan="8">접속 중인 회원이 없습니다</td></tr>`}
       </tbody></table></div>
     </div>
   `;
@@ -758,22 +831,37 @@ async function renderAccount(){
         <div class="field search-box"><input id="acctSearch" placeholder="ID/닉네임 검색" oninput="filterAcctTable(this.value)"></div>
       </div>
       <div class="table-wrap"><table><thead><tr>
-        <th>아이디</th><th>닉네임</th><th>보유금액</th><th>보유금액 관리</th><th>베팅최대금액</th><th>베팅최소금액</th><th>비밀번호 관리</th><th>상태관리</th>
+        <th>ID</th><th>닉네임</th><th>보유금</th><th>자금관리</th><th>요율</th><th>베팅한도</th><th>접속상태</th><th>비밀번호</th><th>상태관리</th>
       </tr></thead><tbody id="acctBody">
-      ${rows.map(m=>acctRowHtml(m, balances[m.id]?.balance||0)).join('') || `<tr class="empty-row"><td colspan="8">데이터가 없습니다</td></tr>`}
+      ${rows.map(m=>acctRowHtml(m, balances[m.id]?.balance||0)).join('') || `<tr class="empty-row"><td colspan="9">데이터가 없습니다</td></tr>`}
       </tbody></table></div>
     </div>
   `;
 }
+/* 접속상태 is read the same way 실시간 접속자 reads it, so the two screens cannot disagree about
+   who is online. */
+const ONLINE_WINDOW_MS = 1000 * 60 * 60 * 6;
+function isOnline(m){
+  return !!m.lastLoginAt && (Date.now() - new Date(m.lastLoginAt).getTime()) < ONLINE_WINDOW_MS;
+}
+function memberRatesText(m){
+  const roll = Number(m.rollingRate);
+  const lose = Number(m.losingRate);
+  return `롤링 ${Number.isFinite(roll) ? roll : ROLLING_COMM_RATE * 100}% · 루징 ${Number.isFinite(lose) ? lose : 0}%`;
+}
 function acctRowHtml(m, bal){
+  const online = isOnline(m);
   return `<tr id="acctrow-${m.id}">
     <td>${escapeHtml(m.id)}</td><td>${escapeHtml(m.nickname||'—')}</td>
     <td><span class="num ${bal<0?'neg':bal>0?'pos':''}" data-bal="${escapeHtml(m.id)}">${fmtNum(bal)}</span></td>
-    <td><button class="btn btn-xs btn-jade" onclick="openBalanceModal('${m.id}','deposit','보유금 추가')">+ 추가</button>
-        <button class="btn btn-xs btn-danger" onclick="openBalanceModal('${m.id}','withdraw','보유금 차감')">− 차감</button></td>
-    <td><span class="num">${fmtNum(m.betMax||0)}</span></td>
-    <td><span class="num">${fmtNum(m.betMin||0)}</span></td>
-    <td><button class="btn btn-xs" onclick="resetMemberPw('${m.id}')">비밀번호 초기화</button></td>
+    <td><span class="row-actions"><button class="btn btn-xs btn-jade" onclick="openBalanceModal('${m.id}','deposit','보유금 추가')">+ 추가</button>
+        <button class="btn btn-xs btn-danger" onclick="openBalanceModal('${m.id}','withdraw','보유금 차감')">− 차감</button></span></td>
+    <td><span class="row-actions"><span class="hint">${escapeHtml(memberRatesText(m))}</span>
+        <button class="btn btn-xs" onclick="openMemberRates('${m.id}')">설정</button></span></td>
+    <td><span class="row-actions"><span class="num">${fmtNum(m.betMin||0)} ~ ${fmtNum(m.betMax||0)}</span>
+        <button class="btn btn-xs" onclick="openMemberBetLimit('${m.id}')">설정</button></span></td>
+    <td>${pill(online?'온라인':'오프라인', {온라인:'ok', 오프라인:'mute'})}</td>
+    <td><button class="btn btn-xs" onclick="resetMemberPw('${m.id}')">초기화</button></td>
     <td>${m.status==='정상'?`<button class="btn btn-xs btn-danger" onclick="toggleMemberStatus('${m.id}','정지')">정지</button>`:`<button class="btn btn-xs btn-jade" onclick="toggleMemberStatus('${m.id}','정상')">정상화</button>`} <span class="pill ${m.status==='정상'?'ok':'bad'}">${m.status}</span></td>
   </tr>`;
 }
@@ -781,8 +869,47 @@ function filterAcctTable(q){
   q = q.toLowerCase();
   const rows = (window.__acctRows||[]).filter(m => !q || m.id.toLowerCase().includes(q) || (m.nickname||'').toLowerCase().includes(q));
   getBalances().then(balances=>{
-    document.getElementById('acctBody').innerHTML = rows.map(m=>acctRowHtml(m, balances[m.id]?.balance||0)).join('') || `<tr class="empty-row"><td colspan="8">데이터가 없습니다</td></tr>`;
+    document.getElementById('acctBody').innerHTML = rows.map(m=>acctRowHtml(m, balances[m.id]?.balance||0)).join('') || `<tr class="empty-row"><td colspan="9">데이터가 없습니다</td></tr>`;
   });
+}
+/* 회원 별 베팅 한도. The table posts what it will take from anyone; this is what this member may
+   stake on top of that, and the smaller of the two is what the felt allows. */
+async function openMemberBetLimit(id){
+  const m = (await getMembers()).find(x=>x.id===id);
+  if (!m){ toast('회원을 찾을 수 없습니다', true); return; }
+  document.getElementById('formModalTitle').textContent = `베팅 한도 · ${id}`;
+  document.getElementById('formModalBody').innerHTML = `
+    <div class="row"><div class="field"><label>최소 베팅</label><input id="mbMin" value="${fmtNum(m.betMin||0)}" oninput="formatNumInput(this)"></div>
+    <div class="field"><label>최대 베팅</label><input id="mbMax" value="${fmtNum(m.betMax||0)}" oninput="formatNumInput(this)"></div></div>
+    <p class="hint">테이블 한도와 함께 적용되며, 둘 중 좁은 쪽이 실제 한도가 됩니다.</p>`;
+  document.getElementById('formModalSubmitBtn').onclick = async ()=>{
+    const min = rawNum(document.getElementById('mbMin').value), max = rawNum(document.getElementById('mbMax').value);
+    if (max && min > max){ toast('최소가 최대보다 클 수 없습니다', true); return; }
+    await db.collection('members').doc(id).set({betMin:min, betMax:max}, {merge:true});
+    await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—',
+      action:`베팅 한도 변경 ${fmtNum(m.betMin||0)}~${fmtNum(m.betMax||0)} → ${fmtNum(min)}~${fmtNum(max)}`,
+      target:id, dt:new Date().toISOString()});
+    closeModal('modal-form'); toast('저장되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
+  };
+  openModal('modal-form');
+}
+async function openMemberRates(id){
+  const m = (await getMembers()).find(x=>x.id===id);
+  if (!m){ toast('회원을 찾을 수 없습니다', true); return; }
+  const roll = Number.isFinite(Number(m.rollingRate)) ? Number(m.rollingRate) : ROLLING_COMM_RATE * 100;
+  const lose = Number.isFinite(Number(m.losingRate)) ? Number(m.losingRate) : 0;
+  document.getElementById('formModalTitle').textContent = `요율 · ${id}`;
+  document.getElementById('formModalBody').innerHTML = `
+    <div class="row"><div class="field"><label>롤링 요율 (%)</label><input id="mrRoll" value="${roll}"></div>
+    <div class="field"><label>루징 요율 (%)</label><input id="mrLose" value="${lose}"></div></div>`;
+  document.getElementById('formModalSubmitBtn').onclick = async ()=>{
+    const r = Number(document.getElementById('mrRoll').value)||0, l = Number(document.getElementById('mrLose').value)||0;
+    await db.collection('members').doc(id).set({rollingRate:r, losingRate:l}, {merge:true});
+    await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—',
+      action:`요율 변경 롤링 ${roll}%→${r}% / 루징 ${lose}%→${l}%`, target:id, dt:new Date().toISOString()});
+    closeModal('modal-form'); toast('저장되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
+  };
+  openModal('modal-form');
 }
 async function resetMemberPw(id){
   await db.collection('members').doc(id).set({pw:'0000'}, {merge:true});
@@ -1531,12 +1658,20 @@ async function editTableSettings(id){
      the table's own settings first is a step, and it is the step that shows which table this is. */
   document.getElementById('formModalBody').innerHTML = `
     <div class="row"><div class="field"><label>카지노</label><input value="${escapeHtml(t.casino||'—')}" disabled></div><div class="field"><label>타입</label><input value="${t.type==='speed'?'스피드':'아바타'}" disabled></div></div>
-    <div class="row"><div class="field"><label>최소베팅</label><input id="etMin" value="${fmtNum(t.betMin||0)}" oninput="formatNumInput(this)"></div><div class="field"><label>최대베팅</label><input id="etMax" value="${fmtNum(t.betMax||0)}" oninput="formatNumInput(this)"></div></div>
+    <div class="row"><div class="field"><label>본베팅 최소</label><input id="etMin" value="${fmtNum(t.betMin||0)}" oninput="formatNumInput(this)"></div><div class="field"><label>본베팅 최대</label><input id="etMax" value="${fmtNum(t.betMax||0)}" oninput="formatNumInput(this)"></div></div>
+    <div class="row"><div class="field"><label>타이 최소</label><input id="etTieMin" value="${fmtNum(t.tieMin||0)}" oninput="formatNumInput(this)"></div><div class="field"><label>타이 최대</label><input id="etTieMax" value="${fmtNum(t.tieMax||0)}" oninput="formatNumInput(this)"></div></div>
+    <div class="row"><div class="field"><label>페어 최소</label><input id="etPairMin" value="${fmtNum(t.pairMin||0)}" oninput="formatNumInput(this)"></div><div class="field"><label>페어 최대</label><input id="etPairMax" value="${fmtNum(t.pairMax||0)}" oninput="formatNumInput(this)"></div></div>
+    <p class="hint">타이·페어를 0으로 두면 본베팅 한도를 그대로 따릅니다. 본베팅 최대는 플레이어와 뱅커의 <b>차액</b>에 적용됩니다 — 최대 3백만인 테이블은 뱅커 3백만이 서 있을 때 플레이어에 6백만까지 받습니다.</p>
     <div class="field"><label>상태</label><select id="etStatus"><option value="open" ${t.status==='open'?'selected':''}>운영중</option><option value="closed" ${t.status==='closed'?'selected':''}>마감</option></select></div>
     <button class="btn btn-danger btn-block" style="margin-top:14px;" onclick="deleteTable('${id}')">이 테이블 삭제</button>
   `;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
-    await db.collection('tables').doc(id).set({betMin:rawNum(document.getElementById('etMin').value), betMax:rawNum(document.getElementById('etMax').value), status:document.getElementById('etStatus').value}, {merge:true});
+    const v = k => rawNum(document.getElementById(k).value);
+    await db.collection('tables').doc(id).set({
+      betMin:v('etMin'), betMax:v('etMax'),
+      tieMin:v('etTieMin'), tieMax:v('etTieMax'),
+      pairMin:v('etPairMin'), pairMax:v('etPairMax'),
+      status:document.getElementById('etStatus').value}, {merge:true});
     closeModal('modal-form'); toast('저장되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
   };
   openModal('modal-form');
@@ -1851,23 +1986,81 @@ async function renderTableVideo(){
 /* ============================================================
    CS GROUP
    ============================================================ */
+/* 한줄 공지 carries one line in each of the four languages the platform serves, and several of them
+   can stand at once - so each says whether it is showing and in what order. 우선순위 1 is the one
+   that comes round first.
+
+   Rows written before this page had languages carry a single `text`. That is the Korean line, and
+   it is read as such rather than migrated: an old notice keeps working and gains its other three
+   the first time someone edits it. */
+const TICKER_LANGS = [
+  {key:'ko', label:'한글'}, {key:'en', label:'영어'}, {key:'zh', label:'중국어'}, {key:'ja', label:'일본어'},
+];
+function tickerText(r, lang){ return (lang === 'ko' ? (r.ko || r.text) : r[lang]) || ''; }
+function tickerPriority(r){
+  const n = Number(r.priority);
+  return Number.isFinite(n) && n >= 1 ? n : 4;
+}
 async function renderTickerNotice(){
   return mountListView({
-    title:'한줄 공지', coll:'tickerNotices', search:true, searchFields:['text'], onCreate:'openTickerForm()',
-    columns:[{key:'dt', label:'등록일', type:'dt'}, {key:'text', label:'내용'}, {key:'active', label:'노출', type:'pill', pillMap:{true:'ok', false:'mute'}, render:r=>pill(r.active?'노출':'비노출', {노출:'ok','비노출':'mute'})}],
-    rowActions: r => `<button class="btn btn-xs" onclick="toggleTicker('${r.id}', ${!r.active})">${r.active?'숨기기':'노출'}</button>`,
+    title:'한줄 공지', sub:'우선순위 1이 가장 먼저 노출됩니다. 노출이 꺼진 공지는 순위와 무관하게 표시되지 않습니다.',
+    coll:'tickerNotices', search:true, searchFields:['text','ko','en','zh','ja'],
+    searchPh:'내용 검색 (모든 언어)', onCreate:'openTickerForm()',
+    mapRow: r => ({...r, priority: tickerPriority(r), active: r.active !== false}),
+    filters:[{key:'active', label:'노출', options:['노출','비노출'],
+              match:(r,v)=> (v === '노출') === !!r.active}],
+    columns:[
+      {key:'priority', label:'우선순위', render:r=>`<span class="num">${r.priority}</span>`},
+      ...TICKER_LANGS.map(l=>({key:l.key, label:l.label,
+        render:r=>escapeHtml(tickerText(r, l.key)) || '<span class="hint">—</span>'})),
+      {key:'active', label:'노출', render:r=>pill(r.active?'노출':'비노출', {노출:'ok','비노출':'mute'})},
+      {key:'dt', label:'등록일', type:'dt'},
+    ],
+    rowActions: r => `<span class="row-actions">`
+      + `<button class="btn btn-xs" onclick="toggleTicker('${r.id}', ${!r.active})">${r.active?'숨기기':'노출'}</button>`
+      + `<button class="btn btn-xs" onclick="openTickerForm('${r.id}')">수정</button>`
+      + `<button class="btn btn-xs btn-danger" onclick="deleteTicker('${r.id}')">삭제</button></span>`,
+    // 우선순위 first, and the newest of an equal rank above the rest
+    sortKey:'priority', sortDir:'asc',
   });
 }
-function openTickerForm(){
-  document.getElementById('formModalTitle').textContent = '한줄 공지 설정';
-  document.getElementById('formModalBody').innerHTML = `<div class="field"><label>내용</label><input id="tnText"></div>`;
+async function openTickerForm(id){
+  const r = id ? ((await fetchAll('tickerNotices')).find(x=>x.id===id) || {}) : {};
+  const active = id ? r.active !== false : true;
+  const pri = id ? tickerPriority(r) : 1;
+  document.getElementById('formModalTitle').textContent = id ? '한줄 공지 수정' : '한줄 공지 등록';
+  document.getElementById('formModalBody').innerHTML =
+    TICKER_LANGS.map(l=>`<div class="field"><label>${l.label}</label>`
+      + `<input id="tn_${l.key}" value="${escapeHtml(tickerText(r, l.key))}"></div>`).join('')
+    + `<div class="row">`
+    + `<div class="field"><label>노출</label><select id="tnActive">`
+    + `<option value="on" ${active?'selected':''}>ON</option>`
+    + `<option value="off" ${!active?'selected':''}>OFF</option></select></div>`
+    + `<div class="field"><label>우선순위</label><select id="tnPriority">`
+    + [1,2,3,4].map(n=>`<option value="${n}" ${pri===n?'selected':''}>${n}</option>`).join('')
+    + `</select></div></div>`
+    + `<p class="hint">1이 가장 먼저 노출됩니다.</p>`;
   document.getElementById('formModalSubmitBtn').onclick = async ()=>{
-    await db.collection('tickerNotices').doc(uuidv4()).set({text:document.getElementById('tnText').value, active:true, dt:new Date().toISOString()});
-    closeModal('modal-form'); toast('등록되었습니다'); switchView(CURRENT_VIEW);
+    const doc = {
+      active: document.getElementById('tnActive').value === 'on',
+      priority: Number(document.getElementById('tnPriority').value),
+    };
+    TICKER_LANGS.forEach(l=>{ doc[l.key] = document.getElementById(`tn_${l.key}`).value.trim(); });
+    // the Korean line stays readable to anything still looking for the old single field
+    doc.text = doc.ko;
+    if (!id) doc.dt = new Date().toISOString();
+    await db.collection('tickerNotices').doc(id || uuidv4()).set(doc, {merge:true});
+    closeModal('modal-form'); toast(id ? '수정되었습니다' : '등록되었습니다'); switchView(CURRENT_VIEW);
   };
   openModal('modal-form');
 }
 async function toggleTicker(id, val){ await db.collection('tickerNotices').doc(id).set({active:val}, {merge:true}); switchView(CURRENT_VIEW); }
+async function deleteTicker(id){
+  if (!confirm('이 한줄 공지를 삭제할까요?')) return;
+  await db.collection('tickerNotices').doc(id).delete();
+  await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:'한줄 공지 삭제', target:id, dt:new Date().toISOString()});
+  toast('삭제되었습니다'); switchView(CURRENT_VIEW);
+}
 
 async function renderNotice(){
   return mountListView({
@@ -2068,8 +2261,118 @@ function openEventForm(){
   openModal('modal-form');
 }
 
+/* 일자별 정산
+
+   One line per member per day: what they staked, what it came to, and what the house owes on it.
+   The lines are folded out of the ledger rather than stored, so a round corrected or cancelled
+   after the fact is reflected the next time the page is opened - there is no second set of numbers
+   to fall out of step with the book.
+
+   The window is part of the aggregation, not a filter over finished rows: 09:00 to 18:00 on one
+   day has to add up only the bets inside it, which means the sum is taken after the window is
+   known. That is what rowsFromFilters is for. */
+function settleWindowBounds(){
+  const f = (LIST_STATE.activeFilters || {});
+  return {from: f.at__from || '', to: f.at__to || ''};
+}
+function inSettleWindow(iso, from, to){
+  if (!iso) return false;
+  const v = String(iso).slice(0, 16);            // yyyy-mm-ddThh:mm, which is what the inputs give
+  if (from && v < from) return false;
+  if (to   && v > to)   return false;
+  return true;
+}
 async function renderDailySettlement(){
-  return renderDailyReport();
+  const [members, tables] = await Promise.all([getMembers(true), fetchAll('tables')]);
+  const memberMap = {}; members.forEach(m=>memberMap[m.id]=m);
+  const tableMap  = {}; tables.forEach(t=>tableMap[t.id]=t);
+
+  const reduceRows = docs => {
+    const {from, to} = settleWindowBounds();
+    // everything credited against a bet, however it got there - a late settlement and an admin's
+    // 결과 수정 both belong to the bet they answer
+    const paidOn = {};
+    docs.filter(l=>l.category==='payout' || l.category==='result_edit').forEach(l=>{
+      const k = `${l.relatedRoundId}|${l.betType}|${l.memberId}`;
+      paidOn[k] = (paidOn[k] || 0) + (Number(l.amount)||0);
+    });
+    const acc = {};
+    docs.filter(l=>l.category==='bet' && !l.cancelledAt).forEach(l=>{
+      const iso = l.createdAt || l.clientCreatedAt || '';
+      if (!inSettleWindow(iso, from, to)) return;
+      const day = String(iso).slice(0,10);
+      const m = memberMap[l.memberId] || {};
+      const tb = tableMap[l.relatedTableId] || {};
+      const game = tb.type === 'avatar' ? '아바타' : tb.type === 'speed' ? '스피드'
+                 : (l.staff === 'Avatar' ? '아바타' : '스피드');
+      const key = `${day}|${l.memberId}`;
+      const r = acc[key] || (acc[key] = {
+        id:key, day, memberId:l.memberId, account: m.accountId || m.id || l.memberId,
+        casino: tb.casino || l.casino || m.casino || '', parentAgent: m.parentAgent || 'DIRECT',
+        games: new Set(), bets:0, staked:0, win:0, lose:0,
+        speedWin:0, speedLose:0, avatarWin:0, avatarLose:0,
+      });
+      const staked = Math.abs(Number(l.amount)||0);
+      const net = (paidOn[`${l.relatedRoundId}|${l.betType}|${l.memberId}`] || 0) - staked;
+      r.games.add(game);
+      r.bets  += 1;
+      r.staked += staked;
+      if (net >= 0) r.win  += net; else r.lose += -net;
+      if (game === '스피드'){ if (net >= 0) r.speedWin += net; else r.speedLose += -net; }
+      else                  { if (net >= 0) r.avatarWin += net; else r.avatarLose += -net; }
+    });
+    return Object.values(acc).map(r=>{
+      const rate = Number.isFinite(Number((memberMap[r.memberId]||{}).rollingRate))
+        ? Number(memberMap[r.memberId].rollingRate) / 100 : ROLLING_COMM_RATE;
+      return {...r,
+        gameType: r.games.size === 1 ? [...r.games][0] : '혼합',
+        winLoss: r.win - r.lose,
+        rolling: r.staked,
+        commission: Math.round(r.staked * rate),
+      };
+    });
+  };
+
+  const money = (k, label) => ({key:k, label, render:r=>`<span class="num">${fmtNum(r[k])}</span>`});
+  return mountListView({
+    title:'일자별 정산', sub:'검색 시점 기준으로 아이디별 윈로스·롤링·롤링커미션을 집계합니다. 윈로스는 회원 기준이며, 양수는 회원이 이긴 금액입니다.',
+    coll:'memberLedger', reduceRows, rowsFromFilters:true,
+    search:true, searchFields:['memberId','account','parentAgent','casino'],
+    searchPh:'아이디 / 어카운트 / 상위어카운트 검색',
+    filters:[
+      {key:'at', label:'기간 (시간 포함)', type:'datetime'},
+      {key:'casino', label:'카지노', options:['NUSTAR','HANN','SOLAIRE','MIDORI','ONLINE']},
+      {key:'gameType', label:'게임종류', options:['스피드','아바타','혼합']},
+      {key:'parentAgent', label:'상위어카운트', type:'text', ph:'상위어카운트',
+       match:(r,v)=>String(r.parentAgent||'').toLowerCase().includes(v.toLowerCase())},
+    ],
+    columns:[
+      {key:'day', label:'날짜'},
+      {key:'memberId', label:'아이디'},
+      {key:'account', label:'어카운트'},
+      {key:'casino', label:'카지노', render:r=>r.casino||'—'},
+      {key:'parentAgent', label:'상위어카운트'},
+      money('staked', '베팅총액'),
+      {key:'winLoss', label:'윈로스총액',
+       render:r=>`<span class="num ${r.winLoss>0?'pos':r.winLoss<0?'neg':''}">${fmtSigned(r.winLoss)}</span>`},
+      money('win', '승리총액'), money('lose', '패배총액'),
+      money('speedWin', '스피드 승리'), money('speedLose', '스피드 패배'),
+      money('avatarWin', '아바타 승리'), money('avatarLose', '아바타 패배'),
+      money('rolling', '롤링'), money('commission', '롤링 커미션'),
+    ],
+    sortKey:'day', sortDir:'desc',
+    stats: rs => {
+      const staked = rs.reduce((a,r)=>a+r.staked, 0);
+      const winLoss = rs.reduce((a,r)=>a+r.winLoss, 0);
+      return [
+        {label:'베팅 회원수', value: fmtNum(new Set(rs.map(r=>r.memberId)).size)},
+        {label:'베팅 총액', value: fmtNum(staked)},
+        {label:'윈로스', value: fmtSigned(winLoss), danger: winLoss > 0},
+        {label:'롤링', value: fmtNum(staked)},
+        {label:'롤링 커미션', value: fmtNum(rs.reduce((a,r)=>a+r.commission, 0))},
+      ];
+    },
+  });
 }
 
 async function processPayment(id, status){

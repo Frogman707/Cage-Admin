@@ -34,3 +34,55 @@ function payoutFor(betType, amount, resultInfo){
 function ledgerRowId(kind, {memberId, roundId, betType}){
   return `${kind}_${roundId}_${betType}_${memberId}`.replace(/[^A-Za-z0-9_-]/g, '-');
 }
+
+/* ------------------------------------------------------------
+   What a table will take, per spot
+   ------------------------------------------------------------
+   A table posts three sets of limits, not one: 본베팅 (플레이어/뱅커), 타이, and 페어. They sit on
+   the table document as betMin/betMax, tieMin/tieMax, pairMin/pairMax. A table saved before those
+   fields existed has only the first pair, so 타이 and 페어 fall back to it — no table's limits
+   change until someone sets them. Both the felt and the admin read the rule from here. */
+const SPOT_GROUP = {player:'main', banker:'main', tie:'tie', playerPair:'pair', bankerPair:'pair'};
+function limitNum(v, fallback){
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+function tableLimits(table, betType){
+  const t = table || {};
+  const mainMin = limitNum(t.betMin, 0), mainMax = limitNum(t.betMax, Infinity);
+  const g = SPOT_GROUP[betType] || 'main';
+  if (g === 'tie')  return {min: limitNum(t.tieMin,  mainMin), max: limitNum(t.tieMax,  mainMax)};
+  if (g === 'pair') return {min: limitNum(t.pairMin, mainMin), max: limitNum(t.pairMax, mainMax)};
+  return {min: mainMin, max: mainMax};
+}
+
+/* A member may carry limits of their own on top of the table's, set from 계정 관리 → 베팅한도. The
+   narrower of the two is what the felt allows: a table that takes 3,000,000 still does not take
+   3,000,000 from a member capped at 1,000,000, and a member with no limit of their own simply gets
+   the table's. */
+function effectiveLimits(table, member, betType){
+  const t = tableLimits(table, betType);
+  const m = member || {};
+  return {
+    min: Math.max(t.min, limitNum(m.betMin, 0)),
+    max: Math.min(t.max, limitNum(m.betMax, Infinity)),
+  };
+}
+
+/* 디프런스 베팅. A player may hold both sides of the main bet at once, and what the table stands to
+   lose is the difference between them, not their sum — the smaller side is paid for by the larger
+   one whichever way the hand falls. So the main maximum caps |플레이어 − 뱅커| rather than each
+   side on its own, which is why a table with a 3,000,000 maximum will take 6,000,000 on 플레이어
+   against 3,000,000 already standing on 뱅커.
+
+   타이 and 페어 have no opposite side to net against, so each is capped on its own. */
+function spotHeadroom(table, bets, betType, member){
+  const {max} = effectiveLimits(table, member, betType);
+  if (!Number.isFinite(max)) return Infinity;
+  const mine = Number((bets||{})[betType]) || 0;
+  if (betType === 'player' || betType === 'banker'){
+    const other = Number((bets||{})[betType === 'player' ? 'banker' : 'player']) || 0;
+    return Math.max(0, max + other - mine);
+  }
+  return Math.max(0, max - mine);
+}

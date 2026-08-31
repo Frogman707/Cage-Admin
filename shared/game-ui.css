@@ -408,6 +408,8 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
 .sd-type-badge{background:rgba(4,20,30,.7);backdrop-filter:blur(4px);border:1px solid #3fd0e8;color:#3fd0e8;border-radius:14px;padding:5px 16px;font-weight:800;font-size:11.5px;letter-spacing:1px;flex-shrink:0;}
 .sd-table-id-mini{color:#fff;font-family:var(--mono);font-size:12px;font-weight:700;text-shadow:0 2px 6px rgba(0,0,0,.6);flex-shrink:0;}
 .sd-limit-text{color:#fff;font-weight:800;font-size:14px;text-shadow:0 2px 8px rgba(0,0,0,.7);}
+/* the 타이 / 페어 limits, shown only by a table that posts them apart from the main bet */
+.sd-limit-sub{color:rgba(255,255,255,.72);font-weight:700;font-size:11px;letter-spacing:.02em;text-shadow:0 2px 8px rgba(0,0,0,.7);}
 .sd-stage .phase-banner{top:52px;}
 .cards-area{display:flex;gap:44px;align-items:center;perspective:600px;}
 .hand{display:flex;flex-direction:column;align-items:center;gap:10px;}
@@ -1390,6 +1392,7 @@ input,textarea{-webkit-user-select:text;user-select:text;-webkit-touch-callout:d
   .sd-type-badge{padding:4px 11px;font-size:10px;}
   .sd-table-id-mini{font-size:11px;}
   .sd-limit-text{font-size:11.5px;white-space:nowrap;}
+  .sd-limit-sub{font-size:9.5px;white-space:nowrap;}
   .sd-stage-icons{top:10px;right:10px;gap:6px;}
   .sd-stage-icons button{width:26px;height:26px;}
   .sd-stage-icons button svg{width:13px;height:13px;}
@@ -1606,6 +1609,7 @@ body.faux-fs-lock{overflow:hidden;}
 .sd-live.is-fs .sd-stage-icons .sd-ico-history{display:none;}
 .sd-live.is-fs .sd-stage-top{top:26px;left:80px;}
 .sd-live.is-fs .sd-limit-text{font-size:19px;}
+.sd-live.is-fs .sd-limit-sub{font-size:13px;}
 .sd-live.is-fs .sd-table-id-mini{font-size:17px;}
 .sd-live.is-fs .sd-type-badge{font-size:12.5px;padding:6px 17px;}
 /* The countdown sits low on the right of the still, clear of the dealer's hands and of the

@@ -15,7 +15,7 @@ const CHIP_FILE = {100:'100', 500:'500', 1000:'1000', 10000:'10k', 100000:'100k'
 function chipFaceUrl(v){ return `../shared/assets/chips/chip-${CHIP_FILE[v]}.png`; }
 const CARD_RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 const CARD_SUITS = ['♠','♥','♦','♣'];
-const PAYOUT = { player: 2.0, banker: 1.95, tie: 9.0, playerPair: 12.0, bankerPair: 12.0 };
+// PAYOUT, payoutFor and ledgerRowId come from shared/payout.js, which the admin loads too
 
 function cardValue(rank){
   if (rank==='A') return 1;
@@ -262,10 +262,6 @@ async function getPlayerBalance(db, memberId, member){
    twice. And with the writes idempotent, they can be retried, which is what turns the ordinary
    case - one dropped packet on a phone - back into a settled hand. */
 const LEDGER_TRIES = 4;
-function ledgerRowId(kind, {memberId, roundId, betType}){
-  // one row per round per spot per member, whichever attempt gets there
-  return `${kind}_${roundId}_${betType}_${memberId}`.replace(/[^A-Za-z0-9_-]/g, '-');
-}
 async function withRetry(what, fn){
   let last;
   for (let i = 0; i < LEDGER_TRIES; i++){
@@ -291,13 +287,7 @@ async function placeBet(db, {memberId, casino, tableId, roundId, betType, amount
   }));
 }
 async function settleBet(db, {memberId, casino, tableId, roundId, betType, amount, resultInfo, staff}){
-  let mult = 0;
-  if (betType==='player') mult = resultInfo.result==='player' ? PAYOUT.player : (resultInfo.result==='tie' ? 1 : 0);
-  else if (betType==='banker') mult = resultInfo.result==='banker' ? PAYOUT.banker : (resultInfo.result==='tie' ? 1 : 0);
-  else if (betType==='tie') mult = resultInfo.result==='tie' ? PAYOUT.tie : 0;
-  else if (betType==='playerPair') mult = resultInfo.playerPair ? PAYOUT.playerPair : 0;
-  else if (betType==='bankerPair') mult = resultInfo.bankerPair ? PAYOUT.bankerPair : 0;
-  const payout = Math.round(amount * mult);
+  const payout = payoutFor(betType, amount, resultInfo);
   if (payout > 0){
     await withRetry('settleBet', ()=>db.collection('memberLedger').doc(ledgerRowId('payout', {memberId, roundId, betType})).set({
       memberId, casino, amount: payout, category:'payout',

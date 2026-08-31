@@ -335,7 +335,8 @@ async function mountListView(cfg){
     if (resolveFirst){ resolveFirst(); resolveFirst = null; } // don't hang the view forever on a permission/offline error
   });
   await firstSnapshot;
-  setTimeout(renderListBody, 0); // #listBody only exists once switchView() commits this HTML to the DOM
+  // #listBody and #listStats only exist once switchView() commits this HTML to the DOM
+  setTimeout(()=>{ renderListBody(); renderListStats(); }, 0);
   return renderListShell();
 }
 function renderListShell(){
@@ -343,19 +344,17 @@ function renderListShell(){
   const stats = cfg.stats ? cfg.stats(LIST_STATE.rows) : null;
   let statHtml = '';
   if (stats){
-    statHtml = `<div class="grid grid-${Math.min(stats.length,6)}" style="margin-bottom:16px;">` +
+    statHtml = `<div class="grid grid-${Math.min(stats.length,7)}" style="margin-bottom:16px;">` +
       stats.map(s=>`<div class="stat-card${s.danger?' danger':''}"><div class="lbl">${s.label}</div><div class="val">${s.value}</div>${s.delta?`<div class="delta ${s.delta>=0?'pos':'neg'}">${fmtSigned(s.delta)}</div>`:''}</div>`).join('') +
       `</div>`;
   }
   return `
     ${pageHead(cfg.title, cfg.sub)}
-    ${statHtml}
+    <div id="listStats">${statHtml}</div>
     <div class="card">
       <div class="toolbar">
         ${cfg.search!==false ? `<div class="field search-box"><input id="listSearch" placeholder="${cfg.searchPh||'검색어를 입력하세요'}" oninput="onListSearch(this.value)"></div>` : ''}
-        ${(cfg.filters||[]).map(f=>`
-          <div class="field"><label>${f.label}</label><select onchange="onListFilter('${f.key}', this.value)"><option value="">전체</option>${f.options.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></div>
-        `).join('')}
+        ${(cfg.filters||[]).map(f=>filterControl(f)).join('')}
         <div class="toolbar-right">
           ${cfg.onCreate ? `<button class="btn btn-gold btn-sm" onclick="${cfg.onCreate}">+ 생성</button>` : ''}
           <button class="btn btn-sm" onclick="switchView(CURRENT_VIEW)">새로고침</button>
@@ -370,6 +369,35 @@ function renderListShell(){
       <div class="pager" id="listPager"></div>
     </div>
   `;
+}
+/* A filter used to be a dropdown of fixed options and nothing else. 베팅내역 asks for seven at
+   once and they are not all lists: 상위 어카운트 and 테이블ID are typed, and 기간 is two dates.
+   A filter may now carry its own match(), so how it narrows the rows is its own business rather
+   than always string equality. */
+function filterControl(f){
+  const k = f.key;
+  if (f.type === 'date'){
+    return `<div class="field"><label>${f.label}</label><div class="row" style="gap:6px;">`
+      + `<input type="date" onchange="onListFilter('${k}__from', this.value)">`
+      + `<input type="date" onchange="onListFilter('${k}__to', this.value)">`
+      + `</div></div>`;
+  }
+  if (f.type === 'text'){
+    return `<div class="field"><label>${f.label}</label>`
+      + `<input placeholder="${f.ph||''}" oninput="onListFilter('${k}', this.value)"></div>`;
+  }
+  return `<div class="field"><label>${f.label}</label>`
+    + `<select onchange="onListFilter('${k}', this.value)"><option value="">전체</option>`
+    + (f.options||[]).map(o=>`<option value="${o}">${o}</option>`).join('') + `</select></div>`;
+}
+function renderListStats(){
+  const {cfg, filtered} = LIST_STATE;
+  const box = document.getElementById('listStats');
+  if (!box || !cfg.stats) return;
+  const stats = cfg.stats(filtered);
+  box.innerHTML = `<div class="grid grid-${Math.min(stats.length,7)}" style="margin-bottom:16px;">`
+    + stats.map(s=>`<div class="stat-card${s.danger?' danger':''}"><div class="lbl">${s.label}</div><div class="val">${s.value}</div></div>`).join('')
+    + `</div>`;
 }
 function onListSearch(q){
   LIST_STATE.q = q.toLowerCase();
@@ -393,11 +421,26 @@ function reapplyListFilters(){
   const {cfg, rows, q, activeFilters} = LIST_STATE;
   let out = rows;
   if (q) out = out.filter(r => (cfg.searchFields||[]).some(f => String(r[f]??'').toLowerCase().includes(q)));
-  Object.entries(activeFilters||{}).forEach(([k,v])=>{ out = out.filter(r=> String(r[k])===v); });
+  Object.entries(activeFilters||{}).forEach(([k,v])=>{
+    const base = k.replace(/__(from|to)$/, '');
+    const f = (cfg.filters||[]).find(x=>x.key===base);
+    if (f && f.type === 'date'){
+      const edge = k.endsWith('__from') ? 'from' : 'to';
+      out = out.filter(r=>{
+        const d = String(r[f.field||base]||'').slice(0,10);
+        return !d ? false : (edge==='from' ? d >= v : d <= v);
+      });
+    } else if (f && f.match){
+      out = out.filter(r=>f.match(r, v));
+    } else {
+      out = out.filter(r=> String(r[k])===v);
+    }
+  });
   LIST_STATE.filtered = out;
   const pageCount = Math.max(1, Math.ceil(out.length/LIST_STATE.pageSize));
   if (LIST_STATE.page > pageCount) LIST_STATE.page = pageCount;
   renderListBody();
+  renderListStats();   // the headline figures read the search, not the whole book
 }
 function renderListBody(){
   const {cfg, filtered, page, pageSize} = LIST_STATE;
@@ -408,8 +451,8 @@ function renderListBody(){
   if (!pageRows.length){
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${cfg.columns.length+(cfg.rowActions?1:0)}">데이터가 없습니다</td></tr>`;
   } else {
-    tbody.innerHTML = pageRows.map(row=>{
-      const cells = cfg.columns.map(c=>`<td>${renderCell(row,c)}</td>`).join('');
+    tbody.innerHTML = pageRows.map((row,i)=>{
+      const cells = cfg.columns.map(c=>`<td>${renderCell(row,c,start+i+1)}</td>`).join('');
       const clickAttr = cfg.rowClick ? ` class="row-click" onclick="${cfg.rowClick}('${row.id}')"` : '';
       const actions = cfg.rowActions ? `<td>${cfg.rowActions(row)}</td>` : '';
       return `<tr${clickAttr}>${cells}${actions}</tr>`;
@@ -426,8 +469,8 @@ function renderListBody(){
   pager.innerHTML = pagerHtml;
 }
 function gotoListPage(p){ LIST_STATE.page = p; renderListBody(); }
-function renderCell(row, c){
-  if (c.render) return c.render(row);
+function renderCell(row, c, no){
+  if (c.render) return c.render(row, no);
   const v = row[c.key];
   // `live:true` on a money column marks the cell as a member's balance, so the live sync can
   // rewrite it where it stands when money moves at the cage or the table (see repaintBalances)
@@ -825,6 +868,35 @@ async function openMemberDetail(memberId){
   await renderDetailTab(memberId, tabs[0]);
   openModal('modal-detail');
 }
+/* 핸드폰 번호 and 텔레그램 주소 are the member's own contact details, changed at the cage as a
+   rule - but the admin is given the same right here, since it is the desk that fields the call
+   when a number is wrong. Every change is written to the admin log with what it was before, so
+   the cage can see who moved it and back to what. */
+async function openContactForm(memberId){
+  const m = (await getMembers()).find(x=>x.id===memberId) || {};
+  document.getElementById('formModalTitle').textContent = `연락처 수정 · ${memberId}`;
+  document.getElementById('formModalBody').innerHTML = `
+    <div class="field"><label>핸드폰 번호</label><input id="ctPhone" value="${escapeHtml(m.phone||'')}" placeholder="010-0000-0000"></div>
+    <div class="field"><label>텔레그램 주소</label><input id="ctTelegram" value="${escapeHtml(m.telegram||'')}" placeholder="@id"></div>
+    <p class="hint">변경 내역은 관리자 로그에 남습니다.</p>
+  `;
+  document.getElementById('formModalSubmitBtn').onclick = async ()=>{
+    const phone = document.getElementById('ctPhone').value.trim();
+    const telegram = document.getElementById('ctTelegram').value.trim();
+    if (phone === (m.phone||'') && telegram === (m.telegram||'')){ closeModal('modal-form'); return; }
+    await db.collection('members').doc(memberId).set({phone, telegram}, {merge:true});
+    await db.collection('adminLogs').doc(uuidv4()).set({
+      staff: CURRENT_STAFF?.id||'—',
+      action: `연락처 수정 (전화 ${m.phone||'—'} → ${phone||'—'} / 텔레그램 ${m.telegram||'—'} → ${telegram||'—'})`,
+      target: memberId, dt:new Date().toISOString(),
+    });
+    closeModal('modal-form'); toast('연락처가 수정되었습니다');
+    await getMembers(true);   // the sheet reopens on the new details, not the cached ones
+    openMemberDetail(memberId);
+  };
+  openModal('modal-form');
+}
+
 function switchDetailTab(btn, memberId, tab){
   document.querySelectorAll('#detailTabs button').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
@@ -844,6 +916,9 @@ async function renderDetailTab(memberId, tab){
       <span>회원유형</span><b>${escapeHtml(m.memberType)}</b><span>상태</span><b>${escapeHtml(m.status)}</b>
       <span>베팅최대금액</span><b>${fmtNum(m.betMax)}</b><span>베팅최소금액</span><b>${fmtNum(m.betMin)}</b>
       <span>가입일</span><b>${fmtDt(m.createdAt)}</b><span>최근접속</span><b>${fmtDt(m.lastLoginAt)}</b>
+    </div>
+    <div class="toolbar" style="margin-top:14px;">
+      <button class="btn btn-sm" onclick="openContactForm('${escapeHtml(m.id)}')">연락처 수정</button>
     </div>`;
   } else if (tab==='어카운트 정보'){
     const b = (await getBalances())[memberId] || {};
@@ -877,20 +952,209 @@ function simpleTable(headers, rows){
   return `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 
+/* ============================================================
+   베팅내역 — the page the floor reconciles against
+   ============================================================
+   Every bet is one row of memberLedger, but a bet on its own says almost nothing: who the member
+   answers to, which table it was on, what the hand came to, and what the balance was either side
+   of it all live elsewhere. Those are joined here once, before the list mounts, rather than looked
+   up per row.
+
+   이전보유금 / 이후보유금 are read off the book rather than stored on the bet. A member's ledger
+   is a running total by definition, so sorting their rows by time and accumulating gives the
+   balance before any one of them - and it gives it for rounds played before anyone thought to
+   record it, which a new field never would. */
+async function betHistoryContext(){
+  const [members, rounds, tables, ledger] = await Promise.all(
+    ['members','rounds','tables','memberLedger'].map(fetchAll));
+  const memberMap = {}; members.forEach(m=>memberMap[m.id]=m);
+  const roundMap  = {}; rounds.forEach(r=>roundMap[r.id]=r);
+  const tableMap  = {}; tables.forEach(t=>tableMap[t.id]=t);
+
+  // the balance either side of each row, per member, in the order the rows were written
+  const byMember = {};
+  ledger.forEach(l=>{ (byMember[l.memberId] = byMember[l.memberId] || []).push(l); });
+  const before = {}, after = {};
+  Object.values(byMember).forEach(rows=>{
+    rows.sort((a,b)=> String(a.createdAt||a.clientCreatedAt||'') < String(b.createdAt||b.clientCreatedAt||'') ? -1 : 1);
+    let run = 0;
+    rows.forEach(l=>{ before[l.id] = run; run += Number(l.amount)||0; after[l.id] = run; });
+  });
+  // a round's settlement lands as its own row, so the balance a bet ends on is the one after the
+  // payout that answers it - not the one straight after the stake left
+  const payoutOf = {};
+  ledger.filter(l=>l.category==='payout').forEach(l=>{
+    payoutOf[`${l.relatedRoundId}|${l.betType}|${l.memberId}`] = l;
+  });
+  return {memberMap, roundMap, tableMap, before, after, payoutOf};
+}
+
+const BET_LABEL = {player:'플레이어', banker:'뱅커', tie:'타이', playerPair:'플레이어페어', bankerPair:'뱅커페어'};
+function betResultLabel(r){ return BET_LABEL[r] || r || '—'; }
+
 async function renderBetHistory(){
-  const rounds = await fetchAll('rounds');
-  const roundMap = {}; rounds.forEach(r=>roundMap[r.id]=r);
+  const cx = await betHistoryContext();
+  const {memberMap, roundMap, tableMap, before, after, payoutOf} = cx;
+  /* 팁 is read off the book like everything else here. A tip is not a bet, so it is not a row of
+     this list - but it is money the same members put on the same tables, and the deck asks for it
+     beside the rest. It follows the search by member and by date, which is as far as a tip can be
+     narrowed: it carries no table, no round and no bet type. */
+  const tipRows = (await fetchAll('memberLedger'))
+    .filter(l=>l.category==='avatar_tip' || l.category==='dealer_tip')
+    .map(l=>({memberId:l.memberId, amount:Math.abs(Number(l.amount)||0), dt:l.createdAt||l.clientCreatedAt||''}));
+  const tipsFor = rs => {
+    if (!rs.length) return 0;
+    const members = new Set(rs.map(r=>r.memberId));
+    const days = rs.map(r=>String(r.dt).slice(0,10)).sort();
+    const from = days[0], to = days[days.length-1];
+    return tipRows.filter(t=>members.has(t.memberId) && String(t.dt).slice(0,10) >= from && String(t.dt).slice(0,10) <= to)
+                  .reduce((a,t)=>a+t.amount, 0);
+  };
+
+  // everything a row needs to be read, searched and totalled, worked out once
+  const decorate = l => {
+    const m = memberMap[l.memberId] || {};
+    const rd = roundMap[l.relatedRoundId];
+    const tb = tableMap[l.relatedTableId] || {};
+    const pay = payoutOf[`${l.relatedRoundId}|${l.betType}|${l.memberId}`];
+    const staked = Math.abs(Number(l.amount)||0);
+    const returned = pay ? (Number(pay.amount)||0) : 0;
+    // 정상처리 means the hand was called and this bet was answered; a round with no result
+    // recorded is the failure this page exists to find
+    const settled = !!rd && !l.cancelledAt;
+    return {
+      ...l,
+      account: m.accountId || m.id || '',
+      parentAgent: m.parentAgent || 'DIRECT',
+      casino: m.casino || l.casino || '',
+      tableType: tb.type === 'avatar' ? '아바타' : tb.type === 'speed' ? '스피드' : '—',
+      gameType: l.staff === 'Avatar' ? '아바타' : l.staff === 'Speed' ? '스피드' : (tb.type==='avatar'?'아바타':'스피드'),
+      currency: m.currency || 'PHP',
+      balBefore: before[l.id] ?? null,
+      balAfter: pay ? (after[pay.id] ?? null) : (after[l.id] ?? null),
+      staked, returned,
+      net: returned - staked,
+      betKind: BET_LABEL[l.betType] || l.betType || '—',
+      roundResult: rd ? betResultLabel(rd.result) : '—',
+      processState: l.cancelledAt ? '취소됨' : settled ? '정상처리' : '실패',
+      winLose: l.cancelledAt ? '취소' : !settled ? '미정산'
+             : returned > staked ? '승리' : returned === staked ? '무승부' : '패배',
+      dt: l.createdAt || l.clientCreatedAt || '',
+    };
+  };
+
   return mountListView({
     title:'베팅내역', sub:'전체 회원 베팅 내역',
-    coll:'memberLedger', extraFilter:l=>l.category==='bet', search:true, searchFields:['memberId'], searchPh:'회원ID 검색',
-    columns:[
-      {key:'createdAt', label:'시간', type:'dt'}, {key:'memberId', label:'회원ID'}, {key:'relatedTableId', label:'테이블'},
-      {key:'result', label:'결과', render:r=>{ const rd = roundMap[r.relatedRoundId]; return rd ? pill(rd.result==='player'?'플레이어':rd.result==='banker'?'뱅커':'타이', {플레이어:'ok', 뱅커:'bad', 타이:'warn'}) : '—'; }},
-      {key:'amount', label:'베팅금액', type:'money'},
+    coll:'memberLedger', extraFilter:l=>l.category==='bet',
+    mapRow: decorate,
+    search:true, searchFields:['memberId','account','relatedRoundId','relatedTableId'],
+    searchPh:'회원ID / 어카운트 / 라운드ID / 테이블ID 검색',
+    /* Seven filters, and they narrow together rather than replacing one another - a search for
+       one agent's members on one table over one week is three of them at once. */
+    filters:[
+      {key:'parentAgent', label:'상위 어카운트', type:'text', ph:'상위 어카운트',
+       match:(r,v)=>String(r.parentAgent||'').toLowerCase().includes(v.toLowerCase())},
+      {key:'dt', label:'기간', type:'date', field:'dt'},
+      {key:'casino', label:'카지노', options:['NUSTAR','HANN','SOLAIRE','MIDORI','ONLINE']},
+      {key:'relatedTableId', label:'테이블ID', type:'text', ph:'테이블ID',
+       match:(r,v)=>String(r.relatedTableId||'').toLowerCase().includes(v.toLowerCase())},
+      {key:'gameType', label:'게임유형', options:['아바타','스피드']},
+      {key:'betKind', label:'베팅구분', options:['플레이어','뱅커','타이','플레이어페어','뱅커페어']},
+      {key:'processState', label:'결과구분', options:['정상처리','실패','취소됨']},
     ],
-    sortKey:'createdAt', sortDir:'desc',
-    stats: rs => [{label:'베팅 건수', value: fmtNum(rs.length)}, {label:'베팅 총액', value: fmtNum(-rs.reduce((s,r)=>s+r.amount,0))}],
+    columns:[
+      {key:'__no', label:'No', render:(r,no)=>no},
+      {key:'memberId', label:'회원ID'},
+      {key:'account', label:'어카운트', render:r=>r.account||'—'},
+      {key:'parentAgent', label:'상위어카운트'},
+      {key:'relatedRoundId', label:'라운드ID', render:r=>`<span class="num">${String(r.relatedRoundId||'—').slice(0,8)}</span>`},
+      {key:'casino', label:'카지노', render:r=>r.casino||'—'},
+      {key:'relatedTableId', label:'테이블아이디', render:r=>r.relatedTableId||'—'},
+      {key:'tableType', label:'테이블종류'},
+      {key:'gameType', label:'게임종류'},
+      {key:'currency', label:'화폐'},
+      {key:'balBefore', label:'이전보유금', render:r=>r.balBefore==null?'—':`<span class="num">${fmtNum(r.balBefore)}</span>`},
+      {key:'staked', label:'베팅금', render:r=>`<span class="num">${fmtNum(r.staked)}</span>`},
+      {key:'betKind', label:'베팅구분'},
+      {key:'winLose', label:'승패결과', render:r=>pill(r.winLose, {승리:'ok', 패배:'bad', 무승부:'warn', 미정산:'warn', 취소:'mute'})},
+      {key:'balAfter', label:'이후보유금', render:r=>r.balAfter==null?'—':`<span class="num">${fmtNum(r.balAfter)}</span>`},
+      {key:'roundResult', label:'결과구분'},
+      {key:'dt', label:'일시', type:'dt'},
+    ],
+    rowActions: r => r.cancelledAt
+      ? `<span class="hint">취소됨</span>`
+      : `<span class="row-actions">`
+        + (r.processState === '실패' ? `<button class="btn btn-xs" onclick="resettleBet('${r.id}')">업데이트</button>` : '')
+        + `<button class="btn btn-xs btn-danger" onclick="cancelBet('${r.id}')">취소</button></span>`,
+    sortKey:'dt', sortDir:'desc',
+    /* The figures read whatever the search has narrowed to, which is the point of them - a
+       filter that did not move the totals would be telling the operator nothing. */
+    stats: rs => {
+      const staked = rs.reduce((a,r)=>a+r.staked, 0);
+      const winLoss = rs.reduce((a,r)=>a+r.net, 0);
+      const rolling = staked;                 // rolling is turnover
+      return [
+        {label:'베팅 유저수', value: fmtNum(new Set(rs.map(r=>r.memberId)).size)},
+        {label:'베팅 건수', value: fmtNum(rs.length)},
+        {label:'베팅 총액', value: fmtNum(staked)},
+        {label:'윈로스', value: fmtSigned(winLoss), danger: winLoss > 0},
+        {label:'롤링', value: fmtNum(rolling)},
+        {label:'롤링 커미션', value: fmtNum(Math.round(rolling * ROLLING_COMM_RATE))},
+        {label:'팁', value: fmtNum(tipsFor(rs))},
+      ];
+    },
   });
+}
+/* The house pays rolling commission on turnover at this rate; the same 1.5% the user list used. */
+const ROLLING_COMM_RATE = 0.015;
+
+/* ---- 관리 ----
+   Two acts, and both move money, so both are written to the book rather than done in place:
+   a bet is never edited, it is answered by a row that says what was done to it. */
+async function cancelBet(id){
+  const row = (await fetchAll('memberLedger')).find(l=>l.id===id);
+  if (!row) { toast('베팅을 찾을 수 없습니다', true); return; }
+  if (!confirm(`${row.memberId} 님의 ${fmtNum(Math.abs(row.amount))} 베팅을 취소(적특)할까요?`)) return;
+  const staked = Math.abs(Number(row.amount)||0);
+  const pay = (await fetchAll('memberLedger')).find(l=>
+    l.category==='payout' && l.relatedRoundId===row.relatedRoundId && l.betType===row.betType && l.memberId===row.memberId);
+  // the stake goes back, and anything already paid on it comes off again
+  await db.collection('memberLedger').doc(uuidv4()).set({
+    memberId:row.memberId, casino:row.casino, amount: staked - (pay ? Number(pay.amount)||0 : 0),
+    category:'bet_cancel', betType:row.betType,
+    relatedTableId:row.relatedTableId, relatedRoundId:row.relatedRoundId,
+    staff: CURRENT_STAFF?.id || 'admin', createdAt:new Date().toISOString(),
+  });
+  await db.collection('memberLedger').doc(id).set({cancelledAt:new Date().toISOString(), cancelledBy:CURRENT_STAFF?.id||'admin'}, {merge:true});
+  await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:`베팅 취소 (적특) ${fmtNum(staked)}`, target:`${row.memberId} / ${row.relatedRoundId}`, dt:new Date().toISOString()});
+  toast('베팅이 취소되었습니다'); switchView(CURRENT_VIEW);
+}
+/* A bet whose round never landed a result was never answered - the stake left and nothing came
+   back. This settles it now, against the result the round has since recorded. */
+async function resettleBet(id){
+  const ledger = await fetchAll('memberLedger');
+  const row = ledger.find(l=>l.id===id);
+  if (!row){ toast('베팅을 찾을 수 없습니다', true); return; }
+  const rd = (await fetchAll('rounds')).find(r=>r.id===row.relatedRoundId);
+  if (!rd){ toast('해당 라운드의 결과가 아직 없습니다', true); return; }
+  const already = ledger.find(l=>l.category==='payout' && l.relatedRoundId===row.relatedRoundId
+    && l.betType===row.betType && l.memberId===row.memberId);
+  if (already){ toast('이미 정산된 베팅입니다', true); return; }
+  const staked = Math.abs(Number(row.amount)||0);
+  const payout = payoutFor(row.betType, staked, {result:rd.result, playerPair:!!rd.playerPair, bankerPair:!!rd.bankerPair});
+  if (payout > 0){
+    /* Written under the same id the table itself would have used (shared/payout.js), so a retry
+       arriving late from the table cannot pay this round a second time, nor this a second time
+       over that. */
+    await db.collection('memberLedger').doc(ledgerRowId('payout', {memberId:row.memberId, roundId:row.relatedRoundId, betType:row.betType})).set({
+      memberId:row.memberId, casino:row.casino, amount:payout, category:'payout', betType:row.betType,
+      relatedTableId:row.relatedTableId, relatedRoundId:row.relatedRoundId,
+      staff: CURRENT_STAFF?.id || 'admin', createdAt:new Date().toISOString(),
+    });
+  }
+  await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:`베팅 재정산 ${fmtNum(payout)} 지급`, target:`${row.memberId} / ${row.relatedRoundId}`, dt:new Date().toISOString()});
+  toast(payout > 0 ? `${fmtNum(payout)} 지급되었습니다` : '정산되었습니다 (지급 없음)');
+  switchView(CURRENT_VIEW);
 }
 
 async function renderPointConversion(){

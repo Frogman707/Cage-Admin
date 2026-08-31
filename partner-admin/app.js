@@ -377,9 +377,12 @@ function renderListShell(){
 function filterControl(f){
   const k = f.key;
   if (f.type === 'date'){
-    return `<div class="field"><label>${f.label}</label><div class="row" style="gap:6px;">`
-      + `<input type="date" onchange="onListFilter('${k}__from', this.value)">`
-      + `<input type="date" onchange="onListFilter('${k}__to', this.value)">`
+    /* Two inputs, but one control: they sit on the same line as every other filter's box so the
+       toolbar reads as one row rather than a row with a taller cell in the middle of it. */
+    return `<div class="field"><label>${f.label}</label>`
+      + `<div class="row" style="gap:6px;flex-wrap:nowrap;">`
+      + `<input type="date" style="min-width:0;" onchange="onListFilter('${k}__from', this.value)">`
+      + `<input type="date" style="min-width:0;" onchange="onListFilter('${k}__to', this.value)">`
       + `</div></div>`;
   }
   if (f.type === 'text'){
@@ -488,9 +491,12 @@ function renderCell(row, c, no){
    movement itself belongs in the cage's book, because that book IS that account's balance. A
    memberLedger row on its own was a receipt for a payment the customer never received - the
    number the cage, the player's screen and this panel all read never moved. */
-async function creditMember({memberId, casino, amount, category, memo, extra}){
+/* docId is optional: pass one where the same correction could be issued twice - a double-click,
+   a retried pass - and the write should land on the same row both times rather than paying out
+   again. Everything else keeps the random id it always had. */
+async function creditMember({memberId, casino, amount, category, memo, extra, docId}){
   const signed = Number(amount)||0;
-  await db.collection('memberLedger').doc(uuidv4()).set({
+  await db.collection('memberLedger').doc(docId || uuidv4()).set({
     memberId, amount: signed, category, memo,
     ...(casino ? {casino} : {}), ...(extra||{}),
     staff: CURRENT_STAFF?.id||'—', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1026,7 +1032,9 @@ async function renderBetHistory(){
       ...l,
       account: m.accountId || m.id || '',
       parentAgent: m.parentAgent || 'DIRECT',
-      casino: m.casino || l.casino || '',
+      /* 카지노 is the branch the bet was placed at, which is the table's - a member whose home
+         branch is NUSTAR still bets at HANN when they sit at a HANN table. */
+      casino: tb.casino || l.casino || m.casino || '',
       tableType: tb.type === 'avatar' ? '아바타' : tb.type === 'speed' ? '스피드' : '—',
       gameType: l.staff === 'Avatar' ? '아바타' : l.staff === 'Speed' ? '스피드' : (tb.type==='avatar'?'아바타':'스피드'),
       currency: m.currency || 'PHP',
@@ -1557,31 +1565,199 @@ function openAvatarDetailSettings(){
 }
 function betSideLabel(side){ return side==='player'?'플레이어':side==='banker'?'뱅커':'타이'; }
 
+/* The round's own result, and the pairs that were on the felt with it. */
+function roundResultText(rd){
+  if (!rd || !rd.result) return '—';
+  const parts = [betResultLabel(rd.result)];
+  if (rd.playerPair) parts.push('플레이어페어');
+  if (rd.bankerPair) parts.push('뱅커페어');
+  return parts.join(' · ');
+}
+function roundInfo(rd){
+  return {result: rd && rd.result, playerPair: !!(rd && rd.playerPair), bankerPair: !!(rd && rd.bankerPair)};
+}
+
+/* 게임 라운드 수정 lists bets rather than rounds, because a round is only ever wrong for the people
+   who had money on it - and 상태 is a fact about one member's bet, not about the hand.
+
+   The five states the deck asks for:
+     취소됨        - the round was cancelled, or this bet was
+     수정실패      - the result was corrected and at least one member could not be re-settled
+     수정됨        - corrected, and everyone on the round was re-settled
+     결과전송실패  - the hand's result never reached the books, or it did and a winning bet on it
+                     was never paid; either way money is owed that nobody sent
+     정상          - none of the above */
 async function renderRoundEdit(){
+  const {memberMap, roundMap, tableMap, payoutOf} = await betHistoryContext();
+
+  const decorate = l => {
+    const m  = memberMap[l.memberId] || {};
+    const rd = roundMap[l.relatedRoundId];
+    const tb = tableMap[l.relatedTableId] || {};
+    const pay = payoutOf[`${l.relatedRoundId}|${l.betType}|${l.memberId}`];
+    const staked = Math.abs(Number(l.amount)||0);
+    // what this bet was owed once the hand was called - a loser is owed nothing, so a loser with
+    // no payout row is settled, not lost
+    const owed = rd && rd.result ? payoutFor(l.betType, staked, roundInfo(rd)) : 0;
+    let state;
+    if (l.cancelledAt || (rd && rd.cancelled))       state = '취소됨';
+    else if (rd && rd.editState === '수정실패')       state = '수정실패';
+    else if (rd && rd.editState === '수정됨')         state = '수정됨';
+    else if (!rd || !rd.result || (owed > 0 && !pay)) state = '결과전송실패';
+    else                                             state = '정상';
+    return {
+      ...l,
+      account: m.accountId || m.id || '',
+      casino: tb.casino || l.casino || m.casino || '',   // the branch the bet was placed at
+      currency: m.currency || 'PHP',
+      gameType: tb.type === 'avatar' ? '아바타' : tb.type === 'speed' ? '스피드' : (l.staff === 'Avatar' ? '아바타' : '스피드'),
+      roundResult: roundResultText(rd),
+      state,
+      cancelled: !!(rd && rd.cancelled),
+      dt: l.createdAt || l.clientCreatedAt || '',
+    };
+  };
+
   return mountListView({
-    title:'게임 라운드 수정', sub:'특수 케이스(오배당, 엔젤아이 인식오류, 셔플로 인한 결과 미반영 등)는 라운드 취소로 베팅을 전액 환불 처리합니다.',
-    coll:'rounds', search:true, searchFields:['tableId'], searchPh:'테이블ID 검색',
-    columns:[
-      {key:'startedAt', label:'시간', type:'dt'}, {key:'tableId', label:'테이블'}, {key:'roundNo', label:'라운드'},
-      {key:'result', label:'결과', render:r=>pill(r.result==='player'?'플레이어':r.result==='banker'?'뱅커':'타이',{플레이어:'ok',뱅커:'bad',타이:'warn'})},
-      {key:'cancelled', label:'상태', render:r=>r.cancelled ? pill('취소됨',{'취소됨':'bad'}) : pill('정상',{정상:'ok'})},
+    title:'게임 라운드 수정',
+    sub:'오배당·엔젤아이 인식오류는 결과 수정으로 재정산하고, 셔플 등으로 결과 자체가 성립하지 않은 경우에는 라운드 취소로 전액 환불합니다.',
+    coll:'memberLedger', extraFilter:l=>l.category==='bet',
+    mapRow: decorate,
+    search:true, searchFields:['relatedRoundId','relatedTableId','memberId'],
+    searchPh:'라운드ID / 테이블ID / 회원ID 검색',
+    /* 라운드ID / 테이블ID / 회원ID / 기간, and they narrow together. */
+    filters:[
+      {key:'relatedRoundId', label:'라운드ID', type:'text', ph:'라운드ID',
+       match:(r,v)=>String(r.relatedRoundId||'').toLowerCase().includes(v.toLowerCase())},
+      {key:'relatedTableId', label:'테이블ID', type:'text', ph:'테이블ID',
+       match:(r,v)=>String(r.relatedTableId||'').toLowerCase().includes(v.toLowerCase())},
+      {key:'memberId', label:'회원ID', type:'text', ph:'회원ID',
+       match:(r,v)=>String(r.memberId||'').toLowerCase().includes(v.toLowerCase())},
+      {key:'dt', label:'기간', type:'date', field:'dt'},
+      {key:'state', label:'상태', options:['정상','결과전송실패','수정됨','수정실패','취소됨']},
     ],
-    rowActions: r => r.cancelled ? `<span class="hint">환불완료</span>` : `<button class="btn btn-xs" onclick="openRoundEditModal('${r.id}','${r.result}')">결과 수정</button> <button class="btn btn-xs btn-danger" onclick="openRoundCancelModal('${r.id}','${r.tableId}')">라운드 취소</button>`,
-    sortKey:'startedAt', sortDir:'desc',
+    columns:[
+      {key:'__no', label:'No', render:(r,no)=>no},
+      {key:'memberId', label:'회원ID'},
+      {key:'account', label:'어카운트', render:r=>r.account||'—'},
+      {key:'relatedRoundId', label:'라운드ID', render:r=>`<span class="num">${String(r.relatedRoundId||'—').slice(0,8)}</span>`},
+      {key:'casino', label:'카지노', render:r=>r.casino||'—'},
+      {key:'relatedTableId', label:'테이블아이디', render:r=>r.relatedTableId||'—'},
+      {key:'gameType', label:'게임종류'},
+      {key:'currency', label:'화폐'},
+      {key:'dt', label:'일시', type:'dt'},
+      {key:'roundResult', label:'결과구분'},
+      {key:'state', label:'상태', render:r=>pill(r.state,
+        {정상:'ok', 수정됨:'ok', 결과전송실패:'bad', 수정실패:'bad', 취소됨:'mute'})},
+    ],
+    rowActions: r => r.cancelled
+      ? `<span class="hint">환불완료</span>`
+      : `<span class="row-actions">`
+        + `<button class="btn btn-xs" onclick="openRoundEditModal('${r.relatedRoundId}')">결과 수정</button>`
+        + `<button class="btn btn-xs btn-danger" onclick="openRoundCancelModal('${r.relatedRoundId}','${r.relatedTableId}')">라운드 취소</button></span>`,
+    sortKey:'dt', sortDir:'desc',
+    stats: rs => {
+      const bad = rs.filter(r=>r.state==='결과전송실패' || r.state==='수정실패').length;
+      return [
+        {label:'베팅 건수', value: fmtNum(rs.length)},
+        {label:'라운드 수', value: fmtNum(new Set(rs.map(r=>r.relatedRoundId)).size)},
+        {label:'조치 필요', value: fmtNum(bad), danger: bad > 0},
+        {label:'수정됨', value: fmtNum(rs.filter(r=>r.state==='수정됨').length)},
+        {label:'취소됨', value: fmtNum(rs.filter(r=>r.state==='취소됨').length)},
+      ];
+    },
   });
 }
-function openRoundEditModal(id, cur){
-  document.getElementById('formModalTitle').textContent = `라운드 결과 수정 · ${id.slice(0,8)}`;
+
+async function openRoundEditModal(roundId){
+  const rd = (await fetchAll('rounds')).find(r=>r.id===roundId);
+  if (!rd){ toast('라운드를 찾을 수 없습니다', true); return; }
+  if (rd.cancelled){ toast('취소된 라운드는 수정할 수 없습니다', true); return; }
+  const cur = rd.result;
+  document.getElementById('formModalTitle').textContent = `라운드 결과 수정 · ${roundId.slice(0,8)}`;
   document.getElementById('formModalBody').innerHTML = `
-    <div class="field"><label>결과</label><select id="reResult"><option value="player" ${cur==='player'?'selected':''}>플레이어</option><option value="banker" ${cur==='banker'?'selected':''}>뱅커</option><option value="tie" ${cur==='tie'?'selected':''}>타이</option></select></div>
-    <div class="field"><label>수정사유</label><textarea id="reReason"></textarea></div>
+    <p class="hint">현재 결과: <b>${roundResultText(rd)}</b>. 결과를 고치면 이 라운드의 모든 베팅을 새 결과로 다시 정산하고, 이미 지급된 금액과의 차액만 원장에 기록합니다.</p>
+    <div class="field"><label>결과</label><select id="reResult">
+      <option value="player" ${cur==='player'?'selected':''}>플레이어</option>
+      <option value="banker" ${cur==='banker'?'selected':''}>뱅커</option>
+      <option value="tie" ${cur==='tie'?'selected':''}>타이</option>
+    </select></div>
+    <div class="checkbox-row"><input type="checkbox" id="rePP" ${rd.playerPair?'checked':''}> 플레이어페어</div>
+    <div class="checkbox-row"><input type="checkbox" id="reBP" ${rd.bankerPair?'checked':''}> 뱅커페어</div>
+    <div class="field"><label>수정사유</label><textarea id="reReason" placeholder="예) 엔젤아이 카드 인식 오류"></textarea></div>
   `;
-  document.getElementById('formModalSubmitBtn').onclick = async ()=>{
-    await db.collection('rounds').doc(id).set({result:document.getElementById('reResult').value, editedBy:CURRENT_STAFF?.id||'—', editedReason:document.getElementById('reReason').value}, {merge:true});
-    await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:'게임 라운드 수정', target:id, dt:new Date().toISOString()});
-    closeModal('modal-form'); toast('수정되었습니다'); switchView(CURRENT_VIEW);
-  };
+  document.getElementById('formModalSubmitBtn').onclick = ()=>submitRoundResultEdit(roundId, {
+    result: document.getElementById('reResult').value,
+    playerPair: document.getElementById('rePP').checked,
+    bankerPair: document.getElementById('reBP').checked,
+  }, document.getElementById('reReason').value);
   openModal('modal-form');
+}
+
+/* Correcting a result that has already been paid out is a money operation, not a label change.
+   Every bet on the round is re-settled against the new result and the difference from what was
+   actually paid is written as its own row, so the correction is visible in the book instead of
+   the old payout quietly becoming wrong.
+
+   The pass claims an edit number in a transaction first. That number keys the correction rows, so
+   a double-click or a retried pass writes the same ids a second time rather than a second set -
+   and a pass that runs again after a partial failure finishes the members it missed and leaves
+   alone the ones it already moved (their difference is now zero). */
+async function submitRoundResultEdit(roundId, next, reason){
+  const roundRef = db.collection('rounds').doc(roundId);
+  const who = CURRENT_STAFF?.id || '—';
+  let seq = 0, prevText = '';
+  try {
+    await db.runTransaction(async tx=>{
+      const doc = await tx.get(roundRef);
+      const d = doc.exists ? doc.data() : {};
+      if (d.cancelled) throw new Error('CANCELLED');
+      prevText = roundResultText(d);
+      seq = (Number(d.editCount)||0) + 1;
+      tx.set(roundRef, {
+        result: next.result, playerPair: next.playerPair, bankerPair: next.bankerPair,
+        editCount: seq, editedBy: who, editedReason: reason || '',
+        editedAt: new Date().toISOString(), prevResult: prevText, editState: '수정중',
+      }, {merge:true});
+    });
+  } catch (e) {
+    if (e.message === 'CANCELLED'){ toast('취소된 라운드는 수정할 수 없습니다', true); closeModal('modal-form'); return; }
+    throw e;
+  }
+
+  const ledger = await fetchAll('memberLedger');
+  const bets = ledger.filter(l=>l.category==='bet' && l.relatedRoundId===roundId && !l.cancelledAt);
+  let moved = 0, failed = 0, touched = 0;
+  for (const b of bets){
+    const staked = Math.abs(Number(b.amount)||0);
+    // everything this bet has actually been credited so far, however it got there
+    const paid = ledger
+      .filter(l=>(l.category==='payout' || l.category==='result_edit')
+              && l.relatedRoundId===roundId && l.betType===b.betType && l.memberId===b.memberId)
+      .reduce((a,l)=>a + (Number(l.amount)||0), 0);
+    const delta = payoutFor(b.betType, staked, next) - paid;
+    if (!delta) continue;
+    try {
+      await creditMember({
+        memberId: b.memberId, casino: b.casino, amount: delta, category: 'result_edit',
+        memo: `라운드 결과 수정 (${prevText} → ${roundResultText(next)})${reason ? ' · ' + reason : ''}`,
+        docId: ledgerRowId(`edit${seq}`, {memberId:b.memberId, roundId, betType:b.betType}),
+        extra: {relatedRoundId: roundId, relatedTableId: b.relatedTableId, betType: b.betType},
+      });
+      moved += delta; touched++;
+    } catch (err){ failed++; console.error('re-settle failed', b.memberId, err); }
+  }
+
+  const editState = failed ? '수정실패' : '수정됨';
+  await roundRef.set({editState, editFailures: failed}, {merge:true});
+  await db.collection('adminLogs').doc(uuidv4()).set({
+    staff: who, action: `게임 라운드 수정 (${prevText} → ${roundResultText(next)}, 재정산 ${touched}건 ${fmtSigned(moved)}${failed?`, 실패 ${failed}건`:''})`,
+    target: roundId, dt: new Date().toISOString(),
+  });
+  closeModal('modal-form');
+  toast(failed ? `${failed}건 재정산에 실패했습니다` : `결과를 수정하고 ${touched}건을 재정산했습니다`, !!failed);
+  invalidateCaches();
+  switchView(CURRENT_VIEW);
 }
 function openRoundCancelModal(roundId, tableId){
   document.getElementById('formModalTitle').textContent = `라운드 취소 · ${roundId.slice(0,8)}`;
@@ -1624,9 +1800,13 @@ async function submitRoundCancel(roundId, tableId){
     if (r.category==='bet'){
       await creditMember({memberId:r.memberId, casino:r.casino, amount:Math.abs(r.amount), category:'correction', memo:`라운드 취소 환불 (${reason})`, extra:{relatedRoundId:roundId, relatedTableId:tableId}});
       refunded += Math.abs(r.amount);
-    } else if (r.category==='payout'){
-      await creditMember({memberId:r.memberId, casino:r.casino, amount:-Math.abs(r.amount), category:'correction', memo:`라운드 취소 페이아웃 회수 (${reason})`, extra:{relatedRoundId:roundId, relatedTableId:tableId}});
-      clawedBack += Math.abs(r.amount);
+    } else if (r.category==='payout' || r.category==='result_edit'){
+      /* A round that was corrected before it was cancelled has two kinds of credit on it, and a
+         correction can itself be negative. Reversing the signed amount puts the member back where
+         they were either way; taking the absolute value would claw back a claw-back. */
+      const signed = Number(r.amount)||0;
+      await creditMember({memberId:r.memberId, casino:r.casino, amount:-signed, category:'correction', memo:`라운드 취소 페이아웃 회수 (${reason})`, extra:{relatedRoundId:roundId, relatedTableId:tableId}});
+      clawedBack += signed;
     }
   }
   if (pushNotice){

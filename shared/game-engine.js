@@ -248,18 +248,47 @@ async function getPlayerBalance(db, memberId, member){
   return {balance, points};
 }
 
-/* ---------------- betting ---------------- */
+/* ---------------- betting ----------------
+   A stake and its settlement are the two halves of one round, and the second half used to be
+   allowed to go missing. Both are written over the network from a phone; a write that fails
+   threw out of the round loop, whose recovery starts the table on a fresh round - so the stake
+   was in the books, the hand was never settled against it, and the player was simply short. On a
+   winning hand that is the whole return gone, and it survives a reload because the books really
+   do say it: a bet row with no payout row after it. Reported from the floor twice.
+
+   Two things fix it and they have to go together. The rows are written under an id derived from
+   the round they belong to rather than a fresh uuid, so writing one twice is writing it once -
+   without that, a retry that was actually the first attempt landing late would pay the hand
+   twice. And with the writes idempotent, they can be retried, which is what turns the ordinary
+   case - one dropped packet on a phone - back into a settled hand. */
+const LEDGER_TRIES = 4;
+function ledgerRowId(kind, {memberId, roundId, betType}){
+  // one row per round per spot per member, whichever attempt gets there
+  return `${kind}_${roundId}_${betType}_${memberId}`.replace(/[^A-Za-z0-9_-]/g, '-');
+}
+async function withRetry(what, fn){
+  let last;
+  for (let i = 0; i < LEDGER_TRIES; i++){
+    try { return await fn(); }
+    catch (e){
+      last = e;
+      if (i < LEDGER_TRIES - 1) await new Promise(r=>setTimeout(r, 250 * Math.pow(2, i)));
+    }
+  }
+  console.error(`${what} failed after ${LEDGER_TRIES} tries`, last);
+  throw last;
+}
 async function placeBet(db, {memberId, casino, tableId, roundId, betType, amount, staff}){
-  await db.collection('memberLedger').doc(uuidv4()).set({
+  await withRetry('placeBet', ()=>db.collection('memberLedger').doc(ledgerRowId('bet', {memberId, roundId, betType})).set({
     memberId, casino, amount: -Math.abs(amount), category:'bet', betType,
     relatedTableId: tableId, relatedRoundId: roundId, staff: staff||'system',
     createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
-  });
+  }));
   // the stake leaves the cage account as it is placed, marked with the same source
-  if (isCageAccount(PLAYER)) await writeCageLedger(db, {
+  if (isCageAccount(PLAYER)) await withRetry('placeBet cage', ()=>writeCageLedger(db, {
     accountId: memberId, casino, type:'OUT', amount,
     memo: `${tableId} ${betType}`, staff,
-  });
+  }));
 }
 async function settleBet(db, {memberId, casino, tableId, roundId, betType, amount, resultInfo, staff}){
   let mult = 0;
@@ -270,16 +299,16 @@ async function settleBet(db, {memberId, casino, tableId, roundId, betType, amoun
   else if (betType==='bankerPair') mult = resultInfo.bankerPair ? PAYOUT.bankerPair : 0;
   const payout = Math.round(amount * mult);
   if (payout > 0){
-    await db.collection('memberLedger').doc(uuidv4()).set({
+    await withRetry('settleBet', ()=>db.collection('memberLedger').doc(ledgerRowId('payout', {memberId, roundId, betType})).set({
       memberId, casino, amount: payout, category:'payout',
       relatedTableId: tableId, relatedRoundId: roundId, staff: staff||'system',
       createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
-    });
+    }));
     // and the return comes back into it, from the same place the stake went
-    if (isCageAccount(PLAYER)) await writeCageLedger(db, {
+    if (isCageAccount(PLAYER)) await withRetry('settleBet cage', ()=>writeCageLedger(db, {
       accountId: memberId, casino, type:'IN', amount: payout,
       memo: `${tableId} ${betType}`, staff,
-    });
+    }));
   }
   return payout;
 }

@@ -159,6 +159,8 @@ h2.page-title{font-weight:800;font-size:22px;color:var(--brass);margin:0 0 4px;l
 .btn-danger-fill{background:var(--danger);border-color:var(--danger);color:#2a0f0b;}
 .btn-ghost{background:transparent;}
 .btn-sm{padding:5px 10px;font-size:11px;}
+/* the acts a row offers, kept on one line - .btn-danger is already defined below */
+.row-actions{display:inline-flex;gap:6px;white-space:nowrap;}
 .btn-xs{padding:3px 8px;font-size:10.5px;border-radius:4px;}
 .btn-block{width:100%;}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;}

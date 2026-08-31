@@ -59,12 +59,9 @@ const NAV_GROUPS = [
   {id:'myinfo', label:'내 정보 관리', icon:'user', single:true},
   {id:'realtime', label:'실시간 접속자', icon:'pulse', single:true},
   {id:'account', label:'계정 관리', icon:'wallet', single:true},
-  {id:'settlementReport', label:'파트너 정산 리포트', icon:'doc', single:true},
   {id:'member', label:'회원 관리', icon:'users', children:[
     {id:'userList', label:'유저 리스트'},
     {id:'betHistory', label:'베팅내역'},
-    {id:'payoutHistory', label:'지급내역'},
-    {id:'pointAccum', label:'포인트 누적 내역'},
     {id:'pointConversion', label:'포인트 전환 리스트'},
     {id:'shareMgmt', label:'쉐어 관리'},
     {id:'depositMgmt', label:'디파짓 관리'},
@@ -82,23 +79,14 @@ const NAV_GROUPS = [
     {id:'memberActivity', label:'회원 활동'},
     {id:'signupStatus', label:'회원가입 현황'},
     {id:'bettingStatus', label:'베팅현황'},
+    {id:'dailySettlement', label:'일자별 정산'},
   ]},
   {id:'table', label:'테이블 관리', icon:'table', children:[
     {id:'tableList', label:'테이블 관리'},
-    {id:'tableBetHistory', label:'테이블 베팅 총 금액(24H)'},
-    {id:'avatarGameList', label:'아바타 게임 관리'},
-    {id:'avatarRequests', label:'아바타 대리베팅 신청'},
     {id:'roundEdit', label:'게임 라운드 수정'},
     {id:'chatLog', label:'채팅 로그'},
     {id:'bankerCutBets', label:'뱅커 절사 베팅내역'},
-    {id:'avatarMissFix', label:'아바타 미스 수정'},
     {id:'tableVideo', label:'게임 테이블 영상'},
-    {id:'roundEditSettle', label:'게임 라운드 수정 정산'},
-  ]},
-  {id:'wallet', label:'월렛 관리', icon:'bank', children:[
-    {id:'depositWithdrawList', label:'입출금 리스트'},
-    {id:'walletTransferList', label:'월렛 이체 리스트'},
-    {id:'walletConversionList', label:'월렛 전환 리스트'},
   ]},
   {id:'cs', label:'고객센터', icon:'headset', children:[
     {id:'tickerNotice', label:'한줄 공지'},
@@ -110,22 +98,9 @@ const NAV_GROUPS = [
     {id:'csContact', label:'고객센터 연락처 관리'},
   ]},
   {id:'admin', label:'관리자 관리', icon:'shield', children:[
-    {id:'moveAffiliation', label:'소속이동'},
-    {id:'fullMemberConversion', label:'정회원 전환 리스트'},
-    {id:'signupSmsVerify', label:'가입 인증문자 확인'},
     {id:'blacklist', label:'블랙리스트'},
     {id:'memberActionLog', label:'회원 액션 로그'},
     {id:'adminLog', label:'관리자 로그'},
-    {id:'sharePartnerMgmt', label:'쉐어 파트너 관리'},
-    {id:'subJunketMgmt', label:'서브 정켓 관리'},
-    {id:'eventMgmt', label:'이벤트 관리'},
-    {id:'fieldSignupList', label:'현장가입 리스트'},
-  ]},
-  {id:'payment', label:'결제 관리', icon:'card', children:[
-    {id:'cageTransferHistory', label:'케이지 이체 내역'},
-    {id:'dailySettlement', label:'일자별 정산'},
-    {id:'paymentProcessList', label:'결제 처리 리스트'},
-    {id:'paymentMgmt', label:'결제 관리'},
   ]},
 ];
 
@@ -773,30 +748,6 @@ async function toggleMemberStatus(id, status){
   switchView(CURRENT_VIEW);
 }
 
-/* ============================================================
-   파트너 정산 리포트 (settlementReport)
-   ============================================================ */
-async function renderSettlementReport(){
-  const partners = await fetchAll('partners');
-  const shareLedger = await fetchAll('shareLedger');
-  const byPartner = {};
-  shareLedger.forEach(s=>{ byPartner[s.partnerCode] = (byPartner[s.partnerCode]||0) + Number(s.amount||0); });
-  const rows = partners.map(p=>({...p, accum: byPartner[p.id]||0}));
-  return mountListView({
-    title:'파트너 정산 리포트', sub:'파트너(에이전트)별 쉐어 정산 누계',
-    coll:'partners', search:true, searchFields:['id','name'], searchPh:'파트너 코드 검색',
-    columns:[
-      {key:'id', label:'파트너 코드'}, {key:'name', label:'이름'}, {key:'parentCode', label:'상위코드'},
-      {key:'shareRate', label:'쉐어율', render:r=>`${r.shareRate}%`}, {key:'accum', label:'정산누계', type:'money'},
-      {key:'status', label:'상태', type:'pill', pillMap:{active:'ok', inactive:'mute'}},
-    ],
-    mapRow: p => ({...p, accum: byPartner[p.id]||0}),
-    stats: rs => [
-      {label:'파트너 수', value: fmtNum(rs.length)},
-      {label:'정산 누계 합계', value: fmtNum(rs.reduce((s,r)=>s+r.accum,0))},
-    ],
-  });
-}
 
 /* ============================================================
    MEMBER GROUP
@@ -816,10 +767,9 @@ async function renderUserList(){
       {key:'id', label:'ID'}, {key:'casino', label:'CASINO'}, {key:'id', label:'어카운트'}, {key:'nickname', label:'닉네임'},
       {key:'phone', label:'핸드폰 번호', type:'phone'}, {key:'telegram', label:'텔레그램 주소', render:r=>r.telegram||'—'},
       {key:'memberType', label:'회원유형'}, {key:'parentAgent', label:'상위 어카운트'},
-      {key:'winLoss', label:'윈로스', type:'money'}, {key:'balance', label:'보유금', type:'money', live:true},
-      {key:'rolling', label:'롤링', type:'money'}, {key:'rollingComm', label:'롤링 커미션', type:'money'},
-      {key:'netRevenue', label:'내 수익금', type:'money'}, {key:'points', label:'보유 포인트', type:'money'},
-      {key:'depositPhp', label:'입금 PHP', type:'money'}, {key:'withdrawPhp', label:'출금 PHP', type:'money'},
+      /* The money columns belong to the cage, not here: 윈로스, 보유금, 롤링, 롤링 커미션,
+         내 수익금, 보유 포인트, 입금 PHP and 출금 PHP came off this list, which was eighteen
+         columns wide and scrolled sideways on any screen. What is left is who the member is. */
       {key:'status', label:'상태', type:'pill', pillMap:{정상:'ok', 정지:'bad', 블랙리스트:'bad'}},
       {key:'createdAt', label:'가입일', type:'date'},
     ],
@@ -942,22 +892,7 @@ async function renderBetHistory(){
     stats: rs => [{label:'베팅 건수', value: fmtNum(rs.length)}, {label:'베팅 총액', value: fmtNum(-rs.reduce((s,r)=>s+r.amount,0))}],
   });
 }
-async function renderPayoutHistory(){
-  return mountListView({
-    title:'지급내역', sub:'승리 페이아웃 지급 내역',
-    coll:'memberLedger', extraFilter:l=>l.category==='payout', search:true, searchFields:['memberId'], searchPh:'회원ID 검색',
-    columns:[{key:'createdAt', label:'시간', type:'dt'}, {key:'memberId', label:'회원ID'}, {key:'relatedTableId', label:'테이블'}, {key:'amount', label:'지급금액', type:'money'}],
-    sortKey:'createdAt', sortDir:'desc',
-    stats: rs => [{label:'지급 건수', value: fmtNum(rs.length)}, {label:'지급 총액', value: fmtNum(rs.reduce((s,r)=>s+r.amount,0))}],
-  });
-}
-async function renderPointAccum(){
-  return mountListView({
-    title:'포인트 누적 내역', coll:'memberLedger', extraFilter:l=>l.category==='point_earn', search:true, searchFields:['memberId'],
-    columns:[{key:'createdAt', label:'시간', type:'dt'}, {key:'memberId', label:'회원ID'}, {key:'amount', label:'적립 포인트', type:'money'}, {key:'memo', label:'사유'}],
-    sortKey:'createdAt', sortDir:'desc',
-  });
-}
+
 async function renderPointConversion(){
   return mountListView({
     title:'포인트 전환 리스트', coll:'memberLedger', extraFilter:l=>l.category==='point_convert', search:true, searchFields:['memberId'],
@@ -1334,31 +1269,7 @@ async function editTableSettings(id){
   };
   openModal('modal-form');
 }
-async function renderTableBetHistory(){
-  return mountListView({
-    title:'테이블 베팅내역', coll:'memberLedger', extraFilter:l=>l.category==='bet', search:true, searchFields:['relatedTableId'], searchPh:'테이블ID 검색',
-    columns:[{key:'createdAt', label:'시간', type:'dt'}, {key:'relatedTableId', label:'테이블'}, {key:'memberId', label:'회원ID'}, {key:'amount', label:'베팅금액', type:'money'}],
-    sortKey:'createdAt', sortDir:'desc',
-  });
-}
 
-/* ============================================================
-   AVATAR GAME GROUP
-   ============================================================ */
-async function renderAvatarGameList(){
-  const tables = (await getTables(true)).filter(t=>t.type==='avatar');
-  return `
-    ${pageHead('아바타 게임 관리')}
-    <div class="tabs-mini">
-      <button class="active">아바타 게임 관리</button>
-      <button onclick="openAvatarGameSettings()">아바타 게임 설정</button>
-      <button onclick="openAvatarDetailSettings()">아바타 설정</button>
-    </div>
-    <div class="card"><div class="table-wrap"><table><thead><tr><th>테이블</th><th>카지노</th><th>슈번호</th><th>상태</th><th>베팅한도</th></tr></thead><tbody>
-    ${tables.map(t=>`<tr><td>${t.name}</td><td>${t.casino}</td><td class="num">${t.shoeNo||1}</td><td>${pill(t.status,{open:'ok',closed:'mute'})}</td><td class="num">${fmtNum(t.betMin)} ~ ${fmtNum(t.betMax)}</td></tr>`).join('') || `<tr class="empty-row"><td colspan="5">아바타 테이블이 없습니다</td></tr>`}
-    </tbody></table></div></div>
-  `;
-}
 function openAvatarGameSettings(){
   document.getElementById('formModalTitle').textContent = '아바타 게임 설정';
   document.getElementById('formModalBody').innerHTML = `
@@ -1381,59 +1292,7 @@ function openAvatarDetailSettings(){
   openModal('modal-form');
 }
 function betSideLabel(side){ return side==='player'?'플레이어':side==='banker'?'뱅커':'타이'; }
-async function renderAvatarRequests(){
-  const tables = await getTables();
-  const tableMap = {}; tables.forEach(t=>tableMap[t.id]=t);
-  return mountListView({
-    title:'아바타 대리베팅 신청', sub:'회원이 신청한 대리베팅을 승인(담당 아바타 배정)하면, 승인 기간 동안 매 라운드 지정된 베팅이 자동으로 집행됩니다.',
-    coll:'avatarRequests', search:true, searchFields:['memberId','tableId'], searchPh:'회원ID/테이블ID 검색',
-    filters:[{key:'status', label:'상태', options:['대기','진행중','종료']}],
-    columns:[
-      {key:'requestedAt', label:'신청시간', type:'dt'},
-      {key:'memberId', label:'회원ID'},
-      {key:'tableId', label:'테이블', render:r=>tableMap[r.tableId]?.name || r.tableId},
-      {key:'casino', label:'카지노'},
-      {key:'buyin', label:'바이인', type:'money'},
-      /* A request carries a buy-in and nothing else now - the player gives the instruction at the
-         table, round by round. Older rows still have the standing one, so it is shown where it
-         exists rather than the column being dropped and their history with it. */
-      {key:'betSide', label:'베팅지시',
-       render:r=>r.betSide ? `${betSideLabel(r.betSide)} ${fmtNum(r.betAmount)}` : '테이블에서 직접'},
-      {key:'avatarStaffId', label:'담당 아바타', render:r=>r.avatarStaffId || '—'},
-      {key:'status', label:'상태', type:'pill', pillMap:{'대기':'warn','진행중':'ok','종료':'mute'}},
-    ],
-    rowActions: r => {
-      if (r.status==='대기') return `<button class="btn btn-xs btn-gold" onclick="openApproveAvatarRequestModal('${r.id}')">승인</button> <button class="btn btn-xs btn-danger" onclick="rejectAvatarRequest('${r.id}')">거절</button>`;
-      if (r.status==='진행중') return `<button class="btn btn-xs btn-danger" onclick="endAvatarRequestByAdmin('${r.id}')">강제 종료</button>`;
-      return `<span class="hint">종료됨</span>`;
-    },
-    sortKey:'requestedAt', sortDir:'desc',
-  });
-}
-function openApproveAvatarRequestModal(id){
-  document.getElementById('formModalTitle').textContent = '아바타 대리베팅 승인';
-  document.getElementById('formModalBody').innerHTML = `
-    <p class="hint">담당 아바타(직원) ID를 입력하면 신청을 승인하고 대리베팅을 시작합니다.</p>
-    <div class="field"><label>담당 아바타 ID</label><input id="apStaffId" placeholder="${CURRENT_STAFF?.id||'STAFF01'}" value="${CURRENT_STAFF?.id||''}"></div>
-  `;
-  document.getElementById('formModalSubmitBtn').onclick = async ()=>{
-    const staffId = document.getElementById('apStaffId').value.trim() || CURRENT_STAFF?.id || 'STAFF';
-    await db.collection('avatarRequests').doc(id).set({status:'진행중', avatarStaffId:staffId, approvedAt:new Date().toISOString()}, {merge:true});
-    await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:`아바타 대리베팅 승인 (담당:${staffId})`, target:id, dt:new Date().toISOString()});
-    closeModal('modal-form'); toast('승인되었습니다'); switchView(CURRENT_VIEW);
-  };
-  openModal('modal-form');
-}
-async function rejectAvatarRequest(id){
-  await db.collection('avatarRequests').doc(id).set({status:'종료', endedAt:new Date().toISOString()}, {merge:true});
-  await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:'아바타 대리베팅 거절', target:id, dt:new Date().toISOString()});
-  toast('거절되었습니다'); switchView(CURRENT_VIEW);
-}
-async function endAvatarRequestByAdmin(id){
-  await db.collection('avatarRequests').doc(id).set({status:'종료', endedAt:new Date().toISOString()}, {merge:true});
-  await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:'아바타 대리베팅 강제 종료', target:id, dt:new Date().toISOString()});
-  toast('종료되었습니다'); switchView(CURRENT_VIEW);
-}
+
 async function renderRoundEdit(){
   return mountListView({
     title:'게임 라운드 수정', sub:'특수 케이스(오배당, 엔젤아이 인식오류, 셔플로 인한 결과 미반영 등)는 라운드 취소로 베팅을 전액 환불 처리합니다.',
@@ -1529,13 +1388,7 @@ async function renderBankerCutBets(){
     sortKey:'createdAt', sortDir:'desc',
   });
 }
-async function renderAvatarMissFix(){
-  return mountListView({
-    title:'아바타 미스 수정', coll:'avatarMissCorrections', search:true, searchFields:['roundId'],
-    columns:[{key:'dt', label:'시간', type:'dt'}, {key:'roundId', label:'라운드ID'}, {key:'before', label:'수정 전'}, {key:'after', label:'수정 후'}, {key:'reason', label:'사유'}, {key:'staff', label:'처리자'}],
-    sortKey:'dt', sortDir:'desc',
-  });
-}
+
 async function renderTableVideo(){
   const tables = (await getTables(true)).filter(t=>t.type==='avatar' || t.type==='speed');
   return `
@@ -1549,39 +1402,7 @@ async function renderTableVideo(){
     </div>
   `;
 }
-async function renderRoundEditSettle(){
-  return mountListView({
-    title:'게임 라운드 수정 정산', sub:'라운드 결과 수정에 따른 재정산 내역', coll:'rounds', extraFilter:r=>!!r.editedBy,
-    columns:[{key:'startedAt', label:'라운드 시간', type:'dt'}, {key:'tableId', label:'테이블'}, {key:'result', label:'수정된 결과'}, {key:'editedBy', label:'수정자'}, {key:'editedReason', label:'사유'}],
-    sortKey:'startedAt', sortDir:'desc',
-  });
-}
 
-/* ============================================================
-   WALLET GROUP
-   ============================================================ */
-async function renderDepositWithdrawList(){
-  return mountListView({
-    title:'입출금 리스트', coll:'memberLedger', extraFilter:l=>l.category==='deposit'||l.category==='withdraw', search:true, searchFields:['memberId'],
-    filters:[{key:'category', label:'구분', options:['deposit','withdraw']}],
-    columns:[{key:'createdAt', label:'시간', type:'dt'}, {key:'memberId', label:'회원ID'}, {key:'category', label:'구분', render:r=>r.category==='deposit'?'입금':'출금'}, {key:'amount', label:'금액', type:'money'}, {key:'staff', label:'처리자'}],
-    sortKey:'createdAt', sortDir:'desc',
-  });
-}
-async function renderWalletTransferList(){
-  return mountListView({
-    title:'월렛 이체 리스트', coll:'memberLedger', extraFilter:l=>l.category==='transfer', search:true, searchFields:['memberId'],
-    columns:[{key:'createdAt', label:'시간', type:'dt'}, {key:'memberId', label:'회원ID'}, {key:'relatedAccountId', label:'상대'}, {key:'amount', label:'금액', type:'money'}],
-    sortKey:'createdAt', sortDir:'desc',
-  });
-}
-async function renderWalletConversionList(){
-  return mountListView({
-    title:'월렛 전환 리스트', coll:'memberLedger', extraFilter:l=>l.category==='point_convert', search:true, searchFields:['memberId'],
-    columns:[{key:'createdAt', label:'시간', type:'dt'}, {key:'memberId', label:'회원ID'}, {key:'amount', label:'전환액', type:'money'}],
-    sortKey:'createdAt', sortDir:'desc',
-  });
-}
 
 /* ============================================================
    CS GROUP
@@ -1607,9 +1428,23 @@ async function toggleTicker(id, val){ await db.collection('tickerNotices').doc(i
 async function renderNotice(){
   return mountListView({
     title:'공지사항', coll:'notices', search:true, searchFields:['title'], onCreate:'openNoticeForm()',
-    columns:[{key:'dt', label:'등록일', type:'dt'}, {key:'title', label:'제목'}, {key:'pinned', label:'고정', render:r=>r.pinned?'📌':''}, {key:'staff', label:'작성자'}],
+    columns:[{key:'dt', label:'등록일', type:'dt'}, {key:'title', label:'제목'}, {key:'pinned', label:'고정', render:r=>r.pinned?'📌':''}, {key:'staff', label:'작성자'},
+      /* 관리: the row already opens the editor, but deleting a notice had nowhere to be done
+         from - the only way to retire one was to blank its text. The two acts are named here
+         instead of hidden behind the row. */
+      {key:'id', label:'관리', render:r=>`<span class="row-actions">`
+        + `<button class="btn btn-sm" onclick="event.stopPropagation();openNoticeForm2('${r.id}')">수정</button>`
+        + `<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteNotice('${r.id}')">삭제</button>`
+        + `</span>`},
+    ],
     rowClick:'openNoticeForm2', sortKey:'dt', sortDir:'desc',
   });
+}
+async function deleteNotice(id){
+  if (!confirm('이 공지사항을 삭제할까요?')) return;
+  await db.collection('notices').doc(id).delete();
+  await db.collection('adminLogs').doc(uuidv4()).set({staff:CURRENT_STAFF?.id||'—', action:'공지사항 삭제', target:id, dt:new Date().toISOString()});
+  toast('삭제되었습니다'); switchView(CURRENT_VIEW);
 }
 function openNoticeForm(){ openNoticeForm2(null); }
 async function openNoticeForm2(id){
@@ -1736,16 +1571,6 @@ function openCsContactForm(){
   openModal('modal-form');
 }
 
-/* ============================================================
-   ADMIN GROUP
-   ============================================================ */
-async function renderMoveAffiliation(){
-  return mountListView({
-    title:'소속이동', sub:'회원의 상위 에이전트를 변경합니다', coll:'members', search:true, searchFields:['id','nickname'],
-    columns:[{key:'id', label:'ID'}, {key:'nickname', label:'닉네임'}, {key:'parentAgent', label:'현재 소속'}],
-    rowActions: r => `<button class="btn btn-xs" onclick="openMoveAffiliationModal('${r.id}','${r.parentAgent||''}')">소속이동</button>`,
-  });
-}
 function openMoveAffiliationModal(id, cur){
   document.getElementById('formModalTitle').textContent = `소속이동 · ${id}`;
   document.getElementById('formModalBody').innerHTML = `<div class="field"><label>새 상위 에이전트</label><input id="maAgent" value="${cur}"></div>`;
@@ -1756,24 +1581,12 @@ function openMoveAffiliationModal(id, cur){
   };
   openModal('modal-form');
 }
-async function renderFullMemberConversion(){
-  return mountListView({
-    title:'정회원 전환 리스트', coll:'members', extraFilter:m=>m.memberType==='준회원', search:true, searchFields:['id','nickname'],
-    columns:[{key:'id', label:'ID'}, {key:'nickname', label:'닉네임'}, {key:'casino', label:'카지노'}, {key:'createdAt', label:'가입일', type:'date'}],
-    rowActions: r => `<button class="btn btn-xs btn-jade" onclick="convertToFullMember('${r.id}')">정회원 전환</button>`,
-  });
-}
+
 async function convertToFullMember(id){
   await db.collection('members').doc(id).set({memberType:'정회원'}, {merge:true});
   toast('정회원으로 전환되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW);
 }
-async function renderSignupSmsVerify(){
-  return mountListView({
-    title:'가입 인증문자 확인', coll:'members', search:true, searchFields:['id','phone'],
-    columns:[{key:'id', label:'ID'}, {key:'phone', label:'전화번호', type:'phone'}, {key:'createdAt', label:'가입일', type:'dt'}, {key:'smsVerified', label:'인증상태', render:r=>pill(r.smsVerified?'인증완료':'미인증',{'인증완료':'ok','미인증':'warn'})}],
-    rowActions: r => r.smsVerified ? '—' : `<button class="btn btn-xs btn-jade" onclick="verifySms('${r.id}')">인증처리</button>`,
-  });
-}
+
 async function verifySms(id){ await db.collection('members').doc(id).set({smsVerified:true}, {merge:true}); toast('인증되었습니다'); invalidateCaches(); switchView(CURRENT_VIEW); }
 async function renderBlacklist(){
   return mountListView({
@@ -1796,25 +1609,7 @@ async function renderAdminLog(){
     sortKey:'dt', sortDir:'desc',
   });
 }
-async function renderSharePartnerMgmt(){
-  return mountListView({
-    title:'쉐어 파트너 관리', coll:'partners', search:true, searchFields:['id','name'],
-    columns:[{key:'id', label:'코드'}, {key:'name', label:'이름'}, {key:'level', label:'레벨'}, {key:'shareRate', label:'쉐어율(%)'}, {key:'status', label:'상태', type:'pill', pillMap:{active:'ok', inactive:'mute'}}],
-    rowActions: r => `<button class="btn btn-xs" onclick="editShareRate('${r.id}', ${r.shareRate})">쉐어 파트너 설정</button>`,
-  });
-}
-async function renderSubJunketMgmt(){
-  return mountListView({
-    title:'서브 정켓 관리', coll:'partners', extraFilter:p=>p.level>1, search:true, searchFields:['id','name'],
-    columns:[{key:'id', label:'코드'}, {key:'name', label:'이름'}, {key:'parentCode', label:'상위코드'}, {key:'shareRate', label:'쉐어율(%)'}],
-  });
-}
-async function renderEventMgmt(){
-  return mountListView({
-    title:'이벤트 관리', coll:'events', search:true, searchFields:['title'], onCreate:'openEventForm()',
-    columns:[{key:'title', label:'제목'}, {key:'startDt', label:'시작', type:'date'}, {key:'endDt', label:'종료', type:'date'}, {key:'active', label:'상태', render:r=>pill(r.active?'진행중':'종료',{진행중:'ok', 종료:'mute'})}],
-  });
-}
+
 function openEventForm(){
   document.getElementById('formModalTitle').textContent = '이벤트 등록';
   document.getElementById('formModalBody').innerHTML = `
@@ -1828,34 +1623,11 @@ function openEventForm(){
   };
   openModal('modal-form');
 }
-async function renderFieldSignupList(){
-  return mountListView({
-    title:'현장가입 리스트 (어카운트 리스트)', coll:'members', extraFilter:m=>m.source==='field', search:true, searchFields:['id','nickname'],
-    columns:[{key:'id', label:'ID'}, {key:'nickname', label:'닉네임'}, {key:'casino', label:'카지노'}, {key:'createdAt', label:'가입일', type:'dt'}],
-  });
-}
 
-/* ============================================================
-   PAYMENT GROUP
-   ============================================================ */
-async function renderCageTransferHistory(){
-  return mountListView({
-    title:'케이지 이체 내역', coll:'memberLedger', extraFilter:l=>l.category==='deposit'||l.category==='withdraw', search:true, searchFields:['memberId','staff'],
-    columns:[{key:'createdAt', label:'시간', type:'dt'}, {key:'memberId', label:'회원ID'}, {key:'category', label:'구분', render:r=>r.category==='deposit'?'입금':'출금'}, {key:'amount', label:'금액', type:'money'}, {key:'staff', label:'처리자'}],
-    sortKey:'createdAt', sortDir:'desc',
-  });
-}
 async function renderDailySettlement(){
   return renderDailyReport();
 }
-async function renderPaymentProcessList(){
-  return mountListView({
-    title:'결제 처리 리스트', coll:'paymentRequests', extraFilter:p=>p.status==='대기', search:true, searchFields:['memberId'],
-    columns:[{key:'dt', label:'요청시간', type:'dt'}, {key:'memberId', label:'회원ID'}, {key:'type', label:'구분'}, {key:'amount', label:'금액', type:'money'}, {key:'status', label:'상태', type:'pill', pillMap:{대기:'warn'}}],
-    rowActions: r => `<button class="btn btn-xs btn-jade" onclick="processPayment('${r.id}','승인')">승인</button> <button class="btn btn-xs btn-danger" onclick="processPayment('${r.id}','거절')">거절</button>`,
-    sortKey:'dt', sortDir:'desc',
-  });
-}
+
 async function processPayment(id, status){
   // Reads the request fresh inside the transaction rather than off the cached fetchAll() list -
   // that cache can be stale, and the transaction is also what makes the status check + flip atomic
@@ -1880,28 +1652,20 @@ async function processPayment(id, status){
   }
   toast(`${status}되었습니다`); invalidateCaches(); switchView(CURRENT_VIEW);
 }
-async function renderPaymentMgmt(){
-  return mountListView({
-    title:'결제 관리', coll:'paymentRequests', search:true, searchFields:['memberId'],
-    filters:[{key:'status', label:'상태', options:['대기','승인','거절']}],
-    columns:[{key:'dt', label:'요청시간', type:'dt'}, {key:'memberId', label:'회원ID'}, {key:'type', label:'구분'}, {key:'amount', label:'금액', type:'money'}, {key:'status', label:'상태', type:'pill', pillMap:{대기:'warn', 승인:'ok', 거절:'bad'}}, {key:'staff', label:'처리자'}],
-    sortKey:'dt', sortDir:'desc',
-  });
-}
+
 
 /* ---------------- view registry ---------------- */
 const VIEW_RENDERERS = {
-  dashboard: renderDashboard, myinfo: renderMyInfo, realtime: renderRealtime, account: renderAccount, settlementReport: renderSettlementReport,
-  userList: renderUserList, betHistory: renderBetHistory, payoutHistory: renderPayoutHistory, pointAccum: renderPointAccum, pointConversion: renderPointConversion,
+  dashboard: renderDashboard, myinfo: renderMyInfo, realtime: renderRealtime, account: renderAccount,
+  userList: renderUserList, betHistory: renderBetHistory, pointConversion: renderPointConversion,
   shareMgmt: renderShareMgmt, depositMgmt: renderDepositMgmt, shareAccumList: renderShareAccumList, shareSettingLog: renderShareSettingLog, dailyReport: renderDailyReport,
   marketRatio: renderStatsTab, depositWithdrawStats: renderStatsTab, performanceCompare: renderStatsTab, realtimeRisk: renderStatsTab, highBet: renderStatsTab,
   leaderboard: renderStatsTab, memberActivity: renderStatsTab, signupStatus: renderStatsTab, bettingStatus: renderStatsTab,
-  tableList: renderTableList, tableBetHistory: renderTableBetHistory,
-  avatarGameList: renderAvatarGameList, avatarRequests: renderAvatarRequests, roundEdit: renderRoundEdit, chatLog: renderChatLog, bankerCutBets: renderBankerCutBets, avatarMissFix: renderAvatarMissFix, tableVideo: renderTableVideo, roundEditSettle: renderRoundEditSettle,
-  depositWithdrawList: renderDepositWithdrawList, walletTransferList: renderWalletTransferList, walletConversionList: renderWalletConversionList,
+  tableList: renderTableList,
+ roundEdit: renderRoundEdit, chatLog: renderChatLog, bankerCutBets: renderBankerCutBets, tableVideo: renderTableVideo,
   tickerNotice: renderTickerNotice, notice: renderNotice, guide: renderGuide, bannedWords: renderBannedWords, inquiry1on1: renderInquiry1on1, inGameNotice: renderInGameNotice, csContact: renderCsContact,
-  moveAffiliation: renderMoveAffiliation, fullMemberConversion: renderFullMemberConversion, signupSmsVerify: renderSignupSmsVerify, blacklist: renderBlacklist, memberActionLog: renderMemberActionLog, adminLog: renderAdminLog, sharePartnerMgmt: renderSharePartnerMgmt, subJunketMgmt: renderSubJunketMgmt, eventMgmt: renderEventMgmt, fieldSignupList: renderFieldSignupList,
-  cageTransferHistory: renderCageTransferHistory, dailySettlement: renderDailySettlement, paymentProcessList: renderPaymentProcessList, paymentMgmt: renderPaymentMgmt,
+ blacklist: renderBlacklist, memberActionLog: renderMemberActionLog, adminLog: renderAdminLog,
+ dailySettlement: renderDailySettlement,
 };
 // stats tabs need to know which sub-tab id was requested since they share one renderer signature
 Object.keys({marketRatio:1,depositWithdrawStats:1,performanceCompare:1,realtimeRisk:1,highBet:1,leaderboard:1,memberActivity:1,signupStatus:1,bettingStatus:1}).forEach(id=>{

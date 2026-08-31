@@ -1405,9 +1405,9 @@ async function beginAvatarDealingPhase(){
      wrong - one bet row, one stake - but the figure the player was reading was. */
   AVATAR.committed = false;   // the stake has actually left STATE.balance now, one way or the other
   if (total > 0){
-    STATE.balance -= total;
-    paintPlayableBalance();
     toast(t('avatarPlacedTotal', {amount: fmtNum(total)}));
+    // read back, not subtracted on - the stake write above has already woken the balance listener
+    await refreshBalance().catch(()=>{ STATE.balance -= total; paintPlayableBalance(); });
   }
   AVATAR._sim = simulateRound(AVATAR.shoe);
   await revealAvatarCards(AVATAR._sim);
@@ -1463,9 +1463,15 @@ async function beginAvatarResultPhase(){
     await refreshBalance();
     return;
   }
-  if (totalPayout > 0) STATE.balance += totalPayout;
+  /* The payout is READ back rather than added on. settleBet has just written it to the books,
+     and the books are watched: that write wakes the balance listener, which re-reads them and
+     assigns the answer to STATE.balance. Adding the payout on top of whatever STATE.balance
+     holds is then a coin toss - if the listener got there first, the round is counted twice.
+     Nothing corrects it either, because the correction only comes on the next write, so the
+     wrong figure stands through the whole of the next round's betting. Reported from the floor:
+     a 1,000,000 bet on 뱅커 won 950,000 and the bar went up by 1,900,000. */
   if (staked > 0) toast(roundOutcomeText(staked, totalPayout));
-  paintPlayableBalance();
+  await refreshBalance().catch(()=>{ if (totalPayout > 0) STATE.balance += totalPayout; paintPlayableBalance(); });
   refreshPointsQuiet();
 
   await writeRoundDoc(db, {tableId, tableType:'avatar', roundNo, shoeNo:shoe.no, sim, startedAt:new Date(Date.now()-(AVATAR_BETTING_SECONDS+AVATAR_DEALING_SECONDS)*1000).toISOString()});
@@ -2588,8 +2594,13 @@ async function beginSpeedDealing(tableId){
     if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, staff:CAGE_LEDGER_SOURCE.speed});
   }
   const totalBet = Object.values(s.bets).reduce((a,b)=>a+b,0);
-  if (totalBet > 0){ STATE.balance -= totalBet; }
+  /* The lock comes off before the read, not after. s.settling means "staked, but the books have
+     not moved yet", and the bar subtracts it on top of STATE.balance for exactly that reason - so
+     a repaint taken while it is still up charges the stake twice, and refreshBalance repaints.
+     The same ordering as AVATAR.committed above, for the same reason. */
   s.settling = false;
+  // read back, not subtracted on - see the note in beginAvatarResultPhase
+  if (totalBet > 0) await refreshBalance().catch(()=>{ STATE.balance -= totalBet; paintPlayableBalance(); });
   s._sim = simulateRound(s.shoe);
   if (SPEED.detailTableId===tableId) await revealSpeedDetailCards(s._sim);
 }
@@ -2654,9 +2665,9 @@ async function beginSpeedResult(tableId){
   }
   logAiPrediction(tableId, sim.result);   // the paper-betting record, win or lose
   const staked = Object.values(s.bets).reduce((a,x)=>a+x, 0);
-  if (totalPayout > 0) STATE.balance += totalPayout;
+  // read back rather than added on - see the identical note in beginAvatarResultPhase
   if (staked > 0) toast(`[${tb.name}] ${roundOutcomeText(staked, totalPayout)}`);
-  paintPlayableBalance();
+  await refreshBalance().catch(()=>{ if (totalPayout > 0) STATE.balance += totalPayout; paintPlayableBalance(); });
 
   await writeRoundDoc(db, {tableId, tableType:'speed', roundNo:s.roundNo, shoeNo:s.shoe.no, sim, startedAt:new Date(Date.now()-(SPEED_BETTING_SECONDS+SPEED_DEALING_SECONDS)*1000).toISOString()});
   s.history.push(sim.result);

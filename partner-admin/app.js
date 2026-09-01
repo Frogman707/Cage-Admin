@@ -53,21 +53,19 @@ const ICONS = {
 };
 function ic(name){ return `<span class="ic">${ICONS[name]||ICONS.doc}</span>`; }
 
-/* ---------------- nav structure (58 leaf screens across 12 groups, mirrors the 51-screen reference set) ---------------- */
+/* ---------------- nav structure (52 leaf screens across 12 groups) ---------------- */
 const NAV_GROUPS = [
   {id:'dashboard', label:'대시보드', icon:'dashboard', single:true},
   {id:'myinfo', label:'내 정보 관리', icon:'user', single:true},
   {id:'realtime', label:'실시간 접속자', icon:'pulse', single:true},
   {id:'account', label:'계정 관리', icon:'wallet', single:true},
+  /* 회원 관리 is down to the two screens an operator here actually works from. The other six -
+     포인트 전환 리스트, 쉐어 관리, 디파짓 관리, 쉐어 누적 리스트, 쉐어 설정 로그, 데일리 리포트 -
+     are hidden rather than deleted: their renderers are still registered and reachable by view id,
+     so putting one back is a line in this list, and no existing link to one breaks. */
   {id:'member', label:'회원 관리', icon:'users', children:[
     {id:'userList', label:'유저 리스트'},
     {id:'betHistory', label:'베팅내역'},
-    {id:'pointConversion', label:'포인트 전환 리스트'},
-    {id:'shareMgmt', label:'쉐어 관리'},
-    {id:'depositMgmt', label:'디파짓 관리'},
-    {id:'shareAccumList', label:'쉐어 누적 리스트'},
-    {id:'shareSettingLog', label:'쉐어 설정 로그'},
-    {id:'dailyReport', label:'데일리 리포트'},
   ]},
   {id:'stats', label:'통계', icon:'chart', children:[
     {id:'marketRatio', label:'마켓비율'},

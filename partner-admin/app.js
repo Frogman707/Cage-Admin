@@ -1179,29 +1179,97 @@ function ledgerOrder(a, b){
   return (LEDGER_RANK[a.category] ?? 9) - (LEDGER_RANK[b.category] ?? 9);
 }
 
+/* A bet's own stake and return. Everything else that moves a member's money is folded in around
+   them, so these are the categories a bet's line accounts for itself. */
+const BET_CATEGORIES = new Set(['bet','payout','result_edit']);
+/* The cage book records a stake or a return with the table and the spot as its memo - placeBet and
+   settleBet both write `${tableId} ${betType}`. A tip writes `tip …`, and the cage window writes
+   whatever the teller typed. Only the first kind is a bet's own movement. */
+function isTableCageMove(memo){
+  return /\s(player|banker|tie|playerPair|bankerPair)$/.test(String(memo||''));
+}
+/* cageLedgerWrite stamps `YYYY-MM-DD HH:MM`, sliced off an ISO string - so it is UTC with the
+   marker taken off, and parsing it as local would put it hours from where it belongs. */
+function cageMoveMillis(r){
+  const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/.exec(String(r.dt||''));
+  return m ? Date.parse(`${m[1]}T${m[2]}:00Z`) : ledgerMillis(r);
+}
+
+/* ---- the balance a bet sits either side of ----
+   Not the sum of a member's memberLedger rows, which is what this page was doing. The rest of the
+   product - getPlayerBalance, and accountBalanceMap that every other admin screen reads - says
+   보유금 is:
+
+     - memberLedger MINUS 포인트 rows (point_earn / point_convert are points, not money); and
+     - for an account opened at a cage, the cage's OWN book: `ledger`, summed as inn - out. Those
+       members' memberLedger rows are a record of play, not the money. The cage window writes only
+       `ledger` and never memberLedger, so a cage account's deposits and withdrawals are not in the
+       book this page was adding up at all.
+
+   Summing memberLedger blind therefore put a member with points out by their point total, and a
+   cage account out by everything the cage window had ever done for them - which is what was
+   reported: 이전보유금 and 이후보유금 that bear no relation to what the member holds.
+
+   So the running figure is built the way the product builds the balance. A bet's own stake and
+   return come from the line itself, and everything else that moved the money - a deposit, a
+   withdrawal, a tip, a cancellation - is folded in at the moment it happened, between one bet and
+   the next. That also keeps `before - staked + returned = after` true on every line by
+   construction rather than by coincidence. */
 async function betHistoryContext(){
-  const [members, rounds, tables, ledger] = await Promise.all(
-    ['members','rounds','tables','memberLedger'].map(fetchAll));
+  const [members, rounds, tables, ledger, cageRows] = await Promise.all([
+    fetchAll('members'), fetchAll('rounds'), fetchAll('tables'), fetchAll('memberLedger'),
+    fetchAll('ledger').catch(()=>[]),
+  ]);
   const memberMap = {}; members.forEach(m=>memberMap[m.id]=m);
   const roundMap  = {}; rounds.forEach(r=>roundMap[r.id]=r);
   const tableMap  = {}; tables.forEach(t=>tableMap[t.id]=t);
+  const cageIds   = cageAccountIds(members, cageRows);
 
-  // the balance either side of each row, per member, in the order the rows were written
-  const byMember = {};
-  ledger.forEach(l=>{ (byMember[l.memberId] = byMember[l.memberId] || []).push(l); });
-  const before = {}, after = {};
-  Object.values(byMember).forEach(rows=>{
-    rows.sort(ledgerOrder);
-    let run = 0;
-    rows.forEach(l=>{ before[l.id] = run; run += Number(l.amount)||0; after[l.id] = run; });
-  });
-  // a round's settlement lands as its own row, so the balance a bet ends on is the one after the
-  // payout that answers it - not the one straight after the stake left
+  /* What a bet was answered with: the payout, plus any correction made to it since - a round put
+     right through 게임 라운드 수정 must show on the line it corrected. */
   const payoutOf = {};
-  ledger.filter(l=>l.category==='payout').forEach(l=>{
-    payoutOf[`${l.relatedRoundId}|${l.betType}|${l.memberId}`] = l;
+  ledger.filter(l=>l.category==='payout' || l.category==='result_edit').forEach(l=>{
+    const k = `${l.relatedRoundId}|${l.betType}|${l.memberId}`;
+    payoutOf[k] = (payoutOf[k] || 0) + (Number(l.amount)||0);
   });
-  return {memberMap, roundMap, tableMap, before, after, payoutOf};
+  const paidOn = new Set(ledger.filter(l=>l.category==='payout')
+    .map(l=>`${l.relatedRoundId}|${l.betType}|${l.memberId}`));
+
+  // every movement of a member's money that is not a bet's own stake or return
+  const outside = {};
+  const addOutside = (id, t, delta) => { if (delta) (outside[id] = outside[id] || []).push({t, delta}); };
+  ledger.forEach(l=>{
+    if (cageIds.has(l.memberId)) return;                                       // money is elsewhere
+    if (l.category === 'point_earn' || l.category === 'point_convert') return;  // points, not money
+    if (BET_CATEGORIES.has(l.category)) return;                                // the line handles it
+    addOutside(l.memberId, ledgerMillis(l), Number(l.amount)||0);
+  });
+  cageRows.forEach(r=>{
+    if (!cageIds.has(r.accountId)) return;
+    if (isTableCageMove(r.memo)) return;                    // the mirror of a stake or a return
+    addOutside(r.accountId, cageMoveMillis(r), (Number(r.inn)||0) - (Number(r.out)||0));
+  });
+  Object.values(outside).forEach(a=>a.sort((x,y)=>x.t-y.t));
+
+  // then the member's bets, in the order they were played
+  const before = {}, after = {};
+  const betsBy = {};
+  ledger.filter(l=>l.category === 'bet').forEach(l=>{ (betsBy[l.memberId] = betsBy[l.memberId] || []).push(l); });
+  Object.entries(betsBy).forEach(([id, bets])=>{
+    bets.sort((a,b)=> (ledgerMillis(a) - ledgerMillis(b)) || String(a.id).localeCompare(String(b.id)));
+    const moves = outside[id] || [];
+    let run = 0, i = 0;
+    bets.forEach(l=>{
+      const t = ledgerMillis(l);
+      while (i < moves.length && moves[i].t <= t) run += moves[i++].delta;
+      before[l.id] = run;
+      const staked = Math.abs(Number(l.amount)||0);
+      run += (payoutOf[`${l.relatedRoundId}|${l.betType}|${l.memberId}`] || 0) - staked;
+      after[l.id] = run;
+    });
+    // whatever moved after the last bet still belongs to the member, just not to a line here
+  });
+  return {memberMap, roundMap, tableMap, cageIds, before, after, payoutOf, paidOn};
 }
 
 const BET_LABEL = {player:'플레이어', banker:'뱅커', tie:'타이', playerPair:'플레이어페어', bankerPair:'뱅커페어'};
@@ -1231,9 +1299,8 @@ async function renderBetHistory(){
     const m = memberMap[l.memberId] || {};
     const rd = roundMap[l.relatedRoundId];
     const tb = tableMap[l.relatedTableId] || {};
-    const pay = payoutOf[`${l.relatedRoundId}|${l.betType}|${l.memberId}`];
     const staked = Math.abs(Number(l.amount)||0);
-    const returned = pay ? (Number(pay.amount)||0) : 0;
+    const returned = payoutOf[`${l.relatedRoundId}|${l.betType}|${l.memberId}`] || 0;
     // 정상처리 means the hand was called and this bet was answered; a round with no result
     // recorded is the failure this page exists to find
     const settled = !!rd && !l.cancelledAt;
@@ -1248,7 +1315,7 @@ async function renderBetHistory(){
       gameType: l.staff === 'Avatar' ? '아바타' : l.staff === 'Speed' ? '스피드' : (tb.type==='avatar'?'아바타':'스피드'),
       currency: m.currency || 'PHP',
       balBefore: before[l.id] ?? null,
-      balAfter: pay ? (after[pay.id] ?? null) : (after[l.id] ?? null),
+      balAfter: after[l.id] ?? null,
       staked, returned,
       net: returned - staked,
       betKind: BET_LABEL[l.betType] || l.betType || '—',
@@ -1805,13 +1872,13 @@ function roundInfo(rd){
                      was never paid; either way money is owed that nobody sent
      정상          - none of the above */
 async function renderRoundEdit(){
-  const {memberMap, roundMap, tableMap, payoutOf} = await betHistoryContext();
+  const {memberMap, roundMap, tableMap, paidOn} = await betHistoryContext();
 
   const decorate = l => {
     const m  = memberMap[l.memberId] || {};
     const rd = roundMap[l.relatedRoundId];
     const tb = tableMap[l.relatedTableId] || {};
-    const pay = payoutOf[`${l.relatedRoundId}|${l.betType}|${l.memberId}`];
+    const paid = paidOn.has(`${l.relatedRoundId}|${l.betType}|${l.memberId}`);
     const staked = Math.abs(Number(l.amount)||0);
     // what this bet was owed once the hand was called - a loser is owed nothing, so a loser with
     // no payout row is settled, not lost
@@ -1820,7 +1887,7 @@ async function renderRoundEdit(){
     if (l.cancelledAt || (rd && rd.cancelled))       state = '취소됨';
     else if (rd && rd.editState === '수정실패')       state = '수정실패';
     else if (rd && rd.editState === '수정됨')         state = '수정됨';
-    else if (!rd || !rd.result || (owed > 0 && !pay)) state = '결과전송실패';
+    else if (!rd || !rd.result || (owed > 0 && !paid)) state = '결과전송실패';
     else                                             state = '정상';
     return {
       ...l,

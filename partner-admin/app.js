@@ -1136,6 +1136,49 @@ function simpleTable(headers, rows){
    is a running total by definition, so sorting their rows by time and accumulating gives the
    balance before any one of them - and it gives it for rounds played before anyone thought to
    record it, which a new field never would. */
+/* ---- when a ledger row happened ----
+   A row's clock arrives in more than one shape. A bet or a payout is written by a table with
+   createdAt as a SERVER timestamp, which reads back as a Timestamp object - and as null from the
+   local cache until the server acks it. Everything the admin writes itself, and everything the
+   seeder wrote, carries an ISO string.
+
+   Compared as strings those do not interleave: "2026-…" sorts before "Timestamp(…)" for the same
+   reason "2" sorts before "T", so every hand-written row landed ahead of every table-written one
+   whatever the clock actually said. That is what made 이전보유금 wrong - the running total was
+   accumulated in an order that had nothing to do with when the money moved. Taking the first ten
+   characters for a date gave "Timestamp(" for the same reason.
+
+   So every comparison goes through here instead. The wall clock is the local one, because that is
+   the clock the operator reads off the 일시 column and types into a 기간 search - comparing a
+   local "2026-03-10T09:00" against a UTC ISO string was out by the offset. */
+function tsDate(v){
+  if (v == null) return null;
+  if (typeof v.toDate === 'function') return v.toDate();       // Firestore Timestamp
+  if (v instanceof Date) return v;
+  if (typeof v === 'number') return new Date(v);
+  if (typeof v.seconds === 'number') return new Date(v.seconds * 1000);
+  const t = Date.parse(String(v));
+  return Number.isFinite(t) ? new Date(t) : null;
+}
+// the server's time once it has landed, the client's until it does
+function ledgerDate(row){ return tsDate(row.createdAt) || tsDate(row.clientCreatedAt) || tsDate(row.dt); }
+function ledgerMillis(row){ const d = ledgerDate(row); return d ? d.getTime() : 0; }
+function localStamp(d){
+  if (!d || isNaN(d)) return '';
+  const p = x => String(x).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function ledgerStamp(row){ return localStamp(ledgerDate(row)); }
+function ledgerDay(row){ return ledgerStamp(row).slice(0,10); }
+/* A payout answers a bet, so when both land in the same second the stake is the one that came
+   first - otherwise a round's own two rows can accumulate the wrong way round. */
+const LEDGER_RANK = {bet:0, payout:1, result_edit:2, bet_cancel:3};
+function ledgerOrder(a, b){
+  const d = ledgerMillis(a) - ledgerMillis(b);
+  if (d) return d;
+  return (LEDGER_RANK[a.category] ?? 9) - (LEDGER_RANK[b.category] ?? 9);
+}
+
 async function betHistoryContext(){
   const [members, rounds, tables, ledger] = await Promise.all(
     ['members','rounds','tables','memberLedger'].map(fetchAll));
@@ -1148,7 +1191,7 @@ async function betHistoryContext(){
   ledger.forEach(l=>{ (byMember[l.memberId] = byMember[l.memberId] || []).push(l); });
   const before = {}, after = {};
   Object.values(byMember).forEach(rows=>{
-    rows.sort((a,b)=> String(a.createdAt||a.clientCreatedAt||'') < String(b.createdAt||b.clientCreatedAt||'') ? -1 : 1);
+    rows.sort(ledgerOrder);
     let run = 0;
     rows.forEach(l=>{ before[l.id] = run; run += Number(l.amount)||0; after[l.id] = run; });
   });
@@ -1173,13 +1216,13 @@ async function renderBetHistory(){
      narrowed: it carries no table, no round and no bet type. */
   const tipRows = (await fetchAll('memberLedger'))
     .filter(l=>l.category==='avatar_tip' || l.category==='dealer_tip')
-    .map(l=>({memberId:l.memberId, amount:Math.abs(Number(l.amount)||0), dt:l.createdAt||l.clientCreatedAt||''}));
+    .map(l=>({memberId:l.memberId, amount:Math.abs(Number(l.amount)||0), dt:ledgerStamp(l)}));
   const tipsFor = rs => {
     if (!rs.length) return 0;
     const members = new Set(rs.map(r=>r.memberId));
     const days = rs.map(r=>String(r.dt).slice(0,10)).sort();
     const from = days[0], to = days[days.length-1];
-    return tipRows.filter(t=>members.has(t.memberId) && String(t.dt).slice(0,10) >= from && String(t.dt).slice(0,10) <= to)
+    return tipRows.filter(t=>members.has(t.memberId) && t.dt.slice(0,10) >= from && t.dt.slice(0,10) <= to)
                   .reduce((a,t)=>a+t.amount, 0);
   };
 
@@ -1213,7 +1256,7 @@ async function renderBetHistory(){
       processState: l.cancelledAt ? '취소됨' : settled ? '정상처리' : '실패',
       winLose: l.cancelledAt ? '취소' : !settled ? '미정산'
              : returned > staked ? '승리' : returned === staked ? '무승부' : '패배',
-      dt: l.createdAt || l.clientCreatedAt || '',
+      dt: ledgerStamp(l),
     };
   };
 
@@ -1788,7 +1831,7 @@ async function renderRoundEdit(){
       roundResult: roundResultText(rd),
       state,
       cancelled: !!(rd && rd.cancelled),
-      dt: l.createdAt || l.clientCreatedAt || '',
+      dt: ledgerStamp(l),
     };
   };
 
@@ -2314,9 +2357,11 @@ function settleWindowBounds(){
   const f = (LIST_STATE.activeFilters || {});
   return {from: f.at__from || '', to: f.at__to || ''};
 }
-function inSettleWindow(iso, from, to){
-  if (!iso) return false;
-  const v = String(iso).slice(0, 16);            // yyyy-mm-ddThh:mm, which is what the inputs give
+/* stamp is a local wall clock (ledgerStamp), which is the same clock the datetime inputs hand
+   back - so the two are directly comparable and a 09:00 search means 09:00 on the floor. */
+function inSettleWindow(stamp, from, to){
+  if (!stamp) return false;
+  const v = stamp.slice(0, 16);                  // yyyy-mm-ddThh:mm, which is what the inputs give
   if (from && v < from) return false;
   if (to   && v > to)   return false;
   return true;
@@ -2337,9 +2382,9 @@ async function renderDailySettlement(){
     });
     const acc = {};
     docs.filter(l=>l.category==='bet' && !l.cancelledAt).forEach(l=>{
-      const iso = l.createdAt || l.clientCreatedAt || '';
-      if (!inSettleWindow(iso, from, to)) return;
-      const day = String(iso).slice(0,10);
+      const stamp = ledgerStamp(l);
+      if (!inSettleWindow(stamp, from, to)) return;
+      const day = stamp.slice(0,10);
       const m = memberMap[l.memberId] || {};
       const tb = tableMap[l.relatedTableId] || {};
       const game = tb.type === 'avatar' ? '아바타' : tb.type === 'speed' ? '스피드'

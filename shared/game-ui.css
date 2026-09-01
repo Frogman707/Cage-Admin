@@ -1613,10 +1613,32 @@ body.faux-fs-lock{overflow:hidden;}
 .sd-live.is-fs .sd-table-id-mini{font-size:17px;}
 .sd-live.is-fs .sd-type-badge{font-size:12.5px;padding:6px 17px;}
 /* The countdown sits low on the right of the still, clear of the dealer's hands and of the
-   caption across the top. It was centred on 58% of the screen, which put it level with the
-   middle of the felt; 68% drops it into the lower half without reaching the strip at the foot. */
+   caption across the top.
+
+   It was placed at 68% of the stage, and the stage in here is the whole screen. That is only the
+   lower half of the STILL on a screen tall enough for the results row to be a small part of it -
+   which is a browser in its own fullscreen, and not a browser with its chrome on. Take 100px off
+   the height for a toolbar and 68% lands inside the row instead: at 1600x780 the ring came out
+   half behind the roads, and further down the screen sizes it went behind them almost entirely.
+   Reported from a PC, where pressing ⛶ made it whole again - which is the same thing said from
+   the other end.
+
+   The still already knows where it ends: it is laid out to bottom:var(--sd-board), the results
+   row's own height. So the ring hangs off that edge rather than off a fraction of a box that is
+   taller than the picture it is sitting on, and it clears the roads at every height. The corner
+   it is pinned by is the one it grows from, so the scale does not walk it back over them. */
 .sd-live.is-fs .timer-ring-wrap{
-  top:68%;bottom:auto;right:40px;transform:translateY(-50%) scale(1.7);
+  top:auto;bottom:calc(var(--sd-board) + 20px);right:40px;
+  transform:scale(1.7);transform-origin:100% 100%;
+}
+/* Hanging the ring off the results row rather than off a fraction of the screen means that on a
+   short one it rises, and far enough up it reaches the icon column down the right edge - which
+   ends around 290px from the top. The still has to be about 670px tall to keep them apart, which
+   is a window about 730 high. Below that the ring steps aside to the left of the column instead of
+   sitting under it; both are then whole, which is the same resolution the phone already makes
+   where these two meet. Nothing changes on a screen with the room for it. */
+@media (max-height:740px){
+  .sd-live.is-fs .timer-ring-wrap{right:96px;}
 }
 .sd-live.is-fs .sd-stage .phase-banner{top:74px;bottom:auto;font-size:21px;padding:10px 30px;border-radius:6px;}
 /* The two panels that ride the still - the AI reading and the avatar's chat - hang from the foot

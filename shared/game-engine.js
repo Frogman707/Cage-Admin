@@ -289,8 +289,12 @@ async function placeBet(db, {memberId, casino, tableId, roundId, betType, amount
 async function settleBet(db, {memberId, casino, tableId, roundId, betType, amount, resultInfo, staff}){
   const payout = payoutFor(betType, amount, resultInfo);
   if (payout > 0){
+    /* betType belongs in the row, not only in its id. It was in the id alone, so the row that
+       answers a bet did not say which bet it answered - and everything that reads the book pairs
+       a payout to a stake on round + spot + member. Unpaired, a winning hand read 패배 in
+       베팅내역 and its return was missing from 이후보유금, though the money itself had moved. */
     await withRetry('settleBet', ()=>db.collection('memberLedger').doc(ledgerRowId('payout', {memberId, roundId, betType})).set({
-      memberId, casino, amount: payout, category:'payout',
+      memberId, casino, amount: payout, category:'payout', betType,
       relatedTableId: tableId, relatedRoundId: roundId, staff: staff||'system',
       createdAt: firebase.firestore.FieldValue.serverTimestamp(), clientCreatedAt: new Date().toISOString(), deviceId: getDeviceId(),
     }));
@@ -302,8 +306,54 @@ async function settleBet(db, {memberId, casino, tableId, roundId, betType, amoun
   }
   return payout;
 }
-async function writeRoundDoc(db, {tableId, tableType, roundNo, shoeNo, sim, startedAt}){
-  const id = uuidv4();
+/* ---- the name a round goes by ----
+   The id is read by people. It is what a floor manager quotes down a phone, what a player points
+   at when they query a hand, and what the admin's 라운드ID search is typed into. So it says what
+   it is rather than being a uuid:
+
+     20260903HNS01001   =  the date, the table, and which game of the day it is
+
+   The number belongs to the TABLE and not to one client. Every client with the table open deals
+   its own game and they all write to one book, so a counter kept in the page would hand two of
+   them the same name for two different hands - and the round document is stored under that name.
+   One counter per table per day, bumped in a transaction, gives each of them a number nobody else
+   has.
+
+   If that counter cannot be reached - offline, or the write refused - the round still has to
+   start, so the number falls back to the second of the day. It comes out longer than three
+   digits, which is the point: a name in that shape says the counter was not reached. */
+function roundDayStamp(d){
+  const t = d || new Date();
+  const p = x => String(x).padStart(2,'0');
+  return `${t.getFullYear()}${p(t.getMonth()+1)}${p(t.getDate())}`;
+}
+function roundIdTable(tableId){
+  return String(tableId || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}
+async function nextRoundId(db, tableId){
+  const day = roundDayStamp(), table = roundIdTable(tableId);
+  try {
+    const ref = db.collection('roundCounters').doc(`${day}_${table}`);
+    const n = await db.runTransaction(async tx=>{
+      const doc = await tx.get(ref);
+      const next = ((doc.exists && Number(doc.data().n)) || 0) + 1;
+      tx.set(ref, {day, tableId: table, n: next}, {merge:true});
+      return next;
+    });
+    return `${day}${table}${String(n).padStart(3,'0')}`;
+  } catch (e){
+    console.error('round counter unreachable; naming this round by the clock instead', e);
+    const t = new Date();
+    const secs = t.getHours()*3600 + t.getMinutes()*60 + t.getSeconds();
+    return `${day}${table}${String(secs).padStart(6,'0')}`;
+  }
+}
+
+/* The round document is stored under the SAME id the bets on it were placed with. It used to mint
+   a fresh uuid of its own, so no bet ever found its round: 베팅내역 read 미정산 and 결과구분 read
+   — on every line ever written, however long ago the hand had been settled. */
+async function writeRoundDoc(db, {roundId, tableId, tableType, roundNo, shoeNo, sim, startedAt}){
+  const id = roundId || uuidv4();
   await db.collection('rounds').doc(id).set({
     tableId, tableType, roundNo, shoeNo, phase:'result',
     playerCards: sim.player.cards.map(c=>c.rank+c.suit), bankerCards: sim.banker.cards.map(c=>c.rank+c.suit),

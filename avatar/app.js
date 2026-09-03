@@ -1330,7 +1330,15 @@ function startAvatarRoundLoop(){
 function beginAvatarBettingPhase(){
   AVATAR.phase = 'betting';
   AVATAR.secondsLeft = AVATAR_BETTING_SECONDS;
-  AVATAR.currentRoundId = uuidv4();
+  /* The round is named from the table's own counter, which is a read - so the name arrives a
+     moment after the round opens. Nothing needs it until the chips are written at the end of
+     betting, thirty seconds later, and the dealing phase waits on this promise rather than
+     assuming it has landed. A token guards the adoption: a player who leaves the table and
+     opens another mid-read must not have this name land on the new round. */
+  AVATAR.currentRoundId = null;
+  const token = (AVATAR.roundToken = (AVATAR.roundToken || 0) + 1);
+  AVATAR.roundIdReady = nextRoundId(db, AVATAR.table && AVATAR.table.id)
+    .then(id=>{ if (AVATAR.roundToken === token) AVATAR.currentRoundId = id; return id; });
   AVATAR.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
   /* The round opens with nothing on it. The request used to carry a side and an amount and every
      round was staked with them before the player could say anything; the instruction is given at
@@ -1401,7 +1409,7 @@ async function beginAvatarDealingPhase(){
   // another while placeBet is still on the wire would otherwise have this call resume after the
   // switch and subtract the NEW round's total, or announce the wrong side, for a bet that was
   // actually placed under the OLD round entirely
-  const myRound = AVATAR.currentRoundId;
+  const myRound = AVATAR.currentRoundId || await AVATAR.roundIdReady;
   returnUnderMinAvatarBets();     // a short bet never reaches the felt, here as at a Speed table
   const bets = AVATAR.bets, total = avatarTotalBet();
   AVATAR.phase = 'dealing';
@@ -1501,7 +1509,7 @@ async function beginAvatarResultPhase(){
   await refreshBalance().catch(()=>{ if (totalPayout > 0) STATE.balance += totalPayout; paintPlayableBalance(); });
   refreshPointsQuiet();
 
-  await writeRoundDoc(db, {tableId, tableType:'avatar', roundNo, shoeNo:shoe.no, sim, startedAt:new Date(Date.now()-(AVATAR_BETTING_SECONDS+AVATAR_DEALING_SECONDS)*1000).toISOString()});
+  await writeRoundDoc(db, {roundId:myRound, tableId, tableType:'avatar', roundNo, shoeNo:shoe.no, sim, startedAt:new Date(Date.now()-(AVATAR_BETTING_SECONDS+AVATAR_DEALING_SECONDS)*1000).toISOString()});
   AVATAR.history.push(sim.result);
   AVATAR.pairFlags.push({playerPair:!!sim.playerPair, bankerPair:!!sim.bankerPair});
   AVATAR.roundNo++;
@@ -1566,7 +1574,16 @@ async function loadSpeedLobbyData(){
     SPEED.tstate[tb.id] = {
       phase:'betting', secondsLeft: SPEED_BETTING_SECONDS - (Object.keys(SPEED.tstate).length*3)%SPEED_BETTING_SECONDS,
       roundNo: (Math.max(0, ...all.map(r=>r.roundNo||0))||0)+1,
-      bets:{player:0, banker:0, tie:0, playerPair:0, bankerPair:0}, currentRoundId: uuidv4(),
+      /* A table opens mid-round, so its first round is named here the same way every later one
+         is named in beginSpeedBetting. Seeding a uuid instead meant the first hand at every table
+         carried an unreadable id - and it is the one a player is most likely to be looking at. */
+      bets:{player:0, banker:0, tie:0, playerPair:0, bankerPair:0},
+      currentRoundId: null, roundToken: 1,
+      roundIdReady: nextRoundId(db, tb.id).then(id=>{
+        const st = SPEED.tstate[tb.id];
+        if (st && st.roundToken === 1) st.currentRoundId = id;
+        return id;
+      }),
       history: rounds.map(r=>r.result),
       pairFlags: rounds.map(r=>({playerPair:!!r.playerPair, bankerPair:!!r.bankerPair})),
       shoe: openShoeAt(shoeNo, rounds.length),   // stands where the record left it
@@ -2593,7 +2610,12 @@ function beginSpeedBetting(tableId){
   const s = SPEED.tstate[tableId];
   const hadBets = Object.values(s.bets).some(v=>v>0);
   if (hadBets) s.lastBets = {...s.bets};
-  s.phase = 'betting'; s.secondsLeft = SPEED_BETTING_SECONDS; s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0}; s.currentRoundId = uuidv4();
+  s.phase = 'betting'; s.secondsLeft = SPEED_BETTING_SECONDS; s.bets = {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
+  // named from the table's counter, as at an avatar table - see beginAvatarBettingPhase
+  s.currentRoundId = null;
+  const roundToken = (s.roundToken = (s.roundToken || 0) + 1);
+  s.roundIdReady = nextRoundId(db, tableId)
+    .then(id=>{ if (s.roundToken === roundToken) s.currentRoundId = id; return id; });
   if (SPEED.detailTableId === tableId) renderAiPrediction(tableId);   // read the shoe once a round
   s.settling = false;
   s.confirmed = null;
@@ -2624,6 +2646,8 @@ async function beginSpeedDealing(tableId){
   setSpeedTilePhaseText(tableId, t('phaseDealing'));
   // Only what was confirmed rides. Chips left on a spot without pressing 베팅완료 are pushed
   // back untouched - they were never actually placed.
+  // the round's name is a read, so it is waited on here rather than assumed - see the avatar side
+  const myRound = s.currentRoundId || await s.roundIdReady;
   const unconfirmed = speedBetsTotal(s.bets) - speedBetsTotal(s.confirmed);
   s.bets = s.confirmed ? {...s.confirmed} : {player:0, banker:0, tie:0, playerPair:0, bankerPair:0};
   s.confirmed = null;
@@ -2644,7 +2668,7 @@ async function beginSpeedDealing(tableId){
      The record then chains from it, one line per spot. */
   s.openingBalance = STATE.balance;
   for (const [betType, amount] of Object.entries(s.bets)){
-    if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, staff:CAGE_LEDGER_SOURCE.speed});
+    if (amount > 0) await placeBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:myRound, betType, amount, staff:CAGE_LEDGER_SOURCE.speed});
   }
   const totalBet = Object.values(s.bets).reduce((a,b)=>a+b,0);
   /* The lock comes off before the read, not after. s.settling means "staked, but the books have
@@ -2700,6 +2724,8 @@ async function beginSpeedResult(tableId){
   // the next second call it in rather than reading the cards off a round that has none
   if (!s._sim) return;
   s.phase = 'result'; s.secondsLeft = SPEED_RESULT_SECONDS;
+  // this round's own name, read once before settling rather than live afterward
+  const myRound = s.currentRoundId;
   const sim = s._sim;
   const tb = SPEED.tables[tableId];
   setSpeedTilePhaseText(tableId, sim.result==='player' ? 'PLAYER WIN' : sim.result==='banker' ? 'BANKER WIN' : 'TIE');
@@ -2717,7 +2743,7 @@ async function beginSpeedResult(tableId){
   let running = Number.isFinite(s.openingBalance) ? s.openingBalance : STATE.balance;
   for (const [betType, amount] of Object.entries(s.bets)){
     if (amount <= 0) continue;
-    const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:s.currentRoundId, betType, amount, resultInfo:sim, staff:CAGE_LEDGER_SOURCE.speed});
+    const payout = await settleBet(db, {memberId:PLAYER.id, casino:PLAYER.casino, tableId, roundId:myRound, betType, amount, resultInfo:sim, staff:CAGE_LEDGER_SOURCE.speed});
     totalPayout += payout;
     const balanceBefore = running, balanceAfter = running - amount + payout;
     running = balanceAfter;
@@ -2730,7 +2756,7 @@ async function beginSpeedResult(tableId){
   if (staked > 0) toast(`[${tb.name}] ${roundOutcomeText(staked, totalPayout)}`);
   await refreshBalance().catch(()=>{ if (totalPayout > 0) STATE.balance += totalPayout; paintPlayableBalance(); });
 
-  await writeRoundDoc(db, {tableId, tableType:'speed', roundNo:s.roundNo, shoeNo:s.shoe.no, sim, startedAt:new Date(Date.now()-(SPEED_BETTING_SECONDS+SPEED_DEALING_SECONDS)*1000).toISOString()});
+  await writeRoundDoc(db, {roundId:myRound, tableId, tableType:'speed', roundNo:s.roundNo, shoeNo:s.shoe.no, sim, startedAt:new Date(Date.now()-(SPEED_BETTING_SECONDS+SPEED_DEALING_SECONDS)*1000).toISOString()});
   s.history.push(sim.result);
   s.pairFlags.push({playerPair:!!sim.playerPair, bankerPair:!!sim.bankerPair});
   s.roundNo++;

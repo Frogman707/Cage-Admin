@@ -1227,13 +1227,27 @@ async function betHistoryContext(){
 
   /* What a bet was answered with: the payout, plus any correction made to it since - a round put
      right through 게임 라운드 수정 must show on the line it corrected. */
+  /* Every payout written before settleBet carried betType in the row rather than only in its id
+     has no spot on it, and a payout with no spot pairs to no bet. Where the member had a single
+     bet on that round there is only one bet it can be answering, so it is read onto that one -
+     which is most of the history. A round they had two spots on stays unpaired, as it already
+     was: guessing which of them a bare payout belonged to would be inventing the answer. */
+  const spotsOn = {};
+  ledger.filter(l=>l.category==='bet').forEach(l=>{
+    const k = `${l.relatedRoundId}|${l.memberId}`;
+    (spotsOn[k] = spotsOn[k] || []).push(l.betType);
+  });
+  const payoutKey = l => {
+    if (l.betType) return `${l.relatedRoundId}|${l.betType}|${l.memberId}`;
+    const spots = spotsOn[`${l.relatedRoundId}|${l.memberId}`] || [];
+    return spots.length === 1 ? `${l.relatedRoundId}|${spots[0]}|${l.memberId}` : null;
+  };
   const payoutOf = {};
   ledger.filter(l=>l.category==='payout' || l.category==='result_edit').forEach(l=>{
-    const k = `${l.relatedRoundId}|${l.betType}|${l.memberId}`;
-    payoutOf[k] = (payoutOf[k] || 0) + (Number(l.amount)||0);
+    const k = payoutKey(l);
+    if (k) payoutOf[k] = (payoutOf[k] || 0) + (Number(l.amount)||0);
   });
-  const paidOn = new Set(ledger.filter(l=>l.category==='payout')
-    .map(l=>`${l.relatedRoundId}|${l.betType}|${l.memberId}`));
+  const paidOn = new Set(ledger.filter(l=>l.category==='payout').map(payoutKey).filter(Boolean));
 
   // every movement of a member's money that is not a bet's own stake or return
   const outside = {};
@@ -1319,7 +1333,9 @@ async function renderBetHistory(){
       staked, returned,
       net: returned - staked,
       betKind: BET_LABEL[l.betType] || l.betType || '—',
-      roundResult: rd ? betResultLabel(rd.result) : '—',
+      // the hand as it came out: the side that took it, and either pair that landed with it -
+      // 플레이어 / 뱅커 / 타이 / 플레이어페어 / 뱅커페어, the five things a round can be
+      roundResult: roundResultText(rd),
       processState: l.cancelledAt ? '취소됨' : settled ? '정상처리' : '실패',
       winLose: l.cancelledAt ? '취소' : !settled ? '미정산'
              : returned > staked ? '승리' : returned === staked ? '무승부' : '패배',
@@ -1351,7 +1367,10 @@ async function renderBetHistory(){
       {key:'memberId', label:'회원ID'},
       {key:'account', label:'어카운트', render:r=>r.account||'—'},
       {key:'parentAgent', label:'상위어카운트'},
-      {key:'relatedRoundId', label:'라운드ID', render:r=>`<span class="num">${String(r.relatedRoundId||'—').slice(0,8)}</span>`},
+      /* Printed whole. It was cut to eight characters because a uuid is unreadable at any length,
+         and eight of one is as good as any other; a name that says the date, the table and the
+         game of the day is only useful entire - cut to eight it read 20260903 on every line. */
+      {key:'relatedRoundId', label:'라운드ID', render:r=>`<span class="num">${escapeHtml(r.relatedRoundId||'—')}</span>`},
       {key:'casino', label:'카지노', render:r=>r.casino||'—'},
       {key:'relatedTableId', label:'테이블아이디', render:r=>r.relatedTableId||'—'},
       {key:'tableType', label:'테이블종류'},
@@ -1924,7 +1943,10 @@ async function renderRoundEdit(){
       {key:'__no', label:'No', render:(r,no)=>no},
       {key:'memberId', label:'회원ID'},
       {key:'account', label:'어카운트', render:r=>r.account||'—'},
-      {key:'relatedRoundId', label:'라운드ID', render:r=>`<span class="num">${String(r.relatedRoundId||'—').slice(0,8)}</span>`},
+      /* Printed whole. It was cut to eight characters because a uuid is unreadable at any length,
+         and eight of one is as good as any other; a name that says the date, the table and the
+         game of the day is only useful entire - cut to eight it read 20260903 on every line. */
+      {key:'relatedRoundId', label:'라운드ID', render:r=>`<span class="num">${escapeHtml(r.relatedRoundId||'—')}</span>`},
       {key:'casino', label:'카지노', render:r=>r.casino||'—'},
       {key:'relatedTableId', label:'테이블아이디', render:r=>r.relatedTableId||'—'},
       {key:'gameType', label:'게임종류'},
@@ -1958,7 +1980,7 @@ async function openRoundEditModal(roundId){
   if (!rd){ toast('라운드를 찾을 수 없습니다', true); return; }
   if (rd.cancelled){ toast('취소된 라운드는 수정할 수 없습니다', true); return; }
   const cur = rd.result;
-  document.getElementById('formModalTitle').textContent = `라운드 결과 수정 · ${roundId.slice(0,8)}`;
+  document.getElementById('formModalTitle').textContent = `라운드 결과 수정 · ${roundId}`;
   document.getElementById('formModalBody').innerHTML = `
     <p class="hint">현재 결과: <b>${roundResultText(rd)}</b>. 결과를 고치면 이 라운드의 모든 베팅을 새 결과로 다시 정산하고, 이미 지급된 금액과의 차액만 원장에 기록합니다.</p>
     <div class="field"><label>결과</label><select id="reResult">
@@ -2044,7 +2066,7 @@ async function submitRoundResultEdit(roundId, next, reason){
   switchView(CURRENT_VIEW);
 }
 function openRoundCancelModal(roundId, tableId){
-  document.getElementById('formModalTitle').textContent = `라운드 취소 · ${roundId.slice(0,8)}`;
+  document.getElementById('formModalTitle').textContent = `라운드 취소 · ${roundId}`;
   document.getElementById('formModalBody').innerHTML = `
     <p class="hint">이 라운드에 걸린 모든 베팅을 전액 환불하고(지급된 페이아웃은 회수), 라운드를 취소 상태로 표시합니다.</p>
     <div class="field"><label>취소 사유</label><select id="rcReason">
